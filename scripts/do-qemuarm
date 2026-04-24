@@ -240,7 +240,7 @@ done
 if (( DO_NET )); then
     ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
     ARGS+=("-device" "${VIRTIO_NET_DEVICE},netdev=vmnic")
-elif (( $DO_NET_TAP )); then
+elif (( DO_NET_TAP )); then
     # quick note to enable tap interface
     # IFNAME=qemu0
     # BRIDGE=bridge0

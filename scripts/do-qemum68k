@@ -2,10 +2,112 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+function HELP {
+    echo "help:"
+    echo "-c <cpu>          : CPU type (default: 68040, valid: 68000, 68010, 68020, 68030, 68040, 68060)"
+    echo "-m <memory in MB> : memory size (default: 64 MB)"
+    echo "-p <project>      : specify the project to build (default: qemu-virt-m68k-test)"
+    echo
+    echo "-d <disk image>   : add a virtio disk device (may be used multiple times)"
+    echo "-n                : add a virtio network device (user mode networking)"
+    echo "-g                : add a virtio display (GPU, keyboard, mouse)"
+    echo "-f <shared dir>   : add a virtio 9p device with a host shared directory"
+    echo
+    echo "-X                : print QEMU command and exit (dry run)"
+    echo
+    echo "-h                : show this help"
+    echo "all arguments after -- are passed to qemu directly"
+    exit 1
+}
+
+CPU=68040
+MEMSIZE=64
+PROJECT=""
+DO_DRYRUN=0
+DO_NET=0
+DO_DISPLAY=0
+DISK_IMAGES=()
+DO_V9P=0
+DO_V9P_DIR=""
+
+while getopts c:d:fgm:pg:Xnh FLAG; do
+    case $FLAG in
+        c) CPU=$OPTARG;;
+        d) DISK_IMAGES+=("$OPTARG");;
+        f) DO_V9P=1; DO_V9P_DIR=$OPTARG;;
+        m) MEMSIZE=$OPTARG;;
+        n) DO_NET=1;;
+        p) PROJECT=$OPTARG;;
+        g) DO_DISPLAY=1;;
+        X) DO_DRYRUN=1;;
+        h) HELP;;
+        \?)
+            echo "unrecognized option"
+            HELP
+    esac
+done
+
+shift $((OPTIND-1))
+
+# validate CPU type
+case "$CPU" in
+    68000|68010|68020|68030|68040|68060) ;;
+    *)
+        echo "Error: invalid CPU type '$CPU'. Valid: 68000, 68010, 68020, 68030, 68040, 68060"
+        exit 1
+        ;;
+esac
+
+# allow overriding the project from the environment
+if [ -z "$PROJECT" ]; then
+    PROJECT="qemu-virt-m68k-test"
+fi
+
+export M68K_CPU=${CPU}
+
+# construct a list of args based on previous variables using arrays
+ARGS=()
+ARGS+=("-machine" "virt")
+ARGS+=("-m" "$MEMSIZE")
+ARGS+=("-cpu" "m${CPU}")
+ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
+
+DISK_COUNT=0
+for img in "${DISK_IMAGES[@]}"; do
+    ARGS+=("-drive" "if=none,file=${img},id=blk${DISK_COUNT},format=raw")
+    ARGS+=("-device" "virtio-blk-device,drive=blk${DISK_COUNT}")
+    ((DISK_COUNT++))
+done
+
+if (( DO_NET )); then
+    ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
+    ARGS+=("-device" "virtio-net-device,netdev=vmnic")
+else
+    ARGS+=("-net" "none")
+fi
+
+if (( DO_DISPLAY )); then
+    ARGS+=("-device" "virtio-gpu-device")
+    ARGS+=("-serial" "stdio")
+    ARGS+=("-device" "virtio-keyboard-device")
+    ARGS+=("-device" "virtio-mouse-device")
+else
+    ARGS+=("-nographic")
+fi
+
+if (( DO_V9P )); then
+    ARGS+=("-fsdev" "local,path=$DO_V9P_DIR,security_model=mapped,id=v9p0")
+    ARGS+=("-device" "virtio-9p-device,fsdev=v9p0,mount_tag=V9P0")
+fi
+
+CMD=(qemu-system-m68k "${ARGS[@]}" "$@")
+
+if (( DO_DRYRUN )); then
+    echo "${CMD[@]}"
+    exit 0
+fi
+
 set -e
-set -x
-
-PROJECT=qemu-virt-m68k-test
-
-"$DIR"/make-parallel $PROJECT
-exec qemu-system-m68k -machine virt -m 64 -cpu m68040 -kernel build-${PROJECT}/lk.elf -nographic $@
+echo "${CMD[@]}"
+"$DIR"/make-parallel PROJECT="$PROJECT"
+exec "${CMD[@]}"
