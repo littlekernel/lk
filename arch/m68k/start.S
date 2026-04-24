@@ -9,6 +9,15 @@
 
 .section .text.boot
 FUNCTION(_start)
+#if M68K_CPU == 68000 && PLATFORM_QEMU_VIRT_M68K
+    // QEMU's m68k emulation loads us at 0 which is where the vector table needs to be.
+    // Insert a NOP sled to fill the vector table space (256 entries × 4 bytes = 1024 bytes).
+    // This allows the vector table to be later copied to address 0 without overwriting code.
+.rept 256
+    nop
+    nop
+.endr
+#endif
     // load the first 4 args that were pushed on whatever stack we have
     // NOTE: assumes stack is pointing at at least readable memory
     movl    %sp@(4),%d4
@@ -61,7 +70,7 @@ bss_clear:
 1:
 
 #if M68K_CPU == 68000
-// Copy vector table to 0x0, no VBR here
+    // Copy vector table to 0x0, no VBR here
     lea %pc@(exc_vectors),%a0
     move.l #0,%a1
     move.w #255,%d0
