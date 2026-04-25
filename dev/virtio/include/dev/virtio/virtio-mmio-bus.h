@@ -16,7 +16,7 @@ struct virtio_mmio_config;
 
 class virtio_mmio_bus final : public virtio_bus {
 public:
-    explicit virtio_mmio_bus(volatile virtio_mmio_config *config) : mmio_config_(config) {}
+    virtio_mmio_bus(volatile virtio_mmio_config *config, uint32_t version) : mmio_config_(config), mmio_version_(version) {}
     ~virtio_mmio_bus() override = default;
 
     void virtio_reset_device() override;
@@ -32,6 +32,7 @@ public:
 
 private:
     volatile struct virtio_mmio_config *mmio_config_;
+    uint32_t mmio_version_;
 };
 
 void dump_mmio_config(const volatile virtio_mmio_config *mmio);

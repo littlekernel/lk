@@ -35,7 +35,7 @@ void virtio_device::virtio_free_desc(uint ring_index, uint16_t desc_index) {
 
     vring &ring = ring_[ring_index];
 
-    ring.desc[desc_index].next = ring.free_list;
+    vring_desc_write_next(&ring.desc[desc_index], ring.free_list);
     ring.free_list = desc_index;
     ring.free_count++;
 }
@@ -52,7 +52,7 @@ uint16_t virtio_device::virtio_alloc_desc(uint ring_index) {
 
     uint16_t i = ring.free_list;
     vring_desc *desc = &ring.desc[i];
-    ring.free_list = desc->next;
+    ring.free_list = vring_desc_read_next(desc);
 
     ring.free_count--;
 
@@ -74,16 +74,16 @@ vring_desc *virtio_device::virtio_alloc_desc_chain(uint ring_index, size_t count
         uint16_t i = ring.free_list;
         vring_desc *desc = &ring.desc[i];
 
-        ring.free_list = desc->next;
+        ring.free_list = vring_desc_read_next(desc);
         ring.free_count--;
 
         if (last) {
-            desc->flags = VRING_DESC_F_NEXT;
-            desc->next = last_index;
+            vring_desc_write_flags(desc, VRING_DESC_F_NEXT);
+            vring_desc_write_next(desc, last_index);
         } else {
             // first one
-            desc->flags = 0;
-            desc->next = 0;
+            vring_desc_write_flags(desc, 0);
+            vring_desc_write_next(desc, 0);
         }
         last = desc;
         last_index = i;
@@ -107,9 +107,11 @@ void virtio_device::virtio_submit_chain(uint ring_index, uint16_t desc_index) {
     /* add the chain to the available list */
     vring_avail *avail = ring.avail;
 
-    avail->ring[avail->idx & ring.num_mask] = desc_index;
+    uint16_t avail_idx = vring_avail_read_idx(avail);
+
+    vring_avail_write_ring(avail, avail_idx & ring.num_mask, desc_index);
     mb();
-    avail->idx++;
+    vring_avail_write_idx(avail, avail_idx + 1);
 
 #if LOCAL_TRACE
     hexdump(avail, 16);
@@ -193,18 +195,22 @@ handler_return virtio_device::handle_queue_interrupt() {
         vring &ring = ring_[r];
 
         LTRACEF("desc %p, avail %p, used %p\n", ring.desc, ring.avail, ring.used);
-        LTRACEF("ring %u: used flags 0x%hx idx 0x%hx last_used %u\n", r, ring.used->flags, ring.used->idx, ring.last_used);
+        LTRACEF("ring %u: used flags 0x%hx idx 0x%hx last_used %u\n", r,
+                vring_used_read_flags(ring.used), vring_used_read_idx(ring.used), ring.last_used);
 
-        uint cur_idx = ring.used->idx;
+        uint cur_idx = vring_used_read_idx(ring.used);
         for (uint i = ring.last_used; i != (cur_idx & ring.num_mask); i = (i + 1) & ring.num_mask) {
             LTRACEF("looking at idx %u\n", i);
 
             // process chain
-            vring_used_elem *used_elem = &ring.used->ring[i];
-            LTRACEF("id %u, len %u\n", used_elem->id, used_elem->len);
+            vring_used_elem used_elem = {
+                .id = vring_used_read_elem_id(ring.used, i),
+                .len = vring_used_read_elem_len(ring.used, i),
+            };
+            LTRACEF("id %u, len %u\n", used_elem.id, used_elem.len);
 
             DEBUG_ASSERT(irq_driver_callback_);
-            if (irq_driver_callback_(this, r, used_elem) == INT_RESCHEDULE) {
+            if (irq_driver_callback_(this, r, &used_elem) == INT_RESCHEDULE) {
                 ret = INT_RESCHEDULE;
             }
 

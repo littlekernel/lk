@@ -13,6 +13,7 @@
 #include <lk/trace.h>
 #include <lk/err.h>
 #include <lk/pow2.h>
+#include <lk/reg.h>
 #include <arch/ops.h>
 #include <dev/virtio.h>
 #include <dev/virtio/virtio-device.h>
@@ -38,7 +39,7 @@
 
 #define LOCAL_TRACE 0
 
-// V1 config
+// V1/V2 config
 struct virtio_mmio_config {
     /* 0x00 */
     uint32_t magic;
@@ -58,10 +59,11 @@ struct virtio_mmio_config {
     uint32_t queue_sel;
     uint32_t queue_num_max;
     uint32_t queue_num;
-    uint32_t queue_align;
+    uint32_t queue_align;      // v1 (legacy) only
     /* 0x40 */
-    uint32_t queue_pfn;
-    uint32_t _reserved2[3];
+    uint32_t queue_pfn;        // v1 (legacy) only
+    uint32_t queue_ready;      // v2 (modern) only
+    uint32_t _reserved2[2];
     /* 0x50 */
     uint32_t queue_notify;
     uint32_t _reserved3[3];
@@ -71,7 +73,21 @@ struct virtio_mmio_config {
     uint32_t _reserved4[2];
     /* 0x70 */
     uint32_t status;
-    uint8_t  _reserved5[0x8c];
+    uint32_t _reserved5[3];
+    /* 0x80 */
+    uint32_t queue_desc_low;   // v2 (modern) only
+    uint32_t queue_desc_high;  // v2 (modern) only
+    uint32_t _reserved6[2];
+    /* 0x90 */
+    uint32_t queue_avail_low;  // v2 (modern) only
+    uint32_t queue_avail_high; // v2 (modern) only
+    uint32_t _reserved7[2];
+    /* 0xa0 */
+    uint32_t queue_used_low;   // v2 (modern) only
+    uint32_t queue_used_high;  // v2 (modern) only
+    uint32_t _reserved8[21];
+    /* 0xfc */
+    uint32_t config_generation; // v2 (modern) only
     /* 0x100 */
     uint32_t config[0];
 };
@@ -83,16 +99,15 @@ STATIC_ASSERT(sizeof(struct virtio_mmio_config) == 0x100);
 namespace {
 
 inline uint32_t virtio_mmio_read32(const volatile uint32_t *reg) {
-    return LE32(*reg);
+    return LE32(mmio_read32((volatile uint32_t *)reg));
 }
 
 inline void virtio_mmio_write32(volatile uint32_t *reg, uint32_t val) {
-    *reg = LE32(val);
+    mmio_write32(reg, LE32(val));
 }
 
 } // namespace
 
-// TODO: switch to using reg.h mmio_ accessors
 void virtio_mmio_bus::virtio_reset_device() {
     virtio_mmio_write32(&mmio_config_->status, 0);
 }
@@ -101,10 +116,35 @@ void virtio_mmio_bus::virtio_status_acknowledge_driver() {
     uint32_t status = virtio_mmio_read32(&mmio_config_->status);
     status |= VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER;
     virtio_mmio_write32(&mmio_config_->status, status);
+
+    if (mmio_version_ == 2) {
+        // Modern virtio-mmio requires VERSION_1 negotiation in feature word 1.
+        constexpr uint32_t version1_bit_word1 = static_cast<uint32_t>(VIRTIO_F_VERSION_1 >> 32);
+        uint32_t host_features_word1 = virtio_read_host_feature_word(1);
+        uint32_t guest_features_word1 = 0;
+        if (host_features_word1 & version1_bit_word1) {
+            guest_features_word1 |= version1_bit_word1;
+        }
+        virtio_set_guest_features(1, guest_features_word1);
+    }
 }
 
 void virtio_mmio_bus::virtio_status_driver_ok() {
     uint32_t status = virtio_mmio_read32(&mmio_config_->status);
+
+    if (mmio_version_ == 2 && !(status & VIRTIO_STATUS_FEATURES_OK)) {
+        status |= VIRTIO_STATUS_FEATURES_OK;
+        virtio_mmio_write32(&mmio_config_->status, status);
+
+        status = virtio_mmio_read32(&mmio_config_->status);
+        if (!(status & VIRTIO_STATUS_FEATURES_OK)) {
+            status |= VIRTIO_STATUS_FAILED;
+            virtio_mmio_write32(&mmio_config_->status, status);
+            printf("virtio-mmio v2: device rejected feature negotiation\n");
+            return;
+        }
+    }
+
     status |= VIRTIO_STATUS_DRIVER_OK;
     virtio_mmio_write32(&mmio_config_->status, status);
 }
@@ -131,11 +171,40 @@ void virtio_mmio_bus::virtio_kick(uint16_t ring_index) {
 
 void virtio_mmio_bus::register_ring(uint32_t page_size, uint32_t queue_sel, uint32_t queue_num, uint32_t queue_align, uint32_t queue_pfn) {
     DEBUG_ASSERT(mmio_config_);
-    virtio_mmio_write32(&mmio_config_->guest_page_size, page_size);
+
     virtio_mmio_write32(&mmio_config_->queue_sel, queue_sel);
+
+    uint32_t queue_num_max = virtio_mmio_read32(&mmio_config_->queue_num_max);
+    if (queue_num_max == 0 || queue_num > queue_num_max) {
+        printf("virtio-mmio: invalid queue size %u (max %u) for queue %u\n", queue_num, queue_num_max, queue_sel);
+        return;
+    }
+
     virtio_mmio_write32(&mmio_config_->queue_num, queue_num);
-    virtio_mmio_write32(&mmio_config_->queue_align, queue_align);
-    virtio_mmio_write32(&mmio_config_->queue_pfn, queue_pfn);
+
+    if (mmio_version_ == 1) {
+        virtio_mmio_write32(&mmio_config_->guest_page_size, page_size);
+        virtio_mmio_write32(&mmio_config_->queue_align, queue_align);
+        virtio_mmio_write32(&mmio_config_->queue_pfn, queue_pfn);
+        return;
+    }
+
+    if (mmio_version_ == 2) {
+        uint64_t queue_pa = static_cast<uint64_t>(queue_pfn) * page_size;
+        uint64_t desc_pa = queue_pa;
+        uint64_t avail_pa = queue_pa + static_cast<uint64_t>(queue_num) * sizeof(vring_desc);
+        uint64_t used_pa = (avail_pa + sizeof(uint16_t) * (3 + queue_num) + queue_align - 1) &
+                           ~(static_cast<uint64_t>(queue_align) - 1);
+
+        virtio_mmio_write32(&mmio_config_->queue_ready, 0);
+        virtio_mmio_write32(&mmio_config_->queue_desc_low, static_cast<uint32_t>(desc_pa));
+        virtio_mmio_write32(&mmio_config_->queue_desc_high, static_cast<uint32_t>(desc_pa >> 32));
+        virtio_mmio_write32(&mmio_config_->queue_avail_low, static_cast<uint32_t>(avail_pa));
+        virtio_mmio_write32(&mmio_config_->queue_avail_high, static_cast<uint32_t>(avail_pa >> 32));
+        virtio_mmio_write32(&mmio_config_->queue_used_low, static_cast<uint32_t>(used_pa));
+        virtio_mmio_write32(&mmio_config_->queue_used_high, static_cast<uint32_t>(used_pa >> 32));
+        virtio_mmio_write32(&mmio_config_->queue_ready, 1);
+    }
 }
 
 void dump_mmio_config(const volatile virtio_mmio_config *mmio) {
@@ -213,24 +282,24 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             continue;
         }
 
-        if (LOCAL_TRACE) {
-            if (device_id != 0) {
-                dump_mmio_config(mmio);
-            }
-        }
-
-        // TODO: handle version 2
-        // Unclear how to get QEMU to handle version 2 mmio interfaces
-        if (version != 1) {
-            if (version == 2) {
-                printf("skipping virtio-mmio modern interface (version 2): not supported yet\n");
-            } else {
-                printf("skipping virtio-mmio device with unsupported version %u\n", version);
-            }
+        if (device_id == 0) {
             continue;
         }
 
-        auto *bus = new virtio_mmio_bus(mmio);
+        if (LOCAL_TRACE) {
+            dump_mmio_config(mmio);
+        }
+
+        if (version != 1 && version != 2) {
+            printf("skipping virtio-mmio device with unsupported version %u\n", version);
+            continue;
+        }
+
+        if (version == 2) {
+            printf("virtio-mmio modern interface (version 2): preliminary support enabled\n");
+        }
+
+        auto *bus = new virtio_mmio_bus(mmio, version);
         auto *dev = new virtio_device(bus);
         devices[i] = dev;
 

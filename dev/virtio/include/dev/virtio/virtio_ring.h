@@ -33,7 +33,9 @@
  *
  * Copyright Rusty Russell IBM Corporation 2007. */
 #include <stdint.h>
+#include <endian.h>
 #include <lk/pow2.h>
+#include <lk/reg.h>
 
 /* This marks a buffer as continuing via the next field. */
 #define VRING_DESC_F_NEXT   1
@@ -91,6 +93,96 @@ struct vring_used {
     uint16_t idx;
     struct vring_used_elem ring[];
 };
+
+/*
+ * Virtqueue memory is transport-shared uncached memory, not ordinary cached RAM.
+ * Access it with exact-width helpers so the compiler/arch do not combine adjacent
+ * fields into wider accesses that can violate alignment or transport expectations.
+ */
+
+static inline uint64_t vring_mmio_read64(const volatile uint64_t *ptr) {
+    const volatile uint32_t *words = (const volatile uint32_t *)ptr;
+    return (uint64_t)mmio_read32((volatile uint32_t *)&words[0]) |
+           ((uint64_t)mmio_read32((volatile uint32_t *)&words[1]) << 32);
+}
+
+static inline void vring_mmio_write64(volatile uint64_t *ptr, uint64_t val) {
+    volatile uint32_t *words = (volatile uint32_t *)ptr;
+    mmio_write32(&words[0], (uint32_t)val);
+    mmio_write32(&words[1], (uint32_t)(val >> 32));
+}
+
+static inline uint64_t vring_desc_read_addr(const struct vring_desc *desc) {
+    return LE64(vring_mmio_read64((const volatile uint64_t *)&desc->addr));
+}
+
+static inline uint32_t vring_desc_read_len(const struct vring_desc *desc) {
+    return LE32(mmio_read32((volatile uint32_t *)&desc->len));
+}
+
+static inline uint16_t vring_desc_read_flags(const struct vring_desc *desc) {
+    return LE16(mmio_read16((volatile uint16_t *)&desc->flags));
+}
+
+static inline uint16_t vring_desc_read_next(const struct vring_desc *desc) {
+    return LE16(mmio_read16((volatile uint16_t *)&desc->next));
+}
+
+static inline void vring_desc_write_addr(struct vring_desc *desc, uint64_t addr) {
+    vring_mmio_write64(&desc->addr, LE64(addr));
+}
+
+static inline void vring_desc_write_len(struct vring_desc *desc, uint32_t len) {
+    mmio_write32(&desc->len, LE32(len));
+}
+
+static inline void vring_desc_write_flags(struct vring_desc *desc, uint16_t flags) {
+    mmio_write16(&desc->flags, LE16(flags));
+}
+
+static inline void vring_desc_write_next(struct vring_desc *desc, uint16_t next) {
+    mmio_write16(&desc->next, LE16(next));
+}
+
+static inline uint16_t vring_avail_read_flags(const struct vring_avail *avail) {
+    return LE16(mmio_read16((volatile uint16_t *)&avail->flags));
+}
+
+static inline uint16_t vring_avail_read_idx(const struct vring_avail *avail) {
+    return LE16(mmio_read16((volatile uint16_t *)&avail->idx));
+}
+
+static inline void vring_avail_write_flags(struct vring_avail *avail, uint16_t flags) {
+    mmio_write16(&avail->flags, LE16(flags));
+}
+
+static inline void vring_avail_write_idx(struct vring_avail *avail, uint16_t idx) {
+    mmio_write16(&avail->idx, LE16(idx));
+}
+
+static inline uint16_t vring_avail_read_ring(const struct vring_avail *avail, uint16_t index) {
+    return LE16(mmio_read16((volatile uint16_t *)&avail->ring[index]));
+}
+
+static inline void vring_avail_write_ring(struct vring_avail *avail, uint16_t index, uint16_t value) {
+    mmio_write16(&avail->ring[index], LE16(value));
+}
+
+static inline uint16_t vring_used_read_flags(const struct vring_used *used) {
+    return LE16(mmio_read16((volatile uint16_t *)&used->flags));
+}
+
+static inline uint16_t vring_used_read_idx(const struct vring_used *used) {
+    return LE16(mmio_read16((volatile uint16_t *)&used->idx));
+}
+
+static inline uint32_t vring_used_read_elem_id(const struct vring_used *used, uint16_t index) {
+    return LE32(mmio_read32((volatile uint32_t *)&used->ring[index].id));
+}
+
+static inline uint32_t vring_used_read_elem_len(const struct vring_used *used, uint16_t index) {
+    return LE32(mmio_read32((volatile uint32_t *)&used->ring[index].len));
+}
 
 struct vring {
     uint32_t num;
