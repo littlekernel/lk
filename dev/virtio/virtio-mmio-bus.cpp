@@ -9,6 +9,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <endian.h>
 #include <lk/trace.h>
 #include <lk/err.h>
 #include <lk/pow2.h>
@@ -79,27 +80,43 @@ STATIC_ASSERT(sizeof(struct virtio_mmio_config) == 0x100);
 
 #define VIRTIO_MMIO_MAGIC 0x74726976 // 'virt'
 
+namespace {
+
+inline uint32_t virtio_mmio_read32(const volatile uint32_t *reg) {
+    return LE32(*reg);
+}
+
+inline void virtio_mmio_write32(volatile uint32_t *reg, uint32_t val) {
+    *reg = LE32(val);
+}
+
+} // namespace
+
 // TODO: switch to using reg.h mmio_ accessors
 void virtio_mmio_bus::virtio_reset_device() {
-    mmio_config_->status = 0;
+    virtio_mmio_write32(&mmio_config_->status, 0);
 }
 
 void virtio_mmio_bus::virtio_status_acknowledge_driver() {
-    mmio_config_->status |= VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER;
+    uint32_t status = virtio_mmio_read32(&mmio_config_->status);
+    status |= VIRTIO_STATUS_ACKNOWLEDGE | VIRTIO_STATUS_DRIVER;
+    virtio_mmio_write32(&mmio_config_->status, status);
 }
 
 void virtio_mmio_bus::virtio_status_driver_ok() {
-    mmio_config_->status |= VIRTIO_STATUS_DRIVER_OK;
+    uint32_t status = virtio_mmio_read32(&mmio_config_->status);
+    status |= VIRTIO_STATUS_DRIVER_OK;
+    virtio_mmio_write32(&mmio_config_->status, status);
 }
 
 void virtio_mmio_bus::virtio_set_guest_features(uint32_t word, uint32_t features) {
-    mmio_config_->guest_features_sel = word;
-    mmio_config_->guest_features = features;
+    virtio_mmio_write32(&mmio_config_->guest_features_sel, word);
+    virtio_mmio_write32(&mmio_config_->guest_features, features);
 }
 
 uint32_t virtio_mmio_bus::virtio_read_host_feature_word(uint32_t word) {
-    mmio_config_->host_features_sel = word;
-    return mmio_config_->host_features;
+    virtio_mmio_write32(&mmio_config_->host_features_sel, word);
+    return virtio_mmio_read32(&mmio_config_->host_features);
 }
 
 void virtio_mmio_bus::virtio_kick(uint16_t ring_index) {
@@ -109,33 +126,33 @@ void virtio_mmio_bus::virtio_kick(uint16_t ring_index) {
 
     // Ensure descriptors and avail index writes are globally visible before notifying.
     mb();
-    mmio_config_->queue_notify = ring_index;
+    virtio_mmio_write32(&mmio_config_->queue_notify, ring_index);
 }
 
 void virtio_mmio_bus::register_ring(uint32_t page_size, uint32_t queue_sel, uint32_t queue_num, uint32_t queue_align, uint32_t queue_pfn) {
     DEBUG_ASSERT(mmio_config_);
-    mmio_config_->guest_page_size = page_size;
-    mmio_config_->queue_sel = queue_sel;
-    mmio_config_->queue_num = queue_num;
-    mmio_config_->queue_align = queue_align;
-    mmio_config_->queue_pfn = queue_pfn;
+    virtio_mmio_write32(&mmio_config_->guest_page_size, page_size);
+    virtio_mmio_write32(&mmio_config_->queue_sel, queue_sel);
+    virtio_mmio_write32(&mmio_config_->queue_num, queue_num);
+    virtio_mmio_write32(&mmio_config_->queue_align, queue_align);
+    virtio_mmio_write32(&mmio_config_->queue_pfn, queue_pfn);
 }
 
 void dump_mmio_config(const volatile virtio_mmio_config *mmio) {
     printf("mmio at %p\n", mmio);
-    printf("\tmagic 0x%x\n", mmio->magic);
-    printf("\tversion 0x%x\n", mmio->version);
-    printf("\tdevice_id 0x%x\n", mmio->device_id);
-    printf("\tvendor_id 0x%x\n", mmio->vendor_id);
-    printf("\thost_features 0x%x\n", mmio->host_features);
-    printf("\tguest_features 0x%x\n", mmio->guest_features);
-    printf("\tguest_features_sel 0x%x\n", mmio->guest_features_sel);
-    printf("\tguest_page_size %u\n", mmio->guest_page_size);
-    printf("\tqnum %u\n", mmio->queue_num);
-    printf("\tqnum_max %u\n", mmio->queue_num_max);
-    printf("\tqnum_align %u\n", mmio->queue_align);
-    printf("\tqnum_pfn %u\n", mmio->queue_pfn);
-    printf("\tstatus 0x%x\n", mmio->status);
+    printf("\tmagic 0x%x\n", virtio_mmio_read32(&mmio->magic));
+    printf("\tversion 0x%x\n", virtio_mmio_read32(&mmio->version));
+    printf("\tdevice_id 0x%x\n", virtio_mmio_read32(&mmio->device_id));
+    printf("\tvendor_id 0x%x\n", virtio_mmio_read32(&mmio->vendor_id));
+    printf("\thost_features 0x%x\n", virtio_mmio_read32(&mmio->host_features));
+    printf("\tguest_features 0x%x\n", virtio_mmio_read32(&mmio->guest_features));
+    printf("\tguest_features_sel 0x%x\n", virtio_mmio_read32(&mmio->guest_features_sel));
+    printf("\tguest_page_size %u\n", virtio_mmio_read32(&mmio->guest_page_size));
+    printf("\tqnum %u\n", virtio_mmio_read32(&mmio->queue_num));
+    printf("\tqnum_max %u\n", virtio_mmio_read32(&mmio->queue_num_max));
+    printf("\tqnum_align %u\n", virtio_mmio_read32(&mmio->queue_align));
+    printf("\tqnum_pfn %u\n", virtio_mmio_read32(&mmio->queue_pfn));
+    printf("\tstatus 0x%x\n", virtio_mmio_read32(&mmio->status));
 }
 
 enum handler_return virtio_mmio_bus::virtio_mmio_irq(void *arg) {
@@ -144,13 +161,13 @@ enum handler_return virtio_mmio_bus::virtio_mmio_irq(void *arg) {
 
     LTRACEF("dev %p, bus %p\n", dev, bus);
 
-    uint32_t irq_status = bus->mmio_config_->interrupt_status;
+    uint32_t irq_status = virtio_mmio_read32(&bus->mmio_config_->interrupt_status);
     LTRACEF("status %#x\n", irq_status);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
     if (irq_status & 0x1) { /* used ring update */
         // XXX is this safe?
-        bus->mmio_config_->interrupt_ack = 0x1;
+        virtio_mmio_write32(&bus->mmio_config_->interrupt_ack, 0x1);
 
         auto _ret = dev->handle_queue_interrupt();
         if (_ret == INT_RESCHEDULE) {
@@ -159,7 +176,7 @@ enum handler_return virtio_mmio_bus::virtio_mmio_irq(void *arg) {
 
     }
     if (irq_status & 0x2) { /* config change */
-        bus->mmio_config_->interrupt_ack = 0x2;
+        virtio_mmio_write32(&bus->mmio_config_->interrupt_ack, 0x2);
 
         auto _ret = dev->handle_config_interrupt();
         if (_ret == INT_RESCHEDULE) {
@@ -187,20 +204,29 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
     for (uint i = 0; i < count; i++) {
         volatile auto *mmio = reinterpret_cast<virtio_mmio_config *>(static_cast<uint8_t *>(ptr) + i * stride);
 
-        if (mmio->magic != VIRTIO_MMIO_MAGIC) {
+        uint32_t magic = virtio_mmio_read32(&mmio->magic);
+        uint32_t version = virtio_mmio_read32(&mmio->version);
+        uint32_t device_id = virtio_mmio_read32(&mmio->device_id);
+        uint32_t vendor_id = virtio_mmio_read32(&mmio->vendor_id);
+
+        if (magic != VIRTIO_MMIO_MAGIC) {
             continue;
         }
 
         if (LOCAL_TRACE) {
-            if (mmio->device_id != 0) {
+            if (device_id != 0) {
                 dump_mmio_config(mmio);
             }
         }
 
         // TODO: handle version 2
         // Unclear how to get QEMU to handle version 2 mmio interfaces
-        if (mmio->version != 1) {
-            printf("skipping virtio mmio version 2 device\n");
+        if (version != 1) {
+            if (version == 2) {
+                printf("skipping virtio-mmio modern interface (version 2): not supported yet\n");
+            } else {
+                printf("skipping virtio-mmio device with unsupported version %u\n", version);
+            }
             continue;
         }
 
@@ -215,10 +241,10 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
         register_int_handler(irqs[i], &virtio_mmio_bus::virtio_mmio_irq, static_cast<void *>(dev));
 
         LTRACEF("looking at %p: magic 0x%x version 0x%x did 0x%x vid 0x%x\n",
-                mmio, mmio->magic, mmio->version, mmio->device_id, mmio->vendor_id);
+            mmio, magic, version, device_id, vendor_id);
 
 #if WITH_DEV_VIRTIO_BLOCK
-        if (mmio->device_id == 0x2) { // virtio-block
+        if (device_id == 0x2) { // virtio-block
             LTRACEF("found block device\n");
 
             status_t err = virtio_block_init(dev);
@@ -228,7 +254,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
         }
 #endif // WITH_DEV_VIRTIO_BLOCK
 #if WITH_DEV_VIRTIO_NET
-        if (mmio->device_id == 1) { // network device
+        if (device_id == 1) { // network device
             LTRACEF("found net device\n");
 
             status_t err = virtio_net_init(dev);
@@ -238,7 +264,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
         }
 #endif // WITH_DEV_VIRTIO_NET
 #if WITH_DEV_VIRTIO_9P
-        if (mmio->device_id == 9) { // 9p device
+        if (device_id == 9) { // 9p device
             LTRACEF("found 9p device\n");
 
             status_t err = virtio_9p_init(dev, bus->virtio_read_host_feature_word((0)));
@@ -249,7 +275,7 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
         }
 #endif // WITH_DEV_VIRTIO_9P
 #if WITH_DEV_VIRTIO_GPU
-        if (mmio->device_id == 0x10) { // virtio-gpu
+        if (device_id == 0x10) { // virtio-gpu
             LTRACEF("found gpu device\n");
 
             status_t err = virtio_gpu_init(dev);
