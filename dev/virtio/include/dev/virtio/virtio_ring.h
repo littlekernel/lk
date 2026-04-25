@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include <endian.h>
 #include <lk/pow2.h>
-#include <lk/reg.h>
 
 /* This marks a buffer as continuing via the next field. */
 #define VRING_DESC_F_NEXT   1
@@ -95,93 +94,141 @@ struct vring_used {
 };
 
 /*
- * Virtqueue memory is transport-shared uncached memory, not ordinary cached RAM.
- * Access it with exact-width helpers so the compiler/arch do not combine adjacent
- * fields into wider accesses that can violate alignment or transport expectations.
+ * Virtqueue structures live in shared memory. Access them with exact-width volatile
+ * loads/stores and rely on higher-level virtio memory barriers for ordering.
  */
 
-static inline uint64_t vring_mmio_read64(const volatile uint64_t *ptr) {
+static inline uint16_t vring_mem_read16(const volatile uint16_t *ptr) {
+    return *ptr;
+}
+
+static inline uint32_t vring_mem_read32(const volatile uint32_t *ptr) {
+    return *ptr;
+}
+
+static inline void vring_mem_write16(volatile uint16_t *ptr, uint16_t val) {
+    *ptr = val;
+}
+
+static inline void vring_mem_write32(volatile uint32_t *ptr, uint32_t val) {
+    *ptr = val;
+}
+
+static inline uint64_t vring_mem_read64(const volatile uint64_t *ptr, bool modern) {
     const volatile uint32_t *words = (const volatile uint32_t *)ptr;
-    return (uint64_t)mmio_read32((volatile uint32_t *)&words[0]) |
-           ((uint64_t)mmio_read32((volatile uint32_t *)&words[1]) << 32);
+    if (modern) {
+        uint32_t low = vring_mem_read32(&words[0]);
+        uint32_t high = vring_mem_read32(&words[1]);
+        return (uint64_t)LE32(low) | ((uint64_t)LE32(high) << 32);
+    } else {
+#if BYTE_ORDER == BIG_ENDIAN
+        uint32_t high = vring_mem_read32(&words[0]);
+        uint32_t low = vring_mem_read32(&words[1]);
+        return ((uint64_t)high << 32) | low;
+#else
+        uint32_t low = vring_mem_read32(&words[0]);
+        uint32_t high = vring_mem_read32(&words[1]);
+        return (uint64_t)low | ((uint64_t)high << 32);
+#endif
+    }
 }
 
-static inline void vring_mmio_write64(volatile uint64_t *ptr, uint64_t val) {
+static inline void vring_mem_write64(volatile uint64_t *ptr, uint64_t val, bool modern) {
     volatile uint32_t *words = (volatile uint32_t *)ptr;
-    mmio_write32(&words[0], (uint32_t)val);
-    mmio_write32(&words[1], (uint32_t)(val >> 32));
+    if (modern) {
+        vring_mem_write32(&words[0], LE32((uint32_t)val));
+        vring_mem_write32(&words[1], LE32((uint32_t)(val >> 32)));
+    } else {
+#if BYTE_ORDER == BIG_ENDIAN
+        vring_mem_write32(&words[0], (uint32_t)(val >> 32));
+        vring_mem_write32(&words[1], (uint32_t)val);
+#else
+        vring_mem_write32(&words[0], (uint32_t)val);
+        vring_mem_write32(&words[1], (uint32_t)(val >> 32));
+#endif
+    }
 }
 
-static inline uint64_t vring_desc_read_addr(const struct vring_desc *desc) {
-    return LE64(vring_mmio_read64((const volatile uint64_t *)&desc->addr));
+static inline uint64_t vring_desc_read_addr(const struct vring_desc *desc, bool modern) {
+    return vring_mem_read64((const volatile uint64_t *)&desc->addr, modern);
 }
 
-static inline uint32_t vring_desc_read_len(const struct vring_desc *desc) {
-    return LE32(mmio_read32((volatile uint32_t *)&desc->len));
+static inline uint32_t vring_desc_read_len(const struct vring_desc *desc, bool modern) {
+    uint32_t val = vring_mem_read32((volatile uint32_t *)&desc->len);
+    return modern ? LE32(val) : val;
 }
 
-static inline uint16_t vring_desc_read_flags(const struct vring_desc *desc) {
-    return LE16(mmio_read16((volatile uint16_t *)&desc->flags));
+static inline uint16_t vring_desc_read_flags(const struct vring_desc *desc, bool modern) {
+    uint16_t val = vring_mem_read16((volatile uint16_t *)&desc->flags);
+    return modern ? LE16(val) : val;
 }
 
-static inline uint16_t vring_desc_read_next(const struct vring_desc *desc) {
-    return LE16(mmio_read16((volatile uint16_t *)&desc->next));
+static inline uint16_t vring_desc_read_next(const struct vring_desc *desc, bool modern) {
+    uint16_t val = vring_mem_read16((volatile uint16_t *)&desc->next);
+    return modern ? LE16(val) : val;
 }
 
-static inline void vring_desc_write_addr(struct vring_desc *desc, uint64_t addr) {
-    vring_mmio_write64(&desc->addr, LE64(addr));
+static inline void vring_desc_write_addr(struct vring_desc *desc, uint64_t addr, bool modern) {
+    vring_mem_write64(&desc->addr, addr, modern);
 }
 
-static inline void vring_desc_write_len(struct vring_desc *desc, uint32_t len) {
-    mmio_write32(&desc->len, LE32(len));
+static inline void vring_desc_write_len(struct vring_desc *desc, uint32_t len, bool modern) {
+    vring_mem_write32(&desc->len, modern ? LE32(len) : len);
 }
 
-static inline void vring_desc_write_flags(struct vring_desc *desc, uint16_t flags) {
-    mmio_write16(&desc->flags, LE16(flags));
+static inline void vring_desc_write_flags(struct vring_desc *desc, uint16_t flags, bool modern) {
+    vring_mem_write16(&desc->flags, modern ? LE16(flags) : flags);
 }
 
-static inline void vring_desc_write_next(struct vring_desc *desc, uint16_t next) {
-    mmio_write16(&desc->next, LE16(next));
+static inline void vring_desc_write_next(struct vring_desc *desc, uint16_t next, bool modern) {
+    vring_mem_write16(&desc->next, modern ? LE16(next) : next);
 }
 
-static inline uint16_t vring_avail_read_flags(const struct vring_avail *avail) {
-    return LE16(mmio_read16((volatile uint16_t *)&avail->flags));
+static inline uint16_t vring_avail_read_flags(const struct vring_avail *avail, bool modern) {
+    uint16_t val = vring_mem_read16((volatile uint16_t *)&avail->flags);
+    return modern ? LE16(val) : val;
 }
 
-static inline uint16_t vring_avail_read_idx(const struct vring_avail *avail) {
-    return LE16(mmio_read16((volatile uint16_t *)&avail->idx));
+static inline uint16_t vring_avail_read_idx(const struct vring_avail *avail, bool modern) {
+    uint16_t val = vring_mem_read16((volatile uint16_t *)&avail->idx);
+    return modern ? LE16(val) : val;
 }
 
-static inline void vring_avail_write_flags(struct vring_avail *avail, uint16_t flags) {
-    mmio_write16(&avail->flags, LE16(flags));
+static inline void vring_avail_write_flags(struct vring_avail *avail, uint16_t flags, bool modern) {
+    vring_mem_write16(&avail->flags, modern ? LE16(flags) : flags);
 }
 
-static inline void vring_avail_write_idx(struct vring_avail *avail, uint16_t idx) {
-    mmio_write16(&avail->idx, LE16(idx));
+static inline void vring_avail_write_idx(struct vring_avail *avail, uint16_t idx, bool modern) {
+    vring_mem_write16(&avail->idx, modern ? LE16(idx) : idx);
 }
 
-static inline uint16_t vring_avail_read_ring(const struct vring_avail *avail, uint16_t index) {
-    return LE16(mmio_read16((volatile uint16_t *)&avail->ring[index]));
+static inline uint16_t vring_avail_read_ring(const struct vring_avail *avail, uint16_t index, bool modern) {
+    uint16_t val = vring_mem_read16((volatile uint16_t *)&avail->ring[index]);
+    return modern ? LE16(val) : val;
 }
 
-static inline void vring_avail_write_ring(struct vring_avail *avail, uint16_t index, uint16_t value) {
-    mmio_write16(&avail->ring[index], LE16(value));
+static inline void vring_avail_write_ring(struct vring_avail *avail, uint16_t index, uint16_t value, bool modern) {
+    vring_mem_write16(&avail->ring[index], modern ? LE16(value) : value);
 }
 
-static inline uint16_t vring_used_read_flags(const struct vring_used *used) {
-    return LE16(mmio_read16((volatile uint16_t *)&used->flags));
+static inline uint16_t vring_used_read_flags(const struct vring_used *used, bool modern) {
+    uint16_t val = vring_mem_read16((volatile uint16_t *)&used->flags);
+    return modern ? LE16(val) : val;
 }
 
-static inline uint16_t vring_used_read_idx(const struct vring_used *used) {
-    return LE16(mmio_read16((volatile uint16_t *)&used->idx));
+static inline uint16_t vring_used_read_idx(const struct vring_used *used, bool modern) {
+    uint16_t val = vring_mem_read16((volatile uint16_t *)&used->idx);
+    return modern ? LE16(val) : val;
 }
 
-static inline uint32_t vring_used_read_elem_id(const struct vring_used *used, uint16_t index) {
-    return LE32(mmio_read32((volatile uint32_t *)&used->ring[index].id));
+static inline uint32_t vring_used_read_elem_id(const struct vring_used *used, uint16_t index, bool modern) {
+    uint32_t val = vring_mem_read32((volatile uint32_t *)&used->ring[index].id);
+    return modern ? LE32(val) : val;
 }
 
-static inline uint32_t vring_used_read_elem_len(const struct vring_used *used, uint16_t index) {
-    return LE32(mmio_read32((volatile uint32_t *)&used->ring[index].len));
+static inline uint32_t vring_used_read_elem_len(const struct vring_used *used, uint16_t index, bool modern) {
+    uint32_t val = vring_mem_read32((volatile uint32_t *)&used->ring[index].len);
+    return modern ? LE32(val) : val;
 }
 
 struct vring {

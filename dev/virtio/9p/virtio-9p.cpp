@@ -78,12 +78,16 @@ status_t virtio_9p_init(virtio_device *dev, uint32_t host_features)
     /* make sure the device is reset */
     dev->bus()->virtio_reset_device();
 
-    p9dev->config = (const virtio_9p_config *)dev->get_config_ptr();
+    const bool modern = dev->config_is_modern();
+    dprintf(INFO, "virtio-9p: modern config %u, expecting %s-endian config\n",
+            modern, modern ? "little" : "native");
+
     if (LOCAL_TRACE) {
-        LTRACEF("tag_len: %u\n", p9dev->config->tag_len);
+        uint16_t tag_len = dev->config_read16(offsetof(virtio_9p_config, tag_len));
+        LTRACEF("tag_len: %u\n", tag_len);
         LTRACEF("tag: ");
-        for (int i = 0; i < p9dev->config->tag_len; ++i) {
-            printf("%c", p9dev->config->tag[i]);
+        for (int i = 0; i < tag_len; ++i) {
+            printf("%c", dev->config_read8(offsetof(virtio_9p_config, tag) + i));
         }
         printf("\n");
     }
@@ -159,12 +163,13 @@ static enum handler_return virtio_9p_irq_driver_callback(
 
     ASSERT(req->status == P9_REQ_S_SENT);
     ASSERT(desc);
-    ASSERT(desc->flags & VRING_DESC_F_NEXT);
+    const bool modern = dev->config_is_modern();
+    ASSERT(vring_desc_read_flags(desc, modern) & VRING_DESC_F_NEXT);
 
     spin_lock(&p9dev->lock);
 
     // drop the T-message desc
-    id_next = desc->next;
+    id_next = vring_desc_read_next(desc, modern);
     desc = dev->virtio_desc_index_to_desc(VIRTIO_9P_RING_IDX, id_next);
 #if LOCAL_TRACE
     virtio_dump_desc(desc);

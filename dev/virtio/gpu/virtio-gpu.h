@@ -94,10 +94,10 @@ struct virtio_gpu_cursor_pos {
 /* VIRTIO_GPU_CMD_UPDATE_CURSOR, VIRTIO_GPU_CMD_MOVE_CURSOR */
 struct virtio_gpu_update_cursor {
     struct virtio_gpu_ctrl_hdr hdr;
-    struct virtio_gpu_cursor_pos pos;  /* update & move */
-    uint32_t resource_id;           /* update only */
-    uint32_t hot_x;                 /* update only */
-    uint32_t hot_y;                 /* update only */
+    struct virtio_gpu_cursor_pos pos; /* update & move */
+    uint32_t resource_id;             /* update only */
+    uint32_t hot_x;                   /* update only */
+    uint32_t hot_y;                   /* update only */
     uint32_t padding;
 };
 
@@ -194,16 +194,16 @@ struct virtio_gpu_config {
 
 /* simple formats for fbcon/X use */
 enum virtio_gpu_formats {
-    VIRTIO_GPU_FORMAT_B8G8R8A8_UNORM  = 1,
-    VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM  = 2,
-    VIRTIO_GPU_FORMAT_A8R8G8B8_UNORM  = 3,
-    VIRTIO_GPU_FORMAT_X8R8G8B8_UNORM  = 4,
+    VIRTIO_GPU_FORMAT_B8G8R8A8_UNORM = 1,
+    VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM = 2,
+    VIRTIO_GPU_FORMAT_A8R8G8B8_UNORM = 3,
+    VIRTIO_GPU_FORMAT_X8R8G8B8_UNORM = 4,
 
-    VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM  = 67,
-    VIRTIO_GPU_FORMAT_X8B8G8R8_UNORM  = 68,
+    VIRTIO_GPU_FORMAT_R8G8B8A8_UNORM = 67,
+    VIRTIO_GPU_FORMAT_X8B8G8R8_UNORM = 68,
 
-    VIRTIO_GPU_FORMAT_A8B8G8R8_UNORM  = 121,
-    VIRTIO_GPU_FORMAT_R8G8B8X8_UNORM  = 134,
+    VIRTIO_GPU_FORMAT_A8B8G8R8_UNORM = 121,
+    VIRTIO_GPU_FORMAT_R8G8B8X8_UNORM = 134,
 };
 
 #endif

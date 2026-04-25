@@ -233,6 +233,15 @@ status_t virtio_pci_bus::init(virtio_device *dev, pci_location_t loc, size_t ind
     dev_ = dev;
     loc_ = loc;
 
+    // Devices before a certain device ID are legacy, and devices after that are modern.
+    uint16_t device_id;
+    if (pci_read_config_half(loc, PCI_CONFIG_DEVICE_ID, &device_id) < 0) {
+        return ERR_NOT_FOUND;
+    }
+    if (device_id < 0x1040) {
+        legacy_ = true;
+    }
+
     // read all of the capabilities for this virtio device
     bool map_bars[6] = {};
     for (size_t i = 0;; i++) {

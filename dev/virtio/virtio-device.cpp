@@ -35,7 +35,7 @@ void virtio_device::virtio_free_desc(uint ring_index, uint16_t desc_index) {
 
     vring &ring = ring_[ring_index];
 
-    vring_desc_write_next(&ring.desc[desc_index], ring.free_list);
+    vring_desc_write_next(&ring.desc[desc_index], ring.free_list, config_is_modern());
     ring.free_list = desc_index;
     ring.free_count++;
 }
@@ -52,7 +52,7 @@ uint16_t virtio_device::virtio_alloc_desc(uint ring_index) {
 
     uint16_t i = ring.free_list;
     vring_desc *desc = &ring.desc[i];
-    ring.free_list = vring_desc_read_next(desc);
+    ring.free_list = vring_desc_read_next(desc, config_is_modern());
 
     ring.free_count--;
 
@@ -74,16 +74,17 @@ vring_desc *virtio_device::virtio_alloc_desc_chain(uint ring_index, size_t count
         uint16_t i = ring.free_list;
         vring_desc *desc = &ring.desc[i];
 
-        ring.free_list = vring_desc_read_next(desc);
+        const bool modern = config_is_modern();
+        ring.free_list = vring_desc_read_next(desc, modern);
         ring.free_count--;
 
         if (last) {
-            vring_desc_write_flags(desc, VRING_DESC_F_NEXT);
-            vring_desc_write_next(desc, last_index);
+            vring_desc_write_flags(desc, VRING_DESC_F_NEXT, modern);
+            vring_desc_write_next(desc, last_index, modern);
         } else {
             // first one
-            vring_desc_write_flags(desc, 0);
-            vring_desc_write_next(desc, 0);
+            vring_desc_write_flags(desc, 0, modern);
+            vring_desc_write_next(desc, 0, modern);
         }
         last = desc;
         last_index = i;
@@ -106,12 +107,14 @@ void virtio_device::virtio_submit_chain(uint ring_index, uint16_t desc_index) {
 
     /* add the chain to the available list */
     vring_avail *avail = ring.avail;
+    const bool modern = config_is_modern();
 
-    uint16_t avail_idx = vring_avail_read_idx(avail);
+    uint16_t avail_idx = vring_avail_read_idx(avail, modern);
 
-    vring_avail_write_ring(avail, avail_idx & ring.num_mask, desc_index);
-    mb();
-    vring_avail_write_idx(avail, avail_idx + 1);
+    vring_avail_write_ring(avail, avail_idx & ring.num_mask, desc_index, modern);
+    // Ensure descriptor and avail ring entry writes are visible before idx update.
+    wmb();
+    vring_avail_write_idx(avail, avail_idx + 1, modern);
 
 #if LOCAL_TRACE
     hexdump(avail, 16);
@@ -149,6 +152,9 @@ status_t virtio_device::virtio_alloc_ring(uint index, uint16_t len) {
     if (pa == 0) {
         return ERR_NO_MEMORY;
     }
+
+    // Rings must start from a known state (flags/idx/event fields all zero).
+    memset(vptr, 0, size);
 
     LTRACEF("virtio_ring at pa 0x%lx\n", pa);
 #else
@@ -193,19 +199,23 @@ handler_return virtio_device::handle_queue_interrupt() {
             continue;
 
         vring &ring = ring_[r];
+        const bool modern = config_is_modern();
 
         LTRACEF("desc %p, avail %p, used %p\n", ring.desc, ring.avail, ring.used);
-        LTRACEF("ring %u: used flags 0x%hx idx 0x%hx last_used %u\n", r,
-                vring_used_read_flags(ring.used), vring_used_read_idx(ring.used), ring.last_used);
+        LTRACEF("ring %u: used flags 0x%hx idx 0x%hx last_used 0x%hx\n", r,
+            vring_used_read_flags(ring.used, modern), vring_used_read_idx(ring.used, modern), ring.last_used);
 
-        uint cur_idx = vring_used_read_idx(ring.used);
-        for (uint i = ring.last_used; i != (cur_idx & ring.num_mask); i = (i + 1) & ring.num_mask) {
+        uint16_t cur_idx = vring_used_read_idx(ring.used, modern);
+        // Ensure device writes to used elements are visible after observing used->idx.
+        rmb();
+        for (uint16_t used_idx = ring.last_used; used_idx != cur_idx; ++used_idx) {
+            uint i = used_idx & ring.num_mask;
             LTRACEF("looking at idx %u\n", i);
 
             // process chain
             vring_used_elem used_elem = {
-                .id = vring_used_read_elem_id(ring.used, i),
-                .len = vring_used_read_elem_len(ring.used, i),
+                .id = vring_used_read_elem_id(ring.used, i, modern),
+                .len = vring_used_read_elem_len(ring.used, i, modern),
             };
             LTRACEF("id %u, len %u\n", used_elem.id, used_elem.len);
 
@@ -214,7 +224,7 @@ handler_return virtio_device::handle_queue_interrupt() {
                 ret = INT_RESCHEDULE;
             }
 
-            ring.last_used = (ring.last_used + 1) & ring.num_mask;
+            ring.last_used++;
         }
     }
 

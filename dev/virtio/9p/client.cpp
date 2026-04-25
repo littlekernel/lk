@@ -149,18 +149,19 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
 
     desc = dev->virtio_alloc_desc_chain(VIRTIO_9P_RING_IDX, 2, &idx);
 
-    desc->len = req->tc.size;
-    desc->addr = vaddr_to_paddr(req->tc.sdata);
-    desc->flags |= VRING_DESC_F_NEXT;
+    const bool modern = dev->config_is_modern();
+    vring_desc_write_len(desc, req->tc.size, modern);
+    vring_desc_write_addr(desc, vaddr_to_paddr(req->tc.sdata), modern);
+    vring_desc_write_flags(desc, vring_desc_read_flags(desc, modern) | VRING_DESC_F_NEXT, modern);
 #if LOCAL_TRACE > 2
     LTRACEF("desc (%p)\n", desc);
     virtio_dump_desc(desc);
 #endif
 
-    desc = dev->virtio_desc_index_to_desc(VIRTIO_9P_RING_IDX, desc->next);
-    desc->len = req->rc.capacity;
-    desc->addr = vaddr_to_paddr(req->rc.sdata);
-    desc->flags |= VRING_DESC_F_WRITE;
+    desc = dev->virtio_desc_index_to_desc(VIRTIO_9P_RING_IDX, vring_desc_read_next(desc, modern));
+    vring_desc_write_len(desc, req->rc.capacity, modern);
+    vring_desc_write_addr(desc, vaddr_to_paddr(req->rc.sdata), modern);
+    vring_desc_write_flags(desc, VRING_DESC_F_WRITE, modern);
 #if LOCAL_TRACE > 2
     LTRACEF("desc (%p)\n", desc);
     virtio_dump_desc(desc);

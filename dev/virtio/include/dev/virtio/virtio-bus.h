@@ -23,6 +23,11 @@ public:
     virtual void virtio_kick(uint16_t ring_index) = 0;
     virtual void register_ring(uint32_t page_size, uint32_t queue_sel, uint32_t queue_num, uint32_t queue_align, uint32_t queue_pfn) = 0;
 
+    // Return if the device is legacy or modern.
+    // For virtio-mmio this corresponds to V1 and V2, respectively.
+    // For virtio-pci this corresponds to transitional and modern, respectively.
+    virtual bool virtio_is_legacy() const = 0;
+
     uint64_t virtio_read_host_feature_word_64(uint32_t word) {
         return virtio_read_host_feature_word(word) | static_cast<uint64_t>(virtio_read_host_feature_word(word + 1)) << 32;
     }

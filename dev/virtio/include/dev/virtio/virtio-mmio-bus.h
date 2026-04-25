@@ -28,6 +28,8 @@ public:
 
     void register_ring(uint32_t page_size, uint32_t queue_sel, uint32_t queue_num, uint32_t queue_align, uint32_t queue_pfn) override;
 
+    bool virtio_is_legacy() const override { return mmio_version_ == 1; }
+
     static handler_return virtio_mmio_irq(void *arg);
 
 private:

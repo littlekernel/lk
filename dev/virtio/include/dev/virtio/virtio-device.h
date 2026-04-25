@@ -9,7 +9,9 @@
 
 #include <lk/compiler.h>
 #include <assert.h>
+#include <endian.h>
 #include <sys/types.h>
+#include <lk/reg.h>
 #include <dev/virtio.h>
 #include <dev/virtio/virtio_ring.h>
 #include <dev/virtio/virtio-bus.h>
@@ -55,6 +57,77 @@ public:
     const void *get_config_ptr() const { return config_ptr_; }
     void set_config_ptr(void *ptr) { config_ptr_ = ptr; }
 
+    bool config_is_modern() const { return !bus_->virtio_is_legacy(); }
+
+    // Endian-aware configuration space accessors
+    uint8_t config_read8(size_t offset) const {
+        return mmio_read8((volatile uint8_t *)((uint8_t *)config_ptr_ + offset));
+    }
+    void config_write8(size_t offset, uint8_t val) {
+        mmio_write8((volatile uint8_t *)((uint8_t *)config_ptr_ + offset), val);
+    }
+
+    uint16_t config_read16(size_t offset) const {
+        uint16_t val = mmio_read16((volatile uint16_t *)((uint8_t *)config_ptr_ + offset));
+        return config_is_modern() ? LE16(val) : val;
+    }
+    void config_write16(size_t offset, uint16_t val) {
+        mmio_write16((volatile uint16_t *)((uint8_t *)config_ptr_ + offset), config_is_modern() ? LE16(val) : val);
+    }
+
+    uint32_t config_read32(size_t offset) const {
+        uint32_t val = mmio_read32((volatile uint32_t *)((uint8_t *)config_ptr_ + offset));
+        return config_is_modern() ? LE32(val) : val;
+    }
+    void config_write32(size_t offset, uint32_t val) {
+        mmio_write32((volatile uint32_t *)((uint8_t *)config_ptr_ + offset), config_is_modern() ? LE32(val) : val);
+    }
+
+    uint64_t config_read64(size_t offset) const {
+        const volatile uint32_t *words = (const volatile uint32_t *)((uint8_t *)config_ptr_ + offset);
+        if (config_is_modern()) {
+            uint32_t low = mmio_read32((volatile uint32_t *)&words[0]);
+            uint32_t high = mmio_read32((volatile uint32_t *)&words[1]);
+            return (uint64_t)LE32(low) | ((uint64_t)LE32(high) << 32);
+        } else {
+#if BYTE_ORDER == BIG_ENDIAN
+            uint32_t high = mmio_read32((volatile uint32_t *)&words[0]);
+            uint32_t low = mmio_read32((volatile uint32_t *)&words[1]);
+            return ((uint64_t)high << 32) | low;
+#else
+            uint32_t low = mmio_read32((volatile uint32_t *)&words[0]);
+            uint32_t high = mmio_read32((volatile uint32_t *)&words[1]);
+            return (uint64_t)low | ((uint64_t)high << 32);
+#endif
+        }
+    }
+    void config_write64(size_t offset, uint64_t val) {
+        volatile uint32_t *words = (volatile uint32_t *)((uint8_t *)config_ptr_ + offset);
+        if (config_is_modern()) {
+            mmio_write32(&words[0], LE32((uint32_t)val));
+            mmio_write32(&words[1], LE32((uint32_t)(val >> 32)));
+        } else {
+#if BYTE_ORDER == BIG_ENDIAN
+            mmio_write32(&words[0], (uint32_t)(val >> 32));
+            mmio_write32(&words[1], (uint32_t)val);
+#else
+            mmio_write32(&words[0], (uint32_t)val);
+            mmio_write32(&words[1], (uint32_t)(val >> 32));
+#endif
+        }
+    }
+
+    // Helper to conditionally byte-swap queue request/response fields
+    uint16_t ring_swap16(uint16_t val) const {
+        return config_is_modern() ? LE16(val) : val;
+    }
+    uint32_t ring_swap32(uint32_t val) const {
+        return config_is_modern() ? LE32(val) : val;
+    }
+    uint64_t ring_swap64(uint64_t val) const {
+        return config_is_modern() ? LE64(val) : val;
+    }
+
     using irq_driver_callback = enum handler_return (*)(virtio_device *dev, uint ring, const vring_used_elem *e);
     using config_change_callback = enum handler_return (*)(virtio_device *dev);
 
@@ -77,6 +150,7 @@ private:
 
     // points into bus's configuration spot
     void *config_ptr_ = {};
+
 
     // a place for the driver to put private data, usually a pointer to device
     // specific details.

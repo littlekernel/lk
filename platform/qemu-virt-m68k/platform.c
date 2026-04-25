@@ -112,7 +112,19 @@ void platform_init(void) {
     }
 
     uint32_t virtio_base = virtio_dev ? virtio_dev->base : VIRT_VIRTIO_MMIO_BASE;
-    uint32_t virtio_irq_base = virtio_dev ? virtio_dev->irq_base : VIRT_VIRTIO_IRQ_BASE;
+    uint32_t virtio_irq_base = VIRT_VIRTIO_IRQ_BASE;
+    if (virtio_dev) {
+        uint32_t raw_irq_base = virtio_dev->irq_base;
+
+        // QEMU bootinfo uses PIC_IRQ() numbering where PIC#1 starts at 8.
+        // LK's m68k PIC driver uses a 0-based linear vector per PIC bank.
+        if (raw_irq_base >= 8 && raw_irq_base < (8 + NUM_IRQS)) {
+            virtio_irq_base = raw_irq_base - 8;
+        } else if (raw_irq_base < NUM_IRQS) {
+            // Accept already-normalized values for compatibility.
+            virtio_irq_base = raw_irq_base;
+        }
+    }
 
     uint virtio_irqs[NUM_VIRT_VIRTIO];
     for (int i = 0; i < NUM_VIRT_VIRTIO; i++) {

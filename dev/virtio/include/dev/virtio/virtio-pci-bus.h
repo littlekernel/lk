@@ -32,6 +32,8 @@ public:
     void virtio_kick(uint16_t ring_index) override;
     void register_ring(uint32_t page_size, uint32_t queue_sel, uint32_t queue_num, uint32_t queue_align, uint32_t queue_pfn) override;
 
+    bool virtio_is_legacy() const override { return legacy_; }
+
     volatile virtio_pci_common_cfg *common_config() {
         return  reinterpret_cast<volatile virtio_pci_common_cfg *>(config_ptr(common_cfg_));
     }
@@ -66,6 +68,7 @@ private:
     config_pointer isr_cfg_ = {};
     config_pointer device_cfg_ = {};
     config_pointer pci_cfg_ = {};
+    bool legacy_ = {};
 
     uint32_t notify_offset_multiplier_ = {};
 

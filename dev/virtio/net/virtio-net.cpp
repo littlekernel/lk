@@ -25,6 +25,8 @@
 
 #define LOCAL_TRACE 0
 
+namespace {
+
 struct virtio_net_config {
     uint8_t mac[6];
     uint16_t status;
@@ -114,7 +116,6 @@ struct virtio_net_dev {
     virtio_device *dev;
     bool started;
 
-    const virtio_net_config *config;
 
     spin_lock_t lock;
     event_t rx_event;
@@ -127,14 +128,14 @@ struct virtio_net_dev {
     struct list_node completed_rx_queue;
 };
 
-static enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e);
-static int virtio_net_rx_worker(void *arg);
-static status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick = true);
+enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e);
+int virtio_net_rx_worker(void *arg);
+status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick = true);
 
 // XXX remove need for this
-static virtio_net_dev *the_ndev;
+virtio_net_dev *the_ndev;
 
-static void dump_feature_bits(uint64_t feature) {
+void dump_feature_bits(uint64_t feature) {
     printf("virtio-net host features (%#" PRIx64 "):", feature);
     if (feature & VIRTIO_NET_F_CSUM) printf(" CSUM");
     if (feature & VIRTIO_NET_F_GUEST_CSUM) printf(" GUEST_CSUM");
@@ -173,6 +174,8 @@ static void dump_feature_bits(uint64_t feature) {
     printf("\n");
 }
 
+} // namespace
+
 status_t virtio_net_init(virtio_device *dev) {
     LTRACEF("dev %p\n", dev);
 
@@ -189,10 +192,12 @@ status_t virtio_net_init(virtio_device *dev) {
     event_init(&ndev->rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
     list_initialize(&ndev->completed_rx_queue);
 
-    ndev->config = (const virtio_net_config *)dev->get_config_ptr();
-
     /* ack and set the driver status bit */
     dev->bus()->virtio_status_acknowledge_driver();
+
+    const bool modern = dev->config_is_modern();
+    dprintf(INFO, "virtio-net: modern %u, expecting %s-endian config\n",
+            modern, modern ? "little" : "native");
 
     // XXX check features bits and ack/nak them
     uint64_t host_features = dev->bus()->virtio_read_host_feature_word_64(0);
@@ -208,7 +213,6 @@ status_t virtio_net_init(virtio_device *dev) {
 
     /* set DRIVER_OK */
     dev->bus()->virtio_status_driver_ok();
-
     the_ndev = ndev;
 
     return NO_ERROR;
@@ -237,7 +241,9 @@ status_t virtio_net_start(void) {
     return NO_ERROR;
 }
 
-static status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
+namespace {
+
+status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     virtio_device *vdev = ndev->dev;
 
     uint16_t i;
@@ -273,23 +279,25 @@ static status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
 
     ndev->tx_pending_count += 2;
 
+    const bool modern = vdev->config_is_modern();
     /* save a pointer to our pktbufs for the irq handler to free */
-    LTRACEF("saving pointer to pkt in index %u and %u\n", i, desc->next);
+    LTRACEF("saving pointer to pkt in index %u and %u\n", i, vring_desc_read_next(desc, modern));
     DEBUG_ASSERT(ndev->pending_tx_packet[i] == NULL);
-    DEBUG_ASSERT(ndev->pending_tx_packet[desc->next] == NULL);
+    DEBUG_ASSERT(ndev->pending_tx_packet[vring_desc_read_next(desc, modern)] == NULL);
     ndev->pending_tx_packet[i] = p;
-    ndev->pending_tx_packet[desc->next] = p2;
+    ndev->pending_tx_packet[vring_desc_read_next(desc, modern)] = p2;
+
 
     /* set up the descriptor pointing to the header */
-    desc->addr = pktbuf_data_phys(p);
-    desc->len = p->dlen;
-    desc->flags |= VRING_DESC_F_NEXT;
+    vring_desc_write_addr(desc, pktbuf_data_phys(p), modern);
+    vring_desc_write_len(desc, p->dlen, modern);
+    vring_desc_write_flags(desc, vring_desc_read_flags(desc, modern) | VRING_DESC_F_NEXT, modern);
 
     /* set up the descriptor pointing to the buffer */
-    desc = vdev->virtio_desc_index_to_desc(RING_TX, desc->next);
-    desc->addr = pktbuf_data_phys(p2);
-    desc->len = p2->dlen;
-    desc->flags = 0;
+    desc = vdev->virtio_desc_index_to_desc(RING_TX, vring_desc_read_next(desc, modern));
+    vring_desc_write_addr(desc, pktbuf_data_phys(p2), modern);
+    vring_desc_write_len(desc, p2->dlen, modern);
+    vring_desc_write_flags(desc, 0, modern);
 
     /* submit the transfer */
     vdev->virtio_submit_chain(RING_TX, i);
@@ -303,7 +311,7 @@ static status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
 }
 
 /* variant of the above function that copies the buffer into a pktbuf before sending */
-static status_t virtio_net_queue_tx(virtio_net_dev *ndev, const void *buf, size_t len) {
+status_t virtio_net_queue_tx(virtio_net_dev *ndev, const void *buf, size_t len) {
     DEBUG_ASSERT(ndev);
     DEBUG_ASSERT(buf);
 
@@ -325,7 +333,7 @@ static status_t virtio_net_queue_tx(virtio_net_dev *ndev, const void *buf, size_
     return err;
 }
 
-static status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick) {
+status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick) {
     virtio_device *vdev = ndev->dev;
 
     DEBUG_ASSERT(ndev);
@@ -349,10 +357,11 @@ static status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_k
     DEBUG_ASSERT(ndev->pending_rx_packet[i] == NULL);
     ndev->pending_rx_packet[i] = p;
 
+    const bool modern = vdev->config_is_modern();
     /* set up the descriptor pointing to the header */
-    desc->addr = pktbuf_data_phys(p);
-    desc->len = p->dlen;
-    desc->flags = VRING_DESC_F_WRITE;
+    vring_desc_write_addr(desc, pktbuf_data_phys(p), modern);
+    vring_desc_write_len(desc, p->dlen, modern);
+    vring_desc_write_flags(desc, VRING_DESC_F_WRITE, modern);
 
     /* submit the transfer */
     vdev->virtio_submit_chain(RING_RX, i);
@@ -367,7 +376,7 @@ static status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_k
     return NO_ERROR;
 }
 
-static enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e) {
+enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e) {
     virtio_net_dev *ndev = (virtio_net_dev *)dev->priv();
 
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
@@ -380,8 +389,9 @@ static enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, ui
         int next;
         vring_desc *desc = dev->virtio_desc_index_to_desc(ring, i);
 
-        if (desc->flags & VRING_DESC_F_NEXT) {
-            next = desc->next;
+        const bool modern = dev->config_is_modern();
+        if (vring_desc_read_flags(desc, modern) & VRING_DESC_F_NEXT) {
+            next = vring_desc_read_next(desc, modern);
         } else {
             /* end of chain */
             next = -1;
@@ -433,7 +443,7 @@ static enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, ui
     return INT_RESCHEDULE;
 }
 
-static int virtio_net_rx_worker(void *arg) {
+int virtio_net_rx_worker(void *arg) {
     virtio_net_dev *ndev = (virtio_net_dev *)arg;
 
     for (;;) {
@@ -466,6 +476,8 @@ static int virtio_net_rx_worker(void *arg) {
     return 0;
 }
 
+} // namespace
+
 int virtio_net_found(void) {
     return the_ndev ? 1 : 0;
 }
@@ -474,7 +486,9 @@ status_t virtio_net_get_mac_addr(uint8_t mac_addr[6]) {
     if (!the_ndev)
         return ERR_NOT_FOUND;
 
-    memcpy(mac_addr, the_ndev->config->mac, 6);
+    for (int i = 0; i < 6; i++) {
+        mac_addr[i] = the_ndev->dev->config_read8(offsetof(virtio_net_config, mac) + i);
+    }
 
     return NO_ERROR;
 }

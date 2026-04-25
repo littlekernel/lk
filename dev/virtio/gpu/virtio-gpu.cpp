@@ -7,19 +7,19 @@
  */
 #include <dev/virtio/gpu.h>
 
-#include <stdlib.h>
-#include <lk/debug.h>
 #include <assert.h>
-#include <lk/trace.h>
-#include <lk/compiler.h>
-#include <lk/list.h>
-#include <lk/err.h>
-#include <string.h>
-#include <kernel/thread.h>
-#include <kernel/event.h>
-#include <kernel/mutex.h>
 #include <dev/display.h>
 #include <dev/virtio/virtio-device.h>
+#include <kernel/event.h>
+#include <kernel/mutex.h>
+#include <kernel/thread.h>
+#include <lk/compiler.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/list.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -29,9 +29,11 @@
 
 #define LOCAL_TRACE 0
 
-static enum handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e);
-static enum handler_return virtio_gpu_config_change_callback(virtio_device *dev);
-static int virtio_gpu_flush_thread(void *arg);
+namespace {
+
+handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e);
+handler_return virtio_gpu_config_change_callback(virtio_device *dev);
+int virtio_gpu_flush_thread(void *arg);
 
 struct virtio_gpu_dev {
     virtio_device *dev;
@@ -58,9 +60,16 @@ struct virtio_gpu_dev {
     void *fb;
 };
 
-static virtio_gpu_dev *the_gdev;
+virtio_gpu_dev *the_gdev;
 
-static status_t send_command_response(virtio_gpu_dev *gdev, const void *cmd, size_t cmd_len, void **_res, size_t res_len) {
+static void dump_gpu_config(virtio_device *dev) {
+    LTRACEF("events_read 0x%x\n", dev->config_read32(offsetof(virtio_gpu_config, events_read)));
+    LTRACEF("events_clear 0x%x\n", dev->config_read32(offsetof(virtio_gpu_config, events_clear)));
+    LTRACEF("num_scanouts 0x%x\n", dev->config_read32(offsetof(virtio_gpu_config, num_scanouts)));
+    LTRACEF("reserved 0x%x\n", dev->config_read32(offsetof(virtio_gpu_config, reserved)));
+}
+
+status_t send_command_response(virtio_gpu_dev *gdev, const void *cmd, size_t cmd_len, void **_res, size_t res_len) {
     DEBUG_ASSERT(gdev);
     DEBUG_ASSERT(cmd);
     DEBUG_ASSERT(_res);
@@ -74,12 +83,14 @@ static status_t send_command_response(virtio_gpu_dev *gdev, const void *cmd, siz
 
     memcpy(gdev->gpu_request, cmd, cmd_len);
 
-    desc->addr = gdev->gpu_request_phys;
-    desc->len = cmd_len;
-    desc->flags |= VRING_DESC_F_NEXT;
+    const bool modern = gdev->dev->config_is_modern();
+    /* set up the descriptor pointing to the header */
+    vring_desc_write_addr(desc, gdev->gpu_request_phys, modern);
+    vring_desc_write_len(desc, cmd_len, modern);
+    vring_desc_write_flags(desc, vring_desc_read_flags(desc, modern) | VRING_DESC_F_NEXT, modern);
 
     /* set the second descriptor to the response with the write bit set */
-    desc = gdev->dev->virtio_desc_index_to_desc(0, desc->next);
+    desc = gdev->dev->virtio_desc_index_to_desc(0, vring_desc_read_next(desc, modern));
     DEBUG_ASSERT(desc);
 
     void *res = (void *)((uint8_t *)gdev->gpu_request + cmd_len);
@@ -87,9 +98,9 @@ static status_t send_command_response(virtio_gpu_dev *gdev, const void *cmd, siz
     paddr_t res_phys = gdev->gpu_request_phys + cmd_len;
     memset(res, 0, res_len);
 
-    desc->addr = res_phys;
-    desc->len = res_len;
-    desc->flags = VRING_DESC_F_WRITE;
+    vring_desc_write_addr(desc, res_phys, modern);
+    vring_desc_write_len(desc, res_len, modern);
+    vring_desc_write_flags(desc, VRING_DESC_F_WRITE, modern);
 
     /* submit the transfer */
     gdev->dev->virtio_submit_chain(0, i);
@@ -103,7 +114,7 @@ static status_t send_command_response(virtio_gpu_dev *gdev, const void *cmd, siz
     return NO_ERROR;
 }
 
-static status_t get_display_info(virtio_gpu_dev *gdev) {
+status_t get_display_info(virtio_gpu_dev *gdev) {
     status_t err;
 
     LTRACEF("gdev %p\n", gdev);
@@ -116,7 +127,7 @@ static status_t get_display_info(virtio_gpu_dev *gdev) {
     /* construct the get display info message */
     struct virtio_gpu_ctrl_hdr req;
     memset(&req, 0, sizeof(req));
-    req.type = VIRTIO_GPU_CMD_GET_DISPLAY_INFO;
+    req.type = gdev->dev->ring_swap32(VIRTIO_GPU_CMD_GET_DISPLAY_INFO);
 
     /* send the message and get a response */
     virtio_gpu_resp_display_info *info;
@@ -128,20 +139,28 @@ static status_t get_display_info(virtio_gpu_dev *gdev) {
     }
 
     /* we got response */
-    if (info->hdr.type != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
+    if (gdev->dev->ring_swap32(info->hdr.type) != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
         mutex_release(&gdev->lock);
         return ERR_NOT_FOUND;
     }
 
     LTRACEF("response:\n");
     for (uint i = 0; i < VIRTIO_GPU_MAX_SCANOUTS; i++) {
-        if (info->pmodes[i].enabled) {
+        if (gdev->dev->ring_swap32(info->pmodes[i].enabled)) {
             LTRACEF("%u: x %u y %u w %u h %u flags 0x%x\n", i,
-                    info->pmodes[i].r.x, info->pmodes[i].r.y, info->pmodes[i].r.width, info->pmodes[i].r.height,
-                    info->pmodes[i].flags);
+                    gdev->dev->ring_swap32(info->pmodes[i].r.x),
+                    gdev->dev->ring_swap32(info->pmodes[i].r.y),
+                    gdev->dev->ring_swap32(info->pmodes[i].r.width),
+                    gdev->dev->ring_swap32(info->pmodes[i].r.height),
+                    gdev->dev->ring_swap32(info->pmodes[i].flags));
             if (gdev->pmode_id < 0) {
                 /* save the first valid pmode we see */
-                memcpy(&gdev->pmode, &info->pmodes[i], sizeof(gdev->pmode));
+                gdev->pmode.r.x = gdev->dev->ring_swap32(info->pmodes[i].r.x);
+                gdev->pmode.r.y = gdev->dev->ring_swap32(info->pmodes[i].r.y);
+                gdev->pmode.r.width = gdev->dev->ring_swap32(info->pmodes[i].r.width);
+                gdev->pmode.r.height = gdev->dev->ring_swap32(info->pmodes[i].r.height);
+                gdev->pmode.enabled = gdev->dev->ring_swap32(info->pmodes[i].enabled);
+                gdev->pmode.flags = gdev->dev->ring_swap32(info->pmodes[i].flags);
                 gdev->pmode_id = i;
             }
         }
@@ -153,7 +172,7 @@ static status_t get_display_info(virtio_gpu_dev *gdev) {
     return NO_ERROR;
 }
 
-static status_t allocate_2d_resource(virtio_gpu_dev *gdev, uint32_t *resource_id, uint32_t width, uint32_t height) {
+status_t allocate_2d_resource(virtio_gpu_dev *gdev, uint32_t *resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p\n", gdev);
@@ -168,12 +187,12 @@ static status_t allocate_2d_resource(virtio_gpu_dev *gdev, uint32_t *resource_id
     virtio_gpu_resource_create_2d req;
     memset(&req, 0, sizeof(req));
 
-    req.hdr.type = VIRTIO_GPU_CMD_RESOURCE_CREATE_2D;
-    req.resource_id = gdev->next_resource_id++;
-    *resource_id = req.resource_id;
-    req.format = VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM;
-    req.width = width;
-    req.height = height;
+    req.hdr.type = gdev->dev->ring_swap32(VIRTIO_GPU_CMD_RESOURCE_CREATE_2D);
+    req.resource_id = gdev->dev->ring_swap32(gdev->next_resource_id++);
+    *resource_id = gdev->dev->ring_swap32(req.resource_id);
+    req.format = gdev->dev->ring_swap32(VIRTIO_GPU_FORMAT_B8G8R8X8_UNORM);
+    req.width = gdev->dev->ring_swap32(width);
+    req.height = gdev->dev->ring_swap32(height);
 
     /* send the command and get a response */
     virtio_gpu_ctrl_hdr *res;
@@ -181,8 +200,8 @@ static status_t allocate_2d_resource(virtio_gpu_dev *gdev, uint32_t *resource_id
     DEBUG_ASSERT(err == NO_ERROR);
 
     /* see if we got a valid response */
-    LTRACEF("response type 0x%x\n", res->type);
-    err = (res->type == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
+    LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
+    err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
     /* release the lock */
     mutex_release(&gdev->lock);
@@ -190,7 +209,7 @@ static status_t allocate_2d_resource(virtio_gpu_dev *gdev, uint32_t *resource_id
     return err;
 }
 
-static status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void *ptr, size_t buf_len) {
+status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void *ptr, size_t buf_len) {
     status_t err;
 
     LTRACEF("gdev %p, resource_id %u, ptr %p, buf_len %zu\n", gdev, resource_id, ptr, buf_len);
@@ -208,9 +227,9 @@ static status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void 
     } req;
     memset(&req, 0, sizeof(req));
 
-    req.req.hdr.type = VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING;
-    req.req.resource_id = resource_id;
-    req.req.nr_entries = 1;
+    req.req.hdr.type = gdev->dev->ring_swap32(VIRTIO_GPU_CMD_RESOURCE_ATTACH_BACKING);
+    req.req.resource_id = gdev->dev->ring_swap32(resource_id);
+    req.req.nr_entries = gdev->dev->ring_swap32(1);
 
     paddr_t pa;
 #if WITH_KERNEL_VM
@@ -218,8 +237,8 @@ static status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void 
 #else
     pa = (paddr_t)ptr;
 #endif
-    req.mem.addr = pa;
-    req.mem.length = buf_len;
+    req.mem.addr = gdev->dev->ring_swap64(pa);
+    req.mem.length = gdev->dev->ring_swap32(buf_len);
 
     /* send the command and get a response */
     virtio_gpu_ctrl_hdr *res;
@@ -227,8 +246,8 @@ static status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void 
     DEBUG_ASSERT(err == NO_ERROR);
 
     /* see if we got a valid response */
-    LTRACEF("response type 0x%x\n", res->type);
-    err = (res->type == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
+    LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
+    err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
     /* release the lock */
     mutex_release(&gdev->lock);
@@ -236,7 +255,7 @@ static status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void 
     return err;
 }
 
-static status_t set_scanout(virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t resource_id, uint32_t width, uint32_t height) {
+status_t set_scanout(virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p, scanout_id %u, resource_id %u, width %u, height %u\n", gdev, scanout_id, resource_id, width, height);
@@ -248,12 +267,12 @@ static status_t set_scanout(virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t 
     virtio_gpu_set_scanout req;
     memset(&req, 0, sizeof(req));
 
-    req.hdr.type = VIRTIO_GPU_CMD_SET_SCANOUT;
+    req.hdr.type = gdev->dev->ring_swap32(VIRTIO_GPU_CMD_SET_SCANOUT);
     req.r.x = req.r.y = 0;
-    req.r.width = width;
-    req.r.height = height;
-    req.scanout_id = scanout_id;
-    req.resource_id = resource_id;
+    req.r.width = gdev->dev->ring_swap32(width);
+    req.r.height = gdev->dev->ring_swap32(height);
+    req.scanout_id = gdev->dev->ring_swap32(scanout_id);
+    req.resource_id = gdev->dev->ring_swap32(resource_id);
 
     /* send the command and get a response */
     virtio_gpu_ctrl_hdr *res;
@@ -261,8 +280,8 @@ static status_t set_scanout(virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t 
     DEBUG_ASSERT(err == NO_ERROR);
 
     /* see if we got a valid response */
-    LTRACEF("response type 0x%x\n", res->type);
-    err = (res->type == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
+    LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
+    err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
     /* release the lock */
     mutex_release(&gdev->lock);
@@ -270,7 +289,7 @@ static status_t set_scanout(virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t 
     return err;
 }
 
-static status_t flush_resource(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height) {
+status_t flush_resource(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p, resource_id %u, width %u, height %u\n", gdev, resource_id, width, height);
@@ -282,11 +301,11 @@ static status_t flush_resource(virtio_gpu_dev *gdev, uint32_t resource_id, uint3
     virtio_gpu_resource_flush req;
     memset(&req, 0, sizeof(req));
 
-    req.hdr.type = VIRTIO_GPU_CMD_RESOURCE_FLUSH;
+    req.hdr.type = gdev->dev->ring_swap32(VIRTIO_GPU_CMD_RESOURCE_FLUSH);
     req.r.x = req.r.y = 0;
-    req.r.width = width;
-    req.r.height = height;
-    req.resource_id = resource_id;
+    req.r.width = gdev->dev->ring_swap32(width);
+    req.r.height = gdev->dev->ring_swap32(height);
+    req.resource_id = gdev->dev->ring_swap32(resource_id);
 
     /* send the command and get a response */
     virtio_gpu_ctrl_hdr *res;
@@ -294,8 +313,8 @@ static status_t flush_resource(virtio_gpu_dev *gdev, uint32_t resource_id, uint3
     DEBUG_ASSERT(err == NO_ERROR);
 
     /* see if we got a valid response */
-    LTRACEF("response type 0x%x\n", res->type);
-    err = (res->type == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
+    LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
+    err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
     /* release the lock */
     mutex_release(&gdev->lock);
@@ -303,7 +322,7 @@ static status_t flush_resource(virtio_gpu_dev *gdev, uint32_t resource_id, uint3
     return err;
 }
 
-static status_t transfer_to_host_2d(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height) {
+status_t transfer_to_host_2d(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t width, uint32_t height) {
     status_t err;
 
     LTRACEF("gdev %p, resource_id %u, width %u, height %u\n", gdev, resource_id, width, height);
@@ -315,12 +334,12 @@ static status_t transfer_to_host_2d(virtio_gpu_dev *gdev, uint32_t resource_id, 
     virtio_gpu_transfer_to_host_2d req;
     memset(&req, 0, sizeof(req));
 
-    req.hdr.type = VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D;
+    req.hdr.type = gdev->dev->ring_swap32(VIRTIO_GPU_CMD_TRANSFER_TO_HOST_2D);
     req.r.x = req.r.y = 0;
-    req.r.width = width;
-    req.r.height = height;
+    req.r.width = gdev->dev->ring_swap32(width);
+    req.r.height = gdev->dev->ring_swap32(height);
     req.offset = 0;
-    req.resource_id = resource_id;
+    req.resource_id = gdev->dev->ring_swap32(resource_id);
 
     /* send the command and get a response */
     virtio_gpu_ctrl_hdr *res;
@@ -328,14 +347,16 @@ static status_t transfer_to_host_2d(virtio_gpu_dev *gdev, uint32_t resource_id, 
     DEBUG_ASSERT(err == NO_ERROR);
 
     /* see if we got a valid response */
-    LTRACEF("response type 0x%x\n", res->type);
-    err = (res->type == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
+    LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
+    err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
     /* release the lock */
     mutex_release(&gdev->lock);
 
     return err;
 }
+
+} // namespace
 
 status_t virtio_gpu_start(virtio_device *dev) {
     status_t err;
@@ -403,21 +424,14 @@ status_t virtio_gpu_start(virtio_device *dev) {
     return NO_ERROR;
 }
 
-
-static void dump_gpu_config(const volatile virtio_gpu_config *config) {
-    LTRACEF("events_read 0x%x\n", config->events_read);
-    LTRACEF("events_clear 0x%x\n", config->events_clear);
-    LTRACEF("num_scanouts 0x%x\n", config->num_scanouts);
-    LTRACEF("reserved 0x%x\n", config->reserved);
-}
-
 status_t virtio_gpu_init(virtio_device *dev) {
     LTRACEF("dev %p\n", dev);
 
     /* allocate a new gpu device */
     auto *gdev = (virtio_gpu_dev *)malloc(sizeof(virtio_gpu_dev));
-    if (!gdev)
+    if (!gdev) {
         return ERR_NO_MEMORY;
+    }
 
     mutex_init(&gdev->lock);
     event_init(&gdev->io_event, false, EVENT_FLAG_AUTOUNSIGNAL);
@@ -441,8 +455,11 @@ status_t virtio_gpu_init(virtio_device *dev) {
     /* make sure the device is reset */
     dev->bus()->virtio_reset_device();
 
-    volatile const auto *config = (const virtio_gpu_config *)dev->get_config_ptr();
-    dump_gpu_config(config);
+    const bool modern = dev->config_is_modern();
+    dprintf(INFO, "virtio-gpu: modern config %u, expecting %s-endian config\n",
+            modern, modern ? "little" : "native");
+
+    dump_gpu_config(dev);
 
     /* ack and set the driver status bit */
     dev->bus()->virtio_status_acknowledge_driver();
@@ -467,7 +484,9 @@ status_t virtio_gpu_init(virtio_device *dev) {
     return NO_ERROR;
 }
 
-static enum handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e) {
+namespace {
+
+enum handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e) {
     auto *gdev = (virtio_gpu_dev *)dev->priv();
 
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
@@ -478,10 +497,11 @@ static enum handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, ui
         int next;
         vring_desc *desc = dev->virtio_desc_index_to_desc(ring, i);
 
-        //virtio_dump_desc(desc);
+        // virtio_dump_desc(desc);
 
-        if (desc->flags & VRING_DESC_F_NEXT) {
-            next = desc->next;
+        const bool modern = dev->config_is_modern();
+        if (vring_desc_read_flags(desc, modern) & VRING_DESC_F_NEXT) {
+            next = vring_desc_read_next(desc, modern);
         } else {
             /* end of chain */
             next = -1;
@@ -489,8 +509,9 @@ static enum handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, ui
 
         dev->virtio_free_desc(ring, i);
 
-        if (next < 0)
+        if (next < 0) {
             break;
+        }
         i = next;
     }
 
@@ -500,18 +521,17 @@ static enum handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, ui
     return INT_RESCHEDULE;
 }
 
-static enum handler_return virtio_gpu_config_change_callback(virtio_device *dev) {
+enum handler_return virtio_gpu_config_change_callback(virtio_device *dev) {
     auto *gdev = (virtio_gpu_dev *)dev->priv();
 
     LTRACEF("gdev %p\n", gdev);
 
-    volatile const auto *config = (const virtio_gpu_config *)dev->get_config_ptr();
-    dump_gpu_config(config);
+    dump_gpu_config(dev);
 
     return INT_RESCHEDULE;
 }
 
-static int virtio_gpu_flush_thread(void *arg) {
+int virtio_gpu_flush_thread(void *arg) {
     auto *gdev = (virtio_gpu_dev *)arg;
     status_t err;
 
@@ -536,16 +556,21 @@ static int virtio_gpu_flush_thread(void *arg) {
     return 0;
 }
 
-static void virtio_gpu_gfx_flush(uint starty, uint endy) {
+void virtio_gpu_gfx_flush(uint starty, uint endy) {
     event_signal(&the_gdev->flush_event, !arch_ints_disabled());
 }
+
+} // namespace
+
+// Display hooks
 
 status_t display_get_framebuffer(display_framebuffer *fb) {
     DEBUG_ASSERT(fb);
     memset(fb, 0, sizeof(*fb));
 
-    if (!the_gdev)
+    if (!the_gdev) {
         return ERR_NOT_FOUND;
+    }
 
     fb->image.pixels = the_gdev->fb;
     fb->image.format = IMAGE_FORMAT_RGB_x888;
@@ -563,8 +588,9 @@ status_t display_get_info(display_info *info) {
     DEBUG_ASSERT(info);
     memset(info, 0, sizeof(*info));
 
-    if (!the_gdev)
+    if (!the_gdev) {
         return ERR_NOT_FOUND;
+    }
 
     info->format = DISPLAY_FORMAT_RGB_x888;
     info->width = the_gdev->pmode.r.width;
