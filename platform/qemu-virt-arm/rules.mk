@@ -34,6 +34,7 @@ MODULE_DEPS += \
     dev/virtio/block \
     dev/virtio/gpu \
     dev/virtio/net \
+    dev/virtio/rng \
     lib/cbuf \
     lib/fdtwalk \
     lib/fs/9p \
