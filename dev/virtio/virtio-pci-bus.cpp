@@ -32,6 +32,9 @@
 #if WITH_DEV_VIRTIO_GPU
 #include <dev/virtio/gpu.h>
 #endif
+#if WITH_DEV_VIRTIO_RNG
+#include <dev/virtio/rng.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -465,6 +468,32 @@ static status_t init_gpu(pci_location_t loc, const virtio_pci_devices &dev_table
 #endif
 }
 
+static status_t init_rng(pci_location_t loc, const virtio_pci_devices &dev_table_entry, size_t index) {
+    LTRACE_ENTRY;
+
+#if WITH_DEV_VIRTIO_RNG
+    auto *bus = new virtio_pci_bus();
+    auto *dev = new virtio_device(bus);
+
+    auto err = bus->init(dev, loc, index);
+    if (err != NO_ERROR) {
+        delete bus;
+        return err;
+    }
+
+    dev->set_config_ptr(bus->device_config());
+
+    err = virtio_rng_init(dev);
+    if (err != NO_ERROR) {
+        PANIC_UNIMPLEMENTED;
+    }
+
+    return err;
+#else
+    return ERR_NOT_FOUND;
+#endif
+}
+
 
 int virtio_pci_init() {
     LTRACE_ENTRY;
@@ -472,10 +501,12 @@ int virtio_pci_init() {
     constexpr virtio_pci_devices devices[] = {
         { 0x1000, true, &init_net }, // transitional network
         { 0x1001, true, &init_block }, // transitional block
+        { 0x1005, true, &init_rng }, // transitional rng
         { 0x1009, true, nullptr }, // legacy virtio 9p
         { 0x1041, false, &init_net }, // non-transitional network
         { 0x1042, false, &init_block }, // non-transitional block
         { 0x1043, false, nullptr }, // non-transitional console
+        { 0x1044, false, &init_rng }, // non-transitional rng
         { 0x1050, false, &init_gpu }, // non-transitional gpu
         { 0x1052, false, nullptr }, // non-transitional input
     };
