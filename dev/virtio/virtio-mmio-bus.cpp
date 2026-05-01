@@ -36,6 +36,9 @@
 #if WITH_DEV_VIRTIO_9P
 #include <dev/virtio/9p.h>
 #endif
+#if WITH_DEV_VIRTIO_RNG
+#include <dev/virtio/rng.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -332,6 +335,16 @@ int virtio_mmio_detect(void *ptr, uint count, const uint irqs[], size_t stride) 
             }
         }
 #endif // WITH_DEV_VIRTIO_NET
+#if WITH_DEV_VIRTIO_RNG
+        if (mmio->device_id == 4) { // virtio-rng
+            LTRACEF("found rng device\n");
+
+            status_t err = virtio_rng_init(dev);
+            if (err >= 0) {
+                found++;
+            }
+        }
+#endif // WITH_DEV_VIRTIO_RNG
 #if WITH_DEV_VIRTIO_9P
         if (device_id == 9) { // 9p device
             LTRACEF("found 9p device\n");
