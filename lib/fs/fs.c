@@ -7,15 +7,15 @@
  */
 #include <lib/fs.h>
 
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <lk/list.h>
-#include <lk/err.h>
-#include <string.h>
-#include <stdlib.h>
-#include <lib/bio.h>
-#include <lk/init.h>
 #include <kernel/mutex.h>
+#include <lib/bio.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/init.h>
+#include <lk/list.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -61,8 +61,9 @@ extern const struct fs_impl __stop_fs_impl __WEAK;
 
 static const struct fs_impl *find_fs(const char *name) {
     for (const struct fs_impl *fs = &__start_fs_impl; fs != &__stop_fs_impl; fs++) {
-        if (!strcmp(name, fs->name))
+        if (!strcmp(name, fs->name)) {
             return fs;
+        }
     }
     return NULL;
 }
@@ -145,8 +146,9 @@ static void put_mount(struct fs_mount *mount) {
         list_delete(&mount->node);
         mount->api->unmount(mount->cookie);
         free(mount->path);
-        if (mount->dev)
+        if (mount->dev) {
             bio_close(mount->dev);
+        }
         free(mount);
     }
     mutex_release(&mount_lock);
@@ -160,8 +162,9 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
 
-    if (temppath[0] != '/')
+    if (temppath[0] != '/') {
         return ERR_BAD_PATH;
+    }
 
     /* see if there's already something at this path, abort if there is */
     mount = find_mount(temppath, NULL);
@@ -174,27 +177,34 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
     bdev_t *dev = NULL;
     if (device && device[0] != '\0') {
         dev = bio_open(device);
-        if (!dev)
+        if (!dev) {
             return ERR_NOT_FOUND;
+        }
     }
 
     /* call into the fs implementation */
     fscookie *cookie;
     status_t err = api->mount(dev, &cookie);
     if (err < 0) {
-        if (dev) bio_close(dev);
+        if (dev) {
+            bio_close(dev);
+        }
         return err;
     }
 
     /* create the mount structure and add it to the list */
     mount = malloc(sizeof(struct fs_mount));
     if (!mount) {
-        if (dev) bio_close(dev);
+        if (dev) {
+            bio_close(dev);
+        }
         return ERR_NO_MEMORY;
     }
     mount->path = strdup(temppath);
     if (!mount->path) {
-        if (dev) bio_close(dev);
+        if (dev) {
+            bio_close(dev);
+        }
         free(mount);
         return ERR_NO_MEMORY;
     }
@@ -208,7 +218,6 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
     list_add_head(&mounts, &mount->node);
 
     return 0;
-
 }
 
 status_t fs_format_device(const char *fsname, const char *device, const void *args) {
@@ -224,8 +233,9 @@ status_t fs_format_device(const char *fsname, const char *device, const void *ar
     bdev_t *dev = NULL;
     if (device && device[0] != '\0') {
         dev = bio_open(device);
-        if (!dev)
+        if (!dev) {
             return ERR_NOT_FOUND;
+        }
     }
 
     return fs->api->format(dev, args);
@@ -233,8 +243,9 @@ status_t fs_format_device(const char *fsname, const char *device, const void *ar
 
 status_t fs_mount(const char *path, const char *fsname, const char *device) {
     const struct fs_impl *fs = find_fs(fsname);
-    if (!fs)
+    if (!fs) {
         return ERR_NOT_FOUND;
+    }
 
     return mount(path, device, fs);
 }
@@ -246,8 +257,9 @@ status_t fs_unmount(const char *path) {
     fs_normalize_path(temppath);
 
     struct fs_mount *mount = find_mount(temppath, NULL);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     // return the ref that find_mount added and one extra
     put_mount(mount);
@@ -266,8 +278,9 @@ status_t fs_open_file(const char *path, filehandle **handle) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     LTRACEF("path %s temppath %s newpath %s\n", path, temppath, newpath);
 
@@ -310,8 +323,9 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     if (!mount->api->create) {
         put_mount(mount);
@@ -352,8 +366,9 @@ status_t fs_remove_file(const char *path) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     if (!mount->api->remove) {
         put_mount(mount);
@@ -375,8 +390,9 @@ status_t fs_remove_dir(const char *path) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     if (!mount->api->rmdir) {
         put_mount(mount);
@@ -395,16 +411,18 @@ ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len) {
 }
 
 ssize_t fs_write_file(filehandle *handle, const void *buf, off_t offset, size_t len) {
-    if (!handle->mount->api->write)
+    if (!handle->mount->api->write) {
         return ERR_NOT_SUPPORTED;
+    }
 
     return handle->mount->api->write(handle->cookie, buf, offset, len);
 }
 
 status_t fs_close_file(filehandle *handle) {
     status_t err = handle->mount->api->close(handle->cookie);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     put_mount(handle->mount);
     free(handle);
@@ -423,8 +441,9 @@ status_t fs_make_dir(const char *path) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     if (!mount->api->mkdir) {
         put_mount(mount);
@@ -454,8 +473,9 @@ static void rootfs_mount_removed(struct fs_mount *removed) {
     struct fs_mount *next = list_next_type(&mounts, &removed->node, struct fs_mount, node);
     struct rootfs_dircookie *dc;
     list_for_every_entry(&active_rootfs_cookies, dc, struct rootfs_dircookie, node) {
-        if (dc->current == removed)
+        if (dc->current == removed) {
             dc->current = next;
+        }
     }
 }
 
@@ -466,23 +486,32 @@ static const char *mount_component(const struct fs_mount *m, const char *prefix,
                                    size_t plen, size_t *complen) {
     const char *p = m->path;
     if (plen == 0) {
-        if (p[0] != '/') return NULL;
+        if (p[0] != '/') {
+            return NULL;
+        }
         p++;
     } else {
-        if (strncmp(p, prefix, plen) != 0 || p[plen] != '/') return NULL;
+        if (strncmp(p, prefix, plen) != 0 || p[plen] != '/') {
+            return NULL;
+        }
         p += plen + 1;
     }
-    if (p[0] == '\0') return NULL;
+    if (p[0] == '\0') {
+        return NULL;
+    }
     const char *slash = strchr(p, '/');
     *complen = slash ? (size_t)(slash - p) : strlen(p);
-    if (*complen == 0 || *complen >= FS_MAX_FILE_LEN) return NULL;
+    if (*complen == 0 || *complen >= FS_MAX_FILE_LEN) {
+        return NULL;
+    }
     return p;
 }
 
 static status_t rootfs_opendir(const char *prefix, struct rootfs_dircookie **out) {
     struct rootfs_dircookie *dc = calloc(1, sizeof(*dc));
-    if (!dc)
+    if (!dc) {
         return ERR_NO_MEMORY;
+    }
 
     strlcpy(dc->prefix, prefix, sizeof(dc->prefix));
     size_t plen = strlen(prefix);
@@ -500,8 +529,9 @@ static status_t rootfs_opendir(const char *prefix, struct rootfs_dircookie **out
             }
         }
     }
-    if (matched)
+    if (matched) {
         list_add_tail(&active_rootfs_cookies, &dc->node);
+    }
     mutex_release(&mount_lock);
 
     if (!matched) {
@@ -566,8 +596,9 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
         if (temppath[0] == '\0' || temppath[0] == '/') {
             struct rootfs_dircookie *dc;
             status_t err = rootfs_opendir(temppath, &dc);
-            if (err < 0)
+            if (err < 0) {
                 return err;
+            }
 
             dirhandle *d = malloc(sizeof(*d));
             if (!d) {
@@ -610,11 +641,13 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
 }
 
 status_t fs_read_dir(dirhandle *handle, struct dirent *ent) {
-    if (!handle->mount)
+    if (!handle->mount) {
         return rootfs_readdir((struct rootfs_dircookie *)handle->cookie, ent);
+    }
 
-    if (!handle->mount->api->readdir)
+    if (!handle->mount->api->readdir) {
         return ERR_NOT_SUPPORTED;
+    }
 
     return handle->mount->api->readdir(handle->cookie, ent);
 }
@@ -626,12 +659,14 @@ status_t fs_close_dir(dirhandle *handle) {
         return NO_ERROR;
     }
 
-    if (!handle->mount->api->closedir)
+    if (!handle->mount->api->closedir) {
         return ERR_NOT_SUPPORTED;
+    }
 
     status_t err = handle->mount->api->closedir(handle->cookie);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     put_mount(handle->mount);
     free(handle);
@@ -659,14 +694,14 @@ status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat) {
     return result;
 }
 
-
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) {
     filehandle *handle;
 
     /* open the file */
     status_t err = fs_open_file(path, &handle);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     /* stat it for size, see how much we need to read */
     struct file_stat stat;
@@ -682,16 +717,17 @@ ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) {
 const char *trim_name(const char *_name) {
     const char *name = &_name[0];
     // chew up leading spaces
-    while (*name == ' ')
+    while (*name == ' ') {
         name++;
+    }
 
     // chew up leading slashes
-    while (*name == '/')
+    while (*name == '/') {
         name++;
+    }
 
     return name;
 }
-
 
 void fs_normalize_path(char *path) {
     int outpos;
@@ -822,9 +858,9 @@ void fs_normalize_path(char *path) {
     }
 
     /* don't end with trailing slashes */
-    if (outpos > 0 && path[outpos - 1] == '/')
+    if (outpos > 0 && path[outpos - 1] == '/') {
         outpos--;
+    }
 
     path[outpos++] = 0;
 }
-

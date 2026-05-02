@@ -6,15 +6,15 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <lk/err.h>
-#include <lk/debug.h>
-#include <string.h>
-#include <stdio.h>
-#include <lk/trace.h>
-#include <stdlib.h>
-#include <platform.h>
-#include <lk/console_cmd.h>
 #include <lib/fs.h>
+#include <lk/console_cmd.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <platform.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* shell console hooks for manipulating the file system */
 
@@ -36,8 +36,9 @@ static void set_cwd(const char *path) {
 }
 
 static const char *get_cwd(void) {
-    if (!cwd)
+    if (!cwd) {
         return "/";
+    }
     return cwd;
 }
 
@@ -46,8 +47,9 @@ static char *prepend_cwd(char *path, size_t len, const char *arg) {
 
     if (!arg || arg[0] != '/') {
         strlcat(path, get_cwd(), len);
-        if (arg && path[strlen(path) - 1] != '/')
+        if (arg && path[strlen(path) - 1] != '/') {
             strlcat(path, "/", len);
+        }
     }
     if (arg) {
         strlcat(path, arg, len);
@@ -82,8 +84,9 @@ static int cmd_ls(int argc, const console_cmd_args *argv) {
 
         // append our filename to the path (avoid double-slash when path is "/")
         tmppath[pathlen] = '\0';
-        if (pathlen == 0 || tmppath[pathlen - 1] != '/')
+        if (pathlen == 0 || tmppath[pathlen - 1] != '/') {
             strlcat(tmppath, "/", FS_MAX_PATH_LEN);
+        }
         strlcat(tmppath, ent.name, FS_MAX_PATH_LEN);
 
         err = fs_open_file(tmppath, &handle);
@@ -198,8 +201,9 @@ static int cmd_rm(int argc, const console_cmd_args *argv) {
     prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     status_t err = fs_remove_file(path);
-    if (err < 0)
+    if (err < 0) {
         printf("error %d removing file '%s'\n", err, path);
+    }
 
     free(path);
     return err;
@@ -216,8 +220,9 @@ static int cmd_rmdir(int argc, const console_cmd_args *argv) {
     prepend_cwd(path, FS_MAX_PATH_LEN, argv[1].str);
 
     status_t err = fs_remove_dir(path);
-    if (err < 0)
+    if (err < 0) {
         printf("error %d removing directory '%s'\n", err, path);
+    }
 
     free(path);
     return err;
@@ -255,7 +260,6 @@ static int cmd_stat(int argc, const console_cmd_args *argv) {
     printf("stat successful:\n");
     printf("\tis_dir: %d\n", stat.is_dir ? 1 : 0);
     printf("\tsize: %lld\n", stat.size);
-
 
 err:
     free(path);

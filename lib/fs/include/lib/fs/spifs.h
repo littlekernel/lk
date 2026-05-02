@@ -15,4 +15,3 @@
 typedef struct {
     uint32_t toc_pages;
 } spifs_format_args_t;
-

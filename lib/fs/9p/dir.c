@@ -23,19 +23,17 @@
  */
 #include <dev/virtio/9p.h>
 
-#include <stdio.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <lk/err.h>
-#include <lk/trace.h>
 
 #include "v9fs_priv.h"
 
 #define LOCAL_TRACE 0
 
-status_t v9fs_open_dir(fscookie *cookie, const char *path, dircookie **dcookie)
-{
+status_t v9fs_open_dir(fscookie *cookie, const char *path, dircookie **dcookie) {
     v9fs_t *v9fs = (v9fs_t *)cookie;
     char temppath[FS_MAX_PATH_LEN];
     uint32_t flags;
@@ -59,9 +57,7 @@ status_t v9fs_open_dir(fscookie *cookie, const char *path, dircookie **dcookie)
         .msg_type = P9_TWALK,
         .tag = P9_TAG_DEFAULT,
         .msg.twalk = {
-            .fid = v9fs->root.fid, .newfid = dir->fid.fid
-        }
-    };
+            .fid = v9fs->root.fid, .newfid = dir->fid.fid}};
     virtio_9p_msg_t rwalk = {};
 
     path_to_wname(temppath, &twalk.msg.twalk.nwname, twalk.msg.twalk.wname);
@@ -75,11 +71,12 @@ status_t v9fs_open_dir(fscookie *cookie, const char *path, dircookie **dcookie)
         }
     }
 
-    if ((ret = virtio_9p_rpc(v9fs->dev, &twalk, &rwalk)) != NO_ERROR)
+    if ((ret = virtio_9p_rpc(v9fs->dev, &twalk, &rwalk)) != NO_ERROR) {
         goto err;
+    }
 
     if (rwalk.msg_type != P9_RWALK ||
-            rwalk.msg.rwalk.nwqid != twalk.msg.twalk.nwname) {
+        rwalk.msg.rwalk.nwqid != twalk.msg.twalk.nwname) {
         ret = ERR_NOT_FOUND;
         goto err;
     }
@@ -88,16 +85,17 @@ status_t v9fs_open_dir(fscookie *cookie, const char *path, dircookie **dcookie)
     flags = O_DIRECTORY | O_RDONLY;
 
     virtio_9p_msg_t tlopen = {
-        .msg_type= P9_TLOPEN,
+        .msg_type = P9_TLOPEN,
         .tag = P9_TAG_DEFAULT,
         .msg.tlopen = {
-            .fid = dir->fid.fid, .flags = flags,
-        }
-    };
+            .fid = dir->fid.fid,
+            .flags = flags,
+        }};
     virtio_9p_msg_t rlopen = {};
 
-    if ((ret = virtio_9p_rpc(v9fs->dev, &tlopen, &rlopen)) != NO_ERROR)
+    if ((ret = virtio_9p_rpc(v9fs->dev, &tlopen, &rlopen)) != NO_ERROR) {
         goto des_rwalk;
+    }
 
     if (rlopen.msg_type != P9_RLOPEN) {
         ret = ERR_ACCESS_DENIED;
@@ -134,8 +132,7 @@ err:
     return ret;
 }
 
-status_t v9fs_mkdir(fscookie *cookie, const char *path)
-{
+status_t v9fs_mkdir(fscookie *cookie, const char *path) {
     v9fs_t *v9fs = (v9fs_t *)cookie;
     char temppath[FS_MAX_PATH_LEN];
     char *dirname;
@@ -152,28 +149,29 @@ status_t v9fs_mkdir(fscookie *cookie, const char *path)
         .msg_type = P9_TWALK,
         .tag = P9_TAG_DEFAULT,
         .msg.twalk = {
-            .fid = v9fs->root.fid, .newfid = dfid,
-        }
-    };
+            .fid = v9fs->root.fid,
+            .newfid = dfid,
+        }};
     virtio_9p_msg_t rwalk = {};
 
     // separate the directory and the dirname
     dirname = strrchr(temppath, '/');
-    if (!dirname || dirname == temppath) {        // create on the root dir
+    if (!dirname || dirname == temppath) { // create on the root dir
         dirname = temppath;
         twalk.msg.twalk.nwname = 0;
-    } else {                                      // create on a dir
+    } else { // create on a dir
         // parse the parent directory
         *dirname++ = '\0';
         path_to_wname(temppath, &twalk.msg.twalk.nwname, twalk.msg.twalk.wname);
     }
 
     // walk to the parent directory
-    if ((ret = virtio_9p_rpc(v9fs->dev, &twalk, &rwalk)) != NO_ERROR)
+    if ((ret = virtio_9p_rpc(v9fs->dev, &twalk, &rwalk)) != NO_ERROR) {
         goto err;
+    }
 
     if (rwalk.msg_type != P9_RWALK ||
-            rwalk.msg.rwalk.nwqid != twalk.msg.twalk.nwname) {
+        rwalk.msg.rwalk.nwqid != twalk.msg.twalk.nwname) {
         ret = ERR_NOT_DIR;
         goto err;
     }
@@ -184,16 +182,18 @@ status_t v9fs_mkdir(fscookie *cookie, const char *path)
            S_IROTH | S_IWOTH;
 
     virtio_9p_msg_t tmkdir = {
-        .msg_type= P9_TMKDIR,
+        .msg_type = P9_TMKDIR,
         .tag = P9_TAG_DEFAULT,
         .msg.tmkdir = {
-            .dfid = dfid, .name = dirname, .mode = mode,
-        }
-    };
+            .dfid = dfid,
+            .name = dirname,
+            .mode = mode,
+        }};
     virtio_9p_msg_t rmkdir = {};
 
-    if ((ret = virtio_9p_rpc(v9fs->dev, &tmkdir, &rmkdir)) != NO_ERROR)
+    if ((ret = virtio_9p_rpc(v9fs->dev, &tmkdir, &rmkdir)) != NO_ERROR) {
         goto des_rwalk;
+    }
 
     if (rmkdir.msg_type != P9_RMKDIR) {
         ret = ERR_NOT_ALLOWED;
@@ -209,8 +209,7 @@ err:
     return ret;
 }
 
-status_t v9fs_read_dir(dircookie *dcookie, struct dirent *ent)
-{
+status_t v9fs_read_dir(dircookie *dcookie, struct dirent *ent) {
     v9fs_dir_t *dir = (v9fs_dir_t *)dcookie;
     p9_dirent_t p9_dent;
     status_t ret = NO_ERROR;
@@ -218,24 +217,25 @@ status_t v9fs_read_dir(dircookie *dcookie, struct dirent *ent)
 
     LTRACEF("dir (%p) ent (%p)\n", dir, ent);
 
-    if (!dir && !ent)
+    if (!dir && !ent) {
         return ERR_INVALID_ARGS;
+    }
 
     while (true) {
         // read directory entries from v9p to fill buffer
         if (dir->head == dir->tail) {
             virtio_9p_msg_t treaddir = {
-                .msg_type= P9_TREADDIR,
+                .msg_type = P9_TREADDIR,
                 .tag = P9_TAG_DEFAULT,
                 .msg.treaddir = {
-                    .fid = dir->fid.fid, .offset = dir->offset,
+                    .fid = dir->fid.fid,
+                    .offset = dir->offset,
                     .count = PAGE_SIZE,
-                }
-            };
+                }};
             virtio_9p_msg_t rreaddir = {};
 
             if ((ret = virtio_9p_rpc(dir->v9fs->dev, &treaddir, &rreaddir)) !=
-                    NO_ERROR) {
+                NO_ERROR) {
                 return ret;
             }
 
@@ -285,14 +285,14 @@ status_t v9fs_read_dir(dircookie *dcookie, struct dirent *ent)
     ASSERT(false); // Impossible to get here
 }
 
-status_t v9fs_close_dir(dircookie *dcookie)
-{
+status_t v9fs_close_dir(dircookie *dcookie) {
     v9fs_dir_t *dir = (v9fs_dir_t *)dcookie;
 
     LTRACEF("dir (%p)\n", dir);
 
-    if (!dir)
+    if (!dir) {
         return NO_ERROR;
+    }
 
     put_fid(dir->v9fs, dir->fid.fid);
     list_delete(&dir->node);

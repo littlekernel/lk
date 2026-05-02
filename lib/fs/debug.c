@@ -5,14 +5,14 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lk/debug.h>
-#include <string.h>
-#include <lk/console_cmd.h>
 #include <lib/fs.h>
+#include <lk/console_cmd.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <platform.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <platform.h>
-#include <lk/err.h>
+#include <string.h>
 
 #if LK_DEBUGLEVEL > 1
 static int cmd_fs(int argc, const console_cmd_args *argv);
@@ -118,8 +118,9 @@ usage:
     if (!strcmp(argv[1].str, "mount")) {
         int err;
 
-        if (argc < 4)
+        if (argc < 4) {
             goto notenoughargs;
+        }
 
         err = fs_mount(argv[2].str, argv[3].str,
                        (argc >= 5) ? argv[4].str : NULL);
@@ -131,8 +132,9 @@ usage:
     } else if (!strcmp(argv[1].str, "unmount")) {
         int err;
 
-        if (argc < 3)
+        if (argc < 3) {
             goto notenoughargs;
+        }
 
         err = fs_unmount(argv[2].str);
         if (err < 0) {
@@ -147,10 +149,9 @@ usage:
         }
 
         err = fs_format_device(
-                  argv[2].str,
-                  (argc >= 4) ? argv[3].str : NULL,
-                  NULL
-              );
+            argv[2].str,
+            (argc >= 4) ? argv[3].str : NULL,
+            NULL);
 
         if (err != NO_ERROR) {
             printf("error %d formatting device\n", err);
@@ -186,8 +187,9 @@ usage:
         filehandle *handle;
         struct file_stat stat;
 
-        if (argc < 3)
+        if (argc < 3) {
             goto notenoughargs;
+        }
 
         err = fs_open_file(argv[2].str, &handle);
         if (err < 0) {
@@ -202,10 +204,11 @@ usage:
             return err;
         }
 
-        if (argc < 5)
+        if (argc < 5) {
             off = stat.size;
-        else
+        } else {
             off = argv[4].u;
+        }
 
         err = fs_write_file(handle, argv[3].str, off, strlen(argv[3].str));
         if (err < 0) {

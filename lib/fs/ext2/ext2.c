@@ -6,14 +6,14 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <string.h>
-#include <stdlib.h>
+#include "ext2_priv.h"
+#include <lib/fs.h>
 #include <lk/debug.h>
 #include <lk/err.h>
-#include <lk/trace.h>
 #include <lk/init.h>
-#include <lib/fs.h>
-#include "ext2_priv.h"
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -97,15 +97,17 @@ status_t ext2_mount(bdev_t *dev, fscookie **cookie) {
 
     LTRACEF("dev %p\n", dev);
 
-    if (!dev)
+    if (!dev) {
         return ERR_NOT_FOUND;
+    }
 
     ext2_t *ext2 = malloc(sizeof(ext2_t));
     ext2->dev = dev;
 
     err = bio_read(dev, &ext2->sb, 1024, sizeof(struct ext2_super_block));
-    if (err < 0)
+    if (err < 0) {
         goto err;
+    }
 
     endian_swap_superblock(&ext2->sb);
 
@@ -137,7 +139,7 @@ status_t ext2_mount(bdev_t *dev, fscookie **cookie) {
     }
 
     /* make sure it doesn't have any ro features we don't support */
-    if (ext2->sb.s_feature_ro_compat & ~(EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER|EXT2_FEATURE_RO_COMPAT_LARGE_FILE)) {
+    if (ext2->sb.s_feature_ro_compat & ~(EXT2_FEATURE_RO_COMPAT_SPARSE_SUPER | EXT2_FEATURE_RO_COMPAT_LARGE_FILE)) {
         err = -3;
         return err;
     }
@@ -153,7 +155,7 @@ status_t ext2_mount(bdev_t *dev, fscookie **cookie) {
     }
 
     int i;
-    for (i=0; i < ext2->s_group_count; i++) {
+    for (i = 0; i < ext2->s_group_count; i++) {
         endian_swap_group_desc(&ext2->gd[i]);
         LTRACEF("group %d:\n", i);
         LTRACEF("\tblock bitmap %d\n", ext2->gd[i].bg_block_bitmap);
@@ -169,10 +171,11 @@ status_t ext2_mount(bdev_t *dev, fscookie **cookie) {
 
     /* load the first inode */
     err = ext2_load_inode(ext2, EXT2_ROOT_INO, &ext2->root_inode);
-    if (err < 0)
+    if (err < 0) {
         goto err;
+    }
 
-//  TRACE("successfully mounted volume\n");
+    //  TRACE("successfully mounted volume\n");
 
     *cookie = (fscookie *)ext2;
 
@@ -224,8 +227,9 @@ int ext2_load_inode(ext2_t *ext2, inodenum_t num, struct ext2_inode *inode) {
     /* get a pointer to the cache block */
     void *cache_ptr;
     err = bcache_get_block(ext2->cache, &cache_ptr, bnum);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     /* copy the inode out */
     memcpy(inode, (uint8_t *)cache_ptr + block_offset, sizeof(struct ext2_inode));

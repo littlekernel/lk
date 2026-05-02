@@ -8,10 +8,9 @@
 #include <lib/fs.h>
 #include <lk/err.h>
 
-#include <string.h>
-#include <string.h>
-#include <stdio.h>
 #include <lib/unittest.h>
+#include <stdio.h>
+#include <string.h>
 
 // returns true if the input path passed through the path normalization
 // routine matches the expected output.
@@ -95,7 +94,7 @@ static bool test_path_normalize(void) {
     END_TEST;
 }
 
-#define TEST_MNT "/test"
+#define TEST_MNT  "/test"
 #define TEST_FILE TEST_MNT "/stdio_file_tests.txt"
 
 static inline void test_stdio_fs_teardown(void *ptr) {
@@ -155,21 +154,26 @@ static bool test_rootfs(void) {
     ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root with no mounts");
     struct dirent ent;
     // drain any pre-existing entries (other tests may have left mounts)
-    while (fs_read_dir(dh, &ent) == NO_ERROR) {}
+    while (fs_read_dir(dh, &ent) == NO_ERROR) {
+    }
     fs_close_dir(dh);
 
     // mount two filesystems; both must appear as directories in root listing
-    ASSERT_EQ(NO_ERROR, fs_mount("/tmp",  "memfs", NULL), "mount /tmp");
+    ASSERT_EQ(NO_ERROR, fs_mount("/tmp", "memfs", NULL), "mount /tmp");
     ASSERT_EQ(NO_ERROR, fs_mount("/data", "memfs", NULL), "mount /data");
 
     ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root dir with mounts");
     bool found_tmp = false, found_data = false;
     while (fs_read_dir(dh, &ent) == NO_ERROR) {
-        if (strcmp(ent.name, "tmp")  == 0) found_tmp  = true;
-        if (strcmp(ent.name, "data") == 0) found_data = true;
+        if (strcmp(ent.name, "tmp") == 0) {
+            found_tmp = true;
+        }
+        if (strcmp(ent.name, "data") == 0) {
+            found_data = true;
+        }
     }
     fs_close_dir(dh);
-    EXPECT_TRUE(found_tmp,  "tmp in root listing");
+    EXPECT_TRUE(found_tmp, "tmp in root listing");
     EXPECT_TRUE(found_data, "data in root listing");
 
     END_TEST;
@@ -218,15 +222,19 @@ static bool test_rootfs_live_iter(void) {
     // live_d may or may not appear depending on insertion order vs. cursor.
     bool seen_b = false, seen_a = false;
     while (fs_read_dir(dh, &ent) == NO_ERROR) {
-        if (strcmp(ent.name, "live_b") == 0) seen_b = true;
-        if (strcmp(ent.name, "live_a") == 0) seen_a = true;
+        if (strcmp(ent.name, "live_b") == 0) {
+            seen_b = true;
+        }
+        if (strcmp(ent.name, "live_a") == 0) {
+            seen_a = true;
+        }
         // also consume live_c/live_d without asserting – they are optional here
     }
     fs_close_dir(dh);
 
-    EXPECT_TRUE(seen_c,  "live_c seen before removal of live_b");
+    EXPECT_TRUE(seen_c, "live_c seen before removal of live_b");
     EXPECT_FALSE(seen_b, "live_b not seen after being unmounted mid-iter");
-    EXPECT_TRUE(seen_a,  "live_a seen after live_b removal");
+    EXPECT_TRUE(seen_a, "live_a seen after live_b removal");
 
     END_TEST;
 }

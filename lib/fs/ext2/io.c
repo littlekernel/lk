@@ -6,11 +6,11 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <string.h>
-#include <stdlib.h>
+#include "ext2_priv.h"
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include "ext2_priv.h"
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -76,7 +76,7 @@ static int ext2_calculate_block_pointer_pos(ext2_t *ext2, blocknum_t block_to_fi
 
 // This function returns a pointer to the cache block that corresponds to the indirect block pointer.
 static int ext2_get_indirect_block_pointer_cache_block(ext2_t *ext2, struct ext2_inode *inode,
-        blocknum_t **cache_block, uint32_t level, uint32_t pos[], uint *block_loaded) {
+                                                       blocknum_t **cache_block, uint32_t level, uint32_t pos[], uint *block_loaded) {
     uint32_t current_level = 0;
     uint current_block = 0, last_block;
     blocknum_t *block = NULL;
@@ -144,8 +144,9 @@ static blocknum_t file_block_to_fs_block(ext2_t *ext2, struct ext2_inode *inode,
         blocknum_t *ind_table;
         blocknum_t phys_block;
         err = ext2_get_indirect_block_pointer_cache_block(ext2, inode, &ind_table, level, pos, &phys_block);
-        if (err < 0)
+        if (err < 0) {
             return 0;
+        }
 
         /* dereference the final entry in the final table */
         block = LE32(ind_table[pos[level]]);
@@ -171,12 +172,15 @@ ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_
     LTRACEF("inode %p, offset %lld, len %zd, file_size %lld\n", inode, offset, len, file_size);
 
     /* trim the read */
-    if (offset > file_size)
+    if (offset > file_size) {
         return 0;
-    if ((off_t)(offset + len) >= file_size)
+    }
+    if ((off_t)(offset + len) >= file_size) {
         len = file_size - offset;
-    if (len == 0)
+    }
+    if (len == 0) {
         return 0;
+    }
 
     /* calculate the starting file block */
     uint file_block = offset / EXT2_BLOCK_SIZE(ext2->sb);
@@ -245,4 +249,3 @@ ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *_buf, off_
 
     return (err < 0) ? err : (ssize_t)bytes_read;
 }
-

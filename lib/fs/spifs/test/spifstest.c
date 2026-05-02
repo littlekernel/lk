@@ -8,22 +8,22 @@
 
 #if LK_DEBUGLEVEL > 1
 
+#include <lk/console_cmd.h>
 #include <lk/err.h>
 #include <math.h>
 #include <platform.h>
 #include <stdlib.h>
 #include <string.h>
-#include <lk/console_cmd.h>
 
 #include <lib/bio.h>
 #include <lib/fs/spifs.h>
 
-#define FS_NAME "spifs"
-#define MNT_PATH "/s"
-#define TEST_FILE_PATH "/s/test"
+#define FS_NAME            "spifs"
+#define MNT_PATH           "/s"
+#define TEST_FILE_PATH     "/s/test"
 #define TEST_PATH_MAX_SIZE 16
 
-typedef bool(*test_func)(const char *);
+typedef bool (*test_func)(const char *);
 
 typedef struct {
     test_func func;
@@ -76,7 +76,8 @@ static bool test_setup(const char *dev_name, uint32_t toc_pages) {
     res = fs_mount(MNT_PATH, FS_NAME, dev_name);
     if (res != NO_ERROR) {
         printf("fs_mount failed path = %s, fs name = %s, dev name = %s,"
-               " retcode = %d\n", MNT_PATH, FS_NAME, dev_name, res);
+               " retcode = %d\n",
+               MNT_PATH, FS_NAME, dev_name, res);
         return false;
     }
 
@@ -89,7 +90,8 @@ static bool test_teardown(void) {
         return false;
     }
 
-    return true;;
+    return true;
+    ;
 }
 
 static bool test_empty_after_format(const char *dev_name) {
@@ -141,7 +143,6 @@ static bool test_double_create_file(const char *dev_name) {
     status = NO_ERROR;
 
     fs_close_dir(dhandle);
-
 
 err:
     free(ent);
@@ -328,7 +329,6 @@ static bool test_rm_reclaim(const char *dev_name) {
         return false;
     }
 
-
     // Now this should go through because we've reclaimed the space.
     status = fs_create_file(test_file_name, &handle, stat.free_space + 1);
     if (status != NO_ERROR) {
@@ -405,7 +405,7 @@ static bool test_corrupt_toc(const char *dev_name) {
     // Grow the file to one byte. This should trigger a ToC flush. Now the
     // ToC record for this file should exist in both ToCs. Therefore corrupting
     // either of the ToCs will still yield this file readable.
-    char buf[1] = { 'a' };
+    char buf[1] = {'a'};
     status = fs_write_file(handle, buf, 0, 1);
     if (status != 1) {
         return false;
@@ -681,8 +681,8 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
     }
 
     static const size_t test_buffer_length = 4096;
-    static const size_t min_bench_bytes = 0x40;      // 64b
-    static const size_t max_bench_bytes = 0x100000;  // 1MiB
+    static const size_t min_bench_bytes = 0x40;     // 64b
+    static const size_t max_bench_bytes = 0x100000; // 1MiB
     const char *test_file_path = argv[2].str;
 
     status_t st;
@@ -694,8 +694,8 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
     memset(test_buffer, 0xAB, test_buffer_length);
 
     for (size_t file_size = min_bench_bytes;
-            file_size <= max_bench_bytes;
-            file_size *= 2) {
+         file_size <= max_bench_bytes;
+         file_size *= 2) {
 
         printf(" == Benchmark for %zu bytes == \n", file_size);
 
@@ -707,11 +707,11 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
 
         if (st != NO_ERROR) {
             printf("SPIFS Benchmark Failed to create a %zu byte file at %s. "
-                   "Reason = %d.\n", file_size, test_file_path, st);
+                   "Reason = %d.\n",
+                   file_size, test_file_path, st);
             retcode = -1;
             goto finish;
         }
-
 
         // Write File Benchmark
         off_t offset = 0;
@@ -719,9 +719,8 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
         start = current_time_hires();
         do {
             size_t write_length = MIN(
-                                      test_buffer_length,
-                                      file_size - offset
-                                  );
+                test_buffer_length,
+                file_size - offset);
             n_bytes = fs_write_file(handle, test_buffer, offset, write_length);
             offset += n_bytes;
         } while (n_bytes > 0);
@@ -731,7 +730,8 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
 
         if (n_bytes < 0) {
             printf("SPIFS Benchmark Failed to write to file at %s. "
-                   "Reason = %ld.\n", test_file_path, n_bytes);
+                   "Reason = %ld.\n",
+                   test_file_path, n_bytes);
             retcode = -1;
             fs_close_file(handle);
             goto finish;
@@ -752,7 +752,8 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
 
         if (n_bytes < 0) {
             printf("SPIFS Benchmark Failed to read from file at %s. "
-                   "Reason = %ld.\n", test_file_path, n_bytes);
+                   "Reason = %ld.\n",
+                   test_file_path, n_bytes);
             retcode = -1;
             fs_close_file(handle);
             goto finish;
@@ -761,7 +762,8 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
         st = fs_close_file(handle);
         if (st != NO_ERROR) {
             printf("SPIFS Benchmark Failed to close file at %s. "
-                   "Reason = %d.\n", test_file_path, st);
+                   "Reason = %d.\n",
+                   test_file_path, st);
             retcode = -1;
             goto finish;
         }
@@ -773,7 +775,8 @@ static int spifs_bench(int argc, const console_cmd_args *argv) {
 
         if (st != NO_ERROR) {
             printf("SPIFS Benchmark Failed to remove file at %s. "
-                   "Reason = %d.\n", test_file_path, st);
+                   "Reason = %d.\n",
+                   test_file_path, st);
             retcode = -1;
             goto finish;
         }
@@ -808,4 +811,4 @@ STATIC_COMMAND_START
 STATIC_COMMAND("spifs", "commands related to the spifs implementation.", &cmd_spifs)
 STATIC_COMMAND_END(spifs);
 
-#endif  // LK_DEBUGLEVEL > 1
+#endif // LK_DEBUGLEVEL > 1
