@@ -131,6 +131,69 @@ bool test_fat_utf8_to_ucs2() {
     END_TEST;
 }
 
+bool test_fat_split_path() {
+    BEGIN_TEST;
+
+    {
+        char path[] = "/foo/bar";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/foo", leading));
+        EXPECT_EQ(0, strcmp("bar", last));
+    }
+
+    {
+        char path[] = "foo";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/", leading));
+        EXPECT_EQ(0, strcmp("foo", last));
+    }
+
+    {
+        char path[] = "/foo";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/", leading));
+        EXPECT_EQ(0, strcmp("foo", last));
+    }
+
+    {
+        char path[] = "/";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/", leading));
+        EXPECT_EQ(0, strcmp("", last));
+    }
+
+    END_TEST;
+}
+
+bool test_fat_name_to_short_file_name() {
+    BEGIN_TEST;
+
+    char sfn[8 + 3 + 1];
+
+    ASSERT_EQ(NO_ERROR, name_to_short_file_name(sfn, "foo.txt"));
+    EXPECT_EQ(0, memcmp(sfn, "FOO     TXT", 11));
+    EXPECT_EQ('\0', sfn[11]);
+
+    ASSERT_EQ(NO_ERROR, name_to_short_file_name(sfn, "abc"));
+    EXPECT_EQ(0, memcmp(sfn, "ABC        ", 11));
+    EXPECT_EQ('\0', sfn[11]);
+
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, ""));
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, "a.b.c"));
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, "toolongname.txt"));
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, "a.long"));
+
+    END_TEST;
+}
+
 bool test_fat_dir_root() {
     return test_mount_wrapper([]() {
         BEGIN_TEST;
@@ -600,6 +663,8 @@ bool test_fat_lfn_ordinal_rollover() {
 BEGIN_TEST_CASE(fat)
 RUN_TEST(test_fat_mount)
 RUN_TEST(test_fat_utf8_to_ucs2)
+RUN_TEST(test_fat_split_path)
+RUN_TEST(test_fat_name_to_short_file_name)
 RUN_TEST(test_fat_dir_root)
 RUN_TEST(test_fat_read_file)
 RUN_TEST(test_fat_multi_open)

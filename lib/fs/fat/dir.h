@@ -23,12 +23,18 @@ struct fat_dir_cookie;
 status_t fat_utf8_to_ucs2(const char *utf8, uint16_t *ucs2, size_t max_ucs2_len,
                           size_t *out_ucs2_len);
 
+// Split a path into leading path and last element. Modifies path in-place.
+void split_path(char *path, const char **leading_path, const char **last_element);
+
+// Convert a user name to a canonical 8.3 short name (space padded, null terminated).
+status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name);
+
 // structure that represents an open dir, may have multiple cookies in its list
 // at any point in time,
 class fat_dir : public fat_file {
   public:
-    explicit fat_dir(fat_fs *f);
-    virtual ~fat_dir();
+    explicit fat_dir(fat_fs *f) : fat_file(f) {}
+    virtual ~fat_dir() = default;
 
     static status_t remove(fscookie *cookie, const char *path);
     static status_t rmdir(fscookie *cookie, const char *path);

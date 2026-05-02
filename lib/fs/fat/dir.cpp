@@ -25,11 +25,6 @@
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
-fat_dir::fat_dir(fat_fs *f)
-    : fat_file(f) {}
-
-fat_dir::~fat_dir() = default;
-
 // structure that represents an open dir handle. holds the offset into the directory
 // that is being walked.
 struct fat_dir_cookie {
@@ -747,8 +742,7 @@ status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_e
 // splits a path into the part of it leading up to the last element and the last element
 // if the leading part is zero length, return a single "/" element
 // will modify string passed in
-// TODO: write unit test
-static void split_path(char *path, const char **leading_path, const char **last_element) {
+void split_path(char *path, const char **leading_path, const char **last_element) {
     char *last_slash = strrchr(path, '/');
     if (last_slash) {
         *last_slash = 0;
@@ -766,8 +760,7 @@ static void split_path(char *path, const char **leading_path, const char **last_
 
 // construct a short file name from the incoming name
 // the sfn is padded out with spaces the same way a real FAT entry is
-// TODO: write unit test
-static status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name) {
+status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name) {
     // zero length inputs don't fly
     if (name[0] == 0) {
         return ERR_INVALID_ARGS;
@@ -824,7 +817,9 @@ static status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name) {
     return NO_ERROR;
 }
 
-static void fill_short_dirent(uint8_t *ent, const char short_name[11], fat_attribute attr,
+namespace {
+
+void fill_short_dirent(uint8_t *ent, const char short_name[11], fat_attribute attr,
                               uint32_t starting_cluster, uint32_t size) {
     memcpy(&ent[0], short_name, 11);              // name
     ent[11] = (uint8_t)attr;                      // attribute
@@ -840,9 +835,49 @@ static void fill_short_dirent(uint8_t *ent, const char short_name[11], fat_attri
     fat_write32(ent, 28, size);                   // file size
 }
 
-static bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc);
+// given a dir entry location, open the corresponding sector and pass back a open pointer
+// into the block cache.
+// this code encapsulates the logic that takes into account that cluster 0 is magic in
+// fat 12 and fat 16 for the root dir.
+bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc) {
+    LTRACEF("fat %p, loc %u:%u\n", fat, loc.starting_dir_cluster, loc.dir_offset);
 
-static status_t resolve_parent_cluster_and_last_element(fat_fs *fat, const char *path,
+    uint32_t cluster = loc.starting_dir_cluster;
+    uint32_t offset = loc.dir_offset;
+    uint32_t sector;
+
+    if (cluster == 0) {
+        DEBUG_ASSERT(fat->info().fat_bits == 12 || fat->info().fat_bits == 16);
+        // Special case on FAT12/16 to represent the root dir.
+        DEBUG_ASSERT(offset < fat->info().root_entries * DIR_ENTRY_LENGTH);
+        sector = fat->info().root_start_sector + offset / fat->info().bytes_per_sector;
+    } else {
+        // Walk the cluster chain if the offset exceeds the current cluster.
+        const uint32_t bytes_per_cluster = fat->info().bytes_per_sector * fat->info().sectors_per_cluster;
+        while (offset >= bytes_per_cluster) {
+            if (is_eof_cluster(cluster)) {
+                return bcache_block_ref(fat->bcache());
+            }
+            cluster = fat_next_cluster_in_chain(fat, cluster);
+            if (is_eof_cluster(cluster)) {
+                return bcache_block_ref(fat->bcache());
+            }
+            offset -= bytes_per_cluster;
+        }
+        uint32_t cluster_sector = fat_sector_for_cluster(fat, cluster);
+        if (cluster_sector == 0xffffffff) {
+            return bcache_block_ref(fat->bcache());
+        }
+        sector = cluster_sector + offset / fat->info().bytes_per_sector;
+    }
+
+    bcache_block_ref bref(fat->bcache());
+    bref.get_block(sector);
+
+    return bref;
+}
+
+status_t resolve_parent_cluster_and_last_element(fat_fs *fat, const char *path,
                                                         char local_path[FS_MAX_FILE_LEN + 1],
                                                         uint32_t *parent_cluster,
                                                         const char **last_element) {
@@ -877,7 +912,7 @@ static status_t resolve_parent_cluster_and_last_element(fat_fs *fat, const char 
     return NO_ERROR;
 }
 
-static status_t find_entry_in_parent_for_unlink(fat_fs *fat, uint32_t parent_cluster,
+status_t find_entry_in_parent_for_unlink(fat_fs *fat, uint32_t parent_cluster,
                                                 const char *name, dir_entry *entry,
                                                 uint32_t *entry_start_offset,
                                                 uint32_t *entry_end_offset) {
@@ -892,7 +927,7 @@ static status_t find_entry_in_parent_for_unlink(fat_fs *fat, uint32_t parent_clu
                                              entry_start_offset, entry_end_offset);
 }
 
-static status_t check_entry_not_busy(fat_fs *fat, uint32_t parent_cluster, uint32_t entry_end_offset) {
+status_t check_entry_not_busy(fat_fs *fat, uint32_t parent_cluster, uint32_t entry_end_offset) {
     if (entry_end_offset < DIR_ENTRY_LENGTH) {
         return ERR_BAD_STATE;
     }
@@ -913,11 +948,11 @@ static status_t check_entry_not_busy(fat_fs *fat, uint32_t parent_cluster, uint3
     return NO_ERROR;
 }
 
-static status_t mark_entry_record_deleted(fat_fs *fat, uint32_t parent_cluster,
+status_t mark_entry_record_deleted(fat_fs *fat, uint32_t parent_cluster,
                                           uint32_t entry_start_offset,
                                           uint32_t entry_end_offset) {
     LTRACEF("cluster=%u, start=%u, end=%u\n",
-           parent_cluster, entry_start_offset, entry_end_offset);
+            parent_cluster, entry_start_offset, entry_end_offset);
 
     if (entry_start_offset >= entry_end_offset ||
         (entry_start_offset % DIR_ENTRY_LENGTH) != 0 ||
@@ -947,6 +982,8 @@ static status_t mark_entry_record_deleted(fat_fs *fat, uint32_t parent_cluster,
 
     return NO_ERROR;
 }
+
+} // namespace
 
 // static
 status_t fat_dir::mkdir(fscookie *cookie, const char *path) {
@@ -1060,7 +1097,7 @@ status_t fat_dir::remove(fscookie *cookie, const char *path) {
     }
 
     LTRACEF("found entry: attributes %#hhx length %u start_cluster %u\n",
-           (uint8_t)entry.attributes, entry.length, entry.start_cluster);
+            (uint8_t)entry.attributes, entry.length, entry.start_cluster);
     LTRACEF("entry offsets: start %u end %u\n", entry_start_offset, entry_end_offset);
 
     if (entry.attributes == fat_attribute::directory) {
@@ -1125,7 +1162,7 @@ status_t fat_dir::rmdir(fscookie *cookie, const char *path) {
     }
 
     LTRACEF("found entry: attributes %#hhx length %u start_cluster %u\n",
-           (uint8_t)entry.attributes, entry.length, entry.start_cluster);
+            (uint8_t)entry.attributes, entry.length, entry.start_cluster);
     LTRACEF("entry offsets: start %u end %u\n", entry_start_offset, entry_end_offset);
 
     if (entry.attributes != fat_attribute::directory) {
@@ -1369,48 +1406,6 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
     }
 
     return NO_ERROR;
-}
-
-// given a dir entry location, open the corresponding sector and pass back a open pointer
-// into the block cache.
-// this code encapsulates the logic that takes into account that cluster 0 is magic in
-// fat 12 and fat 16 for the root dir.
-static bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc) {
-    LTRACEF("fat %p, loc %u:%u\n", fat, loc.starting_dir_cluster, loc.dir_offset);
-
-    uint32_t cluster = loc.starting_dir_cluster;
-    uint32_t offset = loc.dir_offset;
-    uint32_t sector;
-
-    if (cluster == 0) {
-        DEBUG_ASSERT(fat->info().fat_bits == 12 || fat->info().fat_bits == 16);
-        // Special case on FAT12/16 to represent the root dir.
-        DEBUG_ASSERT(offset < fat->info().root_entries * DIR_ENTRY_LENGTH);
-        sector = fat->info().root_start_sector + offset / fat->info().bytes_per_sector;
-    } else {
-        // Walk the cluster chain if the offset exceeds the current cluster.
-        const uint32_t bytes_per_cluster = fat->info().bytes_per_sector * fat->info().sectors_per_cluster;
-        while (offset >= bytes_per_cluster) {
-            if (is_eof_cluster(cluster)) {
-                return bcache_block_ref(fat->bcache());
-            }
-            cluster = fat_next_cluster_in_chain(fat, cluster);
-            if (is_eof_cluster(cluster)) {
-                return bcache_block_ref(fat->bcache());
-            }
-            offset -= bytes_per_cluster;
-        }
-        uint32_t cluster_sector = fat_sector_for_cluster(fat, cluster);
-        if (cluster_sector == 0xffffffff) {
-            return bcache_block_ref(fat->bcache());
-        }
-        sector = cluster_sector + offset / fat->info().bytes_per_sector;
-    }
-
-    bcache_block_ref bref(fat->bcache());
-    bref.get_block(sector);
-
-    return bref;
 }
 
 // update the starting cluster and/or size pointer in a directory entry
