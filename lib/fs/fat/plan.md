@@ -73,6 +73,14 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
   - Frees the directory's cluster chain.
   - Marks all directory-entry records (LFN + SFN) as deleted.
 
+### Unlink offset correctness
+
+- Fixed directory-entry offset accounting in unlink/remove/rmdir lookup so offsets are
+  directory-relative (not sector-relative) when propagated to delete logic.
+- Tightened record-span start selection for long-name records to avoid deleting leading
+  already-deleted entries in front of the actual matched LFN/SFN record.
+- Added range sanity checks in delete-marking path to reject malformed offset ranges.
+
 ### ClnShutBit (volume dirty/clean bit in FAT entry 1)
 
 - Added `mark_volume_dirty_locked()` / `mark_volume_clean_locked()` public methods to `fat_fs`.
@@ -113,6 +121,10 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
   - Added `test_fat_dir_growth` which creates 1000 files in a single directory.
   - Verifies multi-cluster traversal and correct entry allocation after growth.
   - Confirmed content integrity and clean `fsck` across FAT12, FAT16, and FAT32.
+- Added helper-level unit tests:
+  - `test_fat_split_path`
+  - `test_fat_name_to_short_file_name`
+  - These required exporting helper declarations in `lib/fs/fat/dir.h`.
 
 ## Files changed for the mkdir/remove/rmdir phase
 
@@ -163,24 +175,25 @@ FAT subtests are skipped cleanly when no `virtio0` device is present.
 
 ## Important caveats / current limitations
 
-- FAT create/mkdir still effectively assumes simple 8.3-style creatable names for new entry creation.
-- Long filename creation is still not implemented as part of this work.
+- LFN create path is implemented for supported UTF-8 input that maps to UCS-2 BMP code points.
+- UTF-8 that is malformed, surrogate-range, or non-BMP remains intentionally rejected.
 - Remove supports file deletion only; there is no directory-delete behavior in this path — `rmdir` is now a separate API (see above).
 
 ## What may still need to be done
 
 ### Likely next FAT work
 
-- Implement long filename creation support for create/mkdir if full LFN write support is a goal.
 - Add more targeted mkdir/remove/rmdir tests if desired:
   - mkdir/remove in non-root FAT12/16 and FAT32 directories with more edge cases
   - invalid-name cases
   - dot/dotdot content verification through direct directory reads if needed
+  - direct edge cases around LFN record boundaries and pre-existing deleted slots
 
 ### Cleanup / polish
 
 - If these WIP commits are going to be turned into a final series, they will probably need squashing/rewording into a cleaner history.
 - If desired, update FAT documentation or test notes to reflect write/mkdir/remove coverage.
+- Remove temporary verbose deletion tracing (`printf`) in `mark_entry_record_deleted` once active debugging is complete.
 - **Code Style**: Ensure `clang-format -i lib/fs/fat/*` is run after making changes to maintain consistency.
 
 ## Recommended resume point
