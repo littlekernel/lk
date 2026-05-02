@@ -42,7 +42,100 @@ struct fat_dir_cookie {
     static const uint32_t index_eod = 0xffffffff;
 };
 
+// Convert a UTF-8 path element into UCS-2 code units used by FAT LFN entries.
+// Rejects malformed/overlong UTF-8, surrogate code points, and non-BMP code points.
+status_t fat_utf8_to_ucs2(const char *utf8, uint16_t *ucs2, size_t max_ucs2_len,
+                          size_t *out_ucs2_len) {
+    DEBUG_ASSERT(utf8 && ucs2);
+
+    size_t out = 0;
+    for (size_t i = 0; utf8[i] != '\0';) {
+        uint32_t codepoint = 0;
+        uint8_t b0 = static_cast<uint8_t>(utf8[i]);
+
+        if (b0 < 0x80) {
+            codepoint = b0;
+            i += 1;
+        } else if ((b0 & 0xe0) == 0xc0) {
+            if (utf8[i + 1] == '\0') {
+                return ERR_INVALID_ARGS;
+            }
+            uint8_t b1 = static_cast<uint8_t>(utf8[i + 1]);
+            if ((b1 & 0xc0) != 0x80) {
+                return ERR_INVALID_ARGS;
+            }
+
+            codepoint = ((b0 & 0x1f) << 6) | (b1 & 0x3f);
+            if (codepoint < 0x80) {
+                return ERR_INVALID_ARGS;
+            }
+            i += 2;
+        } else if ((b0 & 0xf0) == 0xe0) {
+            if (utf8[i + 1] == '\0' || utf8[i + 2] == '\0') {
+                return ERR_INVALID_ARGS;
+            }
+            uint8_t b1 = static_cast<uint8_t>(utf8[i + 1]);
+            uint8_t b2 = static_cast<uint8_t>(utf8[i + 2]);
+            if ((b1 & 0xc0) != 0x80 || (b2 & 0xc0) != 0x80) {
+                return ERR_INVALID_ARGS;
+            }
+
+            codepoint = ((b0 & 0x0f) << 12) | ((b1 & 0x3f) << 6) | (b2 & 0x3f);
+            if (codepoint < 0x800) {
+                return ERR_INVALID_ARGS;
+            }
+            i += 3;
+        } else {
+            // FAT LFN stores UCS-2 and cannot represent non-BMP code points.
+            return ERR_INVALID_ARGS;
+        }
+
+        // reject UTF-8 that would encode surrogate code points
+        if (codepoint >= 0xd800 && codepoint <= 0xdfff) {
+            return ERR_INVALID_ARGS;
+        }
+        // reject non-BMP code points, since FAT LFN uses UCS-2 and cannot represent them
+        if (codepoint > 0xffff) {
+            return ERR_INVALID_ARGS;
+        }
+
+        if (out >= max_ucs2_len) {
+            return ERR_TOO_BIG;
+        }
+        ucs2[out++] = static_cast<uint16_t>(codepoint);
+    }
+
+    if (out_ucs2_len) {
+        *out_ucs2_len = out;
+    }
+    return NO_ERROR;
+}
+
 namespace {
+
+status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluster,
+                                                 const char short_name[11], dir_entry *entry,
+                                                 uint32_t *entry_start_offset,
+                                                 uint32_t *entry_end_offset);
+
+constexpr size_t kFatMaxLfnChars = 255;
+constexpr size_t kFatLfnCharsPerEntry = 13;
+
+constexpr size_t kLfnNameOffsets[kFatLfnCharsPerEntry] = {
+    1,
+    3,
+    5,
+    7,
+    9,
+    14,
+    16,
+    18,
+    20,
+    22,
+    24,
+    28,
+    30,
+};
 
 uint8_t fat_lfn_sfn_checksum(const uint8_t short_name[11]) {
     uint8_t checksum = 0;
@@ -50,6 +143,101 @@ uint8_t fat_lfn_sfn_checksum(const uint8_t short_name[11]) {
         checksum = static_cast<uint8_t>(((checksum & 1) ? 0x80 : 0) + (checksum >> 1) + short_name[i]);
     }
     return checksum;
+}
+
+char sanitize_sfn_char(uint8_t c) {
+    if (isalnum(c)) {
+        return static_cast<char>(toupper(c));
+    }
+    return '_';
+}
+
+void write_lfn_name_part(uint8_t *ent, const uint16_t *ucs2, size_t ucs2_len,
+                         size_t sequence) {
+    size_t start = (sequence - 1) * kFatLfnCharsPerEntry;
+    for (size_t i = 0; i < kFatLfnCharsPerEntry; i++) {
+        size_t idx = start + i;
+        uint16_t v;
+        if (idx < ucs2_len) {
+            v = ucs2[idx];
+        } else if (idx == ucs2_len) {
+            v = 0x0000;
+        } else {
+            v = 0xffff;
+        }
+        fat_write16(ent, kLfnNameOffsets[i], v);
+    }
+}
+
+void fill_lfn_dirent(uint8_t *ent, const uint16_t *ucs2, size_t ucs2_len,
+                     uint8_t sequence, bool sequence_is_last, uint8_t checksum) {
+    memset(ent, 0, DIR_ENTRY_LENGTH);
+    ent[0] = sequence_is_last ? static_cast<uint8_t>(sequence | 0x40) : sequence;
+    ent[11] = static_cast<uint8_t>(fat_attribute::lfn);
+    ent[12] = 0;
+    ent[13] = checksum;
+    fat_write16(ent, 26, 0);
+    write_lfn_name_part(ent, ucs2, ucs2_len, sequence);
+}
+
+void build_short_name_alias(const char *name, uint32_t ordinal, char sfn[12]) {
+    memset(sfn, ' ', 11);
+    sfn[11] = 0;
+
+    const char *dot = strrchr(name, '.');
+    const char *stem_end = dot ? dot : (name + strlen(name));
+
+    char ext[3] = {' ', ' ', ' '};
+    if (dot && dot[1] != 0) {
+        size_t e = 0;
+        for (const char *p = dot + 1; *p && e < sizeof(ext); p++) {
+            if (*p == '.') {
+                continue;
+            }
+            ext[e++] = sanitize_sfn_char(static_cast<uint8_t>(*p));
+        }
+    }
+
+    char suffix[8];
+    snprintf(suffix, sizeof(suffix), "~%" PRIu32, ordinal);
+    size_t suffix_len = strlen(suffix);
+    suffix_len = MIN(suffix_len, 7u);
+    size_t prefix_len = 8 - suffix_len;
+
+    size_t out = 0;
+    for (const char *p = name; p < stem_end && out < prefix_len; p++) {
+        if (*p == '.' || *p == ' ') {
+            continue;
+        }
+        sfn[out++] = sanitize_sfn_char(static_cast<uint8_t>(*p));
+    }
+    while (out < prefix_len) {
+        sfn[out++] = '_';
+    }
+    for (size_t i = 0; i < suffix_len; i++) {
+        sfn[prefix_len + i] = suffix[i];
+    }
+
+    memcpy(&sfn[8], ext, sizeof(ext));
+}
+
+status_t generate_unique_short_name_for_lfn(fat_fs *fat, uint32_t starting_dir_cluster,
+                                            const char *name, char sfn[12]) {
+    for (uint32_t ord = 1; ord < 1000000; ord++) {
+        build_short_name_alias(name, ord, sfn);
+
+        dir_entry existing;
+        status_t err = fat_find_short_file_in_dir_with_offsets(fat, starting_dir_cluster, sfn,
+                                                               &existing, nullptr, nullptr);
+        if (err == ERR_NOT_FOUND) {
+            return NO_ERROR;
+        }
+        if (err < 0 && err != ERR_NOT_FOUND) {
+            return err;
+        }
+    }
+
+    return ERR_ALREADY_EXISTS;
 }
 
 } // anonymous namespace
@@ -62,7 +250,9 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
                                     char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
 
     DEBUG_ASSERT(entry && filename_buffer && out_filename);
-    DEBUG_ASSERT(offset <= fat->info().bytes_per_sector); // passing offset == bytes_per_sector is okay
+
+    // Note: offset is used as an ABSOLUTE directory offset (accounting for sector boundaries)
+    // We track which sector we're in based on offset / bytes_per_sector
 
     // lfn parsing state
     struct lfn_parse_state {
@@ -237,7 +427,7 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
         if (err < 0) {
             break;
         }
-        // starting over at offset 0 in the new sector
+        // start over at offset 0 in the new sector
         offset = 0;
     }
 
@@ -262,9 +452,14 @@ static status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, con
     }
 
     uint32_t offset = 0;
+    uint32_t dir_offset_base = 0;
     for (;;) {
         char filename_buffer[MAX_FILE_NAME_LEN]; // max fat file name length
         char *filename;
+
+        // Reset the sector increment count before calling fat_find_next_entry,
+        // which may call next_sector one or more times.
+        dbi.reset_sector_inc_count();
 
         // step forward one entry and see if we got something
         err = fat_find_next_entry(fat, dbi, offset, entry, filename_buffer, &filename);
@@ -272,13 +467,17 @@ static status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, con
             return err;
         }
 
+        // Account for any sector increments that happened in fat_find_next_entry to keep an
+        // absolute offset into the directory
+        dir_offset_base += dbi.get_sector_inc_count() * fat->info().bytes_per_sector;
+
         const size_t filenamelen = strlen(filename);
 
         // see if we've matched an entry
         if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
             // we have, return with a good status
             if (found_offset) {
-                *found_offset = offset;
+                *found_offset = dir_offset_base + offset;
             }
             return NO_ERROR;
         }
@@ -303,33 +502,67 @@ static status_t fat_find_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting
     }
 
     uint32_t offset = 0;
+    uint32_t dir_offset_base = 0;
     for (;;) {
         char filename_buffer[MAX_FILE_NAME_LEN];
         char *filename;
-        uint32_t old_offset = offset;
+        uint32_t old_offset = dir_offset_base + offset;
+
+        // Reset the sector increment count before calling fat_find_next_entry, which may call next_sector.
+        dbi.reset_sector_inc_count();
 
         err = fat_find_next_entry(fat, dbi, offset, entry, filename_buffer, &filename);
         if (err < 0) {
             return err;
         }
 
+        // Account for any sector increments that happened in fat_find_next_entry to keep an
+        // absolute offset into the directory.
+        dir_offset_base += dbi.get_sector_inc_count() * fat->info().bytes_per_sector;
+        uint32_t new_offset = dir_offset_base + offset;
+
         const size_t filenamelen = strlen(filename);
         if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
+            uint32_t record_start_offset = old_offset;
+
+            // old_offset may include deleted entries that were skipped while walking to
+            // this file record. Pick the first non-deleted/non-volume entry in the span.
+            for (uint32_t probe_offset = old_offset; probe_offset < new_offset;
+                 probe_offset += DIR_ENTRY_LENGTH) {
+                file_block_iterator probe_iter(fat, starting_cluster);
+                status_t probe_err = probe_iter.next_sectors(probe_offset / fat->info().bytes_per_sector);
+                if (probe_err < 0) {
+                    break;
+                }
+
+                const uint8_t *probe_ptr =
+                    probe_iter.get_bcache_ptr(probe_offset % fat->info().bytes_per_sector);
+                if (probe_ptr[0] == 0xE5 || probe_ptr[0] == 0x00 ||
+                    probe_ptr[11] == static_cast<uint8_t>(fat_attribute::volume_id)) {
+                    continue;
+                }
+
+                record_start_offset = probe_offset;
+                break;
+            }
+
             if (entry_start_offset) {
-                *entry_start_offset = old_offset;
+                *entry_start_offset = record_start_offset;
             }
             if (entry_end_offset) {
-                *entry_end_offset = offset;
+                *entry_end_offset = new_offset;
             }
             return NO_ERROR;
         }
     }
 }
 
-static status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluster,
-                                                        const char short_name[11], dir_entry *entry,
-                                                        uint32_t *entry_start_offset,
-                                                        uint32_t *entry_end_offset) {
+namespace {
+
+status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluster,
+                                                 const char short_name[11], dir_entry *entry,
+                                                 uint32_t *entry_start_offset,
+                                                 uint32_t *entry_end_offset) {
     LTRACEF("start_cluster %u, short_name '%.11s', out entry %p\n", starting_cluster, short_name,
             entry);
 
@@ -385,6 +618,8 @@ static status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t st
         sector_offset = 0;
     }
 }
+
+} // anonymous namespace
 
 static status_t fat_dir_is_empty(fat_fs *fat, uint32_t starting_cluster) {
     DEBUG_ASSERT(fat->lock.is_held());
@@ -607,6 +842,112 @@ static void fill_short_dirent(uint8_t *ent, const char short_name[11], fat_attri
 
 static bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc);
 
+static status_t resolve_parent_cluster_and_last_element(fat_fs *fat, const char *path,
+                                                        char local_path[FS_MAX_FILE_LEN + 1],
+                                                        uint32_t *parent_cluster,
+                                                        const char **last_element) {
+    strlcpy(local_path, path, FS_MAX_FILE_LEN + 1);
+
+    const char *leading_path;
+    split_path(local_path, &leading_path, last_element);
+
+    if (!(*last_element) || (*last_element)[0] == 0) {
+        return ERR_INVALID_ARGS;
+    }
+
+    if (strcmp(leading_path, "/") == 0) {
+        *parent_cluster = fat->info().root_cluster ? fat->info().root_cluster : 0;
+        return NO_ERROR;
+    }
+
+    dir_entry parent_entry;
+    status_t err = fat_dir_walk(fat, leading_path, &parent_entry, nullptr);
+    if (err < 0) {
+        return err;
+    }
+    if (parent_entry.attributes != fat_attribute::directory) {
+        return ERR_BAD_PATH;
+    }
+
+    *parent_cluster = parent_entry.start_cluster;
+    if (*parent_cluster < 2 || *parent_cluster >= fat->info().total_clusters) {
+        return ERR_BAD_STATE;
+    }
+
+    return NO_ERROR;
+}
+
+static status_t find_entry_in_parent_for_unlink(fat_fs *fat, uint32_t parent_cluster,
+                                                const char *name, dir_entry *entry,
+                                                uint32_t *entry_start_offset,
+                                                uint32_t *entry_end_offset) {
+    char short_name[8 + 3 + 1];
+    status_t err = name_to_short_file_name(short_name, name);
+    if (err == NO_ERROR) {
+        return fat_find_short_file_in_dir_with_offsets(fat, parent_cluster, short_name, entry,
+                                                       entry_start_offset, entry_end_offset);
+    }
+
+    return fat_find_file_in_dir_with_offsets(fat, parent_cluster, name, entry,
+                                             entry_start_offset, entry_end_offset);
+}
+
+static status_t check_entry_not_busy(fat_fs *fat, uint32_t parent_cluster, uint32_t entry_end_offset) {
+    if (entry_end_offset < DIR_ENTRY_LENGTH) {
+        return ERR_BAD_STATE;
+    }
+
+    dir_entry_location sfn_loc = {
+        .starting_dir_cluster = parent_cluster,
+        .dir_offset = entry_end_offset - DIR_ENTRY_LENGTH,
+    };
+    dir_entry_location walk_loc = {
+        .starting_dir_cluster = parent_cluster,
+        .dir_offset = entry_end_offset,
+    };
+
+    if (fat->lookup_file(sfn_loc) || fat->lookup_file(walk_loc)) {
+        return ERR_BUSY;
+    }
+
+    return NO_ERROR;
+}
+
+static status_t mark_entry_record_deleted(fat_fs *fat, uint32_t parent_cluster,
+                                          uint32_t entry_start_offset,
+                                          uint32_t entry_end_offset) {
+    LTRACEF("cluster=%u, start=%u, end=%u\n",
+           parent_cluster, entry_start_offset, entry_end_offset);
+
+    if (entry_start_offset >= entry_end_offset ||
+        (entry_start_offset % DIR_ENTRY_LENGTH) != 0 ||
+        (entry_end_offset % DIR_ENTRY_LENGTH) != 0) {
+        return ERR_BAD_STATE;
+    }
+
+    for (uint32_t offset = entry_start_offset; offset < entry_end_offset; offset += DIR_ENTRY_LENGTH) {
+        LTRACEF("Deleting entry at offset %u\n", offset);
+        dir_entry_location loc = {
+            .starting_dir_cluster = parent_cluster,
+            .dir_offset = offset,
+        };
+        bcache_block_ref bref = open_dirent_block(fat, loc);
+        if (!bref.is_valid()) {
+            LTRACEF("ERROR: open_dirent_block failed!\n");
+            return ERR_IO;
+        }
+
+        uint8_t *ent = (uint8_t *)bref.ptr();
+        ent += loc.dir_offset % fat->info().bytes_per_sector;
+        LTRACEF_LEVEL(2, "Original byte: 0x%02x\n", ent[0]);
+        ent[0] = 0xE5;
+        LTRACEF_LEVEL(2, "After marking: 0x%02x\n", ent[0]);
+        bref.mark_dirty();
+    }
+
+    return NO_ERROR;
+}
+
 // static
 status_t fat_dir::mkdir(fscookie *cookie, const char *path) {
     auto *fat = (fat_fs *)cookie;
@@ -701,67 +1042,34 @@ status_t fat_dir::remove(fscookie *cookie, const char *path) {
     AutoLock guard(fat->lock);
 
     char local_path[FS_MAX_FILE_LEN + 1];
-    strlcpy(local_path, path, sizeof(local_path));
-
-    const char *leading_path;
-    const char *last_element;
-    split_path(local_path, &leading_path, &last_element);
-
-    if (!last_element || last_element[0] == 0) {
-        return ERR_INVALID_ARGS;
-    }
-
     uint32_t parent_cluster;
-    if (strcmp(leading_path, "/") == 0) {
-        parent_cluster = fat->info().root_cluster ? fat->info().root_cluster : 0;
-    } else {
-        dir_entry parent_entry;
-        status_t err = fat_dir_walk(fat, leading_path, &parent_entry, nullptr);
-        if (err < 0) {
-            return err;
-        }
-        if (parent_entry.attributes != fat_attribute::directory) {
-            return ERR_BAD_PATH;
-        }
-
-        parent_cluster = parent_entry.start_cluster;
-        if (parent_cluster < 2 || parent_cluster >= fat->info().total_clusters) {
-            return ERR_BAD_STATE;
-        }
+    const char *last_element;
+    status_t err = resolve_parent_cluster_and_last_element(fat, path, local_path,
+                                                           &parent_cluster, &last_element);
+    if (err < 0) {
+        return err;
     }
 
     dir_entry entry;
     uint32_t entry_start_offset = 0;
     uint32_t entry_end_offset = 0;
-    char short_name[8 + 3 + 1];
-    status_t err = name_to_short_file_name(short_name, last_element);
-    if (err == NO_ERROR) {
-        err = fat_find_short_file_in_dir_with_offsets(fat, parent_cluster, short_name, &entry,
-                                                      &entry_start_offset, &entry_end_offset);
-    } else {
-        err = fat_find_file_in_dir_with_offsets(fat, parent_cluster, last_element, &entry,
-                                                &entry_start_offset, &entry_end_offset);
-    }
+    err = find_entry_in_parent_for_unlink(fat, parent_cluster, last_element, &entry,
+                                          &entry_start_offset, &entry_end_offset);
     if (err < 0) {
         return err;
     }
+
+    LTRACEF("found entry: attributes %#hhx length %u start_cluster %u\n",
+           (uint8_t)entry.attributes, entry.length, entry.start_cluster);
+    LTRACEF("entry offsets: start %u end %u\n", entry_start_offset, entry_end_offset);
 
     if (entry.attributes == fat_attribute::directory) {
         return ERR_NOT_FILE;
     }
 
-    DEBUG_ASSERT(entry_end_offset >= DIR_ENTRY_LENGTH);
-    dir_entry_location sfn_loc = {
-        .starting_dir_cluster = parent_cluster,
-        .dir_offset = entry_end_offset - DIR_ENTRY_LENGTH,
-    };
-    dir_entry_location walk_loc = {
-        .starting_dir_cluster = parent_cluster,
-        .dir_offset = entry_end_offset,
-    };
-
-    if (fat->lookup_file(sfn_loc) || fat->lookup_file(walk_loc)) {
-        return ERR_BUSY;
+    err = check_entry_not_busy(fat, parent_cluster, entry_end_offset);
+    if (err < 0) {
+        return err;
     }
 
     if (entry.start_cluster != 0) {
@@ -776,23 +1084,16 @@ status_t fat_dir::remove(fscookie *cookie, const char *path) {
     }
 
     // Mark all dir entries in this file's record (LFN entries plus SFN entry) as deleted.
-    for (uint32_t offset = entry_start_offset; offset < entry_end_offset; offset += DIR_ENTRY_LENGTH) {
-        dir_entry_location loc = {
-            .starting_dir_cluster = parent_cluster,
-            .dir_offset = offset,
-        };
-        bcache_block_ref bref = open_dirent_block(fat, loc);
-        if (!bref.is_valid()) {
-            return ERR_IO;
-        }
-
-        uint8_t *ent = (uint8_t *)bref.ptr();
-        ent += loc.dir_offset % fat->info().bytes_per_sector;
-        ent[0] = 0xE5;
-        bref.mark_dirty();
+    LTRACEF("Marking entries deleted: start=%u, end=%u\n", entry_start_offset, entry_end_offset);
+    err = mark_entry_record_deleted(fat, parent_cluster, entry_start_offset, entry_end_offset);
+    if (err < 0) {
+        LTRACEF("mark_entry_record_deleted failed: %d\n", err);
+        return err;
     }
 
+    LTRACEF("Flushing bcache...\n");
     bcache_flush(fat->bcache());
+    LTRACEF("Remove complete\n");
 
     return NO_ERROR;
 }
@@ -806,50 +1107,26 @@ status_t fat_dir::rmdir(fscookie *cookie, const char *path) {
     AutoLock guard(fat->lock);
 
     char local_path[FS_MAX_FILE_LEN + 1];
-    strlcpy(local_path, path, sizeof(local_path));
-
-    const char *leading_path;
-    const char *last_element;
-    split_path(local_path, &leading_path, &last_element);
-
-    if (!last_element || last_element[0] == 0) {
-        return ERR_INVALID_ARGS;
-    }
-
     uint32_t parent_cluster;
-    if (strcmp(leading_path, "/") == 0) {
-        parent_cluster = fat->info().root_cluster ? fat->info().root_cluster : 0;
-    } else {
-        dir_entry parent_entry;
-        status_t err = fat_dir_walk(fat, leading_path, &parent_entry, nullptr);
-        if (err < 0) {
-            return err;
-        }
-        if (parent_entry.attributes != fat_attribute::directory) {
-            return ERR_BAD_PATH;
-        }
-
-        parent_cluster = parent_entry.start_cluster;
-        if (parent_cluster < 2 || parent_cluster >= fat->info().total_clusters) {
-            return ERR_BAD_STATE;
-        }
+    const char *last_element;
+    status_t err = resolve_parent_cluster_and_last_element(fat, path, local_path,
+                                                           &parent_cluster, &last_element);
+    if (err < 0) {
+        return err;
     }
 
     dir_entry entry;
     uint32_t entry_start_offset = 0;
     uint32_t entry_end_offset = 0;
-    char short_name[8 + 3 + 1];
-    status_t err = name_to_short_file_name(short_name, last_element);
-    if (err == NO_ERROR) {
-        err = fat_find_short_file_in_dir_with_offsets(fat, parent_cluster, short_name, &entry,
-                                                      &entry_start_offset, &entry_end_offset);
-    } else {
-        err = fat_find_file_in_dir_with_offsets(fat, parent_cluster, last_element, &entry,
-                                                &entry_start_offset, &entry_end_offset);
-    }
+    err = find_entry_in_parent_for_unlink(fat, parent_cluster, last_element, &entry,
+                                          &entry_start_offset, &entry_end_offset);
     if (err < 0) {
         return err;
     }
+
+    LTRACEF("found entry: attributes %#hhx length %u start_cluster %u\n",
+           (uint8_t)entry.attributes, entry.length, entry.start_cluster);
+    LTRACEF("entry offsets: start %u end %u\n", entry_start_offset, entry_end_offset);
 
     if (entry.attributes != fat_attribute::directory) {
         return ERR_NOT_DIR;
@@ -859,18 +1136,9 @@ status_t fat_dir::rmdir(fscookie *cookie, const char *path) {
         return ERR_BAD_STATE;
     }
 
-    DEBUG_ASSERT(entry_end_offset >= DIR_ENTRY_LENGTH);
-    dir_entry_location sfn_loc = {
-        .starting_dir_cluster = parent_cluster,
-        .dir_offset = entry_end_offset - DIR_ENTRY_LENGTH,
-    };
-    dir_entry_location walk_loc = {
-        .starting_dir_cluster = parent_cluster,
-        .dir_offset = entry_end_offset,
-    };
-
-    if (fat->lookup_file(sfn_loc) || fat->lookup_file(walk_loc)) {
-        return ERR_BUSY;
+    err = check_entry_not_busy(fat, parent_cluster, entry_end_offset);
+    if (err < 0) {
+        return err;
     }
 
     err = fat_dir_is_empty(fat, entry.start_cluster);
@@ -884,20 +1152,10 @@ status_t fat_dir::rmdir(fscookie *cookie, const char *path) {
     }
 
     // Mark all dir entries in this directory record (LFN entries plus SFN entry) as deleted.
-    for (uint32_t offset = entry_start_offset; offset < entry_end_offset; offset += DIR_ENTRY_LENGTH) {
-        dir_entry_location loc = {
-            .starting_dir_cluster = parent_cluster,
-            .dir_offset = offset,
-        };
-        bcache_block_ref bref = open_dirent_block(fat, loc);
-        if (!bref.is_valid()) {
-            return ERR_IO;
-        }
-
-        uint8_t *ent = (uint8_t *)bref.ptr();
-        ent += loc.dir_offset % fat->info().bytes_per_sector;
-        ent[0] = 0xE5;
-        bref.mark_dirty();
+    LTRACEF("Marking entries deleted: start=%u, end=%u\n", entry_start_offset, entry_end_offset);
+    err = mark_entry_record_deleted(fat, parent_cluster, entry_start_offset, entry_end_offset);
+    if (err < 0) {
+        return err;
     }
 
     bcache_flush(fat->bcache());
@@ -966,119 +1224,148 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
         return ERR_ALREADY_EXISTS;
     }
 
-    // TODO: handle long file names
     char sfn[8 + 3 + 1];
+    uint16_t *lfn_ucs2 = nullptr;
+    auto lfn_cleanup = lk::make_auto_call([&]() { free(lfn_ucs2); });
+    size_t lfn_ucs2_len = 0;
+    bool needs_lfn = false;
+
     err = name_to_short_file_name(sfn, last_element);
     if (err < 0) {
-        // if we couldn't convert to a SFN trivially, abort
-        return err;
+        lfn_ucs2 = static_cast<uint16_t *>(malloc(sizeof(uint16_t) * kFatMaxLfnChars));
+        if (!lfn_ucs2) {
+            return ERR_NO_MEMORY;
+        }
+
+        status_t lfn_err = fat_utf8_to_ucs2(last_element, lfn_ucs2, kFatMaxLfnChars, &lfn_ucs2_len);
+        if (lfn_err < 0) {
+            return lfn_err;
+        }
+
+        if (lfn_ucs2_len == 0) {
+            return ERR_INVALID_ARGS;
+        }
+
+        err = generate_unique_short_name_for_lfn(fat, starting_dir_cluster, last_element, sfn);
+        if (err < 0) {
+            return err;
+        }
+        needs_lfn = true;
     }
 
     LTRACEF("short file name '%s'\n", sfn);
 
+    size_t lfn_entry_count = needs_lfn ? ((lfn_ucs2_len + kFatLfnCharsPerEntry - 1) / kFatLfnCharsPerEntry) : 0;
+    size_t total_entry_count = lfn_entry_count + 1;
+
     // now we have a starting cluster for the containing directory and proof that it doesn't already exist.
-    // start walking to find a free slot
-    file_block_iterator dbi(fat, starting_dir_cluster);
-    err = dbi.next_sectors(0);
-    if (err < 0) {
-        return err;
-    }
+    // start walking to find enough contiguous free slots for [LFN entries..., SFN entry].
+    uint32_t run_start_offset = 0;
+    uint32_t run_len = 0;
+    bool found_run = false;
 
-    uint32_t dir_offset = 0;
-    uint32_t sector_offset = 0;
     for (;;) {
-        if (LOCAL_TRACE >= 2) {
-            LTRACEF("dir sector:\n");
-            hexdump8_ex(dbi.get_bcache_ptr(0), fat->info().bytes_per_sector, 0);
-        }
-
-        // walk within a sector
-        while (sector_offset < fat->info().bytes_per_sector) {
-            LTRACEF_LEVEL(2, "looking at offset %#x\n", sector_offset);
-            uint8_t *ent = dbi.get_bcache_ptr(sector_offset);
-            if (ent[0] == 0xe5 || ent[0] == 0) {
-                // deleted or last entry in the list
-                LTRACEF("found usable at offset %#x\n", sector_offset);
-                if (LOCAL_TRACE > 1) {
-                    hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
-                }
-
-                // fill in an entry here
-                fill_short_dirent(ent, sfn, attr, starting_cluster, size);
-
-                LTRACEF_LEVEL(2, "filled in entry\n");
-                if (LOCAL_TRACE > 1) {
-                    hexdump8_ex(ent, DIR_ENTRY_LENGTH, 0);
-                }
-
-                // flush the data and exit
-                dbi.mark_bcache_dirty();
-
-                // flush it
-                bcache_flush(fat->bcache());
-
-                // fill in our location data and exit
-                if (loc) {
-                    loc->starting_dir_cluster = starting_dir_cluster;
-                    loc->dir_offset = dir_offset;
-                }
-
-                return NO_ERROR;
-            }
-
-            dir_offset += DIR_ENTRY_LENGTH;
-            sector_offset += DIR_ENTRY_LENGTH;
-        }
-
-        // move to the next sector
-        err = dbi.next_sector();
+        file_block_iterator dbi(fat, starting_dir_cluster);
+        err = dbi.next_sectors(0);
         if (err < 0) {
-            if (err == ERR_OUT_OF_RANGE) {
-                // We've reached the end of the current cluster chain.
-                // Break out of the loop and proceed to allocate a new cluster.
-                break;
-            }
             return err;
         }
-        // starting over at offset 0 in the new sector
-        sector_offset = 0;
+
+        uint32_t dir_offset = 0;
+        uint32_t sector_offset = 0;
+        run_len = 0;
+        found_run = false;
+
+        for (;;) {
+            if (LOCAL_TRACE >= 2) {
+                LTRACEF("dir sector:\n");
+                hexdump8_ex(dbi.get_bcache_ptr(0), fat->info().bytes_per_sector, 0);
+            }
+
+            while (sector_offset < fat->info().bytes_per_sector) {
+                LTRACEF_LEVEL(2, "looking at offset %#x\n", sector_offset);
+                uint8_t *ent = dbi.get_bcache_ptr(sector_offset);
+
+                if (ent[0] == 0xe5 || ent[0] == 0) {
+                    if (run_len == 0) {
+                        run_start_offset = dir_offset;
+                    }
+                    run_len++;
+                    if (run_len >= total_entry_count) {
+                        found_run = true;
+                        break;
+                    }
+                } else {
+                    run_len = 0;
+                }
+
+                dir_offset += DIR_ENTRY_LENGTH;
+                sector_offset += DIR_ENTRY_LENGTH;
+            }
+
+            if (found_run) {
+                break;
+            }
+
+            err = dbi.next_sector();
+            if (err < 0) {
+                if (err == ERR_OUT_OF_RANGE) {
+                    break;
+                }
+                return err;
+            }
+            sector_offset = 0;
+        }
+
+        if (found_run) {
+            break;
+        }
+
+        // Need more room.
+        if (starting_dir_cluster == 0) {
+            // Root directory on FAT12/16 is fixed size and cannot grow.
+            return ERR_NO_MEMORY;
+        }
+
+        uint32_t last_cluster = fat_find_last_cluster_in_chain(fat, starting_dir_cluster);
+        uint32_t new_cluster;
+        uint32_t last_allocated;
+        err = fat_allocate_cluster_chain(fat, last_cluster, 1, &new_cluster, &last_allocated, true);
+        if (err != NO_ERROR) {
+            return err;
+        }
     }
 
-    // We ran out of space in the current cluster chain.
-    if (starting_dir_cluster == 0) {
-        // Root directory on FAT12/16 is fixed size and cannot grow.
-        return ERR_NO_MEMORY;
+    uint8_t checksum = fat_lfn_sfn_checksum(reinterpret_cast<const uint8_t *>(sfn));
+    for (size_t i = 0; i < total_entry_count; i++) {
+        dir_entry_location entry_loc = {
+            .starting_dir_cluster = starting_dir_cluster,
+            .dir_offset = run_start_offset + static_cast<uint32_t>(i * DIR_ENTRY_LENGTH),
+        };
+        bcache_block_ref bref = open_dirent_block(fat, entry_loc);
+        if (!bref.is_valid()) {
+            return ERR_IO;
+        }
+
+        uint8_t *ent = static_cast<uint8_t *>(bref.ptr());
+        ent += entry_loc.dir_offset % fat->info().bytes_per_sector;
+
+        if (i < lfn_entry_count) {
+            size_t reverse = lfn_entry_count - i;
+            fill_lfn_dirent(ent, lfn_ucs2, lfn_ucs2_len,
+                            static_cast<uint8_t>(reverse),
+                            (reverse == lfn_entry_count), checksum);
+        } else {
+            fill_short_dirent(ent, sfn, attr, starting_cluster, size);
+        }
+        bref.mark_dirty();
     }
 
-    // Grow the directory by one cluster.
-    uint32_t last_cluster = fat_find_last_cluster_in_chain(fat, starting_dir_cluster);
-    uint32_t new_cluster;
-    uint32_t last_allocated;
-    err = fat_allocate_cluster_chain(fat, last_cluster, 1, &new_cluster, &last_allocated, true);
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    // The new cluster is zeroed, so the first entry is free.
-    // Use it to fill in the new directory entry.
-    bcache_block_ref bref(fat->bcache());
-    uint32_t sector = fat_sector_for_cluster(fat, new_cluster);
-    if (sector == 0xffffffff) {
-        return ERR_INVALID_ARGS;
-    }
-    err = bref.get_block(sector);
-    if (err < 0) {
-        return err;
-    }
-
-    fill_short_dirent((uint8_t *)bref.ptr(), sfn, attr, starting_cluster, size);
-
-    bref.mark_dirty();
     bcache_flush(fat->bcache());
 
     if (loc) {
         loc->starting_dir_cluster = starting_dir_cluster;
-        loc->dir_offset = dir_offset;
+        loc->dir_offset = run_start_offset + static_cast<uint32_t>(lfn_entry_count * DIR_ENTRY_LENGTH);
     }
 
     return NO_ERROR;

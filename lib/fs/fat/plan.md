@@ -4,8 +4,8 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
 
 ## Current branch state
 
-- Branch: `wip/fat`
-- Current HEAD: `ea876b49` - `[AGENTS.md] add note about commit message style`
+- Branch: `fat`
+- Current HEAD: `17b3dd2b4` - `[lib][fs] format all of the lib/fs files with clang format`
 - Recent WIP commits in this series:
   - `65f32f15` - `WIP [fs][fat] intrinsic rootfs live iterator; live-iter unit test`
   - `b500c13d` - `WIP [fs][fat] fix memory leaks in shell.c (tmppath, cmd_rm, cmd_rmdir)`
@@ -81,7 +81,6 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
   to disk immediately, so fsck will see an unclean marker if we crash before unmounting.
 - On **unmount**: ClnShutBit is set (volume marked clean) across all FAT copies before
   `write_fsinfo_locked()` + `bcache_flush()`, so a clean unmount leaves a cleanly-marked volume.
-- FAT12 has no such bit; the methods are a no-op for FAT12.
 - FAT16: bit 15 of FAT entry 1 (`0x8000`). FAT32: bit 27 of FAT entry 1 (`0x08000000`).
 - Validated: `fsck.fat -vn` remains clean for all three image types after implementing this.
 - FAT12 has no such bit; the methods are a no-op for FAT12.
@@ -153,7 +152,7 @@ The script:
 `run-qemu-boot-tests.py` also gained a `--disk / -d` flag (repeatable) so any
 disk image can be passed through to the underlying `do-qemuarm` `-d` switch.
 
-Latest validated result (all three images, FAT32 disk image):
+Latest validated result (as of commit `17b3dd2b4` on 2026-05-01):
 
 - FAT12: all 10 `CASE fat` subtests passed, `fsck.fat -vn` clean
 - FAT16: all 10 `CASE fat` subtests passed, `fsck.fat -vn` clean
@@ -188,8 +187,8 @@ FAT subtests are skipped cleanly when no `virtio0` device is present.
 
 If resuming on a new machine, start with:
 
-1. `git checkout wip/fat`
+1. `git checkout fat`
 2. `git log --oneline --decorate -8`
 3. `./scripts/run-fat-tests.sh` — runs mkblk, QEMU boot tests, and fsck for all three image types
 
-After that, the most natural next features are long filename creation support and directory expansion handling in `fat_dir_allocate`.
+After that, the most natural next feature is long filename creation support for create/mkdir.

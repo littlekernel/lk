@@ -17,6 +17,8 @@
 #include <malloc.h>
 #include <string.h>
 
+#include "../dir.h"
+
 #define LOCAL_TRACE 0
 
 // A set of test cases run against a block device image created from the test script
@@ -87,6 +89,44 @@ bool test_fat_mount() {
 
     ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
     ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+
+    END_TEST;
+}
+
+bool test_fat_utf8_to_ucs2() {
+    BEGIN_TEST;
+
+    uint16_t out[16] = {};
+    size_t out_len = 0;
+
+    ASSERT_EQ(NO_ERROR, fat_utf8_to_ucs2("hello", out, countof(out), &out_len));
+    ASSERT_EQ(5u, out_len);
+    EXPECT_EQ(static_cast<uint16_t>('h'), out[0]);
+    EXPECT_EQ(static_cast<uint16_t>('e'), out[1]);
+    EXPECT_EQ(static_cast<uint16_t>('l'), out[2]);
+    EXPECT_EQ(static_cast<uint16_t>('l'), out[3]);
+    EXPECT_EQ(static_cast<uint16_t>('o'), out[4]);
+
+    // U+00E9 and U+20AC
+    ASSERT_EQ(NO_ERROR, fat_utf8_to_ucs2("\xC3\xA9\xE2\x82\xAC", out, countof(out), &out_len));
+    ASSERT_EQ(2u, out_len);
+    EXPECT_EQ(0x00e9u, out[0]);
+    EXPECT_EQ(0x20acu, out[1]);
+
+    // Overlong encoding for '/'
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xC0\xAF", out, countof(out), &out_len));
+
+    // Truncated multibyte sequence
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xE2\x82", out, countof(out), &out_len));
+
+    // UTF-8 surrogate (invalid scalar value)
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xED\xA0\x80", out, countof(out), &out_len));
+
+    // Non-BMP (4-byte UTF-8): unsupported by UCS-2
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xF0\x9F\x98\x80", out, countof(out), &out_len));
+
+    uint16_t small[1] = {};
+    EXPECT_EQ(ERR_TOO_BIG, fat_utf8_to_ucs2("ab", small, countof(small), &out_len));
 
     END_TEST;
 }
@@ -264,6 +304,17 @@ bool test_fat_create_file() {
         handle = nullptr;
         ASSERT_EQ(ERR_ALREADY_EXISTS, fs_create_file(test_path "/newfile", &handle, 0));
 
+        // create a long filename (LFN path)
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/this_is_a_long_filename_for_create.txt", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/this_is_a_long_filename_for_create.txt", &handle));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
         END_TEST;
     });
 }
@@ -367,6 +418,16 @@ bool test_fat_mkdir() {
         ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
         ASSERT_EQ(ERR_NOT_FOUND, fs_make_dir(test_path "/does_not_exist/child"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/this_is_a_long_directory_name"));
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/this_is_a_long_directory_name", &dh));
+        ASSERT_NONNULL(dh);
+        ASSERT_EQ(NO_ERROR, fs_close_dir(dh));
+
+        fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/this_is_a_long_directory_name/inside.txt", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
         END_TEST;
     });
@@ -495,8 +556,50 @@ bool test_fat_dir_growth() {
     });
 }
 
+bool test_fat_lfn_ordinal_rollover() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        // Test SFN alias ordinal rollover with multiple files that collide on their base SFN.
+        filehandle *fh = nullptr;
+        char *filename_buf = new char[256];
+
+        // Create 10 files with colliding long names to verify ordinal generation
+        for (int i = 0; i < 10; i++) {
+            snprintf(filename_buf, 256, test_path "/this_is_a_collision_test_file_%02d.txt", i);
+            fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_create_file(filename_buf, &fh, 0));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+            // Verify immediately after creation
+            fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(filename_buf, &fh));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // Clean up all files
+        for (int i = 0; i < 10; i++) {
+            snprintf(filename_buf, 256, test_path "/this_is_a_collision_test_file_%02d.txt", i);
+            int ret = fs_remove_file(filename_buf);
+            if (ret != NO_ERROR) {
+                unittest_printf("FAILED to remove %s: %d\n", filename_buf, ret);
+            } else {
+                unittest_printf("Successfully removed %s\n", filename_buf);
+            }
+            ASSERT_EQ(NO_ERROR, ret);
+        }
+
+        delete[] filename_buf;
+
+        END_TEST;
+    });
+}
+
 BEGIN_TEST_CASE(fat)
 RUN_TEST(test_fat_mount)
+RUN_TEST(test_fat_utf8_to_ucs2)
 RUN_TEST(test_fat_dir_root)
 RUN_TEST(test_fat_read_file)
 RUN_TEST(test_fat_multi_open)
@@ -507,6 +610,7 @@ RUN_TEST(test_fat_mkdir)
 RUN_TEST(test_fat_remove_file)
 RUN_TEST(test_fat_remove_dir)
 RUN_TEST(test_fat_dir_growth)
+RUN_TEST(test_fat_lfn_ordinal_rollover)
 END_TEST_CASE(fat)
 
 } // namespace

@@ -17,6 +17,12 @@ struct dir_entry;
 struct dir_entry_location;
 struct fat_dir_cookie;
 
+// Convert UTF-8 to UCS-2 for FAT LFN handling.
+// Returns NO_ERROR on success, ERR_INVALID_ARGS for malformed/unrepresentable UTF-8,
+// and ERR_TOO_BIG if max_ucs2_len is insufficient.
+status_t fat_utf8_to_ucs2(const char *utf8, uint16_t *ucs2, size_t max_ucs2_len,
+                          size_t *out_ucs2_len);
+
 // structure that represents an open dir, may have multiple cookies in its list
 // at any point in time,
 class fat_dir : public fat_file {
