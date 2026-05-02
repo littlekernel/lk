@@ -42,6 +42,18 @@ struct fat_dir_cookie {
     static const uint32_t index_eod = 0xffffffff;
 };
 
+namespace {
+
+uint8_t fat_lfn_sfn_checksum(const uint8_t short_name[11]) {
+    uint8_t checksum = 0;
+    for (size_t i = 0; i < 11; i++) {
+        checksum = static_cast<uint8_t>(((checksum & 1) ? 0x80 : 0) + (checksum >> 1) + short_name[i]);
+    }
+    return checksum;
+}
+
+} // anonymous namespace
+
 // walk one entry into the dir, starting at byte offset into the directory block iterator.
 // both dbi and offset will be modified during the call.
 // filles out the entry and returns a pointer into the passed in buffer in out_filename.
@@ -92,6 +104,13 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
             } else if (ent[0x0B] == (uint8_t)fat_attribute::lfn) {
                 // part of a LFN sequence
                 uint8_t sequence = ent[0] & ~0x40;
+                if (sequence == 0) {
+                    // malformed LFN sequence, discard any accumulated state
+                    LTRACEF("invalid LFN sequence 0\n");
+                    lfn_state.reset();
+                    offset += DIR_ENTRY_LENGTH;
+                    continue;
+                }
                 if (ent[0] & 0x40) {
                     // end sequence, start a new backwards fill of the lfn name
                     lfn_state.pos = MAX_FILE_NAME_LEN;
@@ -119,13 +138,24 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
 
                 // walk backwards through the entry, picking out unicode characters
                 // table of unicode character offsets:
-                const size_t table[] = {30, 28, 24, 22, 20, 18, 16, 14, 9, 7, 5, 3, 1};
+                constexpr size_t table[] = {30, 28, 24, 22, 20, 18, 16, 14, 9, 7, 5, 3, 1};
                 for (auto off : table) {
                     uint16_t c = fat_read16(ent, off);
                     if (c != 0xffff && c != 0x0) {
                         // TODO: properly deal with unicode -> utf8
+                        if (lfn_state.pos == 0) {
+                            // malformed/oversized LFN chain, drop it to avoid underflow.
+                            LTRACEF("LFN too long for filename buffer\n");
+                            lfn_state.reset();
+                            break;
+                        }
                         filename_buffer[--lfn_state.pos] = c & 0xff;
                     }
+                }
+
+                if (lfn_state.last_sequence == 0xff) {
+                    offset += DIR_ENTRY_LENGTH;
+                    continue;
                 }
 
                 LTRACEF_LEVEL(2, "lfn filename thus far: '%s' sequence %hhu\n", filename_buffer + lfn_state.pos, sequence);
@@ -170,8 +200,14 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
                 // now we have the SFN, see if we just got finished parsing a corresponding LFN
                 // in the previous entries
                 if (lfn_state.last_sequence == 1) {
-                    // TODO: compute checksum and make sure it matches
-                    *out_filename = filename_buffer + lfn_state.pos;
+                    uint8_t checksum = fat_lfn_sfn_checksum(ent);
+                    if (checksum == lfn_state.checksum) {
+                        *out_filename = filename_buffer + lfn_state.pos;
+                    } else {
+                        LTRACEF("LFN checksum mismatch, using SFN\n");
+                        strlcpy(filename_buffer, short_filename, sizeof(short_filename));
+                        *out_filename = filename_buffer;
+                    }
                 } else {
                     // copy the parsed short file name into the out buffer
                     strlcpy(filename_buffer, short_filename, sizeof(short_filename));
