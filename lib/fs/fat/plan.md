@@ -5,8 +5,14 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
 ## Current branch state
 
 - Branch: `fat`
-- Current HEAD: `17b3dd2b4` - `[lib][fs] format all of the lib/fs files with clang format`
+- Current HEAD: `30b7de6c7` - `[fs][fat] update plan.md, not much left`
 - Recent WIP commits in this series:
+  - `30b7de6c` - `[fs][fat] update plan.md, not much left`
+  - `1a37f9ad` - `[fs][fat] add some more unit tests for some internal routines`
+  - `d652790a` - `[fs][fat] handle adding LFN file names`
+  - `2a8c600a` - `[fs][fat] handle malformed LFNs better and make sure it matches the SFN checksum`
+  - `17b3dd2b` - `[lib][fs] format all of the lib/fs files with clang format`
+  - `6a0fd86c` - `[lib][fat] format all of the code and update plan.md`
   - `65f32f15` - `WIP [fs][fat] intrinsic rootfs live iterator; live-iter unit test`
   - `b500c13d` - `WIP [fs][fat] fix memory leaks in shell.c (tmppath, cmd_rm, cmd_rmdir)`
   - `c711e581` - `WIP [fs][fat] add intrinsic rootfs to enumerate mount points via ls and opendir`
@@ -101,6 +107,22 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
 - **Improved Sector Addressing**: Refactored `fat_sector_for_cluster` to return `0xffffffff` on error and added safety checks to prevent accidental reads from sector 0 on invalid metadata.
 - **Deduplicated entry generation**: Refactored SFN entry creation into a shared `fill_short_dirent` helper.
 
+### LFN read-path Unicode handling
+
+- **Fixed LFN Unicode truncation on read**: `fat_find_next_entry` no longer truncates UCS-2
+  code units to low bytes.
+- **Implemented UCS-2 → UTF-8 conversion for LFN parsing**:
+  - Added `fat_ucs2_to_utf8` and a single-codepoint helper (`ucs2_char_to_utf8`) for
+    shared conversion logic.
+  - Updated LFN parsing to emit valid UTF-8 for BMP code points.
+- **Removed heavyweight allocation from hot path**:
+  - Dropped per-iteration `malloc/free` buffering in directory walk logic.
+  - LFN parse now builds UTF-8 bytes backward in `filename_buffer` and then
+    `memmove`s to offset 0 on successful SFN checksum match.
+- **Kept malformed LFN safeguards**:
+  - Sequence and checksum validation are still enforced.
+  - Parsing aborts safely if reverse writes would underflow the output buffer.
+
 ### Test coverage added/updated
 
 - Resize/shrink/regrow coverage.
@@ -124,6 +146,8 @@ This file summarizes the FAT read/write/restructure work currently on `wip/fat`,
 - Added helper-level unit tests:
   - `test_fat_split_path`
   - `test_fat_name_to_short_file_name`
+  - `test_fat_ucs2_to_utf8`
+  - `test_fat_utf8_ucs2_roundtrip`
   - These required exporting helper declarations in `lib/fs/fat/dir.h`.
 
 ## Files changed for the mkdir/remove/rmdir phase
@@ -164,14 +188,20 @@ The script:
 `run-qemu-boot-tests.py` also gained a `--disk / -d` flag (repeatable) so any
 disk image can be passed through to the underlying `do-qemuarm` `-d` switch.
 
-Latest validated result (as of commit `17b3dd2b4` on 2026-05-01):
+Latest validated result (as of commit `30b7de6c7` on 2026-05-03):
 
-- FAT12: all 10 `CASE fat` subtests passed, `fsck.fat -vn` clean
-- FAT16: all 10 `CASE fat` subtests passed, `fsck.fat -vn` clean
-- FAT32: all 10 `CASE fat` subtests passed, `fsck.fat -vn` clean
+- FAT12: all 16 `CASE fat` subtests passed, `fsck.fat -vn` clean
+- FAT16: all 16 `CASE fat` subtests passed, `fsck.fat -vn` clean
+- FAT32: all 16 `CASE fat` subtests passed, `fsck.fat -vn` clean
 
 `run-qemu-boot-tests.py --arch arm64` (no disk) still passes 10/10 cases;
 FAT subtests are skipped cleanly when no `virtio0` device is present.
+
+Latest validation after LFN read-path fix:
+
+- `scripts/run-fat-tests.sh` passes for FAT12/FAT16/FAT32 with clean `fsck.fat -vn`
+  on all three images.
+- `CASE fat` now reports 16/16 subtests passed.
 
 ## Important caveats / current limitations
 
@@ -179,11 +209,43 @@ FAT subtests are skipped cleanly when no `virtio0` device is present.
 - UTF-8 that is malformed, surrogate-range, or non-BMP remains intentionally rejected.
 - Remove supports file deletion only; there is no directory-delete behavior in this path — `rmdir` is now a separate API (see above).
 
-## What may still need to be done
+## What still needs to be done
 
-### Likely next FAT work
+### Functional gaps
 
-- Add more targeted mkdir/remove/rmdir tests if desired:
+- **No Timestamps** (`fat_priv.h:43`, `dir.cpp`): The `dir_entry` struct has `// TODO time`
+  and all time fields (creation, access, modification) are written as zero. The FAT
+  format stores these, but LK ignores them entirely. `stat_file_priv` returns zeroed
+  timestamps.
+
+- **No Device Size Validation on Mount** (`fs.cpp:306`): The mount code trusts the BPB
+  `total_sectors` field without verifying it doesn't exceed the actual block device size.
+  A corrupted or malformed BPB could cause reads past the device end.
+
+- **Unmount Doesn't Check Active Files** (`fs.cpp:426`): `fs_unmount` will silently
+  proceed even if files or directories are still open, which could leave the filesystem
+  in an inconsistent state (dirty buffers never flushed).
+
+- **Weak Attribute Validation** (`file.cpp:115`): `open_file_priv` only checks whether
+  an entry is a directory or not. It doesn't reject entries with `volume_id` or other
+  special attributes that shouldn't be opened as regular files.
+
+### Performance
+
+- **FSInfo Free Cluster Hint Unused** (`fat.cpp:257`): When allocating new clusters, the
+  free-cluster search always starts from cluster 2 instead of using the FSInfo hint
+  (`fsinfo_next_free`). On larger filesystems this causes unnecessary linear scans.
+
+### Code quality
+
+- **Cluster Extension Code Duplication** (`file.cpp:392`): The directory growth code in
+  `fat_dir_allocate` allocates new clusters for directory expansion, but the logic isn't
+  shared with the file truncate/growth code in `file.cpp`. A shared helper would reduce
+  duplication.
+
+### Likely next FAT work (tests)
+
+- Add more targeted mkdir/remove/rmdir tests:
   - mkdir/remove in non-root FAT12/16 and FAT32 directories with more edge cases
   - invalid-name cases
   - dot/dotdot content verification through direct directory reads if needed
@@ -191,10 +253,13 @@ FAT subtests are skipped cleanly when no `virtio0` device is present.
 
 ### Cleanup / polish
 
-- If these WIP commits are going to be turned into a final series, they will probably need squashing/rewording into a cleaner history.
+- If these WIP commits are going to be turned into a final series, they will probably
+  need squashing/rewording into a cleaner history.
 - If desired, update FAT documentation or test notes to reflect write/mkdir/remove coverage.
-- Remove temporary verbose deletion tracing (`printf`) in `mark_entry_record_deleted` once active debugging is complete.
-- **Code Style**: Ensure `clang-format -i lib/fs/fat/*` is run after making changes to maintain consistency.
+- Remove temporary verbose deletion tracing (`LTRACEF_LEVEL(2)`) in
+  `mark_entry_record_deleted` once active debugging is complete.
+- **Code Style**: Ensure `clang-format -i lib/fs/fat/*` is run after making changes to
+  maintain consistency.
 
 ## Recommended resume point
 
@@ -204,4 +269,9 @@ If resuming on a new machine, start with:
 2. `git log --oneline --decorate -8`
 3. `./scripts/run-fat-tests.sh` — runs mkblk, QEMU boot tests, and fsck for all three image types
 
-After that, the most natural next feature is long filename creation support for create/mkdir.
+After that, the most natural next items are:
+
+1. Add mount-time device size validation
+2. Add FSInfo free-cluster hint usage during allocation
+3. Fix unmount to reject or flush open files/dirs
+4. Tighten special-attribute validation in open/stat paths

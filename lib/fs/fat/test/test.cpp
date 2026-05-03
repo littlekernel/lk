@@ -131,6 +131,100 @@ bool test_fat_utf8_to_ucs2() {
     END_TEST;
 }
 
+bool test_fat_ucs2_to_utf8() {
+    BEGIN_TEST;
+
+    char utf8_buf[256];
+    size_t utf8_len = 0;
+
+    // ASCII round-trip
+    uint16_t ascii[] = {'h', 'e', 'l', 'l', 'o'};
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(5u, utf8_len);
+    EXPECT_EQ(0, strcmp(utf8_buf, "hello"));
+
+    // U+00E9 (é) — 2-byte UTF-8, U+20AC (€) — 3-byte UTF-8
+    uint16_t mixed_byte[] = {0x00e9, 0x20ac};
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(5u, utf8_len); // 2 + 3 bytes
+    EXPECT_EQ(static_cast<char>(0xc3), utf8_buf[0]);
+    EXPECT_EQ(static_cast<char>(0xa9), utf8_buf[1]);
+    EXPECT_EQ(static_cast<char>(0xe2), utf8_buf[2]);
+    EXPECT_EQ(static_cast<char>(0x82), utf8_buf[3]);
+    EXPECT_EQ(static_cast<char>(0xac), utf8_buf[4]);
+
+    // U+0080 → 2-byte UTF-8; U+0100 → 2-byte UTF-8; U+0800 → 3-byte UTF-8
+    uint16_t two_three[] = {0x0080, 0x0100, 0x0800};
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(7u, utf8_len); // 2 + 2 + 3
+    // U+0080 -> 0xc2 0x80
+    EXPECT_EQ(static_cast<char>(0xc2), utf8_buf[0]);
+    EXPECT_EQ(static_cast<char>(0x80), utf8_buf[1]);
+    // U+0100 -> 0xc4 0x80
+    EXPECT_EQ(static_cast<char>(0xc4), utf8_buf[2]);
+    EXPECT_EQ(static_cast<char>(0x80), utf8_buf[3]);
+    // U+0800 -> 0xe0 0xa0 0x80
+    EXPECT_EQ(static_cast<char>(0xe0), utf8_buf[4]);
+    EXPECT_EQ(static_cast<char>(0xa0), utf8_buf[5]);
+    EXPECT_EQ(static_cast<char>(0x80), utf8_buf[6]);
+
+    // Empty input
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(0u, utf8_len);
+    EXPECT_EQ(0, strcmp(utf8_buf, ""));
+
+    // Buffer too small for output
+    char tiny_buf[1];
+    EXPECT_EQ(ERR_TOO_BIG, fat_ucs2_to_utf8(ascii, countof(ascii), tiny_buf, sizeof(tiny_buf), &utf8_len));
+
+    // Buffer too small for multi-byte expansion
+    char small_buf[2];
+    uint16_t multi[] = {0x00e9, 0x00e9}; // needs 4 bytes
+    EXPECT_EQ(ERR_TOO_BIG, fat_ucs2_to_utf8(multi, countof(multi), small_buf, sizeof(small_buf), &utf8_len));
+
+    END_TEST;
+}
+
+bool test_fat_utf8_ucs2_roundtrip() {
+    BEGIN_TEST;
+
+    // Test round-trip: UTF-8 → UCS-2 → UTF-8 should produce the same result.
+    const char *test_cases[] = {
+        "hello",
+        "\xC3\xA9\xE2\x82\xAC",                     // é€
+        "\xE4\xB8\xAD\xE6\x96\x87",                 // 中文 (CJK)
+        "\xD0\xA4\xD0\xB8\xD0\xBB\xD0\xBE\xD0\xB2", // Филov (Cyrillic)
+        "\xEF\xBD\xA1\xEF\xBD\xA2",                 // ！！ (fullwidth exclamation)
+    };
+
+    uint16_t ucs2_buf[256];
+    char utf8_out[768];
+
+    for (const char *input : test_cases) {
+        size_t ucs2_len = 0;
+        size_t utf8_len = 0;
+
+        status_t err = fat_utf8_to_ucs2(input, ucs2_buf, countof(ucs2_buf), &ucs2_len);
+        ASSERT_EQ(NO_ERROR, err);
+
+        err = fat_ucs2_to_utf8(ucs2_buf, ucs2_len, utf8_out, sizeof(utf8_out), &utf8_len);
+        ASSERT_EQ(NO_ERROR, err);
+
+        size_t input_len = strlen(input);
+        EXPECT_EQ(input_len, utf8_len);
+        size_t cmp_len = input_len < utf8_len ? input_len : utf8_len;
+        if (input_len != utf8_len || memcmp(input, utf8_out, cmp_len)) {
+            unittest_printf("Round-trip failed for input: ");
+            hexdump8_ex(reinterpret_cast<const uint8_t *>(input), input_len, 0);
+            unittest_printf("Got: ");
+            hexdump8_ex(reinterpret_cast<const uint8_t *>(utf8_out), utf8_len, 0);
+            EXPECT_FALSE(true);
+        }
+    }
+
+    END_TEST;
+}
+
 bool test_fat_split_path() {
     BEGIN_TEST;
 
@@ -663,6 +757,8 @@ bool test_fat_lfn_ordinal_rollover() {
 BEGIN_TEST_CASE(fat)
 RUN_TEST(test_fat_mount)
 RUN_TEST(test_fat_utf8_to_ucs2)
+RUN_TEST(test_fat_ucs2_to_utf8)
+RUN_TEST(test_fat_utf8_ucs2_roundtrip)
 RUN_TEST(test_fat_split_path)
 RUN_TEST(test_fat_name_to_short_file_name)
 RUN_TEST(test_fat_dir_root)

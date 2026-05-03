@@ -106,6 +106,65 @@ status_t fat_utf8_to_ucs2(const char *utf8, uint16_t *ucs2, size_t max_ucs2_len,
     return NO_ERROR;
 }
 
+/* Convert a single UCS-2 code point to UTF-8, writing bytes in reverse order.
+ * Returns the number of bytes written (1-3). */
+inline size_t ucs2_char_to_utf8(uint16_t c, char out[3]) {
+
+    // TODO: handle > U+FFFF code points if we ever want to support them in FAT LFN.
+    if (c < 0x80) {
+        out[0] = static_cast<char>(c);
+        return 1;
+    } else if (c < 0x800) {
+        out[0] = static_cast<char>(0xc0 | (c >> 6));
+        out[1] = static_cast<char>(0x80 | (c & 0x3f));
+        return 2;
+    } else {
+        out[0] = static_cast<char>(0xe0 | (c >> 12));
+        out[1] = static_cast<char>(0x80 | ((c >> 6) & 0x3f));
+        out[2] = static_cast<char>(0x80 | (c & 0x3f));
+        return 3;
+    }
+}
+
+// Convert UCS-2 code units (from FAT LFN) to UTF-8.
+// Returns NO_ERROR on success, ERR_TOO_BIG if the UTF-8 output buffer is too small.
+status_t fat_ucs2_to_utf8(const uint16_t *ucs2, size_t ucs2_len, char *utf8,
+                          size_t max_utf8_len, size_t *out_utf8_len) {
+    DEBUG_ASSERT(utf8);
+
+    if (ucs2_len == 0) {
+        utf8[0] = '\0';
+        if (out_utf8_len) {
+            *out_utf8_len = 0;
+        }
+        return NO_ERROR;
+    }
+
+    DEBUG_ASSERT(ucs2);
+
+    size_t out = 0;
+    for (size_t i = 0; i < ucs2_len; i++) {
+        uint16_t c = ucs2[i];
+        char utf8_bytes[3];
+        size_t nbytes = ucs2_char_to_utf8(c, utf8_bytes);
+
+        if (out + nbytes > max_utf8_len) {
+            return ERR_TOO_BIG;
+        }
+        // write forwards by temporarily offsetting the buffer
+        for (size_t j = 0; j < nbytes; j++) {
+            utf8[out + j] = utf8_bytes[j];
+        }
+        out += nbytes;
+    }
+
+    utf8[out] = '\0';
+    if (out_utf8_len) {
+        *out_utf8_len = out;
+    }
+    return NO_ERROR;
+}
+
 namespace {
 
 status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluster,
@@ -140,7 +199,7 @@ uint8_t fat_lfn_sfn_checksum(const uint8_t short_name[11]) {
     return checksum;
 }
 
-char sanitize_sfn_char(uint8_t c) {
+inline char sanitize_sfn_char(uint8_t c) {
     if (isalnum(c)) {
         return static_cast<char>(toupper(c));
     }
@@ -225,9 +284,9 @@ status_t generate_unique_short_name_for_lfn(fat_fs *fat, uint32_t starting_dir_c
         status_t err = fat_find_short_file_in_dir_with_offsets(fat, starting_dir_cluster, sfn,
                                                                &existing, nullptr, nullptr);
         if (err == ERR_NOT_FOUND) {
+            // this short name is not taken, we can use it
             return NO_ERROR;
-        }
-        if (err < 0 && err != ERR_NOT_FOUND) {
+        } else if (err < 0) {
             return err;
         }
     }
@@ -235,28 +294,28 @@ status_t generate_unique_short_name_for_lfn(fat_fs *fat, uint32_t starting_dir_c
     return ERR_ALREADY_EXISTS;
 }
 
-} // anonymous namespace
-
 // walk one entry into the dir, starting at byte offset into the directory block iterator.
 // both dbi and offset will be modified during the call.
 // filles out the entry and returns a pointer into the passed in buffer in out_filename.
 // NOTE: *must* pass at least a MAX_FILE_NAME_LEN byte char pointer in the filename_buffer slot.
-static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
-                                    char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
+status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint32_t &offset, dir_entry *entry,
+                             char filename_buffer[MAX_FILE_NAME_LEN], char **out_filename) {
 
     DEBUG_ASSERT(entry && filename_buffer && out_filename);
 
     // Note: offset is used as an ABSOLUTE directory offset (accounting for sector boundaries)
     // We track which sector we're in based on offset / bytes_per_sector
 
-    // lfn parsing state
+    // lfn parsing state: build UTF-8 string backwards from the end of filename_buffer.
     struct lfn_parse_state {
-        size_t pos = 0;
-        uint8_t last_sequence = 0xff; // 0xff means we haven't seen anything
-                                      // since last reset
+        size_t utf8_pos = 0;          // next byte position to write (decrements)
+        uint8_t max_sequence = 0;     // highest sequence (the first LFN entry with 0x40)
+        uint8_t last_sequence = 0xff; // last sequence seen (for validation)
         uint8_t checksum = 0;
 
         void reset() {
+            utf8_pos = 0;
+            max_sequence = 0;
             last_sequence = 0xff;
         }
     } lfn_state;
@@ -296,10 +355,14 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
                     offset += DIR_ENTRY_LENGTH;
                     continue;
                 }
+                // FAT stores LFN entries in reverse: highest sequence (with 0x40 flag)
+                // first, then decreasing to sequence 1 immediately before the SFN.
+                // We convert each UCS-2 code point to UTF-8 and write backwards
+                // from the end of filename_buffer.
                 if (ent[0] & 0x40) {
-                    // end sequence, start a new backwards fill of the lfn name
-                    lfn_state.pos = MAX_FILE_NAME_LEN;
-                    filename_buffer[--lfn_state.pos] = 0;
+                    // end sequence (first LFN entry), start at end of buffer
+                    lfn_state.utf8_pos = MAX_FILE_NAME_LEN;
+                    lfn_state.max_sequence = sequence;
                     lfn_state.last_sequence = sequence;
                     lfn_state.checksum = ent[0x0d];
                     LTRACEF_LEVEL(2, "start of new LFN entry, sequence %u\n", sequence);
@@ -321,29 +384,34 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
                     lfn_state.last_sequence = sequence;
                 }
 
-                // walk backwards through the entry, picking out unicode characters
-                // table of unicode character offsets:
+                // extract unicode characters and convert to UTF-8, writing backwards.
                 constexpr size_t table[] = {30, 28, 24, 22, 20, 18, 16, 14, 9, 7, 5, 3, 1};
-                for (auto off : table) {
-                    uint16_t c = fat_read16(ent, off);
-                    if (c != 0xffff && c != 0x0) {
-                        // TODO: properly deal with unicode -> utf8
-                        if (lfn_state.pos == 0) {
-                            // malformed/oversized LFN chain, drop it to avoid underflow.
-                            LTRACEF("LFN too long for filename buffer\n");
-                            lfn_state.reset();
-                            break;
-                        }
-                        filename_buffer[--lfn_state.pos] = c & 0xff;
+                for (size_t i = 0; i < kFatLfnCharsPerEntry; i++) {
+                    uint16_t c = fat_read16(ent, table[i]);
+                    if (c == 0xffff || c == 0x0) {
+                        continue;
                     }
+
+                    // Convert one UCS2 char to up to 3 utf-8 bytes in a temporary buffer
+                    char utf8_bytes[3];
+                    size_t nbytes = ucs2_char_to_utf8(c, utf8_bytes);
+                    if (lfn_state.utf8_pos < nbytes) {
+                        LTRACEF("LFN too long for filename buffer\n");
+                        lfn_state.reset();
+                        break;
+                    }
+
+                    // Copy them into the output buffer in reverse order
+                    for (size_t j = 0; j < nbytes; j++) {
+                        filename_buffer[lfn_state.utf8_pos - nbytes + j] = utf8_bytes[j];
+                    }
+                    lfn_state.utf8_pos -= nbytes;
                 }
 
-                if (lfn_state.last_sequence == 0xff) {
+                if (lfn_state.max_sequence == 0) {
                     offset += DIR_ENTRY_LENGTH;
                     continue;
                 }
-
-                LTRACEF_LEVEL(2, "lfn filename thus far: '%s' sequence %hhu\n", filename_buffer + lfn_state.pos, sequence);
 
                 // iterate one more entry, since we need to at least need to find the corresponding SFN
                 offset += DIR_ENTRY_LENGTH;
@@ -386,8 +454,12 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
                 // in the previous entries
                 if (lfn_state.last_sequence == 1) {
                     uint8_t checksum = fat_lfn_sfn_checksum(ent);
-                    if (checksum == lfn_state.checksum) {
-                        *out_filename = filename_buffer + lfn_state.pos;
+                    if (checksum == lfn_state.checksum && lfn_state.utf8_pos < MAX_FILE_NAME_LEN) {
+                        // move the backwards-built UTF-8 string to the start of the buffer
+                        size_t utf8_len = MAX_FILE_NAME_LEN - lfn_state.utf8_pos;
+                        memmove(filename_buffer, filename_buffer + lfn_state.utf8_pos, utf8_len);
+                        filename_buffer[utf8_len] = '\0';
+                        *out_filename = filename_buffer;
                     } else {
                         LTRACEF("LFN checksum mismatch, using SFN\n");
                         strlcpy(filename_buffer, short_filename, sizeof(short_filename));
@@ -430,7 +502,7 @@ static status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint3
     return ERR_NOT_FOUND;
 }
 
-static status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, const char *name, dir_entry *entry, uint32_t *found_offset) {
+status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, const char *name, dir_entry *entry, uint32_t *found_offset) {
     LTRACEF("start_cluster %u, name '%s', out entry %p\n", starting_cluster, name, entry);
 
     DEBUG_ASSERT(fat->lock.is_held());
@@ -479,10 +551,10 @@ static status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, con
     }
 }
 
-static status_t fat_find_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluster,
-                                                  const char *name, dir_entry *entry,
-                                                  uint32_t *entry_start_offset,
-                                                  uint32_t *entry_end_offset) {
+status_t fat_find_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluster,
+                                           const char *name, dir_entry *entry,
+                                           uint32_t *entry_start_offset,
+                                           uint32_t *entry_end_offset) {
     LTRACEF("start_cluster %u, name '%s', out entry %p\n", starting_cluster, name, entry);
 
     DEBUG_ASSERT(fat->lock.is_held());
@@ -551,8 +623,6 @@ static status_t fat_find_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting
         }
     }
 }
-
-namespace {
 
 status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluster,
                                                  const char short_name[11], dir_entry *entry,
@@ -820,7 +890,7 @@ status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name) {
 namespace {
 
 void fill_short_dirent(uint8_t *ent, const char short_name[11], fat_attribute attr,
-                              uint32_t starting_cluster, uint32_t size) {
+                       uint32_t starting_cluster, uint32_t size) {
     memcpy(&ent[0], short_name, 11);              // name
     ent[11] = (uint8_t)attr;                      // attribute
     ent[12] = 0;                                  // reserved
@@ -878,9 +948,9 @@ bcache_block_ref open_dirent_block(fat_fs *fat, const dir_entry_location &loc) {
 }
 
 status_t resolve_parent_cluster_and_last_element(fat_fs *fat, const char *path,
-                                                        char local_path[FS_MAX_FILE_LEN + 1],
-                                                        uint32_t *parent_cluster,
-                                                        const char **last_element) {
+                                                 char local_path[FS_MAX_FILE_LEN + 1],
+                                                 uint32_t *parent_cluster,
+                                                 const char **last_element) {
     strlcpy(local_path, path, FS_MAX_FILE_LEN + 1);
 
     const char *leading_path;
@@ -913,9 +983,9 @@ status_t resolve_parent_cluster_and_last_element(fat_fs *fat, const char *path,
 }
 
 status_t find_entry_in_parent_for_unlink(fat_fs *fat, uint32_t parent_cluster,
-                                                const char *name, dir_entry *entry,
-                                                uint32_t *entry_start_offset,
-                                                uint32_t *entry_end_offset) {
+                                         const char *name, dir_entry *entry,
+                                         uint32_t *entry_start_offset,
+                                         uint32_t *entry_end_offset) {
     char short_name[8 + 3 + 1];
     status_t err = name_to_short_file_name(short_name, name);
     if (err == NO_ERROR) {
@@ -949,8 +1019,8 @@ status_t check_entry_not_busy(fat_fs *fat, uint32_t parent_cluster, uint32_t ent
 }
 
 status_t mark_entry_record_deleted(fat_fs *fat, uint32_t parent_cluster,
-                                          uint32_t entry_start_offset,
-                                          uint32_t entry_end_offset) {
+                                   uint32_t entry_start_offset,
+                                   uint32_t entry_end_offset) {
     LTRACEF("cluster=%u, start=%u, end=%u\n",
             parent_cluster, entry_start_offset, entry_end_offset);
 

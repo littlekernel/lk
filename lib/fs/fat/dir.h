@@ -23,6 +23,11 @@ struct fat_dir_cookie;
 status_t fat_utf8_to_ucs2(const char *utf8, uint16_t *ucs2, size_t max_ucs2_len,
                           size_t *out_ucs2_len);
 
+// Convert UCS-2 to UTF-8 for FAT LFN read path.
+// Returns NO_ERROR on success, ERR_TOO_BIG if the UTF-8 output buffer is too small.
+status_t fat_ucs2_to_utf8(const uint16_t *ucs2, size_t ucs2_len, char *utf8,
+                          size_t max_utf8_len, size_t *out_utf8_len);
+
 // Split a path into leading path and last element. Modifies path in-place.
 void split_path(char *path, const char **leading_path, const char **last_element);
 
