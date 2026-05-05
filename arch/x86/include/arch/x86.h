@@ -13,7 +13,6 @@
 
 #include <lk/compiler.h>
 #include <sys/types.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 __BEGIN_CDECLS
@@ -88,10 +87,13 @@ typedef struct {
     uint16_t    fs, __fsh;
     uint16_t    gs, __gsh;
     uint16_t    ldt, __ldth;
-    uint16_t    trace, bitmap;
+    uint16_t    trace, io_bitmap;
 
-    uint8_t tss_bitmap[8192];
+    // No tss bitmap for now, but put the field here for io_bitmap to point to.
+    uint8_t tss_bitmap[];
 } __PACKED tss_32_t;
+
+STATIC_ASSERT(sizeof(tss_32_t) == 104);
 
 /*
  * x86-64 TSS structure
@@ -113,8 +115,13 @@ typedef struct {
     uint32_t rsvd3;
     uint32_t rsvd4;
     uint16_t rsvd5;
-    uint16_t iomap_base;
+    uint16_t io_bitmap;
+
+    // No tss bitmap for now, but put the field here for io_bitmap to point to.
+    uint8_t tss_bitmap[];
 } __PACKED tss_64_t;
+
+STATIC_ASSERT(sizeof(tss_64_t) == 104);
 
 #if ARCH_X86_32
 typedef tss_32_t tss_t;

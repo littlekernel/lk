@@ -72,12 +72,16 @@ void x86_early_init_percpu(void) {
     system_tss.ss0 = DATA_SELECTOR;
     system_tss.ss1 = 0;
     system_tss.ss2 = 0;
-    system_tss.eflags = 0x00003002;
-    system_tss.bitmap = offsetof(tss_32_t, tss_bitmap);
+    system_tss.eflags = 0x00003002; // IF = 0, NT = 0, IOPL = 3
     system_tss.trace = 1; // trap on hardware task switch
 #elif ARCH_X86_64
     /* nothing to be done here, a fully zeroed TSS is a good starting point */
 #endif
+
+    // For both 32 and 64 bit code, the io_bitmap field points to the start of the tss_bitmap,
+    // which is currently truncated, thus disabling the bitmap.
+    system_tss.io_bitmap = offsetof(tss_t, tss_bitmap);
+
     const uint selector = TSS_SELECTOR_BASE + 8 * arch_curr_cpu_num();
     x86_set_gdt_descriptor(selector, &system_tss, sizeof(system_tss), 1, 0, 0, SEG_TYPE_TSS, 0, 0);
     x86_ltr(selector);

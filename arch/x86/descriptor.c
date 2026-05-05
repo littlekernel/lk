@@ -51,6 +51,10 @@ void x86_set_gdt_descriptor(seg_sel_t sel, void *base, uint32_t limit,
 
     seg_desc_t desc = {0};
 
+    // Trim the limit by 1 due to the way limits work on x86
+    DEBUG_ASSERT(limit > 0);
+    limit -= 1;
+
     desc.seg_desc_legacy.limit_15_0  = limit & 0x0000ffff;
     desc.seg_desc_legacy.limit_19_16 = (limit & 0x000f0000) >> 16;
 
