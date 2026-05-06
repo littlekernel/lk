@@ -7,8 +7,10 @@ BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLoopsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: Inline
-ColumnLimit: 0
+ColumnLimit: 100
 IndentCaseLabels: true
 IndentGotoLabels: false
-AlignConsecutiveMacros:
-  Enabled: true
+AlignConsecutiveMacros: true
+AlignConsecutiveBitFields: true
+Cpp11BracedListStyle: false
+ForEachMacros: ['list_for_every_entry','list_for_every_entry_safe']
