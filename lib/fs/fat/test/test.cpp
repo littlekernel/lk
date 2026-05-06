@@ -66,7 +66,7 @@ bool test_mount_wrapper(R routine) {
 
     SKIP_TEST_IF_NO_DEVICE();
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_NONE));
     // clean up by unmounting no matter what happens here
     auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
 
@@ -87,7 +87,7 @@ bool test_fat_mount() {
 
     SKIP_TEST_IF_NO_DEVICE();
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_NONE));
     ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
 
     END_TEST;

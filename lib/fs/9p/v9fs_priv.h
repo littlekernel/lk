@@ -75,7 +75,7 @@ typedef struct v9fs_dir {
     struct list_node node;
 } v9fs_dir_t;
 
-status_t v9fs_mount(bdev_t *dev, fscookie **cookie);
+status_t v9fs_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options);
 status_t v9fs_unmount(fscookie *cookie);
 status_t v9fs_open_file(fscookie *cookie, const char *path,
                         filecookie **fcookie);

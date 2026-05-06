@@ -86,7 +86,10 @@ void put_fid(v9fs_t *v9fs, uint32_t fid) {
     virtio_9p_msg_destroy(&rclunk);
 }
 
-status_t v9fs_mount(bdev_t *dev, fscookie **cookie) {
+status_t v9fs_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options) {
+    if (options != 0) {
+        return ERR_INVALID_ARGS;
+    }
     status_t ret;
 
     LTRACEF("bdev (%p) cookie (%p)\n", dev, cookie);

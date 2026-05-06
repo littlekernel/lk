@@ -53,7 +53,7 @@ ssize_t ext2_read_inode(ext2_t *ext2, struct ext2_inode *inode, void *buf, off_t
 int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len);
 
 /* fs api */
-status_t ext2_mount(bdev_t *dev, fscookie **cookie);
+status_t ext2_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options);
 status_t ext2_unmount(fscookie *cookie);
 status_t ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie);
 ssize_t ext2_read_file(filecookie *fcookie, void *buf, off_t offset, size_t len);

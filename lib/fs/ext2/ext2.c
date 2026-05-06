@@ -92,7 +92,10 @@ static void endian_swap_group_desc(struct ext2_group_desc *gd) {
     LE16SWAP(gd->bg_used_dirs_count);
 }
 
-status_t ext2_mount(bdev_t *dev, fscookie **cookie) {
+status_t ext2_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options) {
+    if (options != 0) {
+        return ERR_INVALID_ARGS;
+    }
     int err;
 
     LTRACEF("dev %p\n", dev);

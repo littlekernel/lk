@@ -45,7 +45,7 @@ struct dir_entry_location;
 class fat_fs {
   public:
     // mount hook, creates a new fs instance and passes it back in fscookie
-    static status_t mount(bdev_t *dev, fscookie **cookie);
+    static status_t mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options);
     static status_t unmount(fscookie *cookie);
 
     bdev_t *dev() { return dev_; }

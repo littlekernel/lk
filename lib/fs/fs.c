@@ -154,7 +154,7 @@ static void put_mount(struct fs_mount *mount) {
     mutex_release(&mount_lock);
 }
 
-static status_t mount(const char *path, const char *device, const struct fs_impl *fs) {
+static status_t mount(const char *path, const char *device, const struct fs_impl *fs, enum fs_mount_options options) {
     struct fs_mount *mount;
     const struct fs_api *api = fs->api;
     char temppath[FS_MAX_PATH_LEN];
@@ -184,7 +184,7 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
 
     /* call into the fs implementation */
     fscookie *cookie;
-    status_t err = api->mount(dev, &cookie);
+    status_t err = api->mount(dev, &cookie, options);
     if (err < 0) {
         if (dev) {
             bio_close(dev);
@@ -241,13 +241,13 @@ status_t fs_format_device(const char *fsname, const char *device, const void *ar
     return fs->api->format(dev, args);
 }
 
-status_t fs_mount(const char *path, const char *fsname, const char *device) {
+status_t fs_mount(const char *path, const char *fsname, const char *device, enum fs_mount_options options) {
     const struct fs_impl *fs = find_fs(fsname);
     if (!fs) {
         return ERR_NOT_FOUND;
     }
 
-    return mount(path, device, fs);
+    return mount(path, device, fs, options);
 }
 
 status_t fs_unmount(const char *path) {

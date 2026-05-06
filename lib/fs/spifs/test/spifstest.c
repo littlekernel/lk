@@ -73,7 +73,7 @@ static bool test_setup(const char *dev_name, uint32_t toc_pages) {
         return false;
     }
 
-    res = fs_mount(MNT_PATH, FS_NAME, dev_name);
+    res = fs_mount(MNT_PATH, FS_NAME, dev_name, FS_MOUNT_OPTION_NONE);
     if (res != NO_ERROR) {
         printf("fs_mount failed path = %s, fs name = %s, dev name = %s,"
                " retcode = %d\n",
@@ -446,7 +446,7 @@ static bool test_corrupt_toc(const char *dev_name) {
     }
 
     // Mount the FS again and make sure that the file we created is still there.
-    status = fs_mount(MNT_PATH, FS_NAME, dev_name);
+    status = fs_mount(MNT_PATH, FS_NAME, dev_name, FS_MOUNT_OPTION_NONE);
     if (status != NO_ERROR) {
         return false;
     }

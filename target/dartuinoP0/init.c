@@ -134,7 +134,7 @@ void target_init(void) {
 
 #if WITH_LIB_FS_SPIFS
     status_t mount_success = fs_mount(DEAULT_SPIFS_MOUNT_POINT,
-                                      DEAULT_SPIFS_NAME, SPIFS_TARGET_DEVICE);
+                                      DEAULT_SPIFS_NAME, SPIFS_TARGET_DEVICE, FS_MOUNT_OPTION_NONE);
     if (mount_success != NO_ERROR) {
         printf("************************************************************\n");
         printf("failed to mount '%s' at path '%s' on '%s'.\n"

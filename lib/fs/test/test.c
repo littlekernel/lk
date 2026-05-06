@@ -108,7 +108,7 @@ static bool test_stdio_fs(void) {
     // Setup
     const char *content = "Hello World\n";
     const size_t content_len = strlen(content);
-    fs_mount(TEST_MNT, "memfs", NULL);
+    fs_mount(TEST_MNT, "memfs", NULL, FS_MOUNT_OPTION_NONE);
 
     // Tests
     FILE *stream = fopen(TEST_FILE, "w");
@@ -159,8 +159,8 @@ static bool test_rootfs(void) {
     fs_close_dir(dh);
 
     // mount two filesystems; both must appear as directories in root listing
-    ASSERT_EQ(NO_ERROR, fs_mount("/tmp", "memfs", NULL), "mount /tmp");
-    ASSERT_EQ(NO_ERROR, fs_mount("/data", "memfs", NULL), "mount /data");
+    ASSERT_EQ(NO_ERROR, fs_mount("/tmp", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount /tmp");
+    ASSERT_EQ(NO_ERROR, fs_mount("/data", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount /data");
 
     ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root dir with mounts");
     bool found_tmp = false, found_data = false;
@@ -198,9 +198,9 @@ static bool test_rootfs_live_iter(void) {
     struct dirent ent;
 
     // Set up three mounts.  list_add_head means the list order is c, b, a.
-    ASSERT_EQ(NO_ERROR, fs_mount("/live_a", "memfs", NULL), "mount live_a");
-    ASSERT_EQ(NO_ERROR, fs_mount("/live_b", "memfs", NULL), "mount live_b");
-    ASSERT_EQ(NO_ERROR, fs_mount("/live_c", "memfs", NULL), "mount live_c");
+    ASSERT_EQ(NO_ERROR, fs_mount("/live_a", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_a");
+    ASSERT_EQ(NO_ERROR, fs_mount("/live_b", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_b");
+    ASSERT_EQ(NO_ERROR, fs_mount("/live_c", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_c");
 
     // Open the iterator.  current starts at list head (live_c).
     dirhandle *dh;
@@ -216,7 +216,7 @@ static bool test_rootfs_live_iter(void) {
 
     // Add a new mount at the head (before current) – iterator won't see it
     // in this pass, which is acceptable.
-    EXPECT_EQ(NO_ERROR, fs_mount("/live_d", "memfs", NULL), "mount live_d mid-iter");
+    EXPECT_EQ(NO_ERROR, fs_mount("/live_d", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_d mid-iter");
 
     // Continue draining; live_b must not appear, live_a must appear.
     // live_d may or may not appear depending on insertion order vs. cursor.

@@ -578,7 +578,10 @@ err:
     return err;
 }
 
-static status_t spifs_mount(bdev_t *dev, fscookie **cookie) {
+static status_t spifs_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options) {
+    if (options != 0) {
+        return ERR_INVALID_ARGS;
+    }
     status_t status;
 
     LTRACEF("dev %p, cookie %p\n", dev, cookie);

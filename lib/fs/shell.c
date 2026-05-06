@@ -303,12 +303,61 @@ err:
     return status;
 }
 
+static int cmd_mount(int argc, const console_cmd_args *argv) {
+    if (argc < 3) {
+        printf("not enough arguments\n");
+        printf("usage: %s <path> <type> [device] [ro]\n", argv[0].str);
+        return -1;
+    }
+
+    const char *device = NULL;
+    enum fs_mount_options options = FS_MOUNT_OPTION_NONE;
+
+    if (argc >= 4) {
+        if (!strcmp(argv[argc - 1].str, "ro")) {
+            options |= FS_MOUNT_OPTION_READ_ONLY;
+            if (argc >= 5) {
+                device = argv[3].str;
+            }
+        } else {
+            device = argv[3].str;
+        }
+    }
+
+    status_t err = fs_mount(argv[1].str, argv[2].str, device, options);
+
+    if (err < 0) {
+        printf("error %d mounting device\n", err);
+        return err;
+    }
+
+    return 0;
+}
+
+static int cmd_unmount(int argc, const console_cmd_args *argv) {
+    if (argc < 2) {
+        printf("not enough arguments\n");
+        printf("usage: %s <path>\n", argv[0].str);
+        return -1;
+    }
+
+    status_t err = fs_unmount(argv[1].str);
+    if (err < 0) {
+        printf("error %d unmounting device\n", err);
+        return err;
+    }
+
+    return 0;
+}
+
 static int cmd_df(int argc, const console_cmd_args *argv) {
     fs_dump_mounts();
     return NO_ERROR;
 }
 
 STATIC_COMMAND_START
+STATIC_COMMAND("mount", "mount a file system", &cmd_mount)
+STATIC_COMMAND("unmount", "unmount a file system", &cmd_unmount)
 STATIC_COMMAND("ls", "dir listing", &cmd_ls)
 STATIC_COMMAND("cd", "change dir", &cmd_cd)
 STATIC_COMMAND("pwd", "print working dir", &cmd_pwd)

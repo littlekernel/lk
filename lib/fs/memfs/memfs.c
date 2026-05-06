@@ -56,7 +56,10 @@ static memfs_file_t *find_file(memfs_t *mem, const char *name) {
     return NULL;
 }
 
-static status_t memfs_mount(struct bdev *dev, fscookie **cookie) {
+static status_t memfs_mount(struct bdev *dev, fscookie **cookie, enum fs_mount_options options) {
+    if (options != 0) {
+        return ERR_INVALID_ARGS;
+    }
     LTRACEF("dev %p, cookie %p\n", dev, cookie);
 
     memfs_t *mem = malloc(sizeof(*mem));

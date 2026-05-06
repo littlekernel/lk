@@ -105,8 +105,6 @@ static int cmd_fs(int argc, const console_cmd_args *argv) {
 notenoughargs:
         printf("not enough arguments:\n");
 usage:
-        printf("%s mount <path> <type> [device]\n", argv[0].str);
-        printf("%s unmount <path>\n", argv[0].str);
         printf("%s write <path> <string> [<offset>]\n", argv[0].str);
         printf("%s format <type> [device]\n", argv[0].str);
         printf("%s stat <path>\n", argv[0].str);
@@ -115,33 +113,7 @@ usage:
         return -1;
     }
 
-    if (!strcmp(argv[1].str, "mount")) {
-        int err;
-
-        if (argc < 4) {
-            goto notenoughargs;
-        }
-
-        err = fs_mount(argv[2].str, argv[3].str,
-                       (argc >= 5) ? argv[4].str : NULL);
-
-        if (err < 0) {
-            printf("error %d mounting device\n", err);
-            return err;
-        }
-    } else if (!strcmp(argv[1].str, "unmount")) {
-        int err;
-
-        if (argc < 3) {
-            goto notenoughargs;
-        }
-
-        err = fs_unmount(argv[2].str);
-        if (err < 0) {
-            printf("error %d unmounting device\n", err);
-            return err;
-        }
-    } else if (!strcmp(argv[1].str, "format")) {
+    if (!strcmp(argv[1].str, "format")) {
         int err;
 
         if (argc < 3) {

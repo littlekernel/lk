@@ -205,7 +205,7 @@ status_t fat_fs::set_volume_clean_bit_locked(bool clean) {
 }
 
 // static fs hooks
-status_t fat_fs::mount(bdev_t *dev, fscookie **cookie) {
+status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options) {
     status_t result = NO_ERROR;
 
     if (!dev) {

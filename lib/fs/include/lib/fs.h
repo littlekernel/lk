@@ -44,8 +44,13 @@ struct dirent {
 typedef struct filehandle filehandle;
 typedef struct dirhandle dirhandle;
 
+enum fs_mount_options {
+    FS_MOUNT_OPTION_NONE = 0,
+    FS_MOUNT_OPTION_READ_ONLY = 1 << 0,
+};
+
 status_t fs_format_device(const char *fsname, const char *device, const void *args) __NONNULL((1));
-status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL((1)) __NONNULL((2));
+status_t fs_mount(const char *path, const char *fs, const char *device, enum fs_mount_options options) __NONNULL((1)) __NONNULL((2));
 status_t fs_unmount(const char *path) __NONNULL();
 status_t fs_file_ioctl(filehandle *handle, int request, void *argp) __NONNULL((1)) __NONNULL((3));
 
@@ -87,7 +92,7 @@ struct fs_api {
     status_t (*format)(struct bdev *, const void *);
     status_t (*fs_stat)(fscookie *, struct fs_stat *);
 
-    status_t (*mount)(struct bdev *, fscookie **);
+    status_t (*mount)(struct bdev *, fscookie **, enum fs_mount_options options);
     status_t (*unmount)(fscookie *);
     status_t (*open)(fscookie *, const char *, filecookie **);
     status_t (*create)(fscookie *, const char *, filecookie **, uint64_t);
