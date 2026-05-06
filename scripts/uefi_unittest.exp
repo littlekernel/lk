@@ -1,0 +1,78 @@
+#!/usr/bin/expect -f
+
+# Disable pty echo and newline translation to prevent double carriage returns
+set stty_init "-onlcr -echo"
+
+proc kill_qemu {} {
+    global qemu_pid
+    catch {exec kill -TERM $qemu_pid}
+    after 1000
+    catch {exec kill -KILL $qemu_pid}
+    catch {wait}
+}
+
+proc shutdown_qemu {status} {
+    kill_qemu
+    exit $status
+}
+
+# Set timeout for the first stage: waiting for the shell
+set timeout 10
+
+# Spawn the QEMU process
+spawn qemu-system-aarch64 \
+    -cpu max \
+    -m 512 \
+    -smp 1 \
+    -machine virt,highmem=off \
+    -kernel build-qemu-virt-arm64-test/lk.elf \
+    -net none \
+    -nographic \
+    -drive if=none,file=lib/uefi/helloworld_aa64.efi,id=blk,format=raw \
+    -device virtio-blk-device,drive=blk
+set qemu_pid [exp_pid]
+
+# Wait for the app shell to start
+expect {
+    "starting app shell" {
+        # Send the command to load the UEFI app
+        send "uefi_load virtio0\r"
+    }
+    timeout {
+        puts "Timeout waiting for 'starting app shell'"
+        kill_qemu
+        exit 1
+    }
+    eof {
+        puts "QEMU exited unexpectedly before shell"
+        exit 1
+    }
+}
+
+# Set timeout for the second stage: waiting for Hello World!
+set timeout 5
+
+# Wait for the expected output from the UEFI app
+expect {
+    "Hello World!" {
+        # Successfully saw the output, now shut down
+        shutdown_qemu 0
+    }
+    "panic (caller" {
+        puts "LK panic while running the UEFI unittest"
+        shutdown_qemu 1
+    }
+    "CRASH: starting debug shell" {
+        puts "LK crashed and entered the debug shell while running the UEFI unittest"
+        shutdown_qemu 1
+    }
+    timeout {
+        puts "Timeout waiting for 'Hello World!'"
+        # Try to shut down anyway
+        shutdown_qemu 1
+    }
+    eof {
+        puts "QEMU exited unexpectedly before Hello World!"
+        exit 1
+    }
+}
