@@ -81,11 +81,16 @@ jobs:
       shell: bash
       run: |
         env -i DEBIAN_FRONTEND=noninteractive sudo apt-get update
-        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm expect
+    - name: uefi unittest
+      if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
+      shell: bash
+      run: |
+        ./scripts/uefi_unittest.exp
     - name: unittest
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
       shell: bash
       run: |
-        python3 scripts/unittest.py
+        ./scripts/unittest.exp
 
 # vim: ts=2 sw=2 expandtab
