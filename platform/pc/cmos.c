@@ -22,9 +22,9 @@
  */
 #include <platform/cmos.h>
 
-#include <lk/trace.h>
-#include <lk/debug.h>
 #include <kernel/spinlock.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
 #include <platform/pc.h>
 
 static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
@@ -39,5 +39,3 @@ uint8_t cmos_read(uint8_t reg) {
 
     return val;
 }
-
-

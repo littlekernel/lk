@@ -94,16 +94,15 @@ static void fb_console_init_backbuffer(uint level) {
     /* Allocate backbuffer the same size as the framebuffer using VM system */
     size_t buffer_size = display_h * display_p;
 
-    status_t status = vmm_alloc(vmm_get_kernel_aspace(),
-                                "display_backbuffer",
-                                buffer_size,
-                                &display_backbuffer,
-                                0, /* align_log2: 0 for default alignment */
-                                0, /* vmm_flags: 0 for defaults */
+    status_t status = vmm_alloc(vmm_get_kernel_aspace(), "display_backbuffer", buffer_size,
+                                &display_backbuffer, 0, /* align_log2: 0 for default alignment */
+                                0,                      /* vmm_flags: 0 for defaults */
                                 ARCH_MMU_FLAG_CACHED);
 
     if (status != NO_ERROR) {
-        TRACEF("WARNING: Failed to allocate backbuffer via VM (%zu bytes), using direct rendering\n", buffer_size);
+        TRACEF(
+            "WARNING: Failed to allocate backbuffer via VM (%zu bytes), using direct rendering\n",
+            buffer_size);
         return;
     }
 
@@ -111,7 +110,8 @@ static void fb_console_init_backbuffer(uint level) {
     memcpy(display_backbuffer, display_fb, buffer_size);
     use_backbuffer = true;
 
-    TRACEF("Display backbuffer allocated via VM: %p (%zu bytes)\n", display_backbuffer, buffer_size);
+    TRACEF("Display backbuffer allocated via VM: %p (%zu bytes)\n", display_backbuffer,
+           buffer_size);
 }
 
 void fb_console_init(struct multiboot2_tag_framebuffer *framebuffer) {
@@ -137,7 +137,8 @@ void fb_console_init(struct multiboot2_tag_framebuffer *framebuffer) {
     display_h = framebuffer->common.framebuffer_height;
     display_p = framebuffer->common.framebuffer_pitch;
 
-    // foreground_color = ((1 << framebuffer->framebuffer_blue_mask_size) - 1) << framebuffer->framebuffer_blue_field_position;
+    // foreground_color = ((1 << framebuffer->framebuffer_blue_mask_size) - 1) <<
+    // framebuffer->framebuffer_blue_field_position;
 
     console_cols = display_w / FONT_WIDTH;
     console_rows = display_h / FONT_HEIGHT;
@@ -168,8 +169,8 @@ void fb_console_init(struct multiboot2_tag_framebuffer *framebuffer) {
     }
 
     if (x86_mtrr_set_framebuffer(fb_phys_addr, mtrr_size) == NO_ERROR) {
-        TRACEF("Framebuffer MTRR configured: addr=%#" PRIx64 " size=%#" PRIx64 "\n",
-               fb_phys_addr, mtrr_size);
+        TRACEF("Framebuffer MTRR configured: addr=%#" PRIx64 " size=%#" PRIx64 "\n", fb_phys_addr,
+               mtrr_size);
     } else {
         TRACEF("WARNING: Could not configure MTRR for framebuffer, performance may be degraded\n");
     }
@@ -280,8 +281,7 @@ static void scroll(void) {
     uint8_t *region_start = fb_bytes + start_y * display_p + start_x_bytes;
 
     // move
-    memmove(region_start,
-            region_start + scroll_pixels * display_p,
+    memmove(region_start, region_start + scroll_pixels * display_p,
             (end_y - start_y - scroll_pixels) * display_p);
 
     // cleanup

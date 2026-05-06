@@ -8,9 +8,8 @@
 #pragma once
 
 /* some helpful macros */
-#define REG(x) ((volatile unsigned int *)(x))
+#define REG(x)   ((volatile unsigned int *)(x))
 #define REG_H(x) ((volatile unsigned short *)(x))
 #define REG_B(x) ((volatile unsigned char *)(x))
 
 /* TODO: put fixed memory address definitions here */
-

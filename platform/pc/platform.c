@@ -13,6 +13,7 @@
 #include <arch/x86/apic.h>
 #include <arch/x86/mmu.h>
 #include <assert.h>
+#include <dev/block/ide.h>
 #include <dev/uart.h>
 #include <hw/multiboot.h>
 #include <inttypes.h>
@@ -21,12 +22,11 @@
 #include <lk/init.h>
 #include <lk/trace.h>
 #include <malloc.h>
-#include <dev/block/ide.h>
 #include <platform.h>
-#include <platform/vga_console.h>
 #include <platform/fb_console.h>
 #include <platform/keyboard.h>
 #include <platform/pc.h>
+#include <platform/vga_console.h>
 
 #include "platform_p.h"
 
@@ -69,14 +69,14 @@ extern uint64_t __bss_end;
 static pmm_arena_t mem_arena[NUM_ARENAS];
 
 /* parse an array of multiboot mmap entries */
-static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap_length, size_t *found_mem_arenas) {
+static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap_length,
+                                     size_t *found_mem_arenas) {
     for (uint i = 0; i < mmap_length / sizeof(memory_map_t); i++) {
 
         uint64_t base = mmap[i].base_addr_low | (uint64_t)mmap[i].base_addr_high << 32;
         uint64_t length = mmap[i].length_low | (uint64_t)mmap[i].length_high << 32;
 
-        dprintf(SPEW, "\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n",
-                mmap[i].type, base, length);
+        dprintf(SPEW, "\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n", mmap[i].type, base, length);
         if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE) {
 
             /* do some sanity checks to cut out small arenas */
@@ -137,7 +137,8 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
     dprintf(SPEW, "PC: multiboot v2 address %#" PRIx32 "\n", _multiboot2_info);
     if (_multiboot2_info != 0) {
-        struct multiboot2_info *multiboot_info = (struct multiboot2_info *)((uintptr_t)_multiboot2_info + KERNEL_BASE);
+        struct multiboot2_info *multiboot_info =
+            (struct multiboot2_info *)((uintptr_t)_multiboot2_info + KERNEL_BASE);
 
         dprintf(SPEW, "PC: multiboot info total size: %u\n", multiboot_info->total_size);
 
@@ -160,20 +161,27 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
                 case MULTIBOOT2_TAG_TYPE_MMAP: {
                     struct multiboot2_tag_mmap *mmap_tag = (struct multiboot2_tag_mmap *)tag;
 
-                    dprintf(SPEW, "PC: multiboot memory map, entry size: %u\n", mmap_tag->entry_size);
-                    // basic validation: ensure tag has at least the header and entries are reasonable
-                    if (tag->size < sizeof(*mmap_tag) || mmap_tag->entry_size < sizeof(struct multiboot2_mmap_entry)) {
-                        dprintf(INFO, "PC: malformed multiboot mmap tag (size %u entry_size %u)\n", tag->size, mmap_tag->entry_size);
+                    dprintf(SPEW, "PC: multiboot memory map, entry size: %u\n",
+                            mmap_tag->entry_size);
+                    // basic validation: ensure tag has at least the header and entries are
+                    // reasonable
+                    if (tag->size < sizeof(*mmap_tag) ||
+                        mmap_tag->entry_size < sizeof(struct multiboot2_mmap_entry)) {
+                        dprintf(INFO, "PC: malformed multiboot mmap tag (size %u entry_size %u)\n",
+                                tag->size, mmap_tag->entry_size);
                         break;
                     }
 
-                    // iterate entries in-place and convert one-by-one to avoid using heap during early init
+                    // iterate entries in-place and convert one-by-one to avoid using heap during
+                    // early init
                     size_t entry_count = (tag->size - sizeof(*mmap_tag)) / mmap_tag->entry_size;
 
-                    struct multiboot2_mmap_entry *entry = (struct multiboot2_mmap_entry *)(mmap_tag + 1);
+                    struct multiboot2_mmap_entry *entry =
+                        (struct multiboot2_mmap_entry *)(mmap_tag + 1);
                     for (size_t i = 0; i < entry_count; i++) {
                         memory_map_t mm = {};
-                        // Cut the address and length into high and low 32-bit pieces for the legacy parser
+                        // Cut the address and length into high and low 32-bit pieces for the legacy
+                        // parser
                         mm.base_addr_low = entry->addr & 0xFFFFFFFF;
                         mm.base_addr_high = (entry->addr >> 32) & 0xFFFFFFFF;
                         mm.length_low = entry->len & 0xFFFFFFFF;
@@ -183,31 +191,41 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
                         // parse single entry (parse_multiboot_mmap accepts buffer+length)
                         parse_multiboot_mmap(&mm, sizeof(mm), found_mem_arenas);
 
-                        entry = (struct multiboot2_mmap_entry *)((uint8_t *)entry + mmap_tag->entry_size);
+                        entry = (struct multiboot2_mmap_entry *)((uint8_t *)entry +
+                                                                 mmap_tag->entry_size);
                     }
 
                     break;
                 }
 
                 case MULTIBOOT2_TAG_TYPE_FRAMEBUFFER: {
-                    struct multiboot2_tag_framebuffer *framebuffer_tag = (struct multiboot2_tag_framebuffer *)tag;
+                    struct multiboot2_tag_framebuffer *framebuffer_tag =
+                        (struct multiboot2_tag_framebuffer *)tag;
 
                     fb_console_init(framebuffer_tag);
 
                     dprintf(SPEW, "PC: multiboot framebuffer info present:\n");
                     dprintf(SPEW, "\taddress %#" PRIx64 " pitch %u, width %u height %u bpp %hhu ",
-                            framebuffer_tag->common.framebuffer_addr, framebuffer_tag->common.framebuffer_pitch,
-                            framebuffer_tag->common.framebuffer_width, framebuffer_tag->common.framebuffer_height,
+                            framebuffer_tag->common.framebuffer_addr,
+                            framebuffer_tag->common.framebuffer_pitch,
+                            framebuffer_tag->common.framebuffer_width,
+                            framebuffer_tag->common.framebuffer_height,
                             framebuffer_tag->common.framebuffer_bpp);
-                    dprintf(SPEW, "(%ux%u@%hhu) ", framebuffer_tag->common.framebuffer_width, framebuffer_tag->common.framebuffer_height,
+                    dprintf(SPEW, "(%ux%u@%hhu) ", framebuffer_tag->common.framebuffer_width,
+                            framebuffer_tag->common.framebuffer_height,
                             framebuffer_tag->common.framebuffer_bpp);
-                    dprintf(SPEW, "framebuffer type %u\n", framebuffer_tag->common.framebuffer_type);
+                    dprintf(SPEW, "framebuffer type %u\n",
+                            framebuffer_tag->common.framebuffer_type);
 
-                    if (framebuffer_tag->common.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
+                    if (framebuffer_tag->common.framebuffer_type ==
+                        MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
                         dprintf(SPEW, "\tcolor bit layout: R %u:%u G %u:%u B %u:%u\n",
-                                framebuffer_tag->rgb_bitmasks.framebuffer_red_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_red_mask_size,
-                                framebuffer_tag->rgb_bitmasks.framebuffer_green_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_green_mask_size,
-                                framebuffer_tag->rgb_bitmasks.framebuffer_blue_field_position, framebuffer_tag->rgb_bitmasks.framebuffer_blue_mask_size);
+                                framebuffer_tag->rgb_bitmasks.framebuffer_red_field_position,
+                                framebuffer_tag->rgb_bitmasks.framebuffer_red_mask_size,
+                                framebuffer_tag->rgb_bitmasks.framebuffer_green_field_position,
+                                framebuffer_tag->rgb_bitmasks.framebuffer_green_mask_size,
+                                framebuffer_tag->rgb_bitmasks.framebuffer_blue_field_position,
+                                framebuffer_tag->rgb_bitmasks.framebuffer_blue_mask_size);
                     }
 
                     break;
@@ -220,7 +238,8 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
                 case MULTIBOOT2_TAG_TYPE_ACPI_NEW:
                     // NEW RSDP Is an immediate data in the tag, not a pointer (left value).
-                    // dprintf(SPEW, "PC: found multiboot ACPI NEW RSDP at %#" PRIxPTR "\n", *(uint64_t *)(tag + 1));
+                    // dprintf(SPEW, "PC: found multiboot ACPI NEW RSDP at %#" PRIxPTR "\n",
+                    // *(uint64_t *)(tag + 1));
                     break;
 
                 case MULTIBOOT2_TAG_TYPE_LOAD_BASE_ADDR:
@@ -286,9 +305,12 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
         if (multiboot_info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
             dprintf(SPEW, "\tcolor bit layout: R %u:%u G %u:%u B %u:%u\n",
-                    multiboot_info->framebuffer_red_field_position, multiboot_info->framebuffer_red_mask_size,
-                    multiboot_info->framebuffer_green_field_position, multiboot_info->framebuffer_green_mask_size,
-                    multiboot_info->framebuffer_blue_field_position, multiboot_info->framebuffer_blue_mask_size);
+                    multiboot_info->framebuffer_red_field_position,
+                    multiboot_info->framebuffer_red_mask_size,
+                    multiboot_info->framebuffer_green_field_position,
+                    multiboot_info->framebuffer_green_mask_size,
+                    multiboot_info->framebuffer_blue_field_position,
+                    multiboot_info->framebuffer_blue_mask_size);
         }
     }
 
@@ -310,12 +332,11 @@ void platform_early_init(void) {
     platform_parse_multiboot_info(&found_arenas);
     if (found_arenas <= 0) {
         /* if we couldn't find any memory, initialize a default arena */
-        mem_arena[0] = (pmm_arena_t){
-            .name = "memory",
-            .base = MEMBASE,
-            .size = DEFAULT_MEMEND,
-            .priority = 1,
-            .flags = PMM_ARENA_FLAG_KMAP};
+        mem_arena[0] = (pmm_arena_t){ .name = "memory",
+                                      .base = MEMBASE,
+                                      .size = DEFAULT_MEMEND,
+                                      .priority = 1,
+                                      .flags = PMM_ARENA_FLAG_KMAP };
         found_arenas = 1;
         printf("PC: WARNING failed to detect memory map from multiboot, using default\n");
     }
@@ -369,15 +390,17 @@ void platform_init(void) {
         // TODO: handle interrupt source overrides from the MADT table
 
         // try to find the mcfg table
-        const struct acpi_mcfg_table *table = (const struct acpi_mcfg_table *)acpi_get_table_by_sig(ACPI_MCFG_SIG);
+        const struct acpi_mcfg_table *table =
+            (const struct acpi_mcfg_table *)acpi_get_table_by_sig(ACPI_MCFG_SIG);
         if (table) {
             if (table->header.length >= sizeof(*table) + sizeof(struct acpi_mcfg_entry)) {
                 const struct acpi_mcfg_entry *entry = (const void *)(table + 1);
-                printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n",
-                       entry->segment, entry->start_bus, entry->end_bus, entry->base_address);
+                printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n", entry->segment,
+                       entry->start_bus, entry->end_bus, entry->base_address);
 
                 // try to initialize pci based on the MCFG ecam aperture
-                status_t err = pci_init_ecam(entry->base_address, entry->segment, entry->start_bus, entry->end_bus);
+                status_t err = pci_init_ecam(entry->base_address, entry->segment, entry->start_bus,
+                                             entry->end_bus);
                 if (err == NO_ERROR) {
                     pci_bus_mgr_init();
                     pci_initted = true;

@@ -5,23 +5,23 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <sys/types.h>
-#include <lk/err.h>
-#include <lk/reg.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <assert.h>
-#include <kernel/thread.h>
-#include <kernel/spinlock.h>
-#include <platform.h>
-#include <platform/interrupts.h>
-#include <platform/vga_console.h>
-#include <platform/timer.h>
-#include <platform/pc.h>
-#include <platform/pc/timer.h>
 #include "platform_p.h"
 #include <arch/x86.h>
+#include <assert.h>
 #include <inttypes.h>
+#include <kernel/spinlock.h>
+#include <kernel/thread.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
+#include <platform.h>
+#include <platform/interrupts.h>
+#include <platform/pc.h>
+#include <platform/pc/timer.h>
+#include <platform/timer.h>
+#include <platform/vga_console.h>
+#include <sys/types.h>
 
 #define LOCAL_TRACE 0
 
@@ -44,8 +44,8 @@ static volatile uint64_t timer_current_time;
 // delta time per periodic tick in 32.32
 static uint64_t timer_delta_time;
 
-#define INTERNAL_FREQ 1193182ULL
-#define INTERNAL_FREQ_3X 3579546ULL
+#define INTERNAL_FREQ              1193182ULL
+#define INTERNAL_FREQ_3X           3579546ULL
 #define INTERNAL_FREQ_TICKS_PER_MS (INTERNAL_FREQ / 1000u)
 
 /* Maximum amount of time that can be program on the timer to schedule the next
@@ -55,7 +55,7 @@ static uint64_t timer_delta_time;
 lk_time_t pit_current_time(void) {
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
-    lk_time_t time = (lk_time_t) (timer_current_time >> 32);
+    lk_time_t time = (lk_time_t)(timer_current_time >> 32);
 
     spin_unlock_irqrestore(&lock, state);
 
@@ -65,7 +65,7 @@ lk_time_t pit_current_time(void) {
 lk_bigtime_t pit_current_time_hires(void) {
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
-    lk_bigtime_t time = (lk_bigtime_t) ((timer_current_time >> 22) * 1000) >> 10;
+    lk_bigtime_t time = (lk_bigtime_t)((timer_current_time >> 22) * 1000) >> 10;
 
     spin_unlock_irqrestore(&lock, state);
 
@@ -131,7 +131,8 @@ static void set_pit_frequency(uint32_t frequency) {
      */
     timer_delta_time = (3685982306ULL * count) >> 10;
 
-    LTRACEF("dt %#x.%08x\n", (uint32_t)(timer_delta_time >> 32), (uint32_t)(timer_delta_time & 0xffffffff));
+    LTRACEF("dt %#x.%08x\n", (uint32_t)(timer_delta_time >> 32),
+            (uint32_t)(timer_delta_time & 0xffffffff));
     LTRACEF("divisor %" PRIu16 "\n", divisor);
 
     /*
@@ -140,13 +141,13 @@ static void set_pit_frequency(uint32_t frequency) {
      */
     outp(I8253_CONTROL_REG, 0x34);
     outp(I8253_DATA_REG, divisor & 0xff); // LSB
-    outp(I8253_DATA_REG, divisor >> 8); // MSB
+    outp(I8253_DATA_REG, divisor >> 8);   // MSB
 }
 
 void pit_init(void) {
     // start the PIT at 1Khz in free-running mode to keep a time base
     timer_current_time = 0;
-    ticks_per_ms = INTERNAL_FREQ/1000;
+    ticks_per_ms = INTERNAL_FREQ / 1000;
     set_pit_frequency(1000); // ~1ms granularity
     register_int_handler(INT_PIT, &pit_timer_tick, NULL);
     unmask_interrupt(INT_PIT);
@@ -160,7 +161,7 @@ status_t pit_set_periodic_timer(platform_timer_callback callback, void *arg, lk_
     t_callback = callback;
     callback_arg = arg;
 
-    next_trigger_delta = (uint64_t) interval << 32;
+    next_trigger_delta = (uint64_t)interval << 32;
     next_trigger_time = timer_current_time + next_trigger_delta;
 
     unmask_interrupt(INT_PIT);
@@ -216,8 +217,8 @@ void pit_stop_timer(void) {
 uint64_t pit_calibrate_tsc(void) {
     DEBUG_ASSERT(arch_ints_disabled());
 
-    uint64_t tsc_ticks[5] = {0};
-    uint32_t countdown_ms[5] = {0};
+    uint64_t tsc_ticks[5] = { 0 };
+    uint32_t countdown_ms[5] = { 0 };
 
     uint64_t tsc_freq = 0;
     for (uint i = 0; i < countof(tsc_ticks); i++) {
@@ -227,7 +228,7 @@ uint64_t pit_calibrate_tsc(void) {
         uint16_t pic_ticks = INTERNAL_FREQ_TICKS_PER_MS * countdown_ms[i];
         outp(I8253_CONTROL_REG, 0x30);
         outp(I8253_DATA_REG, pic_ticks & 0xff); // LSB
-        outp(I8253_DATA_REG, pic_ticks >> 8); // MSB
+        outp(I8253_DATA_REG, pic_ticks >> 8);   // MSB
 
         // read the tsc
         uint64_t tsc_start = __builtin_ia32_rdtsc();
@@ -266,8 +267,8 @@ uint64_t pit_calibrate_tsc(void) {
 uint32_t pit_calibrate_lapic(uint32_t (*lapic_read_tick)(void)) {
     DEBUG_ASSERT(arch_ints_disabled());
 
-    uint64_t lapic_ticks[5] = {0};
-    uint32_t countdown_ms[5] = {0};
+    uint64_t lapic_ticks[5] = { 0 };
+    uint32_t countdown_ms[5] = { 0 };
 
     for (uint i = 0; i < countof(lapic_ticks); i++) {
         // calibrate the tsc frequency using the PIT
@@ -276,7 +277,7 @@ uint32_t pit_calibrate_lapic(uint32_t (*lapic_read_tick)(void)) {
         uint16_t pic_ticks = INTERNAL_FREQ_TICKS_PER_MS * countdown_ms[i];
         outp(I8253_CONTROL_REG, 0x30);
         outp(I8253_DATA_REG, pic_ticks & 0xff); // LSB
-        outp(I8253_DATA_REG, pic_ticks >> 8); // MSB
+        outp(I8253_DATA_REG, pic_ticks >> 8);   // MSB
 
         // read the tsc
         uint32_t tick_start = lapic_read_tick();

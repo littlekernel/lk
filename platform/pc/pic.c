@@ -6,19 +6,19 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <sys/types.h>
+#include "platform_p.h"
+#include <arch/ops.h>
+#include <arch/x86.h>
+#include <assert.h>
+#include <kernel/spinlock.h>
+#include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <assert.h>
-#include <kernel/thread.h>
 #include <platform/interrupts.h>
-#include <arch/ops.h>
-#include <arch/x86.h>
-#include <kernel/spinlock.h>
-#include "platform_p.h"
 #include <platform/pc.h>
+#include <sys/types.h>
 
 #define LOCAL_TRACE 1
 
@@ -43,11 +43,11 @@ static void map(uint32_t pic1, uint32_t pic2) {
     outp(PIC2, ICW1);
 
     /* send ICW2 */
-    outp(PIC1 + 1, pic1);   /* remap */
-    outp(PIC2 + 1, pic2);   /*  pics */
+    outp(PIC1 + 1, pic1); /* remap */
+    outp(PIC2 + 1, pic2); /*  pics */
 
     /* send ICW3 */
-    outp(PIC1 + 1, 4);  /* IRQ2 -> connection to slave */
+    outp(PIC1 + 1, 4); /* IRQ2 -> connection to slave */
     outp(PIC2 + 1, 2);
 
     /* send ICW4 */
@@ -122,7 +122,7 @@ void pic_eoi(unsigned int vector) {
         outp(PIC1, 0x20);
     } else if (vector >= INT_PIC2_BASE && vector <= INT_PIC2_BASE + 7) {
         outp(PIC2, 0x20);
-        outp(PIC1, 0x20);   // must issue both for the second PIC
+        outp(PIC1, 0x20); // must issue both for the second PIC
     }
 }
 

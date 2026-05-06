@@ -14,4 +14,3 @@ struct platform_pcnet_config {
     uint16_t device_id;
     int index;
 };
-

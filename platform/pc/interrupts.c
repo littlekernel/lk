@@ -6,20 +6,20 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <sys/types.h>
+#include "platform_p.h"
+#include <arch/ops.h>
+#include <arch/x86.h>
+#include <arch/x86/apic.h>
+#include <assert.h>
+#include <kernel/spinlock.h>
+#include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <assert.h>
-#include <kernel/thread.h>
 #include <platform/interrupts.h>
-#include <arch/ops.h>
-#include <arch/x86.h>
-#include <arch/x86/apic.h>
-#include <kernel/spinlock.h>
-#include "platform_p.h"
 #include <platform/pc.h>
+#include <sys/types.h>
 
 #if WITH_LIB_ACPI_LITE
 #include <lib/acpi_lite.h>
@@ -27,22 +27,21 @@
 
 #define LOCAL_TRACE 0
 
-
 // TODO: handle ioapics
 
 static spin_lock_t lock;
 
-#define INTC_TYPE_INTERNAL  0
-#define INTC_TYPE_PIC       1
-#define INTC_TYPE_MSI       2
+#define INTC_TYPE_INTERNAL 0
+#define INTC_TYPE_PIC      1
+#define INTC_TYPE_MSI      2
 
 struct int_vector {
     int_handler handler;
     void *arg;
     struct {
         uint allocated : 1;
-        uint type : 2; // INTC_TYPE
-        uint edge : 1; // edge vs level
+        uint type      : 2; // INTC_TYPE
+        uint edge      : 1; // edge vs level
     } flags;
 };
 
@@ -69,8 +68,9 @@ void platform_init_interrupts(void) {
 }
 
 status_t mask_interrupt(unsigned int vector) {
-    if (vector >= INT_VECTORS)
+    if (vector >= INT_VECTORS) {
         return ERR_INVALID_ARGS;
+    }
 
     LTRACEF("vector %#x\n", vector);
 
@@ -85,10 +85,10 @@ status_t mask_interrupt(unsigned int vector) {
     return NO_ERROR;
 }
 
-
 status_t unmask_interrupt(unsigned int vector) {
-    if (vector >= INT_VECTORS)
+    if (vector >= INT_VECTORS) {
         return ERR_INVALID_ARGS;
+    }
 
     LTRACEF("vector %#x\n", vector);
 
@@ -139,7 +139,8 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
     return ret;
 }
 
-static void register_int_handler_etc(unsigned int vector, int_handler handler, void *arg, bool edge, uint type) {
+static void register_int_handler_etc(unsigned int vector, int_handler handler, void *arg, bool edge,
+                                     uint type) {
     ASSERT(vector < INT_VECTORS);
 
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
@@ -166,7 +167,8 @@ void platform_mask_irqs(void) {
 }
 
 status_t platform_pci_int_to_vector(unsigned int pci_int_pin, unsigned int pci_bus,
-        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
+                                    unsigned int pci_dev, unsigned int pci_func,
+                                    unsigned int *vector) {
     (void)pci_bus;
     (void)pci_dev;
     (void)pci_func;
@@ -188,7 +190,8 @@ status_t platform_pci_int_to_vector(unsigned int pci_int_pin, unsigned int pci_b
     return NO_ERROR;
 }
 
-status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
+status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi,
+                                      unsigned int *vector) {
     LTRACEF("count %zu align %u msi %d\n", count, align_log2, msi);
     if (align_log2 > 0) {
         PANIC_UNIMPLEMENTED;
@@ -215,7 +218,7 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
 
 #if !X86_LEGACY
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,
-        uint64_t *msi_address_out, uint16_t *msi_data_out) {
+                                     uint64_t *msi_address_out, uint16_t *msi_data_out) {
 
     // only handle edge triggered at the moment
     DEBUG_ASSERT(edge);
@@ -232,7 +235,7 @@ status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool
         return ERR_INVALID_ARGS;
     }
 
-    *msi_data_out = (vector & 0xff) | (0<<15); // edge triggered
+    *msi_data_out = (vector & 0xff) | (0 << 15); // edge triggered
     *msi_address_out = 0xfee00000 | (apic_id << 12);
 
     return NO_ERROR;
@@ -245,7 +248,8 @@ static void io_apic_callback(const void *_entry, size_t entry_len, void *cookie)
     const struct acpi_madt_io_apic_entry *entry = _entry;
 
     static int index = 0;
-    ioapic_init(index++, entry->io_apic_address, entry->io_apic_id, entry->global_system_interrupt_base);
+    ioapic_init(index++, entry->io_apic_address, entry->io_apic_id,
+                entry->global_system_interrupt_base);
 }
 #endif
 
@@ -261,4 +265,3 @@ void platform_init_interrupts_postvm(void) {
     acpi_process_madt_entries_etc(ACPI_MADT_TYPE_IO_APIC, &io_apic_callback, NULL);
 #endif
 }
-

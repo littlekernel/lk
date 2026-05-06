@@ -11,17 +11,17 @@
 // TODO: rewrite this driver against the regular uart interface and move to dev/uart/8250/...
 
 #if 0
-#include <dev/driver.h>
-#include <dev/class/uart.h>
-#include <lk/debug.h>
-#include <assert.h>
-#include <malloc.h>
-#include <lk/err.h>
-#include <lib/cbuf.h>
-#include <platform/uart.h>
 #include <arch/x86.h>
+#include <assert.h>
+#include <dev/class/uart.h>
+#include <dev/driver.h>
 #include <kernel/thread.h>
+#include <lib/cbuf.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <malloc.h>
 #include <platform/interrupts.h>
+#include <platform/uart.h>
 
 struct device_class uart_device_class = {
     .name = "uart",

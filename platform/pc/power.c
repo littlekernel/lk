@@ -48,8 +48,7 @@ static void pc_shutdown(void) {
 }
 
 void platform_halt(platform_halt_action suggested_action, platform_halt_reason reason) {
-    dprintf(INFO, "pc: halt action %s, reason %s\n",
-            platform_halt_action_string(suggested_action),
+    dprintf(INFO, "pc: halt action %s, reason %s\n", platform_halt_action_string(suggested_action),
             platform_halt_reason_string(reason));
     platform_halt_default(suggested_action, reason, &pc_reboot, &pc_shutdown);
 }

@@ -14,4 +14,3 @@ struct platform_uart_config {
     int rx_buf_len;
     int tx_buf_len;
 };
-

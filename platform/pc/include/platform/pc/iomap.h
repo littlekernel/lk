@@ -8,25 +8,24 @@
 #pragma once
 
 /* i8253/i8254 programmable interval timer registers */
-#define I8253_CONTROL_REG   0x43
-#define I8253_DATA_REG      0x40
+#define I8253_CONTROL_REG 0x43
+#define I8253_DATA_REG    0x40
 
 /* i8042 keyboard controller registers */
-#define I8042_COMMAND_REG   0x64
-#define I8042_STATUS_REG    0x64
-#define I8042_DATA_REG      0x60
+#define I8042_COMMAND_REG 0x64
+#define I8042_STATUS_REG  0x64
+#define I8042_DATA_REG    0x60
 
 /* CMOS/RTC registers */
-#define CMOS_CONTROL_REG    0x70
-#define CMOS_DATA_REG       0x71
+#define CMOS_CONTROL_REG 0x70
+#define CMOS_DATA_REG    0x71
 
 /* CGA registers */
-#define CGA_INDEX_REG       0x3d4
-#define CGA_DATA_REG        0x3d5
+#define CGA_INDEX_REG 0x3d4
+#define CGA_DATA_REG  0x3d5
 
 /* COM (serial) ports */
-#define COM1_REG            0x3f8
-#define COM2_REG            0x2f8
-#define COM3_REG            0x3e8
-#define COM4_REG            0x2e8
-
+#define COM1_REG 0x3f8
+#define COM2_REG 0x2f8
+#define COM3_REG 0x3e8
+#define COM4_REG 0x2e8

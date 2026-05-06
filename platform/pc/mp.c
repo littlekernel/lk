@@ -8,13 +8,13 @@
 
 #include "platform_p.h"
 
+#include <arch/x86/apic.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
 #include <lk/err.h>
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <string.h>
-#include <arch/x86/apic.h>
 
 #if WITH_SMP
 
@@ -148,8 +148,8 @@ void platform_start_secondary_cpus(void) {
     // set up an identity map for the trampoline code
 
     void *ptr = (void *)TRAMPOLINE_ADDRESS;
-    err = vmm_alloc_physical(aspace, "trampoline", 0x10000, &ptr, 0,
-        TRAMPOLINE_ADDRESS, VMM_FLAG_VALLOC_SPECIFIC, ARCH_MMU_FLAG_CACHED);
+    err = vmm_alloc_physical(aspace, "trampoline", 0x10000, &ptr, 0, TRAMPOLINE_ADDRESS,
+                             VMM_FLAG_VALLOC_SPECIFIC, ARCH_MMU_FLAG_CACHED);
     if (err < 0) {
         panic("failed to allocate trampoline memory\n");
     }
@@ -179,7 +179,8 @@ void platform_start_secondary_cpus(void) {
         x86_percpu_t *percpu = x86_get_percpu_for_cpu(i);
         args->stack_top = (uintptr_t)percpu->bootstrap_stack + sizeof(percpu->bootstrap_stack);
 
-        LTRACEF("args for cpu %lu: trampoline_cr3 %#lx, stack_top 0x%lx\n", args->cpu_num, args->trampoline_cr3, args->stack_top);
+        LTRACEF("args for cpu %lu: trampoline_cr3 %#lx, stack_top 0x%lx\n", args->cpu_num,
+                args->trampoline_cr3, args->stack_top);
 
         start_cpu(i, cpus.apic_ids[i], args);
     }

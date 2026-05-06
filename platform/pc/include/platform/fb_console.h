@@ -5,8 +5,8 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
 #include <hw/multiboot.h>
+#include <lk/compiler.h>
 
 // Interface for a simple frame buffer console, used when multiboot framebuffer info is present.
 

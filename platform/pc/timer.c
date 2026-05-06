@@ -160,15 +160,16 @@ out:
     dprintf(INFO, "PC: using %s clock source\n", clock_source_name());
 }
 
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
+status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg,
+                                     lk_time_t interval) {
     if (use_lapic_timer) {
         PANIC_UNIMPLEMENTED;
     }
     return pit_set_periodic_timer(callback, arg, interval);
 }
 
-status_t platform_set_oneshot_timer(platform_timer_callback callback,
-                                    void *arg, lk_time_t interval) {
+status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg,
+                                    lk_time_t interval) {
     if (use_lapic_timer) {
         return lapic_set_oneshot_timer(callback, arg, interval);
     }

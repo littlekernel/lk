@@ -8,8 +8,8 @@
  */
 #include <arch/x86.h>
 #include <lib/io.h>
-#include <platform/vga_console.h>
 #include <platform/pc.h>
+#include <platform/vga_console.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -43,8 +43,7 @@ static int curs_y[PAGE_MAX];
 
 static struct {
     int x1, y1, x2, y2;
-} view_window = {
-    0, 0, 79, 24};
+} view_window = { 0, 0, 79, 24 };
 
 static void set_visual_page(int page);
 static void set_active_page(int page);
@@ -158,7 +157,8 @@ static void _clear(char c, char attr, int x1, int y1, int x2, int y2) {
     w |= c;
     for (i = x1; i <= x2; i++) {
         for (j = y1; j <= y2; j++) {
-            *((unsigned short *)(uintptr_t)(FB + 2 * i + 160 * j + 2 * active_page * VPAGE_SIZE)) = w;
+            *((unsigned short *)(uintptr_t)(FB + 2 * i + 160 * j + 2 * active_page * VPAGE_SIZE)) =
+                w;
         }
     }
 
@@ -168,8 +168,7 @@ static void _clear(char c, char attr, int x1, int y1, int x2, int y2) {
 }
 
 static void clear(void) {
-    _clear(' ', curr_attr, view_window.x1, view_window.y1, view_window.x2,
-           view_window.y2);
+    _clear(' ', curr_attr, view_window.x1, view_window.y1, view_window.x2, view_window.y2);
 }
 
 static void _scroll(char attr, int x1, int y1, int x2, int y2) {
@@ -190,8 +189,7 @@ static void _scroll(char attr, int x1, int y1, int x2, int y2) {
 }
 
 static void scroll(void) {
-    _scroll(curr_attr, view_window.x1, view_window.y1, view_window.x2,
-            view_window.y2);
+    _scroll(curr_attr, view_window.x1, view_window.y1, view_window.x2, view_window.y2);
 }
 
 void vga_console_putc(char c) {

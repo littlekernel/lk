@@ -16,10 +16,10 @@
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <platform.h>
-#include <platform/vga_console.h>
 #include <platform/interrupts.h>
 #include <platform/pc.h>
 #include <platform/timer.h>
+#include <platform/vga_console.h>
 #include <sys/types.h>
 
 static inline int i8042_read_data(void) {
@@ -274,9 +274,8 @@ static enum handler_return i8042_interrupt(void *arg) {
     // exit_critical_section();
 
     if (str & I8042_STR_OBF) {
-        i8042_process_scode(data,
-                            ((str & I8042_STR_PARITY) ? I8042_STR_PARITY : 0) |
-                                ((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
+        i8042_process_scode(data, ((str & I8042_STR_PARITY) ? I8042_STR_PARITY : 0) |
+                                      ((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
         resched = true;
     }
 
