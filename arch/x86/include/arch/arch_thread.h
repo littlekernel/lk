@@ -17,4 +17,3 @@ struct arch_thread {
     uint8_t fpu_buffer[512 + 16];
 #endif
 };
-

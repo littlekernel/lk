@@ -7,17 +7,17 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <lk/debug.h>
 #include <arch.h>
-#include <arch/ops.h>
-#include <arch/x86.h>
-#include <arch/x86/mmu.h>
-#include <arch/x86/descriptor.h>
-#include <arch/x86/feature.h>
-#include <arch/x86/mtrr.h>
 #include <arch/fpu.h>
 #include <arch/mmu.h>
+#include <arch/ops.h>
+#include <arch/x86.h>
+#include <arch/x86/descriptor.h>
+#include <arch/x86/feature.h>
+#include <arch/x86/mmu.h>
+#include <arch/x86/mtrr.h>
 #include <kernel/vm.h>
+#include <lk/debug.h>
 #include <platform.h>
 #include <sys/types.h>
 
@@ -27,23 +27,16 @@
  */
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     /* 64GB of the first 64GB of memory mapped 1:1 */
-    {
-        .phys = MEMBASE,
-        .virt = KERNEL_ASPACE_BASE,
-        .size = PHYSMAP_SIZE, /* x86-64 maps first 64GB by default, 1GB on x86-32, 16MB in legacy mode */
-        .flags = 0,
-        .name = "physmap"
-    },
+    { .phys = MEMBASE,
+      .virt = KERNEL_ASPACE_BASE,
+      .size =
+          PHYSMAP_SIZE, /* x86-64 maps first 64GB by default, 1GB on x86-32, 16MB in legacy mode */
+      .flags = 0,
+      .name = "physmap" },
 #if ARCH_X86_64
     /* Another linear map of the first GB of memory where the kernel image
      * lives at the top of the address space. */
-    {
-        .phys = MEMBASE,
-        .virt = KERNEL_BASE,
-        .size = 1*GB,
-        .flags = 0,
-        .name = "kernel"
-    },
+    { .phys = MEMBASE, .virt = KERNEL_BASE, .size = 1 * GB, .flags = 0, .name = "kernel" },
 #endif
 
     /* null entry to terminate the list */
@@ -73,7 +66,7 @@ void x86_early_init_percpu(void) {
     system_tss.ss1 = 0;
     system_tss.ss2 = 0;
     system_tss.eflags = 0x00003002; // IF = 0, NT = 0, IOPL = 3
-    system_tss.trace = 1; // trap on hardware task switch
+    system_tss.trace = 1;           // trap on hardware task switch
 #elif ARCH_X86_64
     /* nothing to be done here, a fully zeroed TSS is a good starting point */
 #endif

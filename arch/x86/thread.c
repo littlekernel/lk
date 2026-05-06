@@ -7,15 +7,15 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <sys/types.h>
-#include <string.h>
-#include <stdlib.h>
-#include <lk/debug.h>
-#include <kernel/thread.h>
-#include <kernel/spinlock.h>
+#include <arch/fpu.h>
 #include <arch/x86.h>
 #include <arch/x86/descriptor.h>
-#include <arch/fpu.h>
+#include <kernel/spinlock.h>
+#include <kernel/thread.h>
+#include <lk/debug.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
 
 #if !WITH_SMP
 /* we're uniprocessor at this point for x86, so store a global pointer to the current thread */
@@ -49,7 +49,8 @@ void arch_thread_initialize(thread_t *t) {
 
     // make sure we start the frame 8 byte unaligned (relative to the 16 byte alignment) because
     // of the way the context switch will pop the return address off the stack. After the first
-    // context switch, this leaves the stack in unaligned relative to how a called function expects it.
+    // context switch, this leaves the stack in unaligned relative to how a called function expects
+    // it.
     stack_top -= 8;
     struct x86_64_context_switch_frame *frame = (struct x86_64_context_switch_frame *)(stack_top);
 #endif
@@ -59,12 +60,12 @@ void arch_thread_initialize(thread_t *t) {
     memset(frame, 0, sizeof(*frame));
 
 #if ARCH_X86_32
-    frame->eip = (vaddr_t) &initial_thread_func;
+    frame->eip = (vaddr_t)&initial_thread_func;
     frame->eflags = 0x3002; // IF = 0, NT = 0, IOPL = 3
 #endif
 
 #if ARCH_X86_64
-    frame->rip = (vaddr_t) &initial_thread_func;
+    frame->rip = (vaddr_t)&initial_thread_func;
     frame->rflags = 0x3002; /* IF = 0, NT = 0, IOPL = 3 */
 #endif
 
@@ -87,26 +88,25 @@ void arch_dump_thread(const thread_t *t) {
 #if ARCH_X86_32
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
-    //dprintf(DEBUG, "arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name, newthread, newthread->name);
+    // dprintf(DEBUG, "arch_context_switch: old %p (%s), new %p (%s)\n", oldthread, oldthread->name,
+    // newthread, newthread->name);
 
 #if X86_WITH_FPU
     fpu_context_switch(oldthread, newthread);
 #endif
 
-    __asm__ __volatile__ (
-        "pushl $1f			\n\t"
-        "pushf				\n\t"
-        "pusha				\n\t"
-        "movl %%esp,(%%edx)	\n\t"
-        "movl %%eax,%%esp	\n\t"
-        "popa				\n\t"
-        "popf				\n\t"
-        "ret				\n\t"
-        "1:					\n\t"
+    __asm__ __volatile__("pushl $1f			\n\t"
+                         "pushf				\n\t"
+                         "pusha				\n\t"
+                         "movl %%esp,(%%edx)	\n\t"
+                         "movl %%eax,%%esp	\n\t"
+                         "popa				\n\t"
+                         "popf				\n\t"
+                         "ret				\n\t"
+                         "1:					\n\t"
 
-        :
-        : "d" (&oldthread->arch.sp), "a" (newthread->arch.sp)
-    );
+                         :
+                         : "d"(&oldthread->arch.sp), "a"(newthread->arch.sp));
 
     /*__asm__ __volatile__ (
         "pushf              \n\t"
@@ -142,4 +142,3 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     x86_64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 #endif
-

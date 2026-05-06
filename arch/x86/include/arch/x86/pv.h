@@ -7,8 +7,8 @@
  */
 #pragma once
 
-#include <sys/types.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 #if !X86_LEGACY
 

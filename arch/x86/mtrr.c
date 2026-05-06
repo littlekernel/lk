@@ -14,6 +14,7 @@
 #include <lk/err.h>
 #include <lk/pow2.h>
 #include <lk/trace.h>
+#include <stdlib.h>
 
 // Basic routines to manage MTRRs per cpu.
 
@@ -27,16 +28,11 @@
 #define X86_MTRR_FIXED_MSR_COUNT    11
 
 static const uint32_t x86_mtrr_fixed_msr_ids[X86_MTRR_FIXED_MSR_COUNT] = {
-    X86_MSR_IA32_MTRR_FIX64K_00000,
-    X86_MSR_IA32_MTRR_FIX16K_80000,
-    X86_MSR_IA32_MTRR_FIX16K_A0000,
-    X86_MSR_IA32_MTRR_FIX4K_C0000,
-    X86_MSR_IA32_MTRR_FIX4K_C0000 + 1,
-    X86_MSR_IA32_MTRR_FIX4K_C0000 + 2,
-    X86_MSR_IA32_MTRR_FIX4K_C0000 + 3,
-    X86_MSR_IA32_MTRR_FIX4K_C0000 + 4,
-    X86_MSR_IA32_MTRR_FIX4K_C0000 + 5,
-    X86_MSR_IA32_MTRR_FIX4K_C0000 + 6,
+    X86_MSR_IA32_MTRR_FIX64K_00000,    X86_MSR_IA32_MTRR_FIX16K_80000,
+    X86_MSR_IA32_MTRR_FIX16K_A0000,    X86_MSR_IA32_MTRR_FIX4K_C0000,
+    X86_MSR_IA32_MTRR_FIX4K_C0000 + 1, X86_MSR_IA32_MTRR_FIX4K_C0000 + 2,
+    X86_MSR_IA32_MTRR_FIX4K_C0000 + 3, X86_MSR_IA32_MTRR_FIX4K_C0000 + 4,
+    X86_MSR_IA32_MTRR_FIX4K_C0000 + 5, X86_MSR_IA32_MTRR_FIX4K_C0000 + 6,
     X86_MSR_IA32_MTRR_FIX4K_F8000,
 };
 
@@ -163,7 +159,8 @@ int x86_mtrr_count(void) {
 }
 
 status_t x86_mtrr_set(int mtrr_index, uint64_t phys_base, uint64_t size, uint8_t type) {
-    DEBUG_ASSERT(arch_curr_cpu_num() == 0); /* only allow on boot CPU to avoid cpu synchronization issues for now */
+    DEBUG_ASSERT(arch_curr_cpu_num() ==
+                 0); /* only allow on boot CPU to avoid cpu synchronization issues for now */
 
     if (!x86_mtrr_supported()) {
         TRACEF("ERROR: MTRR not supported on this CPU\n");
@@ -183,16 +180,15 @@ status_t x86_mtrr_set(int mtrr_index, uint64_t phys_base, uint64_t size, uint8_t
 
     /* Validate parameters */
     if (!IS_ALIGNED(phys_base, size)) {
-        TRACEF("ERROR: base %#" PRIx64 " not aligned to size %#" PRIx64 "\n",
-               phys_base, size);
+        TRACEF("ERROR: base %#" PRIx64 " not aligned to size %#" PRIx64 "\n", phys_base, size);
         return ERR_INVALID_ARGS;
     }
 
     uint32_t base_msr, mask_msr;
     get_mtrr_addresses(mtrr_index, &base_msr, &mask_msr);
 
-    LTRACEF("Setting MTRR%d: base=%#" PRIx64 " size=%#" PRIx64 " type=%d\n",
-            mtrr_index, phys_base, size, type);
+    LTRACEF("Setting MTRR%d: base=%#" PRIx64 " size=%#" PRIx64 " type=%d\n", mtrr_index, phys_base,
+            size, type);
 
     /* Intel SDM Vol. 3 Section 11.11.8: MTRR Initialization Sequence
      * This is CRITICAL for correct operation on real hardware
@@ -284,18 +280,12 @@ void x86_mtrr_dump(void) {
     const uint64_t def_type = read_msr(X86_MSR_IA32_MTRR_DEF_TYPE);
     const int count = (int)(mtrrcap & 0xFF);
 
-    dprintf(INFO,
-            "MTRR: cap=%#" PRIx64 " var=%d fix=%u wc=%u smrr=%u\n",
-            mtrrcap,
-            count,
-            (unsigned int)((mtrrcap >> 8) & 0x1),
-            (unsigned int)((mtrrcap >> 10) & 0x1),
+    dprintf(INFO, "MTRR: cap=%#" PRIx64 " var=%d fix=%u wc=%u smrr=%u\n", mtrrcap, count,
+            (unsigned int)((mtrrcap >> 8) & 0x1), (unsigned int)((mtrrcap >> 10) & 0x1),
             (unsigned int)((mtrrcap >> 11) & 0x1));
 
-    dprintf(INFO,
-            "MTRR: def_type=%#" PRIx64 " enabled=%u fixed_enabled=%u default=%u(%s)\n",
-            def_type,
-            (unsigned int)((def_type & MTRR_DEF_TYPE_ENABLE) ? 1 : 0),
+    dprintf(INFO, "MTRR: def_type=%#" PRIx64 " enabled=%u fixed_enabled=%u default=%u(%s)\n",
+            def_type, (unsigned int)((def_type & MTRR_DEF_TYPE_ENABLE) ? 1 : 0),
             (unsigned int)((def_type & MTRR_DEF_TYPE_FIX_ENABLE) ? 1 : 0),
             (unsigned int)(def_type & MTRR_DEF_TYPE_TYPE_MASK),
             x86_mtrr_type_name((uint8_t)(def_type & MTRR_DEF_TYPE_TYPE_MASK)));
@@ -304,11 +294,8 @@ void x86_mtrr_dump(void) {
         dprintf(INFO, "MTRR: fixed ranges\n");
         for (int i = 0; i < X86_MTRR_FIXED_MSR_COUNT; ++i) {
             const uint64_t fixed = read_msr(x86_mtrr_fixed_msr_ids[i]);
-            dprintf(INFO,
-                    "MTRR: FIX[%d] msr=%#x val=%#018" PRIx64 "\n",
-                    i,
-                    x86_mtrr_fixed_msr_ids[i],
-                    fixed);
+            dprintf(INFO, "MTRR: FIX[%d] msr=%#x val=%#018" PRIx64 "\n", i,
+                    x86_mtrr_fixed_msr_ids[i], fixed);
         }
     } else {
         dprintf(INFO, "MTRR: fixed ranges unsupported\n");
@@ -324,10 +311,7 @@ void x86_mtrr_dump(void) {
         const uint8_t type = (uint8_t)(base & MTRR_PHYSBASE_TYPE_MASK);
 
         if (!valid) {
-            dprintf(INFO,
-                    "MTRR: [%d] disabled base=%#" PRIx64 " mask=%#" PRIx64 "\n",
-                    i,
-                    base,
+            dprintf(INFO, "MTRR: [%d] disabled base=%#" PRIx64 " mask=%#" PRIx64 "\n", i, base,
                     mask);
             continue;
         }
@@ -337,15 +321,9 @@ void x86_mtrr_dump(void) {
         const uint64_t size = (~mask_addr & 0xFFFFFFF000ULL) + 0x1000ULL;
 
         dprintf(INFO,
-                "MTRR: [%d] base=%#018" PRIx64 " mask=%#018" PRIx64
-                " addr=%#" PRIx64 " size=%#" PRIx64 " type=%u(%s)\n",
-                i,
-                base,
-                mask,
-                base_addr,
-                size,
-                (unsigned int)type,
-                x86_mtrr_type_name(type));
+                "MTRR: [%d] base=%#018" PRIx64 " mask=%#018" PRIx64 " addr=%#" PRIx64
+                " size=%#" PRIx64 " type=%u(%s)\n",
+                i, base, mask, base_addr, size, (unsigned int)type, x86_mtrr_type_name(type));
     }
 }
 

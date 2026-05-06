@@ -7,8 +7,9 @@
  */
 #pragma once
 
-#include <sys/types.h>
+#include <arch/defines.h>
 #include <arch/x86.h>
+#include <sys/types.h>
 
 // per cpu pointer pointed to by gs:
 typedef struct x86_percpu {
@@ -43,7 +44,7 @@ status_t x86_allocate_percpu_array(uint num_cpus);
 // get the percpu struct for the current cpu
 static inline x86_percpu_t *x86_get_percpu(void) {
     x86_percpu_t *percpu;
-    __asm__ volatile("mov %%gs:0, %0" : "=r" (percpu));
+    __asm__ volatile("mov %%gs:0, %0" : "=r"(percpu));
     return percpu;
 }
 
@@ -51,17 +52,17 @@ static inline x86_percpu_t *x86_get_percpu(void) {
 x86_percpu_t *x86_get_percpu_for_cpu(uint cpu_num);
 
 #if 0
-#define X86_PERCPU_GET(field) (_Generic(((x86_get_percpu())->field), \
-    uint32_t: x86_read_gs_offset32, \
-    uint64_t: x86_read_gs_offset64, \
-    struct thread*: x86_read_gs_offset_ptr) \
-    (X86_PERCPU_FIELD_OFFSET(field)))
+#define X86_PERCPU_GET(field)                                                                      \
+    (_Generic(((x86_get_percpu())->field),                                                         \
+         uint32_t: x86_read_gs_offset32,                                                           \
+         uint64_t: x86_read_gs_offset64,                                                           \
+         struct thread *: x86_read_gs_offset_ptr)(X86_PERCPU_FIELD_OFFSET(field)))
 
-#define X86_PERCPU_SET(field, value) (_Generic(((x86_get_percpu())->field), \
-    uint32_t: x86_write_gs_offset32, \
-    uint64_t: x86_write_gs_offset64, \
-    struct thread*: x86_write_gs_offset_ptr) \
-    (X86_PERCPU_FIELD_OFFSET(field), value))
+#define X86_PERCPU_SET(field, value)                                                               \
+    (_Generic(((x86_get_percpu())->field),                                                         \
+         uint32_t: x86_write_gs_offset32,                                                          \
+         uint64_t: x86_write_gs_offset64,                                                          \
+         struct thread *: x86_write_gs_offset_ptr)(X86_PERCPU_FIELD_OFFSET(field), value))
 #endif
 
 // get the current cpu number

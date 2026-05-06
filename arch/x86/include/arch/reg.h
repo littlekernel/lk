@@ -20,36 +20,40 @@
 
 #define ARCH_MMIO_READ_WRITE_OVERRIDE 1
 
-#define _ARCH_MMIO_READ8(addr) ({ \
-    uint8_t val; \
-    __asm__ volatile("movb %1, %0" : "=q"(val) : "m"(*(addr)) : "memory"); \
-    val; \
-})
-#define _ARCH_MMIO_READ16(addr) ({ \
-    uint16_t val; \
-    __asm__ volatile("movw %1, %0" : "=r"(val) : "m"(*(addr)) : "memory"); \
-    val; \
-})
-#define _ARCH_MMIO_READ32(addr) ({ \
-    uint32_t val; \
-    __asm__ volatile("movl %1, %0" : "=r"(val) : "m"(*(addr)) : "memory"); \
-    val; \
-})
+#define _ARCH_MMIO_READ8(addr)                                                                     \
+    ({                                                                                             \
+        uint8_t val;                                                                               \
+        __asm__ volatile("movb %1, %0" : "=q"(val) : "m"(*(addr)) : "memory");                     \
+        val;                                                                                       \
+    })
+#define _ARCH_MMIO_READ16(addr)                                                                    \
+    ({                                                                                             \
+        uint16_t val;                                                                              \
+        __asm__ volatile("movw %1, %0" : "=r"(val) : "m"(*(addr)) : "memory");                     \
+        val;                                                                                       \
+    })
+#define _ARCH_MMIO_READ32(addr)                                                                    \
+    ({                                                                                             \
+        uint32_t val;                                                                              \
+        __asm__ volatile("movl %1, %0" : "=r"(val) : "m"(*(addr)) : "memory");                     \
+        val;                                                                                       \
+    })
 #if _LP64
-#define _ARCH_MMIO_READ64(addr) ({ \
-    uint64_t val; \
-    __asm__ volatile("movq %1, %0" : "=r"(val) : "m"(*(addr)) : "memory"); \
-    val; \
-})
+#define _ARCH_MMIO_READ64(addr)                                                                    \
+    ({                                                                                             \
+        uint64_t val;                                                                              \
+        __asm__ volatile("movq %1, %0" : "=r"(val) : "m"(*(addr)) : "memory");                     \
+        val;                                                                                       \
+    })
 #endif
 
-#define _ARCH_MMIO_WRITE8(addr, val) \
+#define _ARCH_MMIO_WRITE8(addr, val)                                                               \
     __asm__ volatile("movb %1, %0" : "=m"(*(addr)) : "iq"(val) : "memory")
-#define _ARCH_MMIO_WRITE16(addr, val) \
+#define _ARCH_MMIO_WRITE16(addr, val)                                                              \
     __asm__ volatile("movw %1, %0" : "=m"(*(addr)) : "ir"(val) : "memory")
-#define _ARCH_MMIO_WRITE32(addr, val) \
+#define _ARCH_MMIO_WRITE32(addr, val)                                                              \
     __asm__ volatile("movl %1, %0" : "=m"(*(addr)) : "ir"(val) : "memory")
 #if _LP64
-#define _ARCH_MMIO_WRITE64(addr, val) \
+#define _ARCH_MMIO_WRITE64(addr, val)                                                              \
     __asm__ volatile("movq %1, %0" : "=m"(*(addr)) : "er"(val) : "memory")
 #endif

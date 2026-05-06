@@ -23,7 +23,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#define LOCAL_TRACE 0
+#define LOCAL_TRACE          0
 #define TRACE_CONTEXT_SWITCH 0
 
 // TODO:
@@ -49,7 +49,7 @@ paddr_t kernel_pml4_phys;
 map_addr_t kernel_pdp_high[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 
 /* a big pile of page tables needed to map 64GB of memory into kernel space using 2MB pages */
-map_addr_t kernel_linear_map_pdp[(64ULL*GB) / (2*MB)];
+map_addr_t kernel_linear_map_pdp[(64ULL * GB) / (2 * MB)];
 
 /**
  * @brief  check if the virtual address is aligned and canonical
@@ -57,12 +57,12 @@ map_addr_t kernel_linear_map_pdp[(64ULL*GB) / (2*MB)];
  */
 static bool x86_mmu_check_vaddr(vaddr_t vaddr) {
     uint64_t addr = (uint64_t)vaddr;
-    uint64_t max_vaddr_lohalf,
-             min_vaddr_hihalf;
+    uint64_t max_vaddr_lohalf, min_vaddr_hihalf;
 
     /* Check to see if the address is PAGE aligned */
-    if (!IS_ALIGNED(addr, PAGE_SIZE))
+    if (!IS_ALIGNED(addr, PAGE_SIZE)) {
         return false;
+    }
 
     /* get max address in lower-half canonical addr space */
     /* e.g. if width is 48, then 0x00007FFF_FFFFFFFF */
@@ -70,11 +70,12 @@ static bool x86_mmu_check_vaddr(vaddr_t vaddr) {
 
     /* get min address in higher-half canonical addr space */
     /* e.g. if width is 48, then 0xFFFF8000_00000000*/
-    min_vaddr_hihalf = ~ max_vaddr_lohalf;
+    min_vaddr_hihalf = ~max_vaddr_lohalf;
 
     /* Check to see if the address in a canonical address */
-    if ((addr > max_vaddr_lohalf) && (addr < min_vaddr_hihalf))
+    if ((addr > max_vaddr_lohalf) && (addr < min_vaddr_hihalf)) {
         return false;
+    }
 
     return true;
 }
@@ -85,8 +86,9 @@ static bool x86_mmu_check_vaddr(vaddr_t vaddr) {
  */
 static bool x86_mmu_check_paddr(const paddr_t paddr) {
     /* Check to see if the address is PAGE aligned */
-    if (!IS_ALIGNED(paddr, PAGE_SIZE))
+    if (!IS_ALIGNED(paddr, PAGE_SIZE)) {
         return false;
+    }
 
     uint64_t max_paddr = ((uint64_t)1ull << paddr_width) - 1;
 
@@ -108,10 +110,12 @@ static inline uint64_t get_pfn_from_pde(uint64_t pde) {
     return pfn;
 }
 
-static inline uint64_t get_pml4_entry_from_pml4_table(const vaddr_t vaddr, const uint64_t * const pml4_table) {
+static inline uint64_t get_pml4_entry_from_pml4_table(const vaddr_t vaddr,
+                                                      const uint64_t *const pml4_table) {
     const uint32_t index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
 
-    LTRACEF_LEVEL(2, "pml4_table %p, index %u, returning %#llx\n", pml4_table, index, pml4_table[index]);
+    LTRACEF_LEVEL(2, "pml4_table %p, index %u, returning %#llx\n", pml4_table, index,
+                  pml4_table[index]);
 
     return pml4_table[index];
 }
@@ -121,7 +125,8 @@ static inline uint64_t get_pdp_entry_from_pdp_table(const vaddr_t vaddr, const u
 
     uint32_t index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
 
-    LTRACEF_LEVEL(2, "pdpe_table %p, index %u, returning %#llx\n", pdpe_table, index, pdpe_table[index]);
+    LTRACEF_LEVEL(2, "pdpe_table %p, index %u, returning %#llx\n", pdpe_table, index,
+                  pdpe_table[index]);
     return pdpe_table[index];
 }
 
@@ -130,7 +135,8 @@ static inline uint64_t get_pd_entry_from_pd_table(const vaddr_t vaddr, const uin
 
     uint32_t index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
 
-    LTRACEF_LEVEL(2, "pde_table %p, index %u, returning %#llx\n", pde_table, index, pde_table[index]);
+    LTRACEF_LEVEL(2, "pde_table %p, index %u, returning %#llx\n", pde_table, index,
+                  pde_table[index]);
     return pde_table[index];
 }
 
@@ -139,7 +145,8 @@ static inline uint64_t get_pt_entry_from_pt_table(const vaddr_t vaddr, const uin
 
     uint32_t index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
 
-    LTRACEF_LEVEL(2, "pte_table %p, index %u, returning %#llx\n", pte_table, index, pte_table[index]);
+    LTRACEF_LEVEL(2, "pte_table %p, index %u, returning %#llx\n", pte_table, index,
+                  pte_table[index]);
     return pte_table[index];
 }
 
@@ -153,17 +160,21 @@ static inline bool is_pte_present(uint64_t pte) {
 static arch_flags_t get_x86_arch_flags(uint flags) {
     arch_flags_t arch_flags = 0;
 
-    if (!(flags & ARCH_MMU_FLAG_PERM_RO))
+    if (!(flags & ARCH_MMU_FLAG_PERM_RO)) {
         arch_flags |= X86_MMU_PG_RW;
+    }
 
-    if (flags & ARCH_MMU_FLAG_PERM_USER)
+    if (flags & ARCH_MMU_FLAG_PERM_USER) {
         arch_flags |= X86_MMU_PG_U;
+    }
 
-    if (flags & ARCH_MMU_FLAG_UNCACHED)
+    if (flags & ARCH_MMU_FLAG_UNCACHED) {
         arch_flags |= X86_MMU_CACHE_DISABLE;
+    }
 
-    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE)
+    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
         arch_flags |= X86_MMU_PG_NX;
+    }
 
     return arch_flags;
 }
@@ -174,17 +185,21 @@ static arch_flags_t get_x86_arch_flags(uint flags) {
 static uint get_arch_mmu_flags(arch_flags_t flags) {
     uint mmu_flags = 0;
 
-    if (!(flags & X86_MMU_PG_RW))
+    if (!(flags & X86_MMU_PG_RW)) {
         mmu_flags |= ARCH_MMU_FLAG_PERM_RO;
+    }
 
-    if (flags & X86_MMU_PG_U)
+    if (flags & X86_MMU_PG_U) {
         mmu_flags |= ARCH_MMU_FLAG_PERM_USER;
+    }
 
-    if (flags & X86_MMU_CACHE_DISABLE)
+    if (flags & X86_MMU_CACHE_DISABLE) {
         mmu_flags |= ARCH_MMU_FLAG_UNCACHED;
+    }
 
-    if (flags & X86_MMU_PG_NX)
+    if (flags & X86_MMU_PG_NX) {
         mmu_flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+    }
 
     return (uint)mmu_flags;
 }
@@ -196,8 +211,9 @@ static uint get_arch_mmu_flags(arch_flags_t flags) {
  * 4KB pages.
  *
  */
-static status_t x86_mmu_get_mapping(uint64_t * const pml4_table, const vaddr_t vaddr, uint32_t * const ret_level,
-                             arch_flags_t * const mmu_flags, paddr_t * const paddr) {
+static status_t x86_mmu_get_mapping(uint64_t *const pml4_table, const vaddr_t vaddr,
+                                    uint32_t *const ret_level, arch_flags_t *const mmu_flags,
+                                    paddr_t *const paddr) {
     uint64_t pml4e, pdpe, pde, pte;
 
     DEBUG_ASSERT(pml4_table);
@@ -264,9 +280,11 @@ static void update_pt_entry(vaddr_t vaddr, uint64_t pde, paddr_t paddr, arch_fla
     uint32_t pt_index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
     pt_table[pt_index] = paddr;
     pt_table[pt_index] |= flags | X86_MMU_PG_P;
-    if (!(flags & X86_MMU_PG_U))
+    if (!(flags & X86_MMU_PG_U)) {
         pt_table[pt_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
-    LTRACEF_LEVEL(2, "writing entry %#llx in pt %p at index %u\n", pt_table[pt_index], pt_table, pt_index);
+    }
+    LTRACEF_LEVEL(2, "writing entry %#llx in pt %p at index %u\n", pt_table[pt_index], pt_table,
+                  pt_index);
 }
 
 static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, map_addr_t paddr, arch_flags_t flags) {
@@ -274,9 +292,11 @@ static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, map_addr_t paddr, arch
     uint32_t pd_index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
     pd_table[pd_index] = paddr;
     pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
-    if (flags & X86_MMU_PG_U)
+    if (flags & X86_MMU_PG_U) {
         pd_table[pd_index] |= X86_MMU_PG_U;
-    LTRACEF_LEVEL(2, "writing entry %#llx in pd %p at index %u\n", pd_table[pd_index], pd_table, pd_index);
+    }
+    LTRACEF_LEVEL(2, "writing entry %#llx in pd %p at index %u\n", pd_table[pd_index], pd_table,
+                  pd_index);
 }
 
 static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t paddr, arch_flags_t flags) {
@@ -284,22 +304,27 @@ static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t paddr, ar
     uint32_t pdp_index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
     pdp_table[pdp_index] = paddr;
     pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
-    if (flags & X86_MMU_PG_U)
+    if (flags & X86_MMU_PG_U) {
         pdp_table[pdp_index] |= X86_MMU_PG_U;
-    LTRACEF_LEVEL(2, "writing entry %#llx in pdp %p at index %u\n", pdp_table[pdp_index], pdp_table, pdp_index);
+    }
+    LTRACEF_LEVEL(2, "writing entry %#llx in pdp %p at index %u\n", pdp_table[pdp_index], pdp_table,
+                  pdp_index);
 }
 
-static void update_pml4_entry(vaddr_t vaddr, uint64_t *pml4_table, map_addr_t paddr, arch_flags_t flags) {
+static void update_pml4_entry(vaddr_t vaddr, uint64_t *pml4_table, map_addr_t paddr,
+                              arch_flags_t flags) {
     uint32_t pml4_index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
     pml4_table[pml4_index] = paddr;
     pml4_table[pml4_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
-    if (flags & X86_MMU_PG_U)
+    if (flags & X86_MMU_PG_U) {
         pml4_table[pml4_index] |= X86_MMU_PG_U;
+    }
 
     /* Explicitly do not set the G bit here for kernel pages. Intel cores
      * ignore the G bit on PML4 entries, but AMD cores treat it as MBZ.
      */
-    LTRACEF_LEVEL(2, "writing entry %#llx in pml4 %p at index %u\n", pml4_table[pml4_index], pml4_table, pml4_index);
+    LTRACEF_LEVEL(2, "writing entry %#llx in pml4 %p at index %u\n", pml4_table[pml4_index],
+                  pml4_table, pml4_index);
 }
 
 /**
@@ -336,15 +361,16 @@ static map_addr_t *alloc_page_table(paddr_t *pa_out) {
  * 4KB pages.
  *
  */
-static status_t x86_mmu_add_mapping(uint64_t * const pml4, const map_addr_t paddr,
-                             const vaddr_t vaddr, const arch_flags_t mmu_flags) {
+static status_t x86_mmu_add_mapping(uint64_t *const pml4, const map_addr_t paddr,
+                                    const vaddr_t vaddr, const arch_flags_t mmu_flags) {
     status_t ret = NO_ERROR;
 
     LTRACEF("pml4 %p paddr %#llx vaddr %#lx flags %#llx\n", pml4, paddr, vaddr, mmu_flags);
 
     DEBUG_ASSERT(pml4);
-    if ((!x86_mmu_check_vaddr(vaddr)) || (!x86_mmu_check_paddr(paddr)) )
+    if ((!x86_mmu_check_vaddr(vaddr)) || (!x86_mmu_check_paddr(paddr))) {
         return ERR_INVALID_ARGS;
+    }
 
     /* track at every level if we had to allocate a new page table for eventual cleanup code */
     bool pdp_new = false, pd_new = false, pt_new = false;
@@ -375,7 +401,7 @@ static status_t x86_mmu_add_mapping(uint64_t * const pml4, const map_addr_t padd
     if (!is_pte_present(pdpe)) {
         /* Creating a new pd table  */
         paddr_t pa;
-        map_addr_t *m  = alloc_page_table(&pa);
+        map_addr_t *m = alloc_page_table(&pa);
         if (m == NULL) {
             ret = ERR_NO_MEMORY;
             goto clean;
@@ -398,7 +424,7 @@ static status_t x86_mmu_add_mapping(uint64_t * const pml4, const map_addr_t padd
     if (!is_pte_present(pde)) {
         /* Creating a new pt */
         paddr_t pa;
-        map_addr_t *m  = alloc_page_table(&pa);
+        map_addr_t *m = alloc_page_table(&pa);
         if (m == NULL) {
             ret = ERR_NO_MEMORY;
             goto clean;
@@ -435,7 +461,7 @@ clean:
  * @brief  x86-64 MMU unmap an entry in the page tables recursively and clear out tables
  *
  */
-static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t * const table) {
+static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t *const table) {
     LTRACEF("vaddr 0x%lx level %d table %p\n", vaddr, level, table);
 
     uint64_t *next_table_addr = NULL;
@@ -445,8 +471,9 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t *
         case PML4_L:
             index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
             LTRACEF_LEVEL(2, "index %u\n", index);
-            if (!is_pte_present(table[index]))
+            if (!is_pte_present(table[index])) {
                 return;
+            }
             next_table_pa = get_pfn_from_pte(table[index]);
             next_table_addr = paddr_to_kvaddr(next_table_pa);
             LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
@@ -454,8 +481,9 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t *
         case PDP_L:
             index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
             LTRACEF_LEVEL(2, "index %u\n", index);
-            if (!is_pte_present(table[index]))
+            if (!is_pte_present(table[index])) {
                 return;
+            }
             next_table_pa = get_pfn_from_pte(table[index]);
             next_table_addr = paddr_to_kvaddr(next_table_pa);
             LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
@@ -463,8 +491,9 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t *
         case PD_L:
             index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
             LTRACEF_LEVEL(2, "index %u\n", index);
-            if (!is_pte_present(table[index]))
+            if (!is_pte_present(table[index])) {
                 return;
+            }
             next_table_pa = get_pfn_from_pte(table[index]);
             next_table_addr = paddr_to_kvaddr(next_table_pa);
             LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
@@ -472,8 +501,9 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t *
         case PT_L:
             index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
             LTRACEF_LEVEL(2, "index %u\n", index);
-            if (!is_pte_present(table[index]))
+            if (!is_pte_present(table[index])) {
                 return;
+            }
 
             /* page frame is present, wipe it out */
             LTRACEF_LEVEL(2, "writing zero to entry, old val %#llx\n", table[index]);
@@ -493,9 +523,11 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t *
 
     if (level > PT_L) {
         /* Check all entries of next level table for present bit */
-        for (uint32_t next_level_offset = 0; next_level_offset < (PAGE_SIZE/8); next_level_offset++) {
-            if (is_pte_present(next_table_addr[next_level_offset]))
+        for (uint32_t next_level_offset = 0; next_level_offset < (PAGE_SIZE / 8);
+             next_level_offset++) {
+            if (is_pte_present(next_table_addr[next_level_offset])) {
                 return; /* There is an entry in the next level table */
+            }
         }
         /* All present bits for all entries in next level table for this address are 0, so we
          * can unlink this page table.
@@ -508,13 +540,15 @@ static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, uint64_t *
     }
 }
 
-static status_t x86_mmu_unmap(uint64_t * const pml4, const vaddr_t vaddr, uint count) {
+static status_t x86_mmu_unmap(uint64_t *const pml4, const vaddr_t vaddr, uint count) {
     DEBUG_ASSERT(pml4);
-    if (!(x86_mmu_check_vaddr(vaddr)))
+    if (!(x86_mmu_check_vaddr(vaddr))) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (count == 0)
+    if (count == 0) {
         return NO_ERROR;
+    }
 
     vaddr_t next_aligned_v_addr = vaddr;
     while (count > 0) {
@@ -525,16 +559,18 @@ static status_t x86_mmu_unmap(uint64_t * const pml4, const vaddr_t vaddr, uint c
     return NO_ERROR;
 }
 
-int arch_mmu_unmap(arch_aspace_t * const aspace, const vaddr_t vaddr, const uint count) {
+int arch_mmu_unmap(arch_aspace_t *const aspace, const vaddr_t vaddr, const uint count) {
     LTRACEF("aspace %p, vaddr 0x%lx, count %u\n", aspace, vaddr, count);
 
     DEBUG_ASSERT(aspace);
 
-    if (!is_valid_vaddr(aspace, vaddr))
+    if (!is_valid_vaddr(aspace, vaddr)) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (count == 0)
+    if (count == 0) {
         return NO_ERROR;
+    }
 
     return (x86_mmu_unmap(aspace->cr3, vaddr, count));
 }
@@ -543,26 +579,30 @@ int arch_mmu_unmap(arch_aspace_t * const aspace, const vaddr_t vaddr, const uint
  * @brief  Mapping a section/range with specific permissions
  *
  */
-static status_t x86_mmu_map_range(uint64_t * const pml4, struct map_range * const range, arch_flags_t const flags) {
-    LTRACEF("pml4 %p, range v %#lx p %#lx size %u flags %#llx\n", pml4,
-            range->start_vaddr, range->start_paddr, range->size, flags);
+static status_t x86_mmu_map_range(uint64_t *const pml4, struct map_range *const range,
+                                  arch_flags_t const flags) {
+    LTRACEF("pml4 %p, range v %#lx p %#lx size %u flags %#llx\n", pml4, range->start_vaddr,
+            range->start_paddr, range->size, flags);
 
     DEBUG_ASSERT(pml4);
-    if (!range)
+    if (!range) {
         return ERR_INVALID_ARGS;
+    }
 
     /* Calculating the number of 4k pages */
     uint32_t no_of_pages;
-    if (IS_ALIGNED(range->size, PAGE_SIZE))
+    if (IS_ALIGNED(range->size, PAGE_SIZE)) {
         no_of_pages = (range->size) >> PAGE_DIV_SHIFT;
-    else
+    } else {
         no_of_pages = ((range->size) >> PAGE_DIV_SHIFT) + 1;
+    }
 
     vaddr_t next_aligned_v_addr = range->start_vaddr;
     paddr_t next_aligned_p_addr = range->start_paddr;
 
     for (uint32_t index = 0; index < no_of_pages; index++) {
-        status_t map_status = x86_mmu_add_mapping(pml4, next_aligned_p_addr, next_aligned_v_addr, flags);
+        status_t map_status =
+            x86_mmu_add_mapping(pml4, next_aligned_p_addr, next_aligned_v_addr, flags);
         if (map_status) {
             dprintf(SPEW, "Add mapping failed with err=%d\n", map_status);
             /* Unmap the partial mapping - if any */
@@ -575,47 +615,58 @@ static status_t x86_mmu_map_range(uint64_t * const pml4, struct map_range * cons
     return NO_ERROR;
 }
 
-status_t arch_mmu_query(arch_aspace_t * const aspace, const vaddr_t vaddr, paddr_t * const paddr, uint * const flags) {
+status_t arch_mmu_query(arch_aspace_t *const aspace, const vaddr_t vaddr, paddr_t *const paddr,
+                        uint *const flags) {
     LTRACEF("aspace %p, vaddr 0x%lx, paddr %p, flags %p\n", aspace, vaddr, paddr, flags);
 
     DEBUG_ASSERT(aspace);
 
-    if (!paddr)
+    if (!paddr) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (!is_valid_vaddr(aspace, vaddr))
+    if (!is_valid_vaddr(aspace, vaddr)) {
         return ERR_INVALID_ARGS;
+    }
 
     arch_flags_t ret_flags;
     uint32_t ret_level;
     status_t stat = x86_mmu_get_mapping(aspace->cr3, vaddr, &ret_level, &ret_flags, paddr);
-    if (stat)
+    if (stat) {
         return stat;
+    }
 
     /* converting x86 arch specific flags to arch mmu flags */
-    if (flags)
+    if (flags) {
         *flags = ret_flags;
+    }
     LTRACEF("paddr %#lx, flags %#llx\n", *paddr, ret_flags);
 
     return NO_ERROR;
 }
 
-int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t paddr, const uint count, const uint flags) {
+int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t paddr,
+                 const uint count, const uint flags) {
     DEBUG_ASSERT(aspace);
 
-    LTRACEF("aspace %p, vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", aspace, vaddr, paddr, count, flags);
+    LTRACEF("aspace %p, vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", aspace, vaddr, paddr, count,
+            flags);
 
-    if (flags & ARCH_MMU_FLAG_NS)
+    if (flags & ARCH_MMU_FLAG_NS) {
         return ERR_INVALID_ARGS;
+    }
 
-    if ((!x86_mmu_check_paddr(paddr)))
+    if ((!x86_mmu_check_paddr(paddr))) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (!is_valid_vaddr(aspace, vaddr))
+    if (!is_valid_vaddr(aspace, vaddr)) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (count == 0)
+    if (count == 0) {
         return NO_ERROR;
+    }
 
     struct map_range range;
     range.start_vaddr = vaddr;
@@ -625,9 +676,15 @@ int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t
     return (x86_mmu_map_range(aspace->cr3, &range, flags));
 }
 
-bool arch_mmu_supports_nx_mappings(void) { return true; }
-bool arch_mmu_supports_ns_mappings(void) { return false; }
-bool arch_mmu_supports_user_aspaces(void) { return true; }
+bool arch_mmu_supports_nx_mappings(void) {
+    return true;
+}
+bool arch_mmu_supports_ns_mappings(void) {
+    return false;
+}
+bool arch_mmu_supports_user_aspaces(void) {
+    return true;
+}
 
 void x86_mmu_early_init_percpu(void) {
     /* Set WP bit in CR0 */
@@ -682,7 +739,8 @@ void x86_mmu_init(void) {
  * x86-64 does not support multiple address spaces at the moment, so fail if these apis
  * are used for it.
  */
-status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, const size_t size, const uint flags) {
+status_t arch_mmu_init_aspace(arch_aspace_t *const aspace, const vaddr_t base, const size_t size,
+                              const uint flags) {
     DEBUG_ASSERT(aspace);
 
     LTRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
@@ -717,10 +775,11 @@ status_t arch_mmu_init_aspace(arch_aspace_t * const aspace, const vaddr_t base, 
         aspace->cr3_phys = vaddr_to_paddr(aspace->cr3);
 
         /* copy the top entries from the kernel top table */
-        memcpy(aspace->cr3 + NO_OF_PT_ENTRIES/2, kernel_pml4 + NO_OF_PT_ENTRIES/2, PAGE_SIZE/2);
+        memcpy(aspace->cr3 + NO_OF_PT_ENTRIES / 2, kernel_pml4 + NO_OF_PT_ENTRIES / 2,
+               PAGE_SIZE / 2);
 
         /* zero out the rest */
-        memset(aspace->cr3, 0, PAGE_SIZE/2);
+        memset(aspace->cr3, 0, PAGE_SIZE / 2);
     }
 
     return NO_ERROR;
@@ -741,8 +800,9 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
 }
 
 void arch_mmu_context_switch(arch_aspace_t *new_aspace) {
-    if (TRACE_CONTEXT_SWITCH)
+    if (TRACE_CONTEXT_SWITCH) {
         TRACEF("aspace %p\n", new_aspace);
+    }
 
     uint64_t cr3;
     if (new_aspace) {
@@ -758,4 +818,3 @@ void arch_mmu_context_switch(arch_aspace_t *new_aspace) {
 
     x86_set_cr3(cr3);
 }
-

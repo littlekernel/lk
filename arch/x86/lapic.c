@@ -240,8 +240,9 @@ void lapic_init_postvm(void) {
     // map the lapic into the kernel since it's not guaranteed that the physmap covers it
     if (!lapic_x2apic) {
         LTRACEF("mapping lapic into kernel\n");
-        status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, (void **)&lapic_mmio, 0,
-                                          apic_base & ~0xfff, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+        status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE,
+                                          (void **)&lapic_mmio, 0, apic_base & ~0xfff,
+                                          /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
         ASSERT(err == NO_ERROR);
         ASSERT(lapic_mmio != NULL);
     }
@@ -284,7 +285,8 @@ static void lapic_init_percpu(uint level) {
     register_int_handler_msi(LAPIC_INT_GENERIC, &lapic_generic_handler, NULL, false);
     register_int_handler_msi(LAPIC_INT_RESCHEDULE, &lapic_reschedule_handler, NULL, false);
 }
-LK_INIT_HOOK_FLAGS(lapic_init_percpu, lapic_init_percpu, LK_INIT_LEVEL_VM, LK_INIT_FLAG_SECONDARY_CPUS);
+LK_INIT_HOOK_FLAGS(lapic_init_percpu, lapic_init_percpu, LK_INIT_LEVEL_VM,
+                   LK_INIT_FLAG_SECONDARY_CPUS);
 
 void lapic_enable_on_local_cpu(void) {
     DEBUG_ASSERT(lapic_present);
@@ -335,7 +337,8 @@ static void lapic_timer_init_percpu(uint level) {
     // register the timer interrupt vector
     register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
 }
-LK_INIT_HOOK_FLAGS(lapic_timer_init_percpu, lapic_timer_init_percpu, LK_INIT_LEVEL_VM + 1, LK_INIT_FLAG_SECONDARY_CPUS);
+LK_INIT_HOOK_FLAGS(lapic_timer_init_percpu, lapic_timer_init_percpu, LK_INIT_LEVEL_VM + 1,
+                   LK_INIT_FLAG_SECONDARY_CPUS);
 
 status_t lapic_timer_init(bool invariant_tsc_supported) {
     if (!lapic_present) {

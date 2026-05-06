@@ -12,8 +12,8 @@
 
 extern uint64_t _gdt[];
 
-void x86_set_gdt_descriptor(seg_sel_t sel, void *base, uint32_t limit,
-                     uint8_t present, uint8_t ring, uint8_t sys, uint8_t type, uint8_t gran, uint8_t bits) {
+void x86_set_gdt_descriptor(seg_sel_t sel, void *base, uint32_t limit, uint8_t present,
+                            uint8_t ring, uint8_t sys, uint8_t type, uint8_t gran, uint8_t bits) {
     typedef struct {
         struct {
             uint16_t limit_15_0;
@@ -21,15 +21,15 @@ void x86_set_gdt_descriptor(seg_sel_t sel, void *base, uint32_t limit,
             uint8_t base_23_16;
 
             uint8_t type : 4;
-            uint8_t s : 1;
-            uint8_t dpl : 2;
-            uint8_t p : 1;
+            uint8_t s    : 1;
+            uint8_t dpl  : 2;
+            uint8_t p    : 1;
 
             uint8_t limit_19_16 : 4;
-            uint8_t avl : 1;
-            uint8_t reserved : 1;
-            uint8_t d_b : 1;
-            uint8_t g : 1;
+            uint8_t avl         : 1;
+            uint8_t reserved    : 1;
+            uint8_t d_b         : 1;
+            uint8_t g           : 1;
 
             uint8_t base_31_24;
         } seg_desc_legacy;
@@ -49,27 +49,27 @@ void x86_set_gdt_descriptor(seg_sel_t sel, void *base, uint32_t limit,
     static_assert(sizeof(seg_desc_t) == 8, "seg_desc_t size mismatch");
 #endif
 
-    seg_desc_t desc = {0};
+    seg_desc_t desc = { 0 };
 
     // Trim the limit by 1 due to the way limits work on x86
     DEBUG_ASSERT(limit > 0);
     limit -= 1;
 
-    desc.seg_desc_legacy.limit_15_0  = limit & 0x0000ffff;
+    desc.seg_desc_legacy.limit_15_0 = limit & 0x0000ffff;
     desc.seg_desc_legacy.limit_19_16 = (limit & 0x000f0000) >> 16;
 
-    desc.seg_desc_legacy.base_15_0   = ((uintptr_t) base) & 0x0000ffff;
-    desc.seg_desc_legacy.base_23_16  = (((uintptr_t) base) & 0x00ff0000) >> 16;
-    desc.seg_desc_legacy.base_31_24  = ((uintptr_t) base) >> 24;
+    desc.seg_desc_legacy.base_15_0 = ((uintptr_t)base) & 0x0000ffff;
+    desc.seg_desc_legacy.base_23_16 = (((uintptr_t)base) & 0x00ff0000) >> 16;
+    desc.seg_desc_legacy.base_31_24 = ((uintptr_t)base) >> 24;
 
-    desc.seg_desc_legacy.type    = type & 0x0f;  // segment type
-    desc.seg_desc_legacy.s       = sys != 0;     // system / non-system
-    desc.seg_desc_legacy.dpl     = ring & 0x03;  // descriptor privilege level
-    desc.seg_desc_legacy.p       = present != 0; // present
-    desc.seg_desc_legacy.avl     = 0;
+    desc.seg_desc_legacy.type = type & 0x0f; // segment type
+    desc.seg_desc_legacy.s = sys != 0;       // system / non-system
+    desc.seg_desc_legacy.dpl = ring & 0x03;  // descriptor privilege level
+    desc.seg_desc_legacy.p = present != 0;   // present
+    desc.seg_desc_legacy.avl = 0;
     desc.seg_desc_legacy.reserved = 0;
-    desc.seg_desc_legacy.d_b     = bits != 0;    // 16 / 32 bit
-    desc.seg_desc_legacy.g       = gran != 0;    // granularity
+    desc.seg_desc_legacy.d_b = bits != 0; // 16 / 32 bit
+    desc.seg_desc_legacy.g = gran != 0;   // granularity
 
     // convert selector into index, which are always 8 byte indexed
     uint16_t index = sel >> 3;
@@ -85,7 +85,7 @@ void x86_set_gdt_descriptor(seg_sel_t sel, void *base, uint32_t limit,
             case SEG_TYPE_LDT:
             case SEG_TYPE_CALL_GATE:
                 // copy the lower 32 bits of the descriptor (base and limit)
-                desc.seg_desc_64.base_63_32 = (uint32_t)((uintptr_t) base >> 32);
+                desc.seg_desc_64.base_63_32 = (uint32_t)((uintptr_t)base >> 32);
                 desc.seg_desc_64.reserved = 0;
 
                 // copy the upper 64 bits of the descriptor

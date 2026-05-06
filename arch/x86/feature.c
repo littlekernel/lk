@@ -23,11 +23,12 @@
  */
 #include <arch/x86/feature.h>
 
+#include <arch/x86.h>
+#include <assert.h>
 #include <lk/bits.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <arch/x86.h>
-#include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define LOCAL_TRACE 0
@@ -110,7 +111,7 @@ static void x86_cpu_detect(void) {
 
         // read the max basic cpuid leaf
         cpuid(X86_CPUID_BASE, &a, &b, &c, &d);
-        max_cpuid_leaf = MIN(a, __X86_MAX_SUPPORTED_CPUID);;
+        max_cpuid_leaf = MIN(a, __X86_MAX_SUPPORTED_CPUID);
 
         LTRACEF("cpuid leaf 0: %#x %#x %#x %#x\n", a, b, c, d);
 
@@ -137,8 +138,8 @@ static void x86_cpu_detect(void) {
         cpuid(X86_CPUID_HYP_BASE, &a, &b, &c, &d);
 
         // Check that it's an understood hypervisor leaf
-        if ((b == 0x4b4d564b && c == 0x564b4d56 && d == 0x4d) || /* KVMKVMKVM */
-            (b == 0x54474354 && c == 0x43544743 && d == 0x47435447)) {  /* TCGTCGTCGTCG */
+        if ((b == 0x4b4d564b && c == 0x564b4d56 && d == 0x4d) ||       /* KVMKVMKVM */
+            (b == 0x54474354 && c == 0x43544743 && d == 0x47435447)) { /* TCGTCGTCGTCG */
             max_cpuid_leaf_hyp = MIN(a, __X86_MAX_SUPPORTED_CPUID_HYP);
         } else {
             max_cpuid_leaf_hyp = 0;
@@ -165,24 +166,27 @@ static void x86_cpu_detect(void) {
         uint32_t ext_model = BITS_SHIFT(a, 19, 16);
 
         switch (__x86_model.family) {
-           case 4:
+            case 4:
                 __x86_cpu_level = X86_CPU_LEVEL_486;
                 break;
-           case 5:
+            case 5:
                 __x86_cpu_level = X86_CPU_LEVEL_PENTIUM;
                 break;
-           case 6:
+            case 6:
                 __x86_cpu_level = X86_CPU_LEVEL_PENTIUM_PRO;
                 if (x86_get_cpu_vendor() == X86_CPU_VENDOR_INTEL) {
-                    __x86_model.display_model |= ext_model << 4; // extended model field extends the regular model
+                    __x86_model.display_model |=
+                        ext_model << 4; // extended model field extends the regular model
                 }
                 break;
-           case 0xf:
+            case 0xf:
                 __x86_cpu_level = X86_CPU_LEVEL_PENTIUM_PRO;
-                __x86_model.display_family += ext_family; // family 0xf stuff is extended by bits 27:20
-                __x86_model.display_model |= ext_model << 4; // extended model field extends the regular model
+                __x86_model.display_family +=
+                    ext_family; // family 0xf stuff is extended by bits 27:20
+                __x86_model.display_model |= ext_model
+                                             << 4; // extended model field extends the regular model
                 break;
-           default:
+            default:
                 // unhandled decode, assume ppro+ level
                 __x86_cpu_level = X86_CPU_LEVEL_PENTIUM_PRO;
                 break;
@@ -197,22 +201,23 @@ void x86_feature_early_init(void) {
     // cache a copy of the cpuid bits
     if (has_cpuid) {
         for (uint32_t i = 0; i <= max_cpuid_leaf; i++) {
-            cpuid_c(i, 0, &saved_cpuids[i].a, &saved_cpuids[i].b, &saved_cpuids[i].c, &saved_cpuids[i].d);
+            cpuid_c(i, 0, &saved_cpuids[i].a, &saved_cpuids[i].b, &saved_cpuids[i].c,
+                    &saved_cpuids[i].d);
         }
 
         if (max_cpuid_leaf_ext > 0) {
             for (uint32_t i = X86_CPUID_EXT_BASE; i <= max_cpuid_leaf_ext; i++) {
                 uint32_t index = i - X86_CPUID_EXT_BASE;
-                cpuid_c(i, 0, &saved_cpuids_ext[index].a, &saved_cpuids_ext[index].b, &saved_cpuids_ext[index].c,
-                        &saved_cpuids_ext[index].d);
+                cpuid_c(i, 0, &saved_cpuids_ext[index].a, &saved_cpuids_ext[index].b,
+                        &saved_cpuids_ext[index].c, &saved_cpuids_ext[index].d);
             }
         }
 
         if (max_cpuid_leaf_hyp > 0) {
             for (uint32_t i = X86_CPUID_HYP_BASE; i <= max_cpuid_leaf_hyp; i++) {
                 uint32_t index = i - X86_CPUID_HYP_BASE;
-                cpuid_c(i, 0, &saved_cpuids_hyp[index].a, &saved_cpuids_hyp[index].b, &saved_cpuids_hyp[index].c,
-                        &saved_cpuids_hyp[index].d);
+                cpuid_c(i, 0, &saved_cpuids_hyp[index].a, &saved_cpuids_hyp[index].b,
+                        &saved_cpuids_hyp[index].c, &saved_cpuids_hyp[index].d);
             }
         }
 
@@ -236,26 +241,27 @@ void x86_feature_early_init(void) {
 
 static void x86_feature_dump_cpuid(void) {
     for (uint32_t i = X86_CPUID_BASE; i <= max_cpuid_leaf; i++) {
-        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
-               saved_cpuids[i - X86_CPUID_BASE].a, saved_cpuids[i - X86_CPUID_BASE].b, saved_cpuids[i - X86_CPUID_BASE].c, saved_cpuids[i - X86_CPUID_BASE].d);
+        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i, saved_cpuids[i - X86_CPUID_BASE].a,
+               saved_cpuids[i - X86_CPUID_BASE].b, saved_cpuids[i - X86_CPUID_BASE].c,
+               saved_cpuids[i - X86_CPUID_BASE].d);
         if (i == 7 && max_cpuid_subleaf_7 > 0) {
             for (uint32_t subleaf = 1; subleaf <= max_cpuid_subleaf_7; ++subleaf) {
                 printf("X86: cpuid leaf %#x.%u: %08x %08x %08x %08x\n",
-                    X86_CPUID_EXTENDED_FEATURE_FLAGS, subleaf,
-                    saved_cpuid7_subleaves[subleaf].a, saved_cpuid7_subleaves[subleaf].b,
-                    saved_cpuid7_subleaves[subleaf].c, saved_cpuid7_subleaves[subleaf].d);
+                       X86_CPUID_EXTENDED_FEATURE_FLAGS, subleaf, saved_cpuid7_subleaves[subleaf].a,
+                       saved_cpuid7_subleaves[subleaf].b, saved_cpuid7_subleaves[subleaf].c,
+                       saved_cpuid7_subleaves[subleaf].d);
             }
         }
     }
     for (uint32_t i = X86_CPUID_HYP_BASE; i <= max_cpuid_leaf_hyp; i++) {
         uint32_t index = i - X86_CPUID_HYP_BASE;
-        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
-               saved_cpuids_hyp[index].a, saved_cpuids_hyp[index].b, saved_cpuids_hyp[index].c, saved_cpuids_hyp[index].d);
+        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i, saved_cpuids_hyp[index].a,
+               saved_cpuids_hyp[index].b, saved_cpuids_hyp[index].c, saved_cpuids_hyp[index].d);
     }
     for (uint32_t i = X86_CPUID_EXT_BASE; i <= max_cpuid_leaf_ext; i++) {
         uint32_t index = i - X86_CPUID_EXT_BASE;
-        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i,
-               saved_cpuids_ext[index].a, saved_cpuids_ext[index].b, saved_cpuids_ext[index].c, saved_cpuids_ext[index].d);
+        printf("X86: cpuid leaf %#x: %08x %08x %08x %08x\n", i, saved_cpuids_ext[index].a,
+               saved_cpuids_ext[index].b, saved_cpuids_ext[index].c, saved_cpuids_ext[index].d);
     }
 }
 
@@ -263,8 +269,8 @@ static void x86_feature_dump_cpuid(void) {
 void x86_feature_init(void) {
     dprintf(SPEW, "X86: detected cpu level %d has_cpuid %d\n", x86_get_cpu_level(), has_cpuid);
     if (has_cpuid) {
-        dprintf(SPEW, "X86: max cpuid leaf %#x ext %#x hyp %#x\n",
-                max_cpuid_leaf, max_cpuid_leaf_ext, max_cpuid_leaf_hyp);
+        dprintf(SPEW, "X86: max cpuid leaf %#x ext %#x hyp %#x\n", max_cpuid_leaf,
+                max_cpuid_leaf_ext, max_cpuid_leaf_hyp);
     }
 
     if (has_cpuid) {
@@ -285,7 +291,7 @@ void x86_feature_init(void) {
         dprintf(SPEW, "X86: vendor string '%s'\n", vs.str);
     }
 
-    const struct x86_model_info* model = x86_get_model();
+    const struct x86_model_info *model = x86_get_model();
     printf("X86: processor model info type %#x family %#x model %#x stepping %#x\n",
            model->processor_type, model->family, model->model, model->stepping);
     printf("\tdisplay_family %#x display_model %#x\n", model->display_family, model->display_model);
@@ -295,22 +301,21 @@ void x86_feature_init(void) {
     }
 }
 
-bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num num, uint32_t subleaf, struct x86_cpuid_leaf* leaf) {
-  // make sure the leaf number is within the detected range of the three blocks we know about
-  if (num < X86_CPUID_HYP_BASE) {
-    if (num > max_cpuid_leaf) {
-      return false;
+bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num num, uint32_t subleaf,
+                           struct x86_cpuid_leaf *leaf) {
+    // make sure the leaf number is within the detected range of the three blocks we know about
+    if (num < X86_CPUID_HYP_BASE) {
+        if (num > max_cpuid_leaf) {
+            return false;
+        }
+    } else if (num < X86_CPUID_EXT_BASE) {
+        if (num > max_cpuid_leaf_hyp) {
+            return false;
+        }
+    } else if (num > max_cpuid_leaf_ext) {
+        return false;
     }
-  } else if (num < X86_CPUID_EXT_BASE) {
-    if (num > max_cpuid_leaf_hyp) {
-      return false;
-    }
-  } else if (num > max_cpuid_leaf_ext) {
-    return false;
-  }
 
-  cpuid_c((uint32_t)num, subleaf, &leaf->a, &leaf->b, &leaf->c, &leaf->d);
-  return true;
+    cpuid_c((uint32_t)num, subleaf, &leaf->a, &leaf->b, &leaf->c, &leaf->d);
+    return true;
 }
-
-

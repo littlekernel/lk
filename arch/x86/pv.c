@@ -7,13 +7,13 @@
  */
 #include "arch/x86/pv.h"
 
+#include <arch/x86/feature.h>
+#include <assert.h>
+#include <inttypes.h>
+#include <kernel/vm.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <assert.h>
 #include <stdint.h>
-#include <inttypes.h>
-#include <arch/x86/feature.h>
-#include <kernel/vm.h>
 
 #define LOCAL_TRACE 0
 
@@ -24,21 +24,21 @@
 
 // From https://www.kernel.org/doc/html/v6.14/virt/kvm/x86/msr.html
 struct pvclock_wall_clock {
-    uint32_t   version;
-    uint32_t   sec;
-    uint32_t   nsec;
+    uint32_t version;
+    uint32_t sec;
+    uint32_t nsec;
 } __PACKED;
 static_assert(sizeof(struct pvclock_wall_clock) == 12, "pvclock_wall_clock size mismatch");
 
 struct pvclock_vcpu_time_info {
-    uint32_t   version;
-    uint32_t   pad0;
-    uint64_t   tsc_timestamp;
-    uint64_t   system_time;
-    uint32_t   tsc_to_system_mul;
-    int8_t     tsc_shift;
-    uint8_t    flags;
-    uint8_t    pad[2];
+    uint32_t version;
+    uint32_t pad0;
+    uint64_t tsc_timestamp;
+    uint64_t system_time;
+    uint32_t tsc_to_system_mul;
+    int8_t tsc_shift;
+    uint8_t flags;
+    uint8_t pad[2];
 } __PACKED;
 static_assert(sizeof(struct pvclock_vcpu_time_info) == 32, "pvclock_vcpu_time_info size mismatch");
 #define VCPU_TIME_INFO_FLAG_STABLE 0x1
@@ -61,7 +61,8 @@ status_t pvclock_init(void) {
 
     // map a page of memory and point the KVM clocksource msrs at it
     void *clocksource_page;
-    status_t err = vmm_alloc(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, &clocksource_page, 0, 0, 0);
+    status_t err =
+        vmm_alloc(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, &clocksource_page, 0, 0, 0);
     if (err != NO_ERROR) {
         printf("pv_clock: failed to allocate page for clocksource msrs\n");
         return err;
@@ -77,8 +78,8 @@ status_t pvclock_init(void) {
     wall_clock = (struct pvclock_wall_clock *)clocksource_page;
     vcpu_time_info = (struct pvclock_vcpu_time_info *)(wall_clock + 1);
 
-    dprintf(SPEW, "pv_clock: wall clock version %u, sec %u, nsec %u\n",
-            wall_clock->version, wall_clock->sec, wall_clock->nsec);
+    dprintf(SPEW, "pv_clock: wall clock version %u, sec %u, nsec %u\n", wall_clock->version,
+            wall_clock->sec, wall_clock->nsec);
 
     dprintf(SPEW, "pv_clock: vcpu time info version %u, tsc timestamp %llu, system time %llu\n",
             vcpu_time_info->version, vcpu_time_info->tsc_timestamp, vcpu_time_info->system_time);
@@ -110,9 +111,9 @@ uint64_t pvclock_get_tsc_freq(void) {
     uint64_t tsc_khz = 1000000ULL << 32;
     tsc_khz = tsc_khz / tsc_mul;
     if (tsc_shift > 0) {
-      tsc_khz >>= tsc_shift;
+        tsc_khz >>= tsc_shift;
     } else {
-      tsc_khz <<= -tsc_shift;
+        tsc_khz <<= -tsc_shift;
     }
     return tsc_khz * 1000;
 }

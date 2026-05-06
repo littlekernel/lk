@@ -8,10 +8,10 @@
 
 #pragma once
 
+#include <kernel/mp.h>
 #include <platform/timer.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <kernel/mp.h>
 
 // local apic
 void lapic_init(void);
@@ -32,4 +32,4 @@ status_t lapic_set_oneshot_timer(platform_timer_callback callback, void *arg, lk
 void lapic_cancel_timer(void);
 
 // io apic(s)
-status_t ioapic_init(int index,paddr_t phys_addr, uint apic_id, uint gsi_base);
+status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base);

@@ -7,16 +7,16 @@
  */
 #include "arch/x86/apic.h"
 
-#include <sys/types.h>
-#include <lk/debug.h>
-#include <lk/err.h>
-#include <lk/reg.h>
-#include <lk/trace.h>
-#include <lk/init.h>
-#include <assert.h>
 #include <arch/x86.h>
+#include <assert.h>
 #include <kernel/spinlock.h>
 #include <kernel/vm.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/init.h>
+#include <lk/reg.h>
+#include <lk/trace.h>
+#include <sys/types.h>
 
 #define LOCAL_TRACE 0
 
@@ -69,8 +69,9 @@ status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base) 
     struct ioapic *ioapic = &ioapics[num_ioapics];
 
     LTRACEF("mapping lapic into kernel\n");
-    status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "ioapic", PAGE_SIZE, (void **)&ioapic->mmio, 0,
-                            phys_addr, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+    status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "ioapic", PAGE_SIZE,
+                                      (void **)&ioapic->mmio, 0, phys_addr,
+                                      /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         // TODO: free up the newly extended ioapic struct
         return err;
@@ -85,7 +86,8 @@ status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base) 
     const uint32_t id = ioapic_read(ioapic, IOAPIC_ID) >> 24;
     uint32_t version = ioapic_read(ioapic, IOAPIC_VERSION);
     const uint32_t max_redir = (version >> 16) & 0xff;
-    dprintf(INFO, "X86: ioapic %d id %#x version %#x max redir %u\n", index, id, version & 0xff, max_redir);
+    dprintf(INFO, "X86: ioapic %d id %#x version %#x max redir %u\n", index, id, version & 0xff,
+            max_redir);
 
     ioapic->num_redir_entries = max_redir + 1;
 

@@ -7,9 +7,9 @@
  */
 #pragma once
 
+#include <arch/x86/mmu.h>
 #include <lk/compiler.h>
 #include <sys/types.h>
-#include <arch/x86/mmu.h>
 
 __BEGIN_CDECLS
 
@@ -26,4 +26,3 @@ struct arch_aspace {
 };
 
 __END_CDECLS
-

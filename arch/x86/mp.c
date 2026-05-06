@@ -7,19 +7,20 @@
  */
 #include <arch/x86/mp.h>
 
+#include <arch/arch_ops.h>
+#include <arch/mp.h>
+#include <arch/x86.h>
+#include <arch/x86/apic.h>
+#include <arch/x86/descriptor.h>
+#include <arch/x86/feature.h>
 #include <assert.h>
-#include <lk/trace.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/main.h>
-#include <arch/mp.h>
+#include <lk/trace.h>
+#include <stdlib.h>
 #include <string.h>
-#include <arch/x86.h>
-#include <arch/x86/descriptor.h>
-#include <arch/arch_ops.h>
 #include <sys/types.h>
-#include <arch/x86/apic.h>
-#include <arch/x86/feature.h>
 
 #define LOCAL_TRACE 0
 

@@ -7,9 +7,9 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <lk/compiler.h>
 #include <stdbool.h>
 
 #define SPIN_LOCK_INITIAL_VALUE (0)
@@ -17,7 +17,6 @@
 __BEGIN_CDECLS
 
 typedef unsigned int spin_lock_t;
-
 
 /* simple implementation of spinlocks for no smp support */
 static inline void arch_spin_lock_init(spin_lock_t *lock) {
@@ -47,7 +46,6 @@ static inline void arch_spin_unlock(spin_lock_t *lock) {
 #endif
 
 /* flags are unused on x86 */
-#define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS  0
-
+#define ARCH_DEFAULT_SPIN_LOCK_FLAG_INTERRUPTS 0
 
 __END_CDECLS

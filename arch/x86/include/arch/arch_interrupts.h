@@ -11,9 +11,9 @@
 #ifndef ASSEMBLY
 
 #include <arch/ops.h>
-#include <stdbool.h>
-#include <lk/compiler.h>
 #include <arch/x86.h>
+#include <lk/compiler.h>
+#include <stdbool.h>
 
 __BEGIN_CDECLS
 
@@ -38,10 +38,9 @@ static inline bool arch_ints_disabled(void) {
         "pushfq;"
         "popq %%rax"
 #endif
-        : "=a" (state)
-        :: "memory");
+        : "=a"(state)::"memory");
 
-    return !(state & (1<<9));
+    return !(state & (1 << 9));
 }
 
 static inline bool arch_in_int_handler(void) {
@@ -52,8 +51,7 @@ struct arch_interrupt_saved_state {
     x86_flags_t flags;
 };
 
-static inline struct arch_interrupt_saved_state
-arch_interrupt_save(void) {
+static inline struct arch_interrupt_saved_state arch_interrupt_save(void) {
     struct arch_interrupt_saved_state state = { .flags = x86_save_flags() };
     if (state.flags & X86_FLAGS_IF) {
         x86_cli();
@@ -66,8 +64,7 @@ arch_interrupt_save(void) {
     return state;
 }
 
-static inline void
-arch_interrupt_restore(struct arch_interrupt_saved_state old_state) {
+static inline void arch_interrupt_restore(struct arch_interrupt_saved_state old_state) {
     // Insert a compiler fence to make sure all code that needs to run with
     // interrupts disabled is not moved after the arch_enable_ints() call.
     CF;

@@ -9,15 +9,11 @@
 #include <arch/ops.h>
 
 /* nothing to do to sync I & D cache on x86 */
-void arch_sync_cache_range(addr_t start, size_t len) {
-}
+void arch_sync_cache_range(addr_t start, size_t len) {}
 
 /* for the moment, no cache flushes here either */
-void arch_clean_cache_range(addr_t start, size_t len) {
-}
+void arch_clean_cache_range(addr_t start, size_t len) {}
 
-void arch_clean_invalidate_cache_range(addr_t start, size_t len) {
-}
+void arch_clean_invalidate_cache_range(addr_t start, size_t len) {}
 
-void arch_invalidate_cache_range(addr_t start, size_t len) {
-}
+void arch_invalidate_cache_range(addr_t start, size_t len) {}
