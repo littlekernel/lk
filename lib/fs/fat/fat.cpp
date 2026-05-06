@@ -156,6 +156,10 @@ uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster) 
 static status_t fat_mark_entry(fat_fs *fat, uint32_t cluster, uint32_t val) {
     LTRACEF("fat %p, cluster %u, val %#x\n", fat, cluster, val);
 
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
+
     // keep the value within the representable fat entry size.
     uint32_t entry_value = val;
     if (fat->info().fat_bits == 32) {
@@ -484,6 +488,10 @@ ssize_t fat_zero_cluster(fat_fs *fat, uint32_t cluster) {
     DEBUG_ASSERT(fat->lock.is_held());
 
     LTRACEF("cluster %u\n", cluster);
+
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
 
     auto sector = fat_sector_for_cluster(fat, cluster);
     if (sector == 0xffffffff) {

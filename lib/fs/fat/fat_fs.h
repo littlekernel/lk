@@ -51,6 +51,7 @@ class fat_fs {
     bdev_t *dev() { return dev_; }
     bcache_t bcache() { return bcache_; }
     const fat_info &info() const { return info_; }
+    bool is_read_only() const { return read_only_; }
 
     // FAT32 FSInfo helpers (no-op on FAT12/16 or invalid FSInfo)
     status_t adjust_fsinfo_free_clusters(int32_t delta);
@@ -84,6 +85,8 @@ class fat_fs {
 
     // shared implementation for mark_volume_dirty/clean_locked
     status_t set_volume_clean_bit_locked(bool clean);
+
+    bool read_only_ = false;
 };
 
 enum class fat_attribute : uint8_t {

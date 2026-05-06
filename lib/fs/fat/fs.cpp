@@ -86,7 +86,7 @@ fat_file *fat_fs::lookup_file(const dir_entry_location &loc) {
 status_t fat_fs::write_fsinfo_locked() {
     DEBUG_ASSERT(lock.is_held());
 
-    if (info_.fat_bits != 32 || !info_.fsinfo_valid) {
+    if (is_read_only() || info_.fat_bits != 32 || !info_.fsinfo_valid) {
         return NO_ERROR;
     }
 
@@ -160,7 +160,7 @@ status_t fat_fs::mark_volume_clean_locked() {
 status_t fat_fs::set_volume_clean_bit_locked(bool clean) {
     DEBUG_ASSERT(lock.is_held());
 
-    if (info_.fat_bits != 16 && info_.fat_bits != 32) {
+    if (is_read_only() || (info_.fat_bits != 16 && info_.fat_bits != 32)) {
         return NO_ERROR;
     }
 
@@ -236,6 +236,7 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
         return ERR_NO_MEMORY;
     }
     fat->dev_ = dev;
+    fat->read_only_ = (options & FS_MOUNT_OPTION_READ_ONLY) != 0;
 
     // if we early terminate, free the fat structure
     auto ac2 = lk::make_auto_call([&]() { delete (fat); });
@@ -395,6 +396,10 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
 
     fat->bcache_ = bcache_create(fat->dev(), info->bytes_per_sector, bcache_size);
 
+    if (fat->read_only_) {
+        bcache_set_read_only(fat->bcache_, true);
+    }
+
     // we're okay, cancel our cleanup of the fat structure
     ac2.cancel();
 
@@ -407,7 +412,9 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
     // and fsck will see it as unclean if we crash before unmounting.
     {
         AutoLock guard(fat->lock);
-        fat->mark_volume_dirty_locked();
+        if (!fat->is_read_only()) {
+            fat->mark_volume_dirty_locked();
+        }
     }
     bcache_flush(fat->bcache_);
 
@@ -429,8 +436,10 @@ status_t fat_fs::unmount(fscookie *cookie) {
         if (LK_DEBUGLEVEL > INFO) {
             bcache_dump(fat->bcache(), "FAT bcache ");
         }
-        fat->mark_volume_clean_locked();
-        fat->write_fsinfo_locked();
+        if (!fat->is_read_only()) {
+            fat->mark_volume_clean_locked();
+            fat->write_fsinfo_locked();
+        }
         bcache_flush(fat->bcache());
         bcache_destroy(fat->bcache());
     }

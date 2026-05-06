@@ -113,6 +113,10 @@ status_t file_block_iterator::load_bcache_block(bnum_t bnum) {
 }
 
 status_t file_block_iterator::mark_bcache_dirty() {
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
+
     if (bcache_buf) {
         return bcache_mark_block_dirty(fat->bcache(), bcache_bnum);
     } else {

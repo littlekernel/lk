@@ -754,6 +754,48 @@ bool test_fat_lfn_ordinal_rollover() {
     });
 }
 
+bool test_fat_read_only() {
+    BEGIN_TEST;
+
+    SKIP_TEST_IF_NO_DEVICE();
+
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_READ_ONLY));
+    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+
+    filehandle *fh = nullptr;
+
+    // test create file
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_create_file(test_path "/new_ro_file", &fh, 0));
+
+    // test mkdir
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_make_dir(test_path "/new_ro_dir"));
+
+    // open existing file for write
+    ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &fh));
+    ASSERT_NONNULL(fh);
+
+    // test write to existing file
+    const uint8_t buf[] = {'T', 'E', 'S', 'T'};
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_write_file(fh, buf, 0, sizeof(buf)));
+
+    // test truncate
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_truncate_file(fh, 10));
+
+    ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+    // test remove file
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_remove_file(test_path "/hello.txt"));
+
+    // test remove dir
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_remove_dir(test_path "/dir.a"));
+
+    // unmount
+    unmount_cleanup.cancel();
+    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(fat)
 RUN_TEST(test_fat_mount)
 RUN_TEST(test_fat_utf8_to_ucs2)
@@ -772,6 +814,7 @@ RUN_TEST(test_fat_remove_file)
 RUN_TEST(test_fat_remove_dir)
 RUN_TEST(test_fat_dir_growth)
 RUN_TEST(test_fat_lfn_ordinal_rollover)
+RUN_TEST(test_fat_read_only)
 END_TEST_CASE(fat)
 
 } // namespace

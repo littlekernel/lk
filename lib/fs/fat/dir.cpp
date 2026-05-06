@@ -1059,6 +1059,10 @@ status_t mark_entry_record_deleted(fat_fs *fat, uint32_t parent_cluster,
 status_t fat_dir::mkdir(fscookie *cookie, const char *path) {
     auto *fat = (fat_fs *)cookie;
 
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
+
     LTRACEF("cookie %p path '%s'\n", cookie, path);
 
     AutoLock guard(fat->lock);
@@ -1144,6 +1148,10 @@ status_t fat_dir::mkdir(fscookie *cookie, const char *path) {
 status_t fat_dir::remove(fscookie *cookie, const char *path) {
     auto *fat = (fat_fs *)cookie;
 
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
+
     LTRACEF("cookie %p path '%s'\n", cookie, path);
 
     AutoLock guard(fat->lock);
@@ -1209,6 +1217,10 @@ status_t fat_dir::remove(fscookie *cookie, const char *path) {
 status_t fat_dir::rmdir(fscookie *cookie, const char *path) {
     auto *fat = (fat_fs *)cookie;
 
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
+
     LTRACEF("cookie %p path '%s'\n", cookie, path);
 
     AutoLock guard(fat->lock);
@@ -1272,6 +1284,10 @@ status_t fat_dir::rmdir(fscookie *cookie, const char *path) {
 
 status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute attr, const uint32_t starting_cluster, const uint32_t size, dir_entry_location *loc) {
     LTRACEF("path %s\n", path);
+
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
 
     DEBUG_ASSERT(fat->lock.is_held());
 
@@ -1481,6 +1497,10 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
 // update the starting cluster and/or size pointer in a directory entry
 status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32_t starting_cluster, uint32_t size) {
     LTRACEF("fat %p, loc %u:%u, cluster %u, size %u\n", fat, loc.starting_dir_cluster, loc.dir_offset, starting_cluster, size);
+
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
 
     bcache_block_ref bref = open_dirent_block(fat, loc);
 

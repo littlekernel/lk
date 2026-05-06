@@ -325,6 +325,10 @@ status_t fat_file::create_file(fscookie *cookie, const char *path, filecookie **
         return ERR_NOT_IMPLEMENTED;
     }
 
+    if (fs->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
+
     {
         AutoLock guard(fs->lock);
 
@@ -350,6 +354,10 @@ status_t fat_file::truncate_file_priv(uint64_t _len) {
 
     if (_len == length_) {
         return NO_ERROR;
+    }
+
+    if (fs_->is_read_only()) {
+        return ERR_NOT_ALLOWED;
     }
 
     // test some boundary conditions
@@ -487,6 +495,10 @@ ssize_t fat_file::write_file_priv(const void *_buf, const off_t offset, size_t l
 
     if (is_dir()) {
         return ERR_NOT_FILE;
+    }
+
+    if (fs_->is_read_only()) {
+        return ERR_NOT_ALLOWED;
     }
 
     if (offset < 0) {
