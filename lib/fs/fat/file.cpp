@@ -249,9 +249,11 @@ ssize_t fat_file::read_file_priv(void *_buf, const off_t offset, size_t len) {
         if (offset_within_sector == fs_->info().bytes_per_sector) {
             offset_within_sector = 0;
             // push the iterator forward to next sector
-            err = fbi.next_sector();
-            if (err < 0) {
-                return err;
+            if (buf_offset < len) {
+                err = fbi.next_sector();
+                if (err < 0) {
+                    return err;
+                }
             }
         }
     }
