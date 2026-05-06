@@ -31,6 +31,8 @@ for i in blk.bin.*; do
     mmd -i $i dir.c
     mcopy -i $i hello.txt ::dir.a/long_filename_hello.txt
     mcopy -i $i largefile ::largefile
+    mcopy -i $i test_4kb.bin ::test_4kb.bin
+    mcopy -i $i test_8kb.bin ::test_8kb.bin
 
     # add a bunch of entries to the root dir that cause it
     # to spill over to a few extra sectors

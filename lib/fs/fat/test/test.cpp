@@ -26,6 +26,8 @@
 // pull in a few test files into rodata to test against
 INCFILE(test_file_hello, test_file_hello_size, LOCAL_DIR "/hello.txt");
 INCFILE(test_file_license, test_file_license_size, LOCAL_DIR "/LICENSE");
+INCFILE(test_file_4kb, test_file_4kb_size, LOCAL_DIR "/test_4kb.bin");
+INCFILE(test_file_8kb, test_file_8kb_size, LOCAL_DIR "/test_8kb.bin");
 
 namespace {
 
@@ -171,6 +173,8 @@ bool test_fat_read_file() {
     EXPECT_TRUE(test_file_read(test_path "/long_filename_hello.txt", test_file_hello, test_file_hello_size));
     EXPECT_TRUE(test_file_read(test_path "/a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt", test_file_hello, test_file_hello_size));
     EXPECT_TRUE(test_file_read(test_path "/dir.a/long_filename_hello.txt", test_file_hello, test_file_hello_size));
+    EXPECT_TRUE(test_file_read(test_path "/test_4kb.bin", test_file_4kb, test_file_4kb_size));
+    EXPECT_TRUE(test_file_read(test_path "/test_8kb.bin", test_file_8kb, test_file_8kb_size));
 
     // unmount the fs
     unmount_cleanup.cancel();
