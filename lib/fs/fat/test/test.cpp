@@ -17,6 +17,8 @@
 #include <malloc.h>
 #include <string.h>
 
+#include "../dir.h"
+
 #define LOCAL_TRACE 0
 
 // A set of test cases run against a block device image created from the test script
@@ -48,75 +50,286 @@ bool is_test_device_present() {
     return present;
 }
 
-#define SKIP_TEST_IF_NO_DEVICE() \
-    do { \
-        if (!is_test_device_present()) { \
+#define SKIP_TEST_IF_NO_DEVICE()                                                          \
+    do {                                                                                  \
+        if (!is_test_device_present()) {                                                  \
             unittest_printf(" no device '%s' present, skipping test ", test_device_name); \
-            return true; \
-        } \
+            return true;                                                                  \
+        }                                                                                 \
     } while (0)
 
+// helper routine that mounts the above in the /fat path and then cleans up on
+// the way out.
+template <typename R>
+bool test_mount_wrapper(R routine) {
+    BEGIN_TEST;
+
+    SKIP_TEST_IF_NO_DEVICE();
+
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_NONE));
+    // clean up by unmounting no matter what happens here
+    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+
+    // all through to the inner routine
+    all_ok = routine();
+    if (!all_ok) {
+        END_TEST;
+    }
+
+    // unmount the fs
+    unmount_cleanup.cancel();
+    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+
+    END_TEST;
+}
 bool test_fat_mount() {
     BEGIN_TEST;
 
     SKIP_TEST_IF_NO_DEVICE();
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_NONE));
     ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
 
     END_TEST;
 }
 
-bool test_fat_dir_root() {
+bool test_fat_utf8_to_ucs2() {
     BEGIN_TEST;
 
-    SKIP_TEST_IF_NO_DEVICE();
+    uint16_t out[16] = {};
+    size_t out_len = 0;
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
+    ASSERT_EQ(NO_ERROR, fat_utf8_to_ucs2("hello", out, countof(out), &out_len));
+    ASSERT_EQ(5u, out_len);
+    EXPECT_EQ(static_cast<uint16_t>('h'), out[0]);
+    EXPECT_EQ(static_cast<uint16_t>('e'), out[1]);
+    EXPECT_EQ(static_cast<uint16_t>('l'), out[2]);
+    EXPECT_EQ(static_cast<uint16_t>('l'), out[3]);
+    EXPECT_EQ(static_cast<uint16_t>('o'), out[4]);
 
-    // clean up by unmounting no matter what happens here
-    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
+    // U+00E9 and U+20AC
+    ASSERT_EQ(NO_ERROR, fat_utf8_to_ucs2("\xC3\xA9\xE2\x82\xAC", out, countof(out), &out_len));
+    ASSERT_EQ(2u, out_len);
+    EXPECT_EQ(0x00e9u, out[0]);
+    EXPECT_EQ(0x20acu, out[1]);
 
-    // open and then close the root dir
-    dirhandle *handle;
-    ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
-    ASSERT_NONNULL(handle);
-    ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
+    // Overlong encoding for '/'
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xC0\xAF", out, countof(out), &out_len));
 
-    // open it again
-    ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
-    ASSERT_NONNULL(handle);
+    // Truncated multibyte sequence
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xE2\x82", out, countof(out), &out_len));
 
-    // close the dir handle if we abort from here on out
-    auto closedir_cleanup = lk::make_auto_call([&]() { fs_close_dir(handle); });
+    // UTF-8 surrogate (invalid scalar value)
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xED\xA0\x80", out, countof(out), &out_len));
 
-    // read an entry
-    dirent ent;
-    ASSERT_EQ(NO_ERROR, fs_read_dir(handle, &ent));
-    LTRACEF("read entry '%s'\n", ent.name);
+    // Non-BMP (4-byte UTF-8): unsupported by UCS-2
+    EXPECT_EQ(ERR_INVALID_ARGS, fat_utf8_to_ucs2("\xF0\x9F\x98\x80", out, countof(out), &out_len));
 
-    // read all of the entries until we hit an EOD
-    int count = 1;
-    for (;;) {
-        auto err = fs_read_dir(handle, &ent);
-        bool valid = (err == NO_ERROR || err == ERR_NOT_FOUND);
-        ASSERT_TRUE(valid);
-        count++;
-        if (err == ERR_NOT_FOUND) {
-            break;
-        }
-        LTRACEF("read entry '%s'\n", ent.name);
-    }
-    // make sure we saw at least 3 entries
-    ASSERT_LT(2, count);
-
-    closedir_cleanup.cancel();
-    ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
-
-    unmount_cleanup.cancel();
-    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
+    uint16_t small[1] = {};
+    EXPECT_EQ(ERR_TOO_BIG, fat_utf8_to_ucs2("ab", small, countof(small), &out_len));
 
     END_TEST;
+}
+
+bool test_fat_ucs2_to_utf8() {
+    BEGIN_TEST;
+
+    char utf8_buf[256];
+    size_t utf8_len = 0;
+
+    // ASCII round-trip
+    uint16_t ascii[] = {'h', 'e', 'l', 'l', 'o'};
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(5u, utf8_len);
+    EXPECT_EQ(0, strcmp(utf8_buf, "hello"));
+
+    // U+00E9 (é) — 2-byte UTF-8, U+20AC (€) — 3-byte UTF-8
+    uint16_t mixed_byte[] = {0x00e9, 0x20ac};
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(5u, utf8_len); // 2 + 3 bytes
+    EXPECT_EQ(static_cast<char>(0xc3), utf8_buf[0]);
+    EXPECT_EQ(static_cast<char>(0xa9), utf8_buf[1]);
+    EXPECT_EQ(static_cast<char>(0xe2), utf8_buf[2]);
+    EXPECT_EQ(static_cast<char>(0x82), utf8_buf[3]);
+    EXPECT_EQ(static_cast<char>(0xac), utf8_buf[4]);
+
+    // U+0080 → 2-byte UTF-8; U+0100 → 2-byte UTF-8; U+0800 → 3-byte UTF-8
+    uint16_t two_three[] = {0x0080, 0x0100, 0x0800};
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(7u, utf8_len); // 2 + 2 + 3
+    // U+0080 -> 0xc2 0x80
+    EXPECT_EQ(static_cast<char>(0xc2), utf8_buf[0]);
+    EXPECT_EQ(static_cast<char>(0x80), utf8_buf[1]);
+    // U+0100 -> 0xc4 0x80
+    EXPECT_EQ(static_cast<char>(0xc4), utf8_buf[2]);
+    EXPECT_EQ(static_cast<char>(0x80), utf8_buf[3]);
+    // U+0800 -> 0xe0 0xa0 0x80
+    EXPECT_EQ(static_cast<char>(0xe0), utf8_buf[4]);
+    EXPECT_EQ(static_cast<char>(0xa0), utf8_buf[5]);
+    EXPECT_EQ(static_cast<char>(0x80), utf8_buf[6]);
+
+    // Empty input
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(0u, utf8_len);
+    EXPECT_EQ(0, strcmp(utf8_buf, ""));
+
+    // Buffer too small for output
+    char tiny_buf[1];
+    EXPECT_EQ(ERR_TOO_BIG, fat_ucs2_to_utf8(ascii, countof(ascii), tiny_buf, sizeof(tiny_buf), &utf8_len));
+
+    // Buffer too small for multi-byte expansion
+    char small_buf[2];
+    uint16_t multi[] = {0x00e9, 0x00e9}; // needs 4 bytes
+    EXPECT_EQ(ERR_TOO_BIG, fat_ucs2_to_utf8(multi, countof(multi), small_buf, sizeof(small_buf), &utf8_len));
+
+    END_TEST;
+}
+
+bool test_fat_utf8_ucs2_roundtrip() {
+    BEGIN_TEST;
+
+    // Test round-trip: UTF-8 → UCS-2 → UTF-8 should produce the same result.
+    const char *test_cases[] = {
+        "hello",
+        "\xC3\xA9\xE2\x82\xAC",                     // é€
+        "\xE4\xB8\xAD\xE6\x96\x87",                 // 中文 (CJK)
+        "\xD0\xA4\xD0\xB8\xD0\xBB\xD0\xBE\xD0\xB2", // Филov (Cyrillic)
+        "\xEF\xBD\xA1\xEF\xBD\xA2",                 // ！！ (fullwidth exclamation)
+    };
+
+    uint16_t ucs2_buf[256];
+    char utf8_out[768];
+
+    for (const char *input : test_cases) {
+        size_t ucs2_len = 0;
+        size_t utf8_len = 0;
+
+        status_t err = fat_utf8_to_ucs2(input, ucs2_buf, countof(ucs2_buf), &ucs2_len);
+        ASSERT_EQ(NO_ERROR, err);
+
+        err = fat_ucs2_to_utf8(ucs2_buf, ucs2_len, utf8_out, sizeof(utf8_out), &utf8_len);
+        ASSERT_EQ(NO_ERROR, err);
+
+        size_t input_len = strlen(input);
+        EXPECT_EQ(input_len, utf8_len);
+        size_t cmp_len = input_len < utf8_len ? input_len : utf8_len;
+        if (input_len != utf8_len || memcmp(input, utf8_out, cmp_len)) {
+            unittest_printf("Round-trip failed for input: ");
+            hexdump8_ex(reinterpret_cast<const uint8_t *>(input), input_len, 0);
+            unittest_printf("Got: ");
+            hexdump8_ex(reinterpret_cast<const uint8_t *>(utf8_out), utf8_len, 0);
+            EXPECT_FALSE(true);
+        }
+    }
+
+    END_TEST;
+}
+
+bool test_fat_split_path() {
+    BEGIN_TEST;
+
+    {
+        char path[] = "/foo/bar";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/foo", leading));
+        EXPECT_EQ(0, strcmp("bar", last));
+    }
+
+    {
+        char path[] = "foo";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/", leading));
+        EXPECT_EQ(0, strcmp("foo", last));
+    }
+
+    {
+        char path[] = "/foo";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/", leading));
+        EXPECT_EQ(0, strcmp("foo", last));
+    }
+
+    {
+        char path[] = "/";
+        const char *leading = nullptr;
+        const char *last = nullptr;
+        split_path(path, &leading, &last);
+        EXPECT_EQ(0, strcmp("/", leading));
+        EXPECT_EQ(0, strcmp("", last));
+    }
+
+    END_TEST;
+}
+
+bool test_fat_name_to_short_file_name() {
+    BEGIN_TEST;
+
+    char sfn[8 + 3 + 1];
+
+    ASSERT_EQ(NO_ERROR, name_to_short_file_name(sfn, "foo.txt"));
+    EXPECT_EQ(0, memcmp(sfn, "FOO     TXT", 11));
+    EXPECT_EQ('\0', sfn[11]);
+
+    ASSERT_EQ(NO_ERROR, name_to_short_file_name(sfn, "abc"));
+    EXPECT_EQ(0, memcmp(sfn, "ABC        ", 11));
+    EXPECT_EQ('\0', sfn[11]);
+
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, ""));
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, "a.b.c"));
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, "toolongname.txt"));
+    EXPECT_EQ(ERR_INVALID_ARGS, name_to_short_file_name(sfn, "a.long"));
+
+    END_TEST;
+}
+
+bool test_fat_dir_root() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        // open and then close the root dir
+        dirhandle *handle;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
+
+        // open it again
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path, &handle));
+        ASSERT_NONNULL(handle);
+
+        // close the dir handle if we abort from here on out
+        auto closedir_cleanup = lk::make_auto_call([&]() { fs_close_dir(handle); });
+
+        // read an entry
+        dirent ent;
+        ASSERT_EQ(NO_ERROR, fs_read_dir(handle, &ent));
+        LTRACEF("read entry '%s'\n", ent.name);
+
+        // read all of the entries until we hit an EOD
+        int count = 1;
+        for (;;) {
+            auto err = fs_read_dir(handle, &ent);
+            bool valid = (err == NO_ERROR || err == ERR_NOT_FOUND);
+            ASSERT_TRUE(valid);
+            count++;
+            if (err == ERR_NOT_FOUND) {
+                break;
+            }
+            LTRACEF("read entry '%s'\n", ent.name);
+        }
+        // make sure we saw at least 3 entries
+        ASSERT_LT(2, count);
+
+        closedir_cleanup.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_dir(handle));
+
+        END_TEST;
+    });
 }
 
 // helper routine for the read file test routine below
@@ -157,80 +370,426 @@ bool test_file_read(const char *path, const unsigned char *test_file_buffer, siz
 }
 
 bool test_fat_read_file() {
-    BEGIN_TEST;
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
 
-    SKIP_TEST_IF_NO_DEVICE();
+        // read in a few files and validate their contents
+        EXPECT_TRUE(test_file_read(test_path "/hello.txt", test_file_hello, test_file_hello_size));
+        EXPECT_TRUE(test_file_read(test_path "/license", test_file_license, test_file_license_size));
+        EXPECT_TRUE(test_file_read(test_path "/long_filename_hello.txt", test_file_hello, test_file_hello_size));
+        EXPECT_TRUE(test_file_read(test_path "/a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt", test_file_hello, test_file_hello_size));
+        EXPECT_TRUE(test_file_read(test_path "/dir.a/long_filename_hello.txt", test_file_hello, test_file_hello_size));
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
-    // clean up by unmounting no matter what happens here
-    auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
-
-    // read in a few files and validate their contents
-    EXPECT_TRUE(test_file_read(test_path "/hello.txt", test_file_hello, test_file_hello_size));
-    EXPECT_TRUE(test_file_read(test_path "/license", test_file_license, test_file_license_size));
-    EXPECT_TRUE(test_file_read(test_path "/long_filename_hello.txt", test_file_hello, test_file_hello_size));
-    EXPECT_TRUE(test_file_read(test_path "/a_very_long_filename_hello_that_uses_at_least_a_few_entries.txt", test_file_hello, test_file_hello_size));
-    EXPECT_TRUE(test_file_read(test_path "/dir.a/long_filename_hello.txt", test_file_hello, test_file_hello_size));
-
-    // unmount the fs
-    unmount_cleanup.cancel();
-    ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
-
-    END_TEST;
+        END_TEST;
+    });
 }
 
 bool test_fat_multi_open() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        // open a file three times simultaneously
+        {
+            filehandle *handle1 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle1));
+            auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle1); });
+
+            filehandle *handle2 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle2));
+            auto closefile_cleanup2 = lk::make_auto_call([&]() { fs_close_file(handle2); });
+
+            filehandle *handle3 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle3));
+
+            // close the files in reverse order
+            closefile_cleanup1.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_file(handle1));
+            closefile_cleanup2.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_file(handle2));
+            ASSERT_EQ(NO_ERROR, fs_close_file(handle3));
+        }
+
+        // open a dir three times simultaneously
+        {
+            dirhandle *handle1 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle1));
+            auto closedir_cleanup1 = lk::make_auto_call([&]() { fs_close_dir(handle1); });
+
+            dirhandle *handle2 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle2));
+            auto closedir_cleanup2 = lk::make_auto_call([&]() { fs_close_dir(handle2); });
+
+            dirhandle *handle3 = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle3));
+
+            // close the dirs in reverse order
+            closedir_cleanup1.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_dir(handle1));
+            closedir_cleanup2.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_dir(handle2));
+            ASSERT_EQ(NO_ERROR, fs_close_dir(handle3));
+        }
+
+        END_TEST;
+    });
+}
+
+bool test_fat_create_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        filehandle *handle;
+
+        // create a few empty files
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/newfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/newfile.txt", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // create a file in a subdir
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/dir.a/newfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // create a file that already exists
+        handle = nullptr;
+        ASSERT_EQ(ERR_ALREADY_EXISTS, fs_create_file(test_path "/newfile", &handle, 0));
+
+        // create a long filename (LFN path)
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/this_is_a_long_filename_for_create.txt", &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/this_is_a_long_filename_for_create.txt", &handle));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        END_TEST;
+    });
+}
+
+bool test_fat_resize_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        filehandle *handle;
+
+        // create an empty file
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/reszfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle); });
+
+        // resize the file
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));                           // same size
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2UL * 1024 * 1024 * 1024)); // too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8UL * 1024 * 1024 * 1024)); // >32bit too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, -1));                       // negative should produce way out of range
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4095)); // assumes cluster size 4k
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4096));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4097));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 12345));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1002345));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 65536));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4097));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4096));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 8192));
+
+        END_TEST;
+    });
+}
+
+bool test_fat_write_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        filehandle *handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/wrfile", &handle, 0));
+        ASSERT_NONNULL(handle);
+        auto closefile_cleanup = lk::make_auto_call([&]() { fs_close_file(handle); });
+
+        const uint8_t head[] = {'a', 'b', 'c', 'd', 'e'};
+        ASSERT_EQ((ssize_t)sizeof(head), fs_write_file(handle, head, 0, sizeof(head)));
+
+        uint8_t readback[sizeof(head)] = {};
+        ASSERT_EQ((ssize_t)sizeof(readback), fs_read_file(handle, readback, 0, sizeof(readback)));
+        EXPECT_EQ(0, memcmp(head, readback, sizeof(head)));
+
+        const uint8_t tail[] = {'L', 'K'};
+        ASSERT_EQ((ssize_t)sizeof(tail), fs_write_file(handle, tail, 8192, sizeof(tail)));
+
+        struct file_stat st = {};
+        ASSERT_EQ(NO_ERROR, fs_stat_file(handle, &st));
+        EXPECT_EQ(8194u, st.size);
+
+        uint8_t gap[32];
+        memset(gap, 0xaa, sizeof(gap));
+        ASSERT_EQ((ssize_t)sizeof(gap), fs_read_file(handle, gap, 5, sizeof(gap)));
+        for (size_t i = 0; i < sizeof(gap); i++) {
+            EXPECT_EQ(0u, gap[i]);
+        }
+
+        uint8_t tail_read[6];
+        memset(tail_read, 0xaa, sizeof(tail_read));
+        ASSERT_EQ((ssize_t)sizeof(tail_read), fs_read_file(handle, tail_read, 8188, sizeof(tail_read)));
+        EXPECT_EQ(0u, tail_read[0]);
+        EXPECT_EQ(0u, tail_read[1]);
+        EXPECT_EQ(0u, tail_read[2]);
+        EXPECT_EQ(0u, tail_read[3]);
+        EXPECT_EQ('L', tail_read[4]);
+        EXPECT_EQ('K', tail_read[5]);
+
+        END_TEST;
+    });
+}
+
+bool test_fat_mkdir() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/newdir"));
+        ASSERT_EQ(ERR_ALREADY_EXISTS, fs_make_dir(test_path "/newdir"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/parent"));
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/parent/child"));
+
+        dirhandle *dh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/newdir", &dh));
+        ASSERT_NONNULL(dh);
+        ASSERT_EQ(NO_ERROR, fs_close_dir(dh));
+
+        filehandle *fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/newdir/file", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        ASSERT_EQ(ERR_NOT_FOUND, fs_make_dir(test_path "/does_not_exist/child"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/this_is_a_long_directory_name"));
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/this_is_a_long_directory_name", &dh));
+        ASSERT_NONNULL(dh);
+        ASSERT_EQ(NO_ERROR, fs_close_dir(dh));
+
+        fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/this_is_a_long_directory_name/inside.txt", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        END_TEST;
+    });
+}
+
+bool test_fat_remove_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        filehandle *fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/rmfile", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/rmfile"));
+
+        fh = nullptr;
+        ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/rmfile", &fh));
+        ASSERT_EQ(ERR_NOT_FOUND, fs_remove_file(test_path "/rmfile"));
+
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/long_filename_hello.txt"));
+        ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/long_filename_hello.txt", &fh));
+
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/busyfile", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(ERR_BUSY, fs_remove_file(test_path "/busyfile"));
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/busyfile"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/rmdirtgt"));
+        ASSERT_EQ(ERR_NOT_FILE, fs_remove_file(test_path "/rmdirtgt"));
+
+        END_TEST;
+    });
+}
+
+bool test_fat_remove_dir() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/emptydir"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/emptydir"));
+
+        dirhandle *dh = nullptr;
+        ASSERT_EQ(ERR_NOT_FOUND, fs_open_dir(test_path "/emptydir", &dh));
+        ASSERT_EQ(ERR_NOT_FOUND, fs_remove_dir(test_path "/emptydir"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/nonempty"));
+        filehandle *fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/nonempty/file", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        ASSERT_EQ(ERR_NOT_ALLOWED, fs_remove_dir(test_path "/nonempty"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/nonempty/file"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/nonempty"));
+
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/plainfl", &fh, 0));
+        ASSERT_NONNULL(fh);
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        ASSERT_EQ(ERR_NOT_DIR, fs_remove_dir(test_path "/plainfl"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/plainfl"));
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/busy"));
+        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/busy", &dh));
+        ASSERT_NONNULL(dh);
+        ASSERT_EQ(ERR_BUSY, fs_remove_dir(test_path "/busy"));
+        ASSERT_EQ(NO_ERROR, fs_close_dir(dh));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/busy"));
+
+        END_TEST;
+    });
+}
+
+bool test_fat_dir_growth() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        const char *dirname = test_path "/growdir";
+        ASSERT_EQ(NO_ERROR, fs_make_dir(dirname));
+
+        // Create enough files to force directory growth beyond one cluster.
+        // Assuming 4KB clusters and 32-byte entries, one cluster holds 128 entries.
+        // Creating 1000 files should force growth.
+        for (int i = 0; i < 1000; i++) {
+            char filename[256];
+            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            filehandle *fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_create_file(filename, &fh, 0));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // Verify all 1000 files exist.
+        for (int i = 0; i < 1000; i++) {
+            char filename[256];
+            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            filehandle *fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(filename, &fh));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // List the directory and count the entries (should be 1002: 1000 files + . + ..).
+        dirhandle *dh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_dir(dirname, &dh));
+        ASSERT_NONNULL(dh);
+        int count = 0;
+        dirent ent;
+        while (fs_read_dir(dh, &ent) == NO_ERROR) {
+            count++;
+        }
+        ASSERT_EQ(NO_ERROR, fs_close_dir(dh));
+        EXPECT_EQ(1002, count);
+
+        // Remove all files.
+        for (int i = 0; i < 1000; i++) {
+            char filename[256];
+            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            ASSERT_EQ(NO_ERROR, fs_remove_file(filename));
+        }
+
+        // Finally remove the directory.
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(dirname));
+
+        END_TEST;
+    });
+}
+
+bool test_fat_lfn_ordinal_rollover() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        // Test SFN alias ordinal rollover with multiple files that collide on their base SFN.
+        filehandle *fh = nullptr;
+        char *filename_buf = new char[256];
+
+        // Create 10 files with colliding long names to verify ordinal generation
+        for (int i = 0; i < 10; i++) {
+            snprintf(filename_buf, 256, test_path "/this_is_a_collision_test_file_%02d.txt", i);
+            fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_create_file(filename_buf, &fh, 0));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+            // Verify immediately after creation
+            fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_open_file(filename_buf, &fh));
+            ASSERT_NONNULL(fh);
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // Clean up all files
+        for (int i = 0; i < 10; i++) {
+            snprintf(filename_buf, 256, test_path "/this_is_a_collision_test_file_%02d.txt", i);
+            int ret = fs_remove_file(filename_buf);
+            if (ret != NO_ERROR) {
+                unittest_printf("FAILED to remove %s: %d\n", filename_buf, ret);
+            } else {
+                unittest_printf("Successfully removed %s\n", filename_buf);
+            }
+            ASSERT_EQ(NO_ERROR, ret);
+        }
+
+        delete[] filename_buf;
+
+        END_TEST;
+    });
+}
+
+bool test_fat_read_only() {
     BEGIN_TEST;
 
     SKIP_TEST_IF_NO_DEVICE();
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name));
-    // clean up by unmounting no matter what happens here
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_READ_ONLY));
     auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
 
-    // open a file three times simultaneously
-    {
-        filehandle *handle1 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle1));
-        auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle1); });
+    filehandle *fh = nullptr;
 
-        filehandle *handle2 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle2));
-        auto closefile_cleanup2 = lk::make_auto_call([&]() { fs_close_file(handle2); });
+    // test create file
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_create_file(test_path "/new_ro_file", &fh, 0));
 
-        filehandle *handle3 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &handle3));
+    // test mkdir
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_make_dir(test_path "/new_ro_dir"));
 
-        // close the files in reverse order
-        closefile_cleanup1.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_file(handle1));
-        closefile_cleanup2.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_file(handle2));
-        ASSERT_EQ(NO_ERROR, fs_close_file(handle3));
-    }
+    // open existing file for write
+    ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/hello.txt", &fh));
+    ASSERT_NONNULL(fh);
 
-    // open a dir three times simultaneously
-    {
-        dirhandle *handle1 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle1));
-        auto closedir_cleanup1 = lk::make_auto_call([&]() { fs_close_dir(handle1); });
+    // test write to existing file
+    const uint8_t buf[] = {'T', 'E', 'S', 'T'};
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_write_file(fh, buf, 0, sizeof(buf)));
 
-        dirhandle *handle2 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle2));
-        auto closedir_cleanup2 = lk::make_auto_call([&]() { fs_close_dir(handle2); });
+    // test truncate
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_truncate_file(fh, 10));
 
-        dirhandle *handle3 = nullptr;
-        ASSERT_EQ(NO_ERROR, fs_open_dir(test_path "/dir.a", &handle3));
+    ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
-        // close the dirs in reverse order
-        closedir_cleanup1.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_dir(handle1));
-        closedir_cleanup2.cancel();
-        ASSERT_EQ(NO_ERROR, fs_close_dir(handle2));
-        ASSERT_EQ(NO_ERROR, fs_close_dir(handle3));
-    }
+    // test remove file
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_remove_file(test_path "/hello.txt"));
 
-    // unmount the fs
+    // test remove dir
+    EXPECT_EQ(ERR_NOT_ALLOWED, fs_remove_dir(test_path "/dir.a"));
+
+    // unmount
     unmount_cleanup.cancel();
     ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
 
@@ -238,11 +797,24 @@ bool test_fat_multi_open() {
 }
 
 BEGIN_TEST_CASE(fat)
-    RUN_TEST(test_fat_mount)
-    RUN_TEST(test_fat_dir_root)
-    RUN_TEST(test_fat_read_file)
-    RUN_TEST(test_fat_multi_open)
+RUN_TEST(test_fat_mount)
+RUN_TEST(test_fat_utf8_to_ucs2)
+RUN_TEST(test_fat_ucs2_to_utf8)
+RUN_TEST(test_fat_utf8_ucs2_roundtrip)
+RUN_TEST(test_fat_split_path)
+RUN_TEST(test_fat_name_to_short_file_name)
+RUN_TEST(test_fat_dir_root)
+RUN_TEST(test_fat_read_file)
+RUN_TEST(test_fat_multi_open)
+RUN_TEST(test_fat_create_file)
+RUN_TEST(test_fat_resize_file)
+RUN_TEST(test_fat_write_file)
+RUN_TEST(test_fat_mkdir)
+RUN_TEST(test_fat_remove_file)
+RUN_TEST(test_fat_remove_dir)
+RUN_TEST(test_fat_dir_growth)
+RUN_TEST(test_fat_lfn_ordinal_rollover)
+RUN_TEST(test_fat_read_only)
 END_TEST_CASE(fat)
 
 } // namespace
-

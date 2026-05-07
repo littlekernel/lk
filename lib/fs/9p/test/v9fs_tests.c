@@ -28,7 +28,7 @@ int v9fs_tests(int argc, const console_cmd_args *argv) {
     filehandle *handle;
     char buf[BUF_SIZE];
 
-    status = fs_mount(V9FS_MOUNT_POINT, V9FS_NAME, V9P_BDEV_NAME);
+    status = fs_mount(V9FS_MOUNT_POINT, V9FS_NAME, V9P_BDEV_NAME, FS_MOUNT_OPTION_NONE);
     if (status != NO_ERROR) {
         LOGF("failed to mount v9p bdev (%s) onto mount point (%s): %d\n",
              V9P_BDEV_NAME, V9FS_MOUNT_POINT, status);

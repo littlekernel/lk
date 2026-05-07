@@ -8,10 +8,9 @@
 #include <lib/fs.h>
 #include <lk/err.h>
 
-#include <string.h>
-#include <string.h>
-#include <stdio.h>
 #include <lib/unittest.h>
+#include <stdio.h>
+#include <string.h>
 
 // returns true if the input path passed through the path normalization
 // routine matches the expected output.
@@ -95,7 +94,7 @@ static bool test_path_normalize(void) {
     END_TEST;
 }
 
-#define TEST_MNT "/test"
+#define TEST_MNT  "/test"
 #define TEST_FILE TEST_MNT "/stdio_file_tests.txt"
 
 static inline void test_stdio_fs_teardown(void *ptr) {
@@ -109,7 +108,7 @@ static bool test_stdio_fs(void) {
     // Setup
     const char *content = "Hello World\n";
     const size_t content_len = strlen(content);
-    fs_mount(TEST_MNT, "memfs", NULL);
+    fs_mount(TEST_MNT, "memfs", NULL, FS_MOUNT_OPTION_NONE);
 
     // Tests
     FILE *stream = fopen(TEST_FILE, "w");
@@ -142,7 +141,107 @@ static bool test_stdio_fs(void) {
     END_TEST;
 }
 
+static void test_rootfs_teardown(void *ptr) {
+    fs_unmount("/tmp");
+    fs_unmount("/data");
+}
+
+static bool test_rootfs(void) {
+    __attribute__((cleanup(test_rootfs_teardown))) BEGIN_TEST;
+
+    // root listing must work even before we add any filesystems
+    dirhandle *dh;
+    ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root with no mounts");
+    struct dirent ent;
+    // drain any pre-existing entries (other tests may have left mounts)
+    while (fs_read_dir(dh, &ent) == NO_ERROR) {
+    }
+    fs_close_dir(dh);
+
+    // mount two filesystems; both must appear as directories in root listing
+    ASSERT_EQ(NO_ERROR, fs_mount("/tmp", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount /tmp");
+    ASSERT_EQ(NO_ERROR, fs_mount("/data", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount /data");
+
+    ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root dir with mounts");
+    bool found_tmp = false, found_data = false;
+    while (fs_read_dir(dh, &ent) == NO_ERROR) {
+        if (strcmp(ent.name, "tmp") == 0) {
+            found_tmp = true;
+        }
+        if (strcmp(ent.name, "data") == 0) {
+            found_data = true;
+        }
+    }
+    fs_close_dir(dh);
+    EXPECT_TRUE(found_tmp, "tmp in root listing");
+    EXPECT_TRUE(found_data, "data in root listing");
+
+    END_TEST;
+}
+
+// Verifies that mount/unmount operations occurring during an open dir iteration
+// do not crash or corrupt the iterator.  The live-pointer design means:
+//   - a mount removed while current points at it is advanced past automatically
+//   - a mount added (at list head) before the cursor is simply not seen
+// Both are acceptable behaviours for a best-effort virtual rootfs.
+static void test_rootfs_live_iter_teardown(void *ptr) {
+    // best-effort; ignore errors for mounts that may already be gone
+    fs_unmount("/live_a");
+    fs_unmount("/live_b");
+    fs_unmount("/live_c");
+    fs_unmount("/live_d");
+}
+
+static bool test_rootfs_live_iter(void) {
+    __attribute__((cleanup(test_rootfs_live_iter_teardown))) BEGIN_TEST;
+
+    struct dirent ent;
+
+    // Set up three mounts.  list_add_head means the list order is c, b, a.
+    ASSERT_EQ(NO_ERROR, fs_mount("/live_a", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_a");
+    ASSERT_EQ(NO_ERROR, fs_mount("/live_b", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_b");
+    ASSERT_EQ(NO_ERROR, fs_mount("/live_c", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_c");
+
+    // Open the iterator.  current starts at list head (live_c).
+    dirhandle *dh;
+    ASSERT_EQ(NO_ERROR, fs_open_dir("/", &dh), "open root dir");
+
+    // Read the first entry (live_c); current now points at live_b.
+    ASSERT_EQ(NO_ERROR, fs_read_dir(dh, &ent), "read first entry");
+    bool seen_c = (strcmp(ent.name, "live_c") == 0);
+
+    // Remove the mount that current is pointing at (live_b).
+    // rootfs_mount_removed() must advance current to live_a before unlinking.
+    EXPECT_EQ(NO_ERROR, fs_unmount("/live_b"), "unmount live_b mid-iter");
+
+    // Add a new mount at the head (before current) – iterator won't see it
+    // in this pass, which is acceptable.
+    EXPECT_EQ(NO_ERROR, fs_mount("/live_d", "memfs", NULL, FS_MOUNT_OPTION_NONE), "mount live_d mid-iter");
+
+    // Continue draining; live_b must not appear, live_a must appear.
+    // live_d may or may not appear depending on insertion order vs. cursor.
+    bool seen_b = false, seen_a = false;
+    while (fs_read_dir(dh, &ent) == NO_ERROR) {
+        if (strcmp(ent.name, "live_b") == 0) {
+            seen_b = true;
+        }
+        if (strcmp(ent.name, "live_a") == 0) {
+            seen_a = true;
+        }
+        // also consume live_c/live_d without asserting – they are optional here
+    }
+    fs_close_dir(dh);
+
+    EXPECT_TRUE(seen_c, "live_c seen before removal of live_b");
+    EXPECT_FALSE(seen_b, "live_b not seen after being unmounted mid-iter");
+    EXPECT_TRUE(seen_a, "live_a seen after live_b removal");
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(fs_tests);
 RUN_TEST(test_path_normalize);
 RUN_TEST(test_stdio_fs);
+RUN_TEST(test_rootfs);
+RUN_TEST(test_rootfs_live_iter);
 END_TEST_CASE(fs_tests);

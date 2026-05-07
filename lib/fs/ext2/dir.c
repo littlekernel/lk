@@ -5,12 +5,12 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <string.h>
-#include <stdlib.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <lk/err.h>
 #include "ext2_priv.h"
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -21,8 +21,9 @@ static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const cha
     uint8_t *buf;
     size_t namelen = strlen(name);
 
-    if (!S_ISDIR(dir_inode->i_mode))
+    if (!S_ISDIR(dir_inode->i_mode)) {
         return ERR_NOT_DIR;
+    }
 
     buf = malloc(EXT2_BLOCK_SIZE(ext2->sb));
 
@@ -42,11 +43,12 @@ static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const cha
             ent = (struct ext2_dir_entry_2 *)&buf[pos];
 
             LTRACEF("ent %d:%d: inode 0x%x, reclen %d, namelen %d\n",
-                    file_blocknum, pos, LE32(ent->inode), LE16(ent->rec_len), ent->name_len/* , ent->name*/);
+                    file_blocknum, pos, LE32(ent->inode), LE16(ent->rec_len), ent->name_len /* , ent->name*/);
 
             /* sanity check the record length */
-            if (LE16(ent->rec_len) == 0)
+            if (LE16(ent->rec_len) == 0) {
                 break;
+            }
 
             if (ent->name_len == namelen && memcmp(name, ent->name, ent->name_len) == 0) {
                 // match
@@ -79,13 +81,15 @@ static int ext2_walk(ext2_t *ext2, char *path, struct ext2_inode *start_inode, i
 
     LTRACEF("path '%s', start_inode %p, inum %p, recurse %d\n", path, start_inode, inum, recurse);
 
-    if (recurse > 4)
+    if (recurse > 4) {
         return ERR_RECURSE_TOO_DEEP;
+    }
 
     /* chew up leading slashes */
     ptr = &path[0];
-    while (*ptr == '/')
+    while (*ptr == '/') {
         ptr++;
+    }
 
     done = false;
     memcpy(&dir_inode, start_inode, sizeof(struct ext2_inode));
@@ -104,16 +108,18 @@ static int ext2_walk(ext2_t *ext2, char *path, struct ext2_inode *start_inode, i
 
         /* do the lookup on this component */
         err = ext2_dir_lookup(ext2, &dir_inode, ptr, inum);
-        if (err < 0)
+        if (err < 0) {
             return err;
+        }
 
 nextcomponent:
         LTRACEF("inum %u\n", *inum);
 
         /* load the next inode */
         err = ext2_load_inode(ext2, *inum, &inode);
-        if (err < 0)
+        if (err < 0) {
             return err;
+        }
 
         /* is it a symlink? */
         if (S_ISLNK(inode.i_mode)) {
@@ -122,8 +128,9 @@ nextcomponent:
             LTRACEF("hit symlink\n");
 
             err = ext2_read_link(ext2, &inode, link, sizeof(link));
-            if (err < 0)
+            if (err < 0) {
                 return err;
+            }
 
             LTRACEF("symlink read returns %d '%s'\n", err, link);
 
@@ -137,8 +144,9 @@ nextcomponent:
 
             LTRACEF("recursive walk returns %d\n", err);
 
-            if (err < 0)
+            if (err < 0) {
                 return err;
+            }
 
             /* if we weren't done with our path parsing, start again with the result of this recurse */
             if (!done) {
@@ -160,8 +168,9 @@ nextcomponent:
             ptr = next_sep + 1;
 
             /* consume multiple separators */
-            while (*ptr == '/')
+            while (*ptr == '/') {
                 ptr++;
+            }
         }
     }
 
@@ -177,4 +186,3 @@ int ext2_lookup(ext2_t *ext2, const char *_path, inodenum_t *inum) {
 
     return ext2_walk(ext2, path, &ext2->root_inode, inum, 1);
 }
-

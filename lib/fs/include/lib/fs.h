@@ -7,9 +7,9 @@
  */
 #pragma once
 
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <lk/compiler.h>
 
 #define FS_MAX_PATH_LEN 128
 #define FS_MAX_FILE_LEN 64
@@ -20,7 +20,7 @@ __BEGIN_CDECLS
 enum fs_ioctl_num {
     FS_IOCTL_NULL = 0,
     FS_IOCTL_GET_FILE_ADDR,
-    FS_IOCTL_IS_LINEAR,         // If supported, determine if the underlying device is in linear mode.
+    FS_IOCTL_IS_LINEAR, // If supported, determine if the underlying device is in linear mode.
 };
 
 struct file_stat {
@@ -44,9 +44,13 @@ struct dirent {
 typedef struct filehandle filehandle;
 typedef struct dirhandle dirhandle;
 
+enum fs_mount_options {
+    FS_MOUNT_OPTION_NONE = 0,
+    FS_MOUNT_OPTION_READ_ONLY = 1 << 0,
+};
 
 status_t fs_format_device(const char *fsname, const char *device, const void *args) __NONNULL((1));
-status_t fs_mount(const char *path, const char *fs, const char *device) __NONNULL((1)) __NONNULL((2));
+status_t fs_mount(const char *path, const char *fs, const char *device, enum fs_mount_options options) __NONNULL((1)) __NONNULL((2));
 status_t fs_unmount(const char *path) __NONNULL();
 status_t fs_file_ioctl(filehandle *handle, int request, void *argp) __NONNULL((1)) __NONNULL((3));
 
@@ -54,6 +58,7 @@ status_t fs_file_ioctl(filehandle *handle, int request, void *argp) __NONNULL((1
 status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) __NONNULL();
 status_t fs_open_file(const char *path, filehandle **handle) __NONNULL();
 status_t fs_remove_file(const char *path) __NONNULL();
+status_t fs_remove_dir(const char *path) __NONNULL();
 ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len) __NONNULL();
 ssize_t fs_write_file(filehandle *handle, const void *buf, off_t offset, size_t len) __NONNULL();
 status_t fs_close_file(filehandle *handle) __NONNULL();
@@ -87,11 +92,12 @@ struct fs_api {
     status_t (*format)(struct bdev *, const void *);
     status_t (*fs_stat)(fscookie *, struct fs_stat *);
 
-    status_t (*mount)(struct bdev *, fscookie **);
+    status_t (*mount)(struct bdev *, fscookie **, enum fs_mount_options options);
     status_t (*unmount)(fscookie *);
     status_t (*open)(fscookie *, const char *, filecookie **);
     status_t (*create)(fscookie *, const char *, filecookie **, uint64_t);
     status_t (*remove)(fscookie *, const char *);
+    status_t (*rmdir)(fscookie *, const char *);
     status_t (*truncate)(filecookie *, uint64_t);
     status_t (*stat)(filecookie *, struct file_stat *);
     ssize_t (*read)(filecookie *, void *, off_t, size_t);
@@ -113,7 +119,7 @@ struct fs_impl {
 
 /* define in your fs implementation to register your api with the fs layer */
 #define STATIC_FS_IMPL(_name, _api) const struct fs_impl __fs_impl_##_name __ALIGNED(sizeof(void *)) __SECTION("fs_impl") = \
-    { .name = #_name, .api = _api }
+                                        {.name = #_name, .api = _api}
 
 /* list all registered file systems */
 void fs_dump_list(void);

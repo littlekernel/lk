@@ -7,14 +7,14 @@
  */
 #pragma once
 
-#include <inttypes.h>
 #include "fat_fs.h"
 #include "fat_priv.h"
+#include <inttypes.h>
 
 class fat_fs;
 
 class fat_file {
-public:
+  public:
     explicit fat_file(fat_fs *f);
     virtual ~fat_file();
 
@@ -24,21 +24,27 @@ public:
     // top level fs hooks
     static status_t open_file(fscookie *cookie, const char *path, filecookie **fcookie);
     static ssize_t read_file(filecookie *fcookie, void *_buf, const off_t offset, size_t len);
+    static ssize_t write_file(filecookie *fcookie, const void *buf, const off_t offset, size_t len);
     static status_t stat_file(filecookie *fcookie, struct file_stat *stat);
     static status_t close_file(filecookie *fcookie);
+    static status_t create_file(fscookie *cookie, const char *path, filecookie **fcookie, uint64_t len);
+    static status_t truncate_file(filecookie *fcookie, uint64_t len);
 
     // used by fs node list maintenance
     // node in the fs's list of open files and dirs
     list_node node_ = LIST_INITIAL_CLEARED_VALUE;
 
-private:
+  private:
     // private versions of the above
     status_t open_file_priv(const dir_entry &entry, const dir_entry_location &loc);
     ssize_t read_file_priv(void *_buf, const off_t offset, size_t len);
+    ssize_t write_file_priv(const void *buf, const off_t offset, size_t len);
     status_t stat_file_priv(struct file_stat *stat);
     status_t close_file_priv(bool *last_ref);
+    status_t truncate_file_priv(uint64_t len);
+    status_t zero_range_locked(uint32_t offset, uint32_t len);
 
-protected:
+  protected:
     // increment the ref and add/remove the file from the fs list
     void inc_ref();
     bool dec_ref(); // returns true when ref reaches zero
@@ -48,8 +54,8 @@ protected:
 
     fat_fs *fs_ = nullptr; // pointer back to the fs instance we're in
 
-    // pointer to our dir entry, acts as our unique key
-    dir_entry_location dir_loc_ {};
+    // pointer to our dir entry, acts as our unique key in the fs list
+    dir_entry_location dir_loc_{};
 
     // our start cluster and length
     uint32_t start_cluster_ = 0;
@@ -58,4 +64,3 @@ protected:
     // saved attributes from our dir entry
     fat_attribute attributes_ = fat_attribute(0);
 };
-

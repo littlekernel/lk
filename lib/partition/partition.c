@@ -96,7 +96,7 @@ int partition_publish(const char *device, off_t offset) {
                 // publish it
                 char subdevice[128];
 
-                sprintf(subdevice, "%sp%d", device, i);
+                snprintf(subdevice, sizeof(subdevice), "%sp%d", device, i);
 
                 err = bio_publish_subdevice(device, subdevice, part[i].lba_start, part[i].lba_length);
                 if (err < 0) {
@@ -109,6 +109,10 @@ int partition_publish(const char *device, off_t offset) {
     } while (0);
 
     bio_close(dev);
+
+    if (err >= 0) {
+        dprintf(INFO, "partition_publish: %u partition%s found\n", count, (count == 1) ? "" : "s");
+    }
 
 err:
     return (err < 0) ? err : count;

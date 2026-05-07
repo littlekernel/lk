@@ -7,13 +7,13 @@
  */
 #include "file_iterator.h"
 
+#include <endian.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <endian.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "fat_fs.h"
@@ -21,7 +21,8 @@
 
 #define LOCAL_TRACE FAT_GLOBAL_TRACE(0)
 
-file_block_iterator::file_block_iterator(fat_fs *_fat, uint32_t starting_cluster) : fat(_fat) {
+file_block_iterator::file_block_iterator(fat_fs *_fat, uint32_t starting_cluster)
+    : fat(_fat) {
     if (starting_cluster == 0) {
         // special case on fat12/16 to represent the root dir.
         // load 0 into cluster and use sector_offset as relative to the
@@ -78,10 +79,14 @@ status_t file_block_iterator::load_current_bcache_block() {
         // we're in a linear root dir, the sector_offset variable represents the raw sector number
         return load_bcache_block(sector_offset);
     } else { // cluster != 0
-        DEBUG_ASSERT(sector_offset < fat->info().bytes_per_sector);
+        DEBUG_ASSERT(sector_offset < fat->info().sectors_per_cluster);
 
         // compute the sector we should be on given the cluster and sector_offset
-        auto sector = fat_sector_for_cluster(fat, cluster) + sector_offset;
+        uint32_t cluster_sector = fat_sector_for_cluster(fat, cluster);
+        if (cluster_sector == 0xffffffff) {
+            return ERR_INVALID_ARGS;
+        }
+        auto sector = cluster_sector + sector_offset;
 
         return load_bcache_block(sector);
     }
@@ -107,3 +112,14 @@ status_t file_block_iterator::load_bcache_block(bnum_t bnum) {
     return err;
 }
 
+status_t file_block_iterator::mark_bcache_dirty() {
+    if (fat->is_read_only()) {
+        return ERR_NOT_ALLOWED;
+    }
+
+    if (bcache_buf) {
+        return bcache_mark_block_dirty(fat->bcache(), bcache_bnum);
+    } else {
+        return ERR_NO_RESOURCES;
+    }
+}

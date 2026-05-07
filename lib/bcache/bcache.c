@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
+#include <lk/err.h>
 #include <lib/bcache.h>
 #include <lib/bio.h>
 
@@ -43,6 +44,7 @@ struct bcache {
     struct list_node lru_list;
 
     struct bcache_block *blocks;
+    bool read_only;
 };
 
 bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count) {
@@ -53,6 +55,7 @@ bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count) {
     cache->dev = dev;
     cache->block_size = block_size;
     cache->count = block_count;
+    cache->read_only = false;
     memset(&cache->stats, 0, sizeof(cache->stats));
 
     list_initialize(&cache->free_list);
@@ -71,8 +74,16 @@ bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count) {
     return (bcache_t)cache;
 }
 
+void bcache_set_read_only(bcache_t _cache, bool ro) {
+    struct bcache *cache = _cache;
+    cache->read_only = ro;
+}
+
 static int flush_block(struct bcache *cache, struct bcache_block *block) {
     int rc;
+
+    if (cache->read_only)
+        return ERR_NOT_ALLOWED;
 
     rc = bio_write(cache->dev, block->ptr,
                    (off_t)block->blocknum * cache->block_size,
@@ -148,6 +159,9 @@ static struct bcache_block *alloc_block(struct bcache *cache) {
         LTRACEF("looking at %p, num %u\n", block, block->blocknum);
         if (block->ref_count == 0) {
             if (block->is_dirty) {
+                /* if the oldest block in the list that's available is dirty, write
+                 * it back first.
+                 */
                 err = flush_block(cache, block);
                 if (err)
                     return NULL;
@@ -251,6 +265,9 @@ int bcache_mark_block_dirty(bcache_t priv, uint blocknum) {
     struct bcache *cache = priv;
     struct bcache_block *block;
 
+    if (cache->read_only)
+        return ERR_NOT_ALLOWED;
+
     block = find_block(cache, blocknum);
     if (!block) {
         err = -1;
@@ -267,6 +284,9 @@ int bcache_zero_block(bcache_t priv, uint blocknum) {
     int err;
     struct bcache *cache = priv;
     struct bcache_block *block;
+
+    if (cache->read_only)
+        return ERR_NOT_ALLOWED;
 
     block = find_block(cache, blocknum);
     if (!block) {

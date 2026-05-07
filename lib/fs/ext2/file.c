@@ -6,13 +6,12 @@
  * https://opensource.org/licenses/MIT
  */
 
+#include "ext2_priv.h"
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdlib.h>
-#include <lk/err.h>
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include "ext2_priv.h"
 
 #define LOCAL_TRACE 0
 
@@ -23,8 +22,9 @@ int ext2_open_file(fscookie *cookie, const char *path, filecookie **fcookie) {
     /* do a path lookup */
     inodenum_t inum;
     err = ext2_lookup(ext2, path, &inum);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     /* create the file object */
     ext2_file_t *file = malloc(sizeof(ext2_file_t));
@@ -64,7 +64,7 @@ int ext2_close_file(filecookie *fcookie) {
 
     // see if we need to free any of the cache blocks
     int i;
-    for (i=0; i < 3; i++) {
+    for (i = 0; i < 3; i++) {
         if (file->ind_cache[i].num != 0) {
             free(file->ind_cache[i].ptr);
         }
@@ -93,8 +93,9 @@ int ext2_stat_file(filecookie *fcookie, struct file_stat *stat) {
 
     /* is it a dir? */
     stat->is_dir = false;
-    if (S_ISDIR(file->inode.i_mode))
+    if (S_ISDIR(file->inode.i_mode)) {
         stat->is_dir = true;
+    }
 
     return 0;
 }
@@ -104,13 +105,15 @@ int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len
 
     off_t linklen = ext2_file_len(ext2, inode);
 
-    if ((linklen < 0) || (linklen + 1 > (off_t)len))
+    if ((linklen < 0) || (linklen + 1 > (off_t)len)) {
         return ERR_NO_MEMORY;
+    }
 
     if (linklen > 60) {
         int err = ext2_read_inode(ext2, inode, str, 0, linklen);
-        if (err < 0)
+        if (err < 0) {
             return err;
+        }
         str[linklen] = 0;
     } else {
         memcpy(str, &inode->i_block[0], linklen);
@@ -121,4 +124,3 @@ int ext2_read_link(ext2_t *ext2, struct ext2_inode *inode, char *str, size_t len
 
     return linklen;
 }
-

@@ -23,60 +23,61 @@
  */
 #include <dev/virtio/9p.h>
 
-#include <stdlib.h>
-#include <string.h>
-#include <lk/trace.h>
+#include <kernel/mutex.h>
+#include <lib/fs.h>
+#include <lk/err.h>
 #include <lk/init.h>
 #include <lk/list.h>
-#include <lk/err.h>
-#include <lib/fs.h>
-#include <kernel/mutex.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "v9fs_priv.h"
 
 #define LOCAL_TRACE 0
 
 status_t path_to_wname(char *path, uint16_t *nwname,
-                       const char *wname[P9_MAXWELEM])
-{
+                       const char *wname[P9_MAXWELEM]) {
     char *cptr, *ncptr;
     *nwname = 0;
 
-    if (path[0] == '\0')
+    if (path[0] == '\0') {
         return NO_ERROR;
+    }
 
     cptr = path[0] == '/' ? path + 1 : path;
 
     while ((ncptr = strchr(cptr, '/')) != NULL) {
         *ncptr = '\0';
-        if (strlen(cptr) != 0)
+        if (strlen(cptr) != 0) {
             wname[(*nwname)++] = cptr;
+        }
         cptr = ncptr + 1;
 
-        if (*nwname == P9_MAXWELEM)
+        if (*nwname == P9_MAXWELEM) {
             return ERR_BAD_PATH;
+        }
     }
 
-    wname[(*nwname)++] = strlen(cptr) != 0? cptr : ".";
+    wname[(*nwname)++] = strlen(cptr) != 0 ? cptr : ".";
 
     return NO_ERROR;
 }
 
-uint32_t get_unused_fid(v9fs_t *v9fs)
-{
+uint32_t get_unused_fid(v9fs_t *v9fs) {
     mutex_acquire(&v9fs->lock);
     uint32_t fid = v9fs->unused_fid++;
     mutex_release(&v9fs->lock);
     return fid;
 }
 
-void put_fid(v9fs_t *v9fs, uint32_t fid)
-{
+void put_fid(v9fs_t *v9fs, uint32_t fid) {
     virtio_9p_msg_t tclunk = {
         .msg_type = P9_TCLUNK,
         .tag = P9_TAG_DEFAULT,
-        .msg.tclunk = { .fid = fid, }
-    };
+        .msg.tclunk = {
+            .fid = fid,
+        }};
     virtio_9p_msg_t rclunk = {};
 
     ASSERT(virtio_9p_rpc(v9fs->dev, &tclunk, &rclunk) == NO_ERROR);
@@ -85,8 +86,10 @@ void put_fid(v9fs_t *v9fs, uint32_t fid)
     virtio_9p_msg_destroy(&rclunk);
 }
 
-status_t v9fs_mount(bdev_t *dev, fscookie **cookie)
-{
+status_t v9fs_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options) {
+    if (options != 0) {
+        return ERR_INVALID_ARGS;
+    }
     status_t ret;
 
     LTRACEF("bdev (%p) cookie (%p)\n", dev, cookie);
@@ -97,8 +100,9 @@ status_t v9fs_mount(bdev_t *dev, fscookie **cookie)
 
     v9fs_t *v9fs = calloc(1, sizeof(v9fs_t));
 
-    if (!v9fs)
+    if (!v9fs) {
         return ERR_NO_MEMORY;
+    }
 
     // initialize v9fs structure
     v9fs->dev = virtio_9p_bdev_to_virtio_device(dev);
@@ -120,12 +124,12 @@ status_t v9fs_mount(bdev_t *dev, fscookie **cookie)
             .uname = "root",
             .aname = V9P_MOUNT_ANAME,
             .n_uname = P9_UNAME_NONUNAME,
-        }
-    };
+        }};
     virtio_9p_msg_t ratt = {};
 
-    if ((ret = virtio_9p_rpc(v9fs->dev, &tatt, &ratt)) != NO_ERROR)
+    if ((ret = virtio_9p_rpc(v9fs->dev, &tatt, &ratt)) != NO_ERROR) {
         goto err;
+    }
 
     v9fs->root.qid = ratt.msg.rattach.qid;
 
@@ -143,14 +147,14 @@ err:
     return ret;
 }
 
-status_t v9fs_unmount(fscookie *cookie)
-{
+status_t v9fs_unmount(fscookie *cookie) {
     v9fs_t *v9fs = (v9fs_t *)cookie;
 
     LTRACEF("v9fs (%p)\n", v9fs);
 
-    if (v9fs)
+    if (v9fs) {
         free(v9fs);
+    }
 
     return 0;
 }

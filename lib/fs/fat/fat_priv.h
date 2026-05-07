@@ -8,9 +8,9 @@
  */
 #pragma once
 
-#include <lk/compiler.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
+#include <lk/compiler.h>
 
 #include "fat_fs.h"
 
@@ -19,15 +19,21 @@
 // can override here for all fat files
 #define FAT_GLOBAL_TRACE(local) (local | 0)
 
-typedef void *fsfilecookie;
+using fsfilecookie = void *;
 
 /* file allocation table parsing */
 uint32_t fat_next_cluster_in_chain(fat_fs *fat, uint32_t cluster);
-uint32_t file_offset_to_cluster(fat_fs *fat, uint32_t start_cluster, off_t offset);
+uint32_t fat_find_last_cluster_in_chain(fat_fs *fat, uint32_t starting_cluster);
+status_t fat_allocate_cluster_chain(fat_fs *fat, uint32_t start_cluster, uint32_t count,
+                                    uint32_t *first_cluster, uint32_t *last_cluster,
+                                    bool zero_new_blocks);
+status_t fat_free_cluster_chain(fat_fs *fat, uint32_t start_cluster);
+status_t fat_truncate_cluster_chain(fat_fs *fat, uint32_t keep_last_cluster);
 
 /* general io routines */
 uint32_t fat_sector_for_cluster(fat_fs *fat, uint32_t cluster);
 ssize_t fat_read_cluster(fat_fs *fat, void *buf, uint32_t cluster);
+ssize_t fat_zero_cluster(fat_fs *fat, uint32_t cluster);
 
 // general directory apis outside of an object
 struct dir_entry {
@@ -47,4 +53,11 @@ inline bool operator==(const dir_entry_location &a, const dir_entry_location &b)
     return (a.starting_dir_cluster == b.starting_dir_cluster && a.dir_offset == b.dir_offset);
 }
 
-status_t fat_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_entry_location *loc);
+// walk a path, returning the entry and the location where it was found
+status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_entry_location *loc);
+
+// walk a path, allocating a new entry with the path name.
+// returns the dir entry location
+status_t fat_dir_allocate(fat_fs *fat, const char *path, fat_attribute attr, uint32_t starting_cluster, uint32_t size, dir_entry_location *loc);
+
+status_t fat_dir_update_entry(fat_fs *fat, const dir_entry_location &loc, uint32_t starting_cluster, uint32_t size);

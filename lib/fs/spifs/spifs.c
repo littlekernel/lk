@@ -9,40 +9,40 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/pow2.h>
+#include <lk/trace.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <lk/trace.h>
 
 #include <kernel/mutex.h>
 #include <lib/bio.h>
 #include <lib/cksum.h>
-#include <lk/console_cmd.h>
 #include <lib/fs.h>
 #include <lib/fs/spifs.h>
-#include <lk/list.h>
+#include <lk/console_cmd.h>
 #include <lk/init.h>
+#include <lk/list.h>
 
 #define LOCAL_TRACE 0
 
 #define FS_VERSION 1
-#define FS_MAGIC 0x53504653  // SPFS
+#define FS_MAGIC   0x53504653 // SPFS
 
 #define SPIFS_ENTRY_LENGTH 32
 
 #define TOC_HEADER_RESERVED_BYTES 16
 #define TOC_FOOTER_RESERVED_BYTES 28
-#define MAX_FILENAME_LENGTH 20
+#define MAX_FILENAME_LENGTH       20
 
-#define CORRUPT_TOC 0
+#define CORRUPT_TOC  0
 #define NO_OPEN_RUNS 0
 
 #define FRONT_TOC (1)
 #define BACK_TOC  (-1)
 
 #define FRONT_TOC_LABEL "front-toc"
-#define BACK_TOC_LABEL "back-toc"
+#define BACK_TOC_LABEL  "back-toc"
 
 typedef int32_t toc_position_t;
 
@@ -113,11 +113,9 @@ static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr);
 static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size,
                                      uint32_t *page_count);
 
-
 static status_t cursor_init(
     cursor_t *cursor, spifs_t *spifs, int32_t direction, uint32_t page_id,
-    uint32_t entry_length
-) {
+    uint32_t entry_length) {
     // Make sure the cursor can only be advanced an integer number of times
     // per page.
     DEBUG_ASSERT(ispow2(entry_length));
@@ -129,7 +127,6 @@ static status_t cursor_init(
     cursor->entry_length = entry_length;
     cursor->data = spifs->page;
     cursor->spifs = spifs;
-
 
     return spifs_read_page(spifs, page_id);
 }
@@ -173,7 +170,7 @@ static spifs_file_t *find_file(spifs_t *spifs, const char *name) {
     list_for_every_entry(&spifs->files, file, spifs_file_t, node) {
         // Skip the ToC Entries
         if (file == list_peek_head_type(&spifs->files, spifs_file_t, node) ||
-                file == list_peek_tail_type(&spifs->files, spifs_file_t, node)) {
+            file == list_peek_tail_type(&spifs->files, spifs_file_t, node)) {
             continue;
         }
 
@@ -266,15 +263,14 @@ static status_t spifs_commit_toc(spifs_t *spifs) {
 
     uint32_t crc = 0;
     uint8_t *cursor = spifs->page;
-    uint32_t toc_page_addr = target_toc == FRONT_TOC ?
-                             0 : spifs->page_count - 1;
+    uint32_t toc_page_addr = target_toc == FRONT_TOC ? 0 : spifs->page_count - 1;
 
     // Setup the ToC Header.
     toc_header_t header = {
-        .magic       = FS_MAGIC,
-        .version     = FS_VERSION,
+        .magic = FS_MAGIC,
+        .version = FS_VERSION,
         .num_entries = spifs->num_entries,
-        .generation  = target_generation,
+        .generation = target_generation,
     };
     memset(header._reserved, 0, TOC_HEADER_RESERVED_BYTES);
 
@@ -284,7 +280,7 @@ static status_t spifs_commit_toc(spifs_t *spifs) {
     cursor += SPIFS_ENTRY_LENGTH;
 
     // Create an empty file to copy into the empty spots in the ToC
-    static const toc_file_t empty = { 0 };
+    static const toc_file_t empty = {0};
 
     spifs_file_t *file = list_peek_head_type(&spifs->files, spifs_file_t, node);
     for (uint32_t i = 0; i < spifs->num_entries; i++) {
@@ -326,8 +322,9 @@ static status_t spifs_commit_toc(spifs_t *spifs) {
     footer->checksum = crc;
 
     err = spifs_write_page(spifs, toc_page_addr);
-    if (err != NO_ERROR)
+    if (err != NO_ERROR) {
         return err;
+    }
 
     // Only update this once we're sure that the write went through.
     // This way, if the write failed, we'll try writing over the bad ToC again
@@ -349,7 +346,6 @@ static void spifs_add_ascending(spifs_t *spifs, spifs_file_t *target) {
 
     list_add_tail(&spifs->files, &target->node);
 }
-
 
 static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr) {
     off_t block_addr = page_addr * spifs->blocks_per_page;
@@ -394,13 +390,11 @@ static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos) {
     DEBUG_ASSERT(spifs);
 
     DEBUG_ASSERT(toc_pos == FRONT_TOC || toc_pos == BACK_TOC);
-    uint32_t toc_page = toc_pos == FRONT_TOC ?
-                        0 : (spifs->page_count - 1);
-
+    uint32_t toc_page = toc_pos == FRONT_TOC ? 0 : (spifs->page_count - 1);
 
     cursor_t cursor;
     if (cursor_init(&cursor, spifs, toc_pos, toc_page, SPIFS_ENTRY_LENGTH) !=
-            NO_ERROR) {
+        NO_ERROR) {
         return CORRUPT_TOC;
     }
 
@@ -423,14 +417,16 @@ static uint32_t get_toc_generation(spifs_t *spifs, toc_position_t toc_pos) {
     header = NULL;
 
     for (size_t i = 0; i < num_toc_entries; i++) {
-        if (cursor_advance(&cursor) != NO_ERROR)
+        if (cursor_advance(&cursor) != NO_ERROR) {
             return CORRUPT_TOC;
+        }
 
         crc = crc32(crc, cursor_get(&cursor), SPIFS_ENTRY_LENGTH);
     }
 
-    if (cursor_advance(&cursor) != NO_ERROR)
+    if (cursor_advance(&cursor) != NO_ERROR) {
         return CORRUPT_TOC;
+    }
 
     toc_footer_t *footer = (toc_footer_t *)cursor_get(&cursor);
     if (footer->checksum != crc) {
@@ -501,8 +497,9 @@ static status_t spifs_format(bdev_t *dev, const void *args) {
     uint32_t page_size;
     uint32_t page_count;
     err = get_device_page_info(dev, &page_size, &page_count);
-    if (err != NO_ERROR)
+    if (err != NO_ERROR) {
         return err;
+    }
 
     // Make sure entries can be exactly packed into pages.
     if (page_size % SPIFS_ENTRY_LENGTH != 0) {
@@ -565,13 +562,15 @@ static status_t spifs_format(bdev_t *dev, const void *args) {
 
     // Commit the first toc.
     err = spifs_commit_toc(&spifs);
-    if (err != NO_ERROR)
+    if (err != NO_ERROR) {
         goto err;
+    }
 
     // Commit the other toc.
     err = spifs_commit_toc(&spifs);
-    if (err != NO_ERROR)
+    if (err != NO_ERROR) {
         goto err;
+    }
 
 err:
     free(spifs.page);
@@ -579,7 +578,10 @@ err:
     return err;
 }
 
-static status_t spifs_mount(bdev_t *dev, fscookie **cookie) {
+static status_t spifs_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options) {
+    if (options != 0) {
+        return ERR_INVALID_ARGS;
+    }
     status_t status;
 
     LTRACEF("dev %p, cookie %p\n", dev, cookie);
@@ -627,14 +629,14 @@ static status_t spifs_mount(bdev_t *dev, fscookie **cookie) {
         f_toc_generation > b_toc_generation ? FRONT_TOC : BACK_TOC;
     spifs->generation = MAX(f_toc_generation, b_toc_generation);
 
-    uint32_t toc_page_addr = spifs->toc_position == FRONT_TOC ?
-                             0 : spifs->page_count - 1;
+    uint32_t toc_page_addr = spifs->toc_position == FRONT_TOC ? 0 : spifs->page_count - 1;
 
     cursor_t cursor;
     status = cursor_init(&cursor, spifs, spifs->toc_position, toc_page_addr,
                          SPIFS_ENTRY_LENGTH);
-    if (status != NO_ERROR)
+    if (status != NO_ERROR) {
         goto err;
+    }
 
     toc_header_t *header = (toc_header_t *)cursor_get(&cursor);
     spifs->num_entries = header->num_entries;
@@ -644,8 +646,9 @@ static status_t spifs_mount(bdev_t *dev, fscookie **cookie) {
     spifs_file_t *file;
     for (size_t i = 0; i < spifs->num_entries; i++) {
         status = cursor_advance(&cursor);
-        if (status != NO_ERROR)
+        if (status != NO_ERROR) {
             goto err;
+        }
 
         toc_file_t *file_entry = (toc_file_t *)cursor_get(&cursor);
         if (file_entry->capacity == 0) {
@@ -716,16 +719,19 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
     name = trim_name(name);
 
     // File system is flat, directories not supported.
-    if (strchr(name, '/'))
+    if (strchr(name, '/')) {
         return ERR_NOT_SUPPORTED;
+    }
 
     // Check that filename is not too long.
-    if (strnlen(name, MAX_FILENAME_LENGTH) == MAX_FILENAME_LENGTH)
+    if (strnlen(name, MAX_FILENAME_LENGTH) == MAX_FILENAME_LENGTH) {
         return ERR_BAD_PATH;
+    }
 
     // Length is bigger than 4GB?
-    if (len > 0xFFFFFFFF)
+    if (len > 0xFFFFFFFF) {
         return ERR_TOO_BIG;
+    }
 
     mutex_acquire(&spifs->lock);
 
@@ -770,7 +776,7 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
 
     // Erase the memory allocated to the file.
     if (bio_erase(spifs->dev, open_run * spifs->page_size, capacity) !=
-            (ssize_t)capacity) {
+        (ssize_t)capacity) {
 
         free(file);
 
@@ -791,7 +797,7 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
         goto err;
     }
 
-    *fcookie = (filecookie *) file;
+    *fcookie = (filecookie *)file;
 
 err:
     mutex_release(&spifs->lock);
@@ -812,8 +818,9 @@ static status_t spifs_open(fscookie *cookie, const char *name, filecookie **fcoo
 
     mutex_release(&spifs->lock);
 
-    if (!file)
+    if (!file) {
         return ERR_NOT_FOUND;
+    }
 
     *fcookie = (filecookie *)file;
 
@@ -875,8 +882,9 @@ static ssize_t spifs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
     spifs_file_t *file = (spifs_file_t *)fcookie;
     spifs_t *spifs = file->fs_handle;
 
-    if (off < 0)
+    if (off < 0) {
         return ERR_INVALID_ARGS;
+    }
 
     mutex_acquire(&spifs->lock);
 
@@ -910,8 +918,9 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
     spifs_file_t *file = (spifs_file_t *)fcookie;
     spifs_t *spifs = (spifs_t *)(file->fs_handle);
 
-    if (off < 0)
+    if (off < 0) {
         return ERR_INVALID_ARGS;
+    }
 
     mutex_acquire(&spifs->lock);
 
@@ -1055,12 +1064,14 @@ static status_t spifs_opendir(fscookie *cookie, const char *name, dircookie **dc
 
     name = trim_name(name);
 
-    if (strcmp("", name))
+    if (strcmp("", name)) {
         return ERR_NOT_FOUND;
+    }
 
     dircookie *dir = malloc(sizeof(*dir));
-    if (!dir)
+    if (!dir) {
         return ERR_NO_MEMORY;
+    }
 
     dir->fs = spifs;
 
@@ -1122,10 +1133,10 @@ static status_t spifs_fs_stat(fscookie *cookie, struct fs_stat *stat) {
     spifs_t *spifs = (spifs_t *)cookie;
 
     stat->total_space = (uint64_t)spifs->dev->total_size;
-    stat->free_space  = stat->total_space - used_space(spifs);
+    stat->free_space = stat->total_space - used_space(spifs);
 
     stat->total_inodes = spifs->num_entries;
-    stat->free_inodes  = stat->total_inodes - list_length(&spifs->files);
+    stat->free_inodes = stat->total_inodes - list_length(&spifs->files);
 
     return NO_ERROR;
 }

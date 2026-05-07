@@ -6,15 +6,15 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <string.h>
-#include <stdlib.h>
+#include <kernel/mutex.h>
+#include <lib/fs.h>
 #include <lk/debug.h>
 #include <lk/err.h>
-#include <lk/trace.h>
-#include <lk/list.h>
 #include <lk/init.h>
-#include <lib/fs.h>
-#include <kernel/mutex.h>
+#include <lk/list.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -48,19 +48,24 @@ struct dircookie {
 static memfs_file_t *find_file(memfs_t *mem, const char *name) {
     memfs_file_t *file;
     list_for_every_entry(&mem->files, file, memfs_file_t, node) {
-        if (!strcmp(name, file->name))
+        if (!strcmp(name, file->name)) {
             return file;
+        }
     }
 
     return NULL;
 }
 
-static status_t memfs_mount(struct bdev *dev, fscookie **cookie) {
+static status_t memfs_mount(struct bdev *dev, fscookie **cookie, enum fs_mount_options options) {
+    if (options != 0) {
+        return ERR_INVALID_ARGS;
+    }
     LTRACEF("dev %p, cookie %p\n", dev, cookie);
 
     memfs_t *mem = malloc(sizeof(*mem));
-    if (!mem)
+    if (!mem) {
         return ERR_NO_MEMORY;
+    }
 
     list_initialize(&mem->files);
     list_initialize(&mem->dcookies);
@@ -104,15 +109,17 @@ static status_t memfs_create(fscookie *cookie, const char *name, filecookie **fc
 
     memfs_t *mem = (memfs_t *)cookie;
 
-    if (len >= ULONG_MAX)
+    if (len >= ULONG_MAX) {
         return ERR_NO_MEMORY;
+    }
 
     // make sure we strip out any leading /
     name = trim_name(name);
 
     // we can't handle directories right now, so fail if the file has a / in its name
-    if (strchr(name, '/'))
+    if (strchr(name, '/')) {
         return ERR_NOT_SUPPORTED;
+    }
 
     mutex_acquire(&mem->lock);
 
@@ -176,8 +183,9 @@ static status_t memfs_open(fscookie *cookie, const char *name, filecookie **fcoo
     memfs_file_t *file = find_file(mem, name);
     mutex_release(&mem->lock);
 
-    if (!file)
+    if (!file) {
         return ERR_NOT_FOUND;
+    }
 
     *fcookie = (filecookie *)file;
 
@@ -194,12 +202,14 @@ static status_t memfs_remove(fscookie *cookie, const char *name) {
 
     mutex_acquire(&mem->lock);
     memfs_file_t *file = find_file(mem, name);
-    if (file)
+    if (file) {
         list_delete(&file->node);
+    }
     mutex_release(&mem->lock);
 
-    if (!file)
+    if (!file) {
         return ERR_NOT_FOUND;
+    }
 
     // XXX make sure there are no open file handles
     free_file(file);
@@ -220,8 +230,9 @@ static ssize_t memfs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
 
     memfs_file_t *file = (memfs_file_t *)fcookie;
 
-    if (off < 0)
+    if (off < 0) {
         return ERR_INVALID_ARGS;
+    }
 
     mutex_acquire(&file->fs->lock);
 
@@ -280,11 +291,13 @@ static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size
 
     memfs_file_t *file = (memfs_file_t *)fcookie;
 
-    if (off < 0)
+    if (off < 0) {
         return ERR_INVALID_ARGS;
+    }
 
-    if (len == 0)
+    if (len == 0) {
         return 0;
+    }
 
     mutex_acquire(&file->fs->lock);
 
@@ -333,13 +346,15 @@ static status_t memfs_opendir(fscookie *cookie, const char *name, dircookie **dc
     name = trim_name(name);
 
     // at the moment, we only support opening "" (with / stripped)
-    if (strcmp("", name))
+    if (strcmp("", name)) {
         return ERR_NOT_FOUND;
+    }
 
     // allocate a dir cookie, point it at the first file, and stuff it in the dircookie jar
     dircookie *dir = malloc(sizeof(*dir));
-    if (!dir)
+    if (!dir) {
         return ERR_NO_MEMORY;
+    }
 
     dir->fs = mem;
 
@@ -358,8 +373,9 @@ static status_t memfs_readdir(dircookie *dcookie, struct dirent *ent) {
 
     LTRACEF("dircookie %p ent %p\n", dcookie, ent);
 
-    if (!ent)
+    if (!ent) {
         return ERR_INVALID_ARGS;
+    }
 
     mutex_acquire(&dcookie->fs->lock);
 

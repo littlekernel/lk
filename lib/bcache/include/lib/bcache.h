@@ -15,6 +15,7 @@ __BEGIN_CDECLS
 typedef void *bcache_t;
 
 bcache_t bcache_create(bdev_t *dev, size_t block_size, int block_count);
+void bcache_set_read_only(bcache_t priv, bool ro);
 void bcache_destroy(bcache_t);
 
 int bcache_read_block(bcache_t, void *, uint block);

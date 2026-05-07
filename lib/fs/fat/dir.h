@@ -17,18 +17,38 @@ struct dir_entry;
 struct dir_entry_location;
 struct fat_dir_cookie;
 
+// Convert UTF-8 to UCS-2 for FAT LFN handling.
+// Returns NO_ERROR on success, ERR_INVALID_ARGS for malformed/unrepresentable UTF-8,
+// and ERR_TOO_BIG if max_ucs2_len is insufficient.
+status_t fat_utf8_to_ucs2(const char *utf8, uint16_t *ucs2, size_t max_ucs2_len,
+                          size_t *out_ucs2_len);
+
+// Convert UCS-2 to UTF-8 for FAT LFN read path.
+// Returns NO_ERROR on success, ERR_TOO_BIG if the UTF-8 output buffer is too small.
+status_t fat_ucs2_to_utf8(const uint16_t *ucs2, size_t ucs2_len, char *utf8,
+                          size_t max_utf8_len, size_t *out_utf8_len);
+
+// Split a path into leading path and last element. Modifies path in-place.
+void split_path(char *path, const char **leading_path, const char **last_element);
+
+// Convert a user name to a canonical 8.3 short name (space padded, null terminated).
+status_t name_to_short_file_name(char sfn[8 + 3 + 1], const char *name);
+
 // structure that represents an open dir, may have multiple cookies in its list
 // at any point in time,
 class fat_dir : public fat_file {
-public:
+  public:
     explicit fat_dir(fat_fs *f) : fat_file(f) {}
-    virtual ~fat_dir();
+    virtual ~fat_dir() = default;
 
+    static status_t remove(fscookie *cookie, const char *path);
+    static status_t rmdir(fscookie *cookie, const char *path);
+    static status_t mkdir(fscookie *cookie, const char *path);
     static status_t opendir(fscookie *cookie, const char *name, dircookie **dcookie);
     static status_t readdir(dircookie *dcookie, struct dirent *ent);
     static status_t closedir(dircookie *dcookie);
 
-private:
+  private:
     status_t opendir_priv(const dir_entry &entry, const dir_entry_location &loc, fat_dir_cookie **out_cookie);
     status_t readdir_priv(fat_dir_cookie *cookie, struct dirent *ent);
     status_t closedir_priv(fat_dir_cookie *cookie, bool *last_ref);
@@ -36,4 +56,3 @@ private:
     // list of all open dir handles and their offsets within us
     list_node cookies_ = LIST_INITIAL_VALUE(cookies_);
 };
-

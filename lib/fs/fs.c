@@ -7,15 +7,15 @@
  */
 #include <lib/fs.h>
 
-#include <lk/debug.h>
-#include <lk/trace.h>
-#include <lk/list.h>
-#include <lk/err.h>
-#include <string.h>
-#include <stdlib.h>
-#include <lib/bio.h>
-#include <lk/init.h>
 #include <kernel/mutex.h>
+#include <lib/bio.h>
+#include <lk/debug.h>
+#include <lk/err.h>
+#include <lk/init.h>
+#include <lk/list.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -45,14 +45,25 @@ static mutex_t mount_lock = MUTEX_INITIAL_VALUE(mount_lock);
 static struct list_node mounts = LIST_INITIAL_VALUE(mounts);
 static struct list_node fses = LIST_INITIAL_VALUE(fses);
 
+// list of all open rootfs dircookies; protected by mount_lock
+static struct list_node active_rootfs_cookies = LIST_INITIAL_VALUE(active_rootfs_cookies);
+
+struct rootfs_dircookie {
+    struct list_node node;        // linked into active_rootfs_cookies
+    char prefix[FS_MAX_PATH_LEN]; // normalised path being listed ("" or "/mnt")
+    struct fs_mount *current;     // next mount to scan from; NULL = exhausted
+};
+static void rootfs_mount_removed(struct fs_mount *removed);
+
 // defined by the linker, wrapping all structs in the "fs_impl" section
 extern const struct fs_impl __start_fs_impl __WEAK;
 extern const struct fs_impl __stop_fs_impl __WEAK;
 
 static const struct fs_impl *find_fs(const char *name) {
     for (const struct fs_impl *fs = &__start_fs_impl; fs != &__stop_fs_impl; fs++) {
-        if (!strcmp(name, fs->name))
+        if (!strcmp(name, fs->name)) {
             return fs;
+        }
     }
     return NULL;
 }
@@ -129,17 +140,21 @@ static void put_mount(struct fs_mount *mount) {
     if ((--mount->ref) == 0) {
         LTRACEF("last ref, unmounting fs at '%s'\n", mount->path);
 
+        // advance any open rootfs iterators off this mount before unlinking
+        rootfs_mount_removed(mount);
+
         list_delete(&mount->node);
         mount->api->unmount(mount->cookie);
         free(mount->path);
-        if (mount->dev)
+        if (mount->dev) {
             bio_close(mount->dev);
+        }
         free(mount);
     }
     mutex_release(&mount_lock);
 }
 
-static status_t mount(const char *path, const char *device, const struct fs_impl *fs) {
+static status_t mount(const char *path, const char *device, const struct fs_impl *fs, enum fs_mount_options options) {
     struct fs_mount *mount;
     const struct fs_api *api = fs->api;
     char temppath[FS_MAX_PATH_LEN];
@@ -147,8 +162,9 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
     strlcpy(temppath, path, sizeof(temppath));
     fs_normalize_path(temppath);
 
-    if (temppath[0] != '/')
+    if (temppath[0] != '/') {
         return ERR_BAD_PATH;
+    }
 
     /* see if there's already something at this path, abort if there is */
     mount = find_mount(temppath, NULL);
@@ -161,27 +177,34 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
     bdev_t *dev = NULL;
     if (device && device[0] != '\0') {
         dev = bio_open(device);
-        if (!dev)
+        if (!dev) {
             return ERR_NOT_FOUND;
+        }
     }
 
     /* call into the fs implementation */
     fscookie *cookie;
-    status_t err = api->mount(dev, &cookie);
+    status_t err = api->mount(dev, &cookie, options);
     if (err < 0) {
-        if (dev) bio_close(dev);
+        if (dev) {
+            bio_close(dev);
+        }
         return err;
     }
 
     /* create the mount structure and add it to the list */
     mount = malloc(sizeof(struct fs_mount));
     if (!mount) {
-        if (dev) bio_close(dev);
+        if (dev) {
+            bio_close(dev);
+        }
         return ERR_NO_MEMORY;
     }
     mount->path = strdup(temppath);
     if (!mount->path) {
-        if (dev) bio_close(dev);
+        if (dev) {
+            bio_close(dev);
+        }
         free(mount);
         return ERR_NO_MEMORY;
     }
@@ -195,7 +218,6 @@ static status_t mount(const char *path, const char *device, const struct fs_impl
     list_add_head(&mounts, &mount->node);
 
     return 0;
-
 }
 
 status_t fs_format_device(const char *fsname, const char *device, const void *args) {
@@ -211,19 +233,21 @@ status_t fs_format_device(const char *fsname, const char *device, const void *ar
     bdev_t *dev = NULL;
     if (device && device[0] != '\0') {
         dev = bio_open(device);
-        if (!dev)
+        if (!dev) {
             return ERR_NOT_FOUND;
+        }
     }
 
     return fs->api->format(dev, args);
 }
 
-status_t fs_mount(const char *path, const char *fsname, const char *device) {
+status_t fs_mount(const char *path, const char *fsname, const char *device, enum fs_mount_options options) {
     const struct fs_impl *fs = find_fs(fsname);
-    if (!fs)
+    if (!fs) {
         return ERR_NOT_FOUND;
+    }
 
-    return mount(path, device, fs);
+    return mount(path, device, fs, options);
 }
 
 status_t fs_unmount(const char *path) {
@@ -233,8 +257,9 @@ status_t fs_unmount(const char *path) {
     fs_normalize_path(temppath);
 
     struct fs_mount *mount = find_mount(temppath, NULL);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     // return the ref that find_mount added and one extra
     put_mount(mount);
@@ -253,8 +278,9 @@ status_t fs_open_file(const char *path, filehandle **handle) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     LTRACEF("path %s temppath %s newpath %s\n", path, temppath, newpath);
 
@@ -297,8 +323,9 @@ status_t fs_create_file(const char *path, filehandle **handle, uint64_t len) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     if (!mount->api->create) {
         put_mount(mount);
@@ -339,8 +366,9 @@ status_t fs_remove_file(const char *path) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     if (!mount->api->remove) {
         put_mount(mount);
@@ -354,21 +382,47 @@ status_t fs_remove_file(const char *path) {
     return err;
 }
 
+status_t fs_remove_dir(const char *path) {
+    char temppath[FS_MAX_PATH_LEN];
+
+    strlcpy(temppath, path, sizeof(temppath));
+    fs_normalize_path(temppath);
+
+    const char *newpath;
+    struct fs_mount *mount = find_mount(temppath, &newpath);
+    if (!mount) {
+        return ERR_NOT_FOUND;
+    }
+
+    if (!mount->api->rmdir) {
+        put_mount(mount);
+        return ERR_NOT_SUPPORTED;
+    }
+
+    status_t err = mount->api->rmdir(mount->cookie, newpath);
+
+    put_mount(mount);
+
+    return err;
+}
+
 ssize_t fs_read_file(filehandle *handle, void *buf, off_t offset, size_t len) {
     return handle->mount->api->read(handle->cookie, buf, offset, len);
 }
 
 ssize_t fs_write_file(filehandle *handle, const void *buf, off_t offset, size_t len) {
-    if (!handle->mount->api->write)
+    if (!handle->mount->api->write) {
         return ERR_NOT_SUPPORTED;
+    }
 
     return handle->mount->api->write(handle->cookie, buf, offset, len);
 }
 
 status_t fs_close_file(filehandle *handle) {
     status_t err = handle->mount->api->close(handle->cookie);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     put_mount(handle->mount);
     free(handle);
@@ -387,8 +441,9 @@ status_t fs_make_dir(const char *path) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
         return ERR_NOT_FOUND;
+    }
 
     if (!mount->api->mkdir) {
         put_mount(mount);
@@ -402,6 +457,128 @@ status_t fs_make_dir(const char *path) {
     return err;
 }
 
+// ---------------------------------------------------------------------------
+// Intrinsic rootfs: enumerates the first path-component of every active mount
+// so that "ls /" works without any explicit filesystem mounted at "/".
+//
+// Design: dircookie holds a live pointer (current) into the mounts list.
+// readdir scans forward from current, using a backwards pass for dedup.
+// put_mount advances any in-flight cookies off a mount before removing it.
+// No per-entry heap allocations are made after opendir.
+// ---------------------------------------------------------------------------
+
+// Called by put_mount (under mount_lock) before |removed| is unlinked.
+// Advances every open cookie whose current pointer is about to dangle.
+static void rootfs_mount_removed(struct fs_mount *removed) {
+    struct fs_mount *next = list_next_type(&mounts, &removed->node, struct fs_mount, node);
+    struct rootfs_dircookie *dc;
+    list_for_every_entry(&active_rootfs_cookies, dc, struct rootfs_dircookie, node) {
+        if (dc->current == removed) {
+            dc->current = next;
+        }
+    }
+}
+
+// Given mount |m| and a normalised |prefix|, return a pointer into m->path
+// for the first component after the prefix, and set *complen.  Returns NULL
+// if this mount is not a direct or indirect child of prefix.
+static const char *mount_component(const struct fs_mount *m, const char *prefix,
+                                   size_t plen, size_t *complen) {
+    const char *p = m->path;
+    if (plen == 0) {
+        if (p[0] != '/') {
+            return NULL;
+        }
+        p++;
+    } else {
+        if (strncmp(p, prefix, plen) != 0 || p[plen] != '/') {
+            return NULL;
+        }
+        p += plen + 1;
+    }
+    if (p[0] == '\0') {
+        return NULL;
+    }
+    const char *slash = strchr(p, '/');
+    *complen = slash ? (size_t)(slash - p) : strlen(p);
+    if (*complen == 0 || *complen >= FS_MAX_FILE_LEN) {
+        return NULL;
+    }
+    return p;
+}
+
+static status_t rootfs_opendir(const char *prefix, struct rootfs_dircookie **out) {
+    struct rootfs_dircookie *dc = calloc(1, sizeof(*dc));
+    if (!dc) {
+        return ERR_NO_MEMORY;
+    }
+
+    strlcpy(dc->prefix, prefix, sizeof(dc->prefix));
+    size_t plen = strlen(prefix);
+    bool matched = (plen == 0); // root is always valid
+
+    mutex_acquire(&mount_lock);
+    dc->current = list_peek_head_type(&mounts, struct fs_mount, node);
+    if (!matched) {
+        // validate that at least one mount lives under this prefix
+        struct fs_mount *m;
+        list_for_every_entry(&mounts, m, struct fs_mount, node) {
+            if (strncmp(m->path, prefix, plen) == 0 && m->path[plen] == '/') {
+                matched = true;
+                break;
+            }
+        }
+    }
+    if (matched) {
+        list_add_tail(&active_rootfs_cookies, &dc->node);
+    }
+    mutex_release(&mount_lock);
+
+    if (!matched) {
+        free(dc);
+        return ERR_NOT_FOUND;
+    }
+
+    *out = dc;
+    return NO_ERROR;
+}
+
+static status_t rootfs_readdir(struct rootfs_dircookie *dc, struct dirent *ent) {
+    const char *prefix = dc->prefix;
+    size_t plen = strlen(prefix);
+
+    mutex_acquire(&mount_lock);
+    struct fs_mount *m = dc->current;
+    while (m) {
+        struct fs_mount *next = list_next_type(&mounts, &m->node, struct fs_mount, node);
+        size_t complen;
+        const char *comp = mount_component(m, prefix, plen, &complen);
+        if (!comp) {
+            m = next;
+            continue;
+        }
+
+        dc->current = next;
+        size_t copy = (complen < sizeof(ent->name) - 1) ? complen : sizeof(ent->name) - 1;
+        memcpy(ent->name, comp, copy);
+        ent->name[copy] = '\0';
+        mutex_release(&mount_lock);
+        return NO_ERROR;
+    }
+    dc->current = NULL;
+    mutex_release(&mount_lock);
+    return ERR_NOT_FOUND;
+}
+
+static void rootfs_closedir(struct rootfs_dircookie *dc) {
+    mutex_acquire(&mount_lock);
+    list_delete(&dc->node);
+    mutex_release(&mount_lock);
+    free(dc);
+}
+
+// ---------------------------------------------------------------------------
+
 status_t fs_open_dir(const char *path, dirhandle **handle) {
     char temppath[FS_MAX_PATH_LEN];
 
@@ -412,8 +589,29 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
 
     const char *newpath;
     struct fs_mount *mount = find_mount(temppath, &newpath);
-    if (!mount)
+    if (!mount) {
+        // temppath[0] == '\0'  → caller asked for "/" (root virtual dir)
+        // temppath[0] == '/'   → might be a virtual prefix of some mount
+        // rootfs_opendir returns ERR_NOT_FOUND for non-root paths with no match
+        if (temppath[0] == '\0' || temppath[0] == '/') {
+            struct rootfs_dircookie *dc;
+            status_t err = rootfs_opendir(temppath, &dc);
+            if (err < 0) {
+                return err;
+            }
+
+            dirhandle *d = malloc(sizeof(*d));
+            if (!d) {
+                rootfs_closedir(dc);
+                return ERR_NO_MEMORY;
+            }
+            d->cookie = (dircookie *)dc;
+            d->mount = NULL; // sentinel: rootfs handle
+            *handle = d;
+            return NO_ERROR;
+        }
         return ERR_NOT_FOUND;
+    }
 
     LTRACEF("path %s temppath %s newpath %s\n", path, temppath, newpath);
 
@@ -443,19 +641,32 @@ status_t fs_open_dir(const char *path, dirhandle **handle) {
 }
 
 status_t fs_read_dir(dirhandle *handle, struct dirent *ent) {
-    if (!handle->mount->api->readdir)
+    if (!handle->mount) {
+        return rootfs_readdir((struct rootfs_dircookie *)handle->cookie, ent);
+    }
+
+    if (!handle->mount->api->readdir) {
         return ERR_NOT_SUPPORTED;
+    }
 
     return handle->mount->api->readdir(handle->cookie, ent);
 }
 
 status_t fs_close_dir(dirhandle *handle) {
-    if (!handle->mount->api->closedir)
+    if (!handle->mount) {
+        rootfs_closedir((struct rootfs_dircookie *)handle->cookie);
+        free(handle);
+        return NO_ERROR;
+    }
+
+    if (!handle->mount->api->closedir) {
         return ERR_NOT_SUPPORTED;
+    }
 
     status_t err = handle->mount->api->closedir(handle->cookie);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     put_mount(handle->mount);
     free(handle);
@@ -483,14 +694,14 @@ status_t fs_stat_fs(const char *mountpoint, struct fs_stat *stat) {
     return result;
 }
 
-
 ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) {
     filehandle *handle;
 
     /* open the file */
     status_t err = fs_open_file(path, &handle);
-    if (err < 0)
+    if (err < 0) {
         return err;
+    }
 
     /* stat it for size, see how much we need to read */
     struct file_stat stat;
@@ -506,16 +717,17 @@ ssize_t fs_load_file(const char *path, void *ptr, size_t maxlen) {
 const char *trim_name(const char *_name) {
     const char *name = &_name[0];
     // chew up leading spaces
-    while (*name == ' ')
+    while (*name == ' ') {
         name++;
+    }
 
     // chew up leading slashes
-    while (*name == '/')
+    while (*name == '/') {
         name++;
+    }
 
     return name;
 }
-
 
 void fs_normalize_path(char *path) {
     int outpos;
@@ -646,9 +858,9 @@ void fs_normalize_path(char *path) {
     }
 
     /* don't end with trailing slashes */
-    if (outpos > 0 && path[outpos - 1] == '/')
+    if (outpos > 0 && path[outpos - 1] == '/') {
         outpos--;
+    }
 
     path[outpos++] = 0;
 }
-

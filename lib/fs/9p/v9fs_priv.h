@@ -22,9 +22,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <dev/virtio/9p.h>
+#include <kernel/mutex.h>
 #include <lib/fs.h>
 #include <lk/list.h>
-#include <kernel/mutex.h>
 
 typedef struct v9fs_fid {
     uint32_t fid;
@@ -45,7 +45,7 @@ typedef struct v9fs {
 } v9fs_t;
 
 #define V9FS_FILE_PAGE_BUFFER_SIZE (1 << 12)
-#define V9FS_FILE_LOCK_TIMEOUT 3000
+#define V9FS_FILE_LOCK_TIMEOUT     3000
 
 typedef struct v9fs_file {
     v9fs_t *v9fs;
@@ -75,7 +75,7 @@ typedef struct v9fs_dir {
     struct list_node node;
 } v9fs_dir_t;
 
-status_t v9fs_mount(bdev_t *dev, fscookie **cookie);
+status_t v9fs_mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options);
 status_t v9fs_unmount(fscookie *cookie);
 status_t v9fs_open_file(fscookie *cookie, const char *path,
                         filecookie **fcookie);
