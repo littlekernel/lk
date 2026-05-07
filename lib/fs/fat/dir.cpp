@@ -1044,9 +1044,7 @@ status_t mark_entry_record_deleted(fat_fs *fat, uint32_t parent_cluster,
 
         uint8_t *ent = (uint8_t *)bref.ptr();
         ent += loc.dir_offset % fat->info().bytes_per_sector;
-        LTRACEF_LEVEL(2, "Original byte: 0x%02x\n", ent[0]);
         ent[0] = 0xE5;
-        LTRACEF_LEVEL(2, "After marking: 0x%02x\n", ent[0]);
         bref.mark_dirty();
     }
 
