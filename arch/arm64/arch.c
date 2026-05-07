@@ -25,8 +25,40 @@
 
 #define LOCAL_TRACE 0
 
+#define ID_AA64DFR0_PMUVER_SHIFT  8
+#define ID_AA64DFR0_PMUVER_MASK   (0xfU << ID_AA64DFR0_PMUVER_SHIFT)
+#define ID_AA64DFR0_PMUVER_NONE   0
+#define ID_AA64DFR0_PMUVER_IMPDEF 0xf
+
+#define PMCR_EL0_E (1U << 0)
+#define PMCR_EL0_C (1U << 2)
+#define PMCR_EL0_D (1U << 3)
+
+#define PMCNTENSET_EL0_C (1U << 31)
+
 /* Defined in start.S. */
 extern uint64_t arm64_boot_el;
+
+bool arm64_cycle_counter_enabled;
+
+static void arm64_enable_cycle_counter(void) {
+    uint64_t dfr0 = ARM64_READ_SYSREG(id_aa64dfr0_el1);
+    uint pmuver = (dfr0 & ID_AA64DFR0_PMUVER_MASK) >> ID_AA64DFR0_PMUVER_SHIFT;
+
+    if (pmuver == ID_AA64DFR0_PMUVER_NONE || pmuver == ID_AA64DFR0_PMUVER_IMPDEF) {
+        arm64_cycle_counter_enabled = false;
+        return;
+    }
+
+    uint64_t pmcr = ARM64_READ_SYSREG(pmcr_el0);
+    pmcr |= PMCR_EL0_E | PMCR_EL0_C;
+    pmcr &= ~PMCR_EL0_D;
+
+    ARM64_WRITE_SYSREG(pmcr_el0, pmcr);
+    ARM64_WRITE_SYSREG(pmcntenset_el0, PMCNTENSET_EL0_C);
+
+    arm64_cycle_counter_enabled = true;
+}
 
 // initial setup per cpu immediately after entering C code
 void arm64_early_init_percpu(void) {
@@ -63,7 +95,7 @@ void arm64_early_init_percpu(void) {
     ARM64_WRITE_SYSREG(TPIDRRO_EL0, 0UL);
 
     // TODO: read feature bits on cpu 0
-    // TODO: enable cycle counter if present
+    arm64_enable_cycle_counter();
 
     arch_enable_fiqs();
 }

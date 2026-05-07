@@ -21,6 +21,8 @@ __BEGIN_CDECLS
 
 #define ENABLE_CYCLE_COUNTER 1
 
+extern bool arm64_cycle_counter_enabled;
+
 void arch_stacktrace(uint64_t fp, uint64_t pc);
 
 static inline void arch_enable_fiqs(void) {
@@ -57,8 +59,11 @@ static inline bool arch_fiqs_disabled(void) {
 #endif
 
 static inline ulong arch_cycle_count(void) {
-//#warning no arch_cycle_count implementation
-    return 0;
+    if (!arm64_cycle_counter_enabled) {
+        return 0;
+    }
+
+    return ARM64_READ_SYSREG(pmccntr_el0);
 }
 
 /* use the cpu local thread context pointer to store current_thread */
@@ -73,4 +78,3 @@ static inline void arch_set_current_thread(struct thread *t) {
 __END_CDECLS
 
 #endif // ASSEMBLY
-
