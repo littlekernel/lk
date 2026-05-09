@@ -18,10 +18,12 @@
 #include <hw/multiboot.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
+#include <lib/cmdline.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/trace.h>
 #include <malloc.h>
+#include <string.h>
 #include <platform.h>
 #include <platform/fb_console.h>
 #include <platform/keyboard.h>
@@ -67,6 +69,12 @@ extern uint64_t __bss_end;
 /* based on multiboot (or other methods) we support up to 16 arenas */
 #define NUM_ARENAS 16
 static pmm_arena_t mem_arena[NUM_ARENAS];
+
+/* A copy of the command line out of the multiboot info, which would otherwise be lost
+ * as the PMM and VM start to use memory.
+ * TODO: a better solution would be to find a way for the entire multiboot structure
+ * to be preserved. */
+static char cmdline_copy[256];
 
 /* parse an array of multiboot mmap entries */
 static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap_length,
@@ -149,6 +157,14 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
                 case MULTIBOOT2_TAG_TYPE_CMDLINE: {
                     char *cmdline = (char *)(tag + 1);
                     dprintf(SPEW, "PC: cmdline = \"%s\"\n", cmdline);
+
+                    // make a copy of the cmdline into a boot alloc block
+                    strlcpy(cmdline_copy, cmdline, sizeof(cmdline_copy));
+
+                    status_t err = cmdline_init(cmdline_copy, strlen(cmdline_copy));
+                    if (err != NO_ERROR && err != ERR_ALREADY_STARTED) {
+                        dprintf(INFO, "PC: failed to initialize cmdline: %d\n", err);
+                    }
                     break;
                 }
 
@@ -294,6 +310,20 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
         dprintf(SPEW, "PC: multiboot memory map, length %u:\n", multiboot_info->mmap_length);
         parse_multiboot_mmap(mmap, multiboot_info->mmap_length, found_mem_arenas);
+    }
+
+    // multiboot v1 command line
+    if (multiboot_info->flags & MB_INFO_CMD_LINE) {
+        const char *cmdline = (const char *)(uintptr_t)multiboot_info->cmdline;
+        cmdline = (void *)((uintptr_t)cmdline + KERNEL_BASE);
+        dprintf(SPEW, "PC: multiboot cmdline = \"%s\"\n", cmdline);
+
+        strlcpy(cmdline_copy, cmdline, sizeof(cmdline_copy));
+
+        status_t err = cmdline_init(cmdline_copy, strlen(cmdline_copy));
+        if (err != NO_ERROR && err != ERR_ALREADY_STARTED) {
+            dprintf(INFO, "PC: failed to initialize cmdline: %d\n", err);
+        }
     }
 
     if (multiboot_info->flags & MB_INFO_FRAMEBUFFER) {

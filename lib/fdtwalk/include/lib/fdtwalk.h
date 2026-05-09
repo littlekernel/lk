@@ -104,6 +104,9 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
 // Helper routines that initialize various subsystems based on device tree info
 status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default_mem_base, size_t default_mem_size);
 status_t fdtwalk_reserve_fdt_memory(const void *fdt, paddr_t fdt_phys);
+#if WITH_LIB_CMDLINE
+status_t fdtwalk_setup_cmdline(const void *fdt);
+#endif
 #if ARCH_RISCV
 status_t fdtwalk_setup_cpus_riscv(const void *fdt);
 #endif

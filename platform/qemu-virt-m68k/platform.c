@@ -17,8 +17,12 @@
 #include <platform/timer.h>
 #include <platform/virt.h>
 #include <sys/types.h>
+#include <string.h>
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
+#endif
+#if WITH_LIB_CMDLINE
+#include <lib/cmdline.h>
 #endif
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -70,6 +74,18 @@ void platform_early_init(void) {
     // Dump the bootinfo structure
     if (LK_DEBUGLEVEL >= INFO) {
         dump_all_bootinfo_records();
+    }
+
+    // look for command line in bootinfo records
+    uint16_t cmdline_size;
+    const char *cmdline = (const char *)bootinfo_find_record(BOOTINFO_TAG_COMMAND_LINE, &cmdline_size);
+    if (cmdline && cmdline_size > 0) {
+        dprintf(SPEW, "VIRT: bootinfo command line = \"%s\" (size %hu)\n", cmdline, cmdline_size);
+        // command line seems to always be zero terminated
+        status_t err = cmdline_init(cmdline, strlen(cmdline));
+        if (err != NO_ERROR && err != ERR_ALREADY_STARTED) {
+            dprintf(INFO, "VIRT: failed to initialize cmdline: %d\n", err);
+        }
     }
 
     // look for tag 0x5, which describes the memory layout of the system

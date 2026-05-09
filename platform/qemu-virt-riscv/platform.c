@@ -61,6 +61,9 @@ void platform_early_init(void) {
     // detect secondary cores to start
     fdtwalk_setup_cpus_riscv(fdt);
 
+    // initialize cmdline from device tree
+    fdtwalk_setup_cmdline(fdt);
+
     LTRACEF("done scanning FDT\n");
 
     /* save a copy of the pointer to the poweroff/reset register */

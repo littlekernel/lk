@@ -20,6 +20,7 @@ endif
 endif
 
 MODULE_DEPS += lib/cbuf
+MODULE_DEPS += lib/cmdline
 MODULE_DEPS += lib/fdt
 MODULE_DEPS += lib/fdtwalk
 MODULE_DEPS += dev/bus/pci

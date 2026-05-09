@@ -10,6 +10,7 @@ endif
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
 MODULE_DEPS += lib/cbuf
+MODULE_DEPS += lib/cmdline
 MODULE_DEPS += dev/virtio/block
 MODULE_DEPS += dev/virtio/gpu
 MODULE_DEPS += dev/virtio/net

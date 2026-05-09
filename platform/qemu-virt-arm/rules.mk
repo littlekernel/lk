@@ -36,6 +36,7 @@ MODULE_DEPS += \
     dev/virtio/net \
     dev/virtio/rng \
     lib/cbuf \
+    lib/cmdline \
     lib/fdtwalk \
     lib/fs/9p \
 

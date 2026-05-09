@@ -17,6 +17,9 @@
 #include <lk/trace.h>
 #include <stdio.h>
 #include <sys/types.h>
+#if WITH_LIB_CMDLINE
+#include <lib/cmdline.h>
+#endif
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #else
@@ -301,6 +304,52 @@ status_t fdtwalk_setup_pci(const void *fdt) {
     }
 
     return err;
+}
+#endif
+
+#if WITH_LIB_CMDLINE
+// Helper to initialize cmdline library from device tree /chosen node
+status_t fdtwalk_setup_cmdline(const void *fdt) {
+    if (fdt_check_header(fdt) != 0) {
+        LTRACEF("invalid FDT header\n");
+        return ERR_NOT_FOUND;
+    }
+
+    // Find the /chosen node
+    int chosen_offset = fdt_path_offset(fdt, "/chosen");
+    if (chosen_offset < 0) {
+        LTRACEF("no /chosen node in FDT\n");
+        return ERR_NOT_FOUND;
+    }
+
+    // Look for the bootargs property
+    int len = 0;
+    const char *bootargs = (const char *)fdt_getprop(fdt, chosen_offset, "bootargs", &len);
+    if (!bootargs || len <= 0) {
+        LTRACEF("no bootargs in /chosen node\n");
+        return ERR_NOT_FOUND;
+    }
+
+    dprintf(SPEW, "FDT: bootargs = \"%s\" (len %d)\n", bootargs, len);
+
+    // Initialize the cmdline library
+    status_t err = cmdline_init(bootargs, len - 1); // len includes null terminator, subtract it
+    if (err == ERR_ALREADY_STARTED) {
+        LTRACEF("cmdline already initialized\n");
+        return NO_ERROR; // not an error if already initialized
+    }
+    if (err != NO_ERROR) {
+        dprintf(INFO, "FDT: failed to initialize cmdline: %d\n", err);
+        return err;
+    }
+
+    dprintf(INFO, "FDT: initialized cmdline from device tree\n");
+    return NO_ERROR;
+}
+#else
+// Stub when cmdline library is not available
+static inline status_t fdtwalk_setup_cmdline(const void *fdt) {
+    return ERR_NOT_SUPPORTED;
 }
 #endif
 

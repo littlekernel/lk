@@ -87,6 +87,9 @@ void platform_early_init(void) {
 
     // detect physical memory layout from the device tree
     fdtwalk_setup_memory(fdt, MEMORY_BASE_PHYS, MEMORY_BASE_PHYS, DEFAULT_MEMORY_SIZE);
+
+    // initialize cmdline from device tree
+    fdtwalk_setup_cmdline(fdt);
 }
 
 void platform_postvm_init(uint level) {
