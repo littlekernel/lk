@@ -7,10 +7,11 @@
  */
 
 #include <dev/virtio/rng.h>
+
 #include <dev/virtio/virtio-device.h>
 #include <dev/virtio/virtio_ring.h>
+#include <kernel/event.h>
 #include <kernel/thread.h>
-#include <kernel/vm.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/init.h>
@@ -18,24 +19,40 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
+
 #define LOCAL_TRACE 0
+
+namespace {
 
 constexpr uint16_t RNG_QUEUE_INDEX = 0;
 
 struct virtio_rng_state {
     virtio_device *dev;
-    bool initialized;
     volatile size_t last_rx_len;
+    event_t irq_wait;
+    bool initialized;
 };
 
-static virtio_rng_state rng;
+virtio_rng_state rng;
 
-static enum handler_return virtio_rng_irq(virtio_device *dev, uint ring_index, const vring_used_elem *e) {
-    if (ring_index == RNG_QUEUE_INDEX && e)
+enum handler_return virtio_rng_irq(virtio_device *dev, uint ring_index, const vring_used_elem *e) {
+    LTRACEF("IRQ received on ring %u\n", ring_index);
+    if (ring_index == RNG_QUEUE_INDEX && e) {
         rng.last_rx_len = e->len;
+        rng.dev->virtio_free_desc(RNG_QUEUE_INDEX, e->id);
+
+        if (event_signal(&rng.irq_wait, false) > 0) {
+            return INT_RESCHEDULE;
+        }
+    }
 
     return INT_NO_RESCHEDULE;
 }
+
+} // namespace
 
 status_t virtio_rng_init(virtio_device *dev) {
     LTRACE_ENTRY;
@@ -43,8 +60,7 @@ status_t virtio_rng_init(virtio_device *dev) {
     rng.dev = dev;
     rng.initialized = false;
     rng.last_rx_len = 0;
-
-    dev->set_irq_callbacks(virtio_rng_irq, nullptr);
+    event_init(&rng.irq_wait, false, 0);
 
     status_t err = dev->virtio_alloc_ring(RNG_QUEUE_INDEX, 32);
     if (err != NO_ERROR) {
@@ -52,26 +68,40 @@ status_t virtio_rng_init(virtio_device *dev) {
         return err;
     }
 
+    dev->set_irq_callbacks(virtio_rng_irq, nullptr);
+    dev->bus()->unmask_interrupt();
+
     dev->bus()->virtio_status_driver_ok();
     rng.initialized = true;
 
-    LTRACEF("virtio-rng: initialized successfully\n");
+    dprintf(INFO, "virtio-rng: initialized successfully\n");
     return NO_ERROR;
 }
 
 ssize_t virtio_rng_read(void *buf, size_t len) {
-    if (!rng.initialized || len == 0) return ERR_NOT_CONFIGURED;
+    if (!rng.initialized || len == 0) {
+        return ERR_NOT_CONFIGURED;
+    }
 
     vaddr_t v_start = (vaddr_t)buf;
     vaddr_t v_end = v_start + len - 1;
-    if ((v_start / PAGE_SIZE) != (v_end / PAGE_SIZE))
+    if ((v_start / PAGE_SIZE) != (v_end / PAGE_SIZE)) {
         return ERR_INVALID_ARGS;
+    }
 
+#if WITH_KERNEL_VM
     paddr_t paddr = vaddr_to_paddr(buf);
-    if (!paddr) return ERR_INVALID_ARGS;
+    if (!paddr) {
+        return ERR_INVALID_ARGS;
+    }
+#else
+    paddr_t paddr = (paddr_t)buf;
+#endif
 
     uint16_t desc_idx = rng.dev->virtio_alloc_desc(RNG_QUEUE_INDEX);
-    if (desc_idx == 0xffff) return ERR_NO_MEMORY;
+    if (desc_idx == 0xffff) {
+        return ERR_NO_MEMORY;
+    }
 
     vring_desc *desc = rng.dev->virtio_desc_index_to_desc(RNG_QUEUE_INDEX, desc_idx);
     desc->addr = paddr;
@@ -79,36 +109,41 @@ ssize_t virtio_rng_read(void *buf, size_t len) {
     desc->flags = VRING_DESC_F_WRITE;
 
     rng.last_rx_len = 0;
+    event_unsignal(&rng.irq_wait);
+
     rng.dev->virtio_submit_chain(RNG_QUEUE_INDEX, desc_idx);
     rng.dev->bus()->virtio_kick(RNG_QUEUE_INDEX);
 
-    while (rng.last_rx_len == 0) {
-        rng.dev->handle_queue_interrupt();
-        thread_yield();
-    }
+    event_wait(&rng.irq_wait);
 
     size_t rx_len = rng.last_rx_len;
-    rng.last_rx_len = 0;
-    
-    rng.dev->virtio_free_desc(RNG_QUEUE_INDEX, desc_idx);
-    return rx_len; 
+
+    return rx_len;
 }
 
-static void seed_system_prng(uint level) {
+namespace {
+
+void seed_system_prng(uint level) {
     unsigned int seed = 0;
     ssize_t bytes_read;
 
-    if (!rng.initialized)
+    if (!rng.initialized) {
         return;
+    }
 
     bytes_read = virtio_rng_read(&seed, sizeof(seed));
-    
+
     if (bytes_read == sizeof(seed)) {
         srand(seed);
         dprintf(INFO, "virtio-rng: System PRNG seeded with hardware entropy\n");
+        if (LOCAL_TRACE) {
+            hexdump8(&seed, sizeof(seed));
+        }
     } else {
         dprintf(INFO, "virtio-rng: Failed to seed system PRNG\n");
     }
 }
 
 LK_INIT_HOOK(virtio_rng_seed, seed_system_prng, LK_INIT_LEVEL_TARGET + 1);
+
+} // namespace
