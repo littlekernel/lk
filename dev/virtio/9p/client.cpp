@@ -25,10 +25,14 @@
 #include <dev/virtio/virtio-device.h>
 #include <dev/virtio/9p.h>
 #include <kernel/event.h>
-#include <kernel/vm.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <stdlib.h>
+
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
 
 #include "protocol.h"
 
@@ -36,9 +40,13 @@
 
 static status_t pdu_init(struct p9_fcall *pdu, size_t size)
 {
+#if WITH_KERNEL_VM
     vmm_alloc_contiguous(vmm_get_kernel_aspace(), "virtio_9p_pdu", size,
                          (void **)&pdu->sdata, 0, 0,
                          ARCH_MMU_FLAG_UNCACHED_DEVICE);
+#else
+    pdu->sdata = (uint8_t*)malloc(size);
+#endif
     if (!pdu->sdata)
         return ERR_NO_MEMORY;
     pdu->capacity = size;
@@ -47,8 +55,13 @@ static status_t pdu_init(struct p9_fcall *pdu, size_t size)
 
 static void pdu_fini(struct p9_fcall *pdu)
 {
+#if WITH_KERNEL_VM
     if (pdu->sdata)
         vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)pdu->sdata);
+#else
+    if (pdu->sdata)
+        free(pdu->sdata);
+#endif
     pdu->sdata = NULL;
     pdu->capacity = 0;
 }
@@ -138,6 +151,16 @@ static void p9_req_receive(struct p9_req *req,
 #endif
 }
 
+static paddr_t translate_to_paddr(const void *vaddr) {
+#if WITH_KERNEL_VM
+    paddr_t paddr = vaddr_to_paddr((void *)vaddr);
+    ASSERT(paddr);
+    return paddr;
+#else
+    return (paddr_t)vaddr;
+#endif
+}
+
 static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
                                struct p9_req *req)
 {
@@ -151,7 +174,7 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
 
     const bool modern = dev->config_is_modern();
     vring_desc_write_len(desc, req->tc.size, modern);
-    vring_desc_write_addr(desc, vaddr_to_paddr(req->tc.sdata), modern);
+    vring_desc_write_addr(desc, translate_to_paddr(req->tc.sdata), modern);
     vring_desc_write_flags(desc, vring_desc_read_flags(desc, modern) | VRING_DESC_F_NEXT, modern);
 #if LOCAL_TRACE > 2
     LTRACEF("desc (%p)\n", desc);
@@ -160,7 +183,7 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
 
     desc = dev->virtio_desc_index_to_desc(VIRTIO_9P_RING_IDX, vring_desc_read_next(desc, modern));
     vring_desc_write_len(desc, req->rc.capacity, modern);
-    vring_desc_write_addr(desc, vaddr_to_paddr(req->rc.sdata), modern);
+    vring_desc_write_addr(desc, translate_to_paddr(req->rc.sdata), modern);
     vring_desc_write_flags(desc, VRING_DESC_F_WRITE, modern);
 #if LOCAL_TRACE > 2
     LTRACEF("desc (%p)\n", desc);
