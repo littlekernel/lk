@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+. "$DIR/qemu-shared.sh"
 
 # TODO: try to merge this with other architecture's do-qemu scripts if possible
 
@@ -37,6 +38,7 @@ function HELP {
     echo "-c                : cmpctmalloc instead of dlmalloc"
     echo "-M                : miniheap instead of dlmalloc"
     echo
+    echo "-A <cmd line>     : append command line (may be used multiple times)"
     echo "-d <disk image>   : add a virtio disk device (may be used multiple times)"
     echo "-n                : add a virtio network device (user mode networking)"
     echo "-t                : add a virtio tap network device (requires tap interface setup)"
@@ -53,6 +55,7 @@ function HELP {
 DO_NET=0
 DO_NET_TAP=0
 DISK_IMAGES=()
+CMDLINE=""
 DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
@@ -71,8 +74,9 @@ PROJECT=""
 DO_DRYRUN=0
 GIC_VERSION=""
 
-while getopts cCd:gG:hkm:Mnt36vp:P:s:f:X FLAG; do
+while getopts A:cCd:gG:hkm:Mnt36vp:P:s:f:X FLAG; do
     case $FLAG in
+        A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) DO_CMPCTMALLOC=1;;
         C) DO_PCI_VIRTIO=1;;
         d)
@@ -231,6 +235,10 @@ ARGS+=("-m" "$MEMSIZE")
 ARGS+=("-smp" "$SMP")
 ARGS+=("-machine" "$MACHINE")
 ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
+
+if [[ -n "$CMDLINE" ]]; then
+    ARGS+=("-append" "$CMDLINE")
+fi
 
 DISK_COUNT=0
 for img in "${DISK_IMAGES[@]}"; do
