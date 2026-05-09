@@ -8,6 +8,7 @@ CPU ?= modern
 
 MODULE_DEPS += lib/bio
 MODULE_DEPS += lib/cbuf
+MODULE_DEPS += lib/cmdline
 MODULE_DEPS += lib/fixed_point
 MODULE_DEPS += dev/block/ide
 
