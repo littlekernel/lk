@@ -31,10 +31,10 @@ static const uint ITER = 1024 * 32;
 #endif
 // Have to use a define to work around gcc 7.x bug where it thinks
 // BUFSIZE is not constant.
-#define TOTAL_SIZE ((uint64_t)BUFSIZE * ITER)
+static const uint64_t TOTAL_SIZE = ((uint64_t)BUFSIZE * ITER);
 
 __NO_INLINE static void bench_set_overhead(void) {
-    uint32_t *buf = malloc(BUFSIZE);
+    uint32_t *buf = memalign(CACHE_LINE, BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
         return;
@@ -52,7 +52,7 @@ __NO_INLINE static void bench_set_overhead(void) {
 }
 
 __NO_INLINE static void bench_memset(void) {
-    void *buf = malloc(BUFSIZE);
+    void *buf = memalign(CACHE_LINE, BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
         return;
@@ -77,7 +77,7 @@ __NO_INLINE static void bench_memset(void) {
 
 #define bench_cset(type)                                                                                \
     __NO_INLINE static void bench_cset_##type(void) {                                                   \
-        type *buf = malloc(BUFSIZE);                                                                    \
+        volatile type *buf = memalign(CACHE_LINE, BUFSIZE);                                             \
         if (!buf) {                                                                                     \
             printf("failed to allocate buffer\n");                                                      \
             return;                                                                                     \
@@ -98,7 +98,7 @@ __NO_INLINE static void bench_memset(void) {
         printf("took %lu cycles to manually clear a buffer using wordsize %zu of size %zu %u times "    \
                "(%" PRIu64 " bytes), %" PRIu64 ".%03" PRIu64 " bytes/cycle\n",                          \
                count, sizeof(*buf), BUFSIZE, ITER, TOTAL_SIZE, bytes_cycle / 1000, bytes_cycle % 1000); \
-        free(buf);                                                                                      \
+        free((type *)buf);                                                                              \
     }
 
 // clang-format off
@@ -109,7 +109,7 @@ bench_cset(uint64_t)
 // clang-format on
 
 __NO_INLINE static void bench_cset_wide(void) {
-    uint32_t *buf = malloc(BUFSIZE);
+    volatile ulong *buf = memalign(CACHE_LINE, BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
         return;
@@ -138,11 +138,11 @@ __NO_INLINE static void bench_cset_wide(void) {
            "(%" PRIu64 " bytes), %" PRIu64 ".%03" PRIu64 " bytes/cycle\n",
            count, BUFSIZE, ITER, TOTAL_SIZE, bytes_cycle / 1000, bytes_cycle % 1000);
 
-    free(buf);
+    free((void *)buf);
 }
 
 __NO_INLINE static void bench_memcpy(void) {
-    uint8_t *buf = malloc(BUFSIZE);
+    uint8_t *buf = memalign(CACHE_LINE, BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
         return;
@@ -168,7 +168,7 @@ __NO_INLINE static void bench_memcpy(void) {
 
 #if ARCH_ARM
 __NO_INLINE static void arm_bench_cset_stm(void) {
-    uint32_t *buf = malloc(BUFSIZE);
+    uint32_t *buf = memalign(CACHE_LINE, BUFSIZE);
     if (!buf) {
         printf("failed to allocate buffer\n");
         return;
