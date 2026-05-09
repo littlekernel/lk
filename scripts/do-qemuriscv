@@ -126,6 +126,7 @@ if (( $DO_PCI_VIRTIO )); then
     VIRTIO_KEYBOARD_DEVICE="virtio-keyboard-pci"
     VIRTIO_MOUSE_DEVICE="virtio-mouse-pci"
     VIRTIO_9P_DEVICE="virtio-9p-pci"
+    VIRTIO_RNG_DEVICE="virtio-rng-pci"
 else
     VIRTIO_BLOCK_DEVICE="virtio-blk-device"
     VIRTIO_NET_DEVICE="virtio-net-device"
@@ -133,6 +134,7 @@ else
     VIRTIO_KEYBOARD_DEVICE="virtio-keyboard-device"
     VIRTIO_MOUSE_DEVICE="virtio-mouse-device"
     VIRTIO_9P_DEVICE="virtio-9p-device"
+    VIRTIO_RNG_DEVICE="virtio-rng-device"
 fi
 
 # construct a list of args based on previous variables using arrays
@@ -182,6 +184,8 @@ if (( DO_DISPLAY )); then
 else
     ARGS+=("-nographic")
 fi
+
+ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
 
 MAKE_VARS=""
 

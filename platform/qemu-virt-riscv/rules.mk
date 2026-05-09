@@ -28,6 +28,7 @@ MODULE_DEPS += dev/interrupt/riscv_plic
 MODULE_DEPS += dev/virtio/block
 MODULE_DEPS += dev/virtio/gpu
 MODULE_DEPS += dev/virtio/net
+MODULE_DEPS += dev/virtio/rng
 
 MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c

@@ -101,6 +101,7 @@ VIRTIO_GPU_DEVICE="virtio-gpu-pci"
 VIRTIO_KEYBOARD_DEVICE="virtio-keyboard-pci"
 VIRTIO_MOUSE_DEVICE="virtio-mouse-pci"
 VIRTIO_9P_DEVICE="virtio-9p-pci"
+VIRTIO_RNG_DEVICE="virtio-rng-pci"
 if (( DO_VIRTIO )); then
     NETDEV=$VIRTIO_NET_DEVICE
 fi
@@ -174,6 +175,8 @@ if (( DO_V9P )); then
     ARGS+=("-fsdev" "local,path=$DO_V9P_DIR,security_model=mapped,id=v9p0")
     ARGS+=("-device" "${VIRTIO_9P_DEVICE},fsdev=v9p0,mount_tag=V9P0")
 fi
+
+ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
 
 CMD=()
 if [[ -n "$SUDO" ]]; then

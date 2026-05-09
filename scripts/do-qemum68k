@@ -100,6 +100,8 @@ if (( DO_V9P )); then
     ARGS+=("-device" "virtio-9p-device,fsdev=v9p0,mount_tag=V9P0")
 fi
 
+ARGS+=("-device" "virtio-rng-device")
+
 CMD=(qemu-system-m68k "${ARGS[@]}" "$@")
 
 if (( DO_DRYRUN )); then
