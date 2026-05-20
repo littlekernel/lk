@@ -60,6 +60,7 @@ class QEMUTestRunner:
         qemu_cmdline = [str(script_path)]
         if arch_config['args']:
             qemu_cmdline.append(str(arch_config['args']))
+        qemu_cmdline.extend(['-A', 'lk.unittests_at_boot=1'])
         for disk in (disk_images or []):
             qemu_cmdline.extend(['-d', str(disk)])
 
@@ -76,7 +77,7 @@ class QEMUTestRunner:
                 text=True,
                 bufsize=1,
                 universal_newlines=True,
-                env={**os.environ, 'LK_ROOT': str(self.lk_root), 'RUN_UNITTESTS_AT_BOOT': '1'},
+                env={**os.environ, 'LK_ROOT': str(self.lk_root)},
             )
 
             stdout = process.stdout

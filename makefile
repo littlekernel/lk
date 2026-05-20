@@ -28,7 +28,6 @@ export LKINC
 export BUILDROOT
 export DEFAULT_PROJECT
 export TOOLCHAIN_PREFIX
-export RUN_UNITTESTS_AT_BOOT
 export V
 
 # veneer makefile that calls into the engine with lk as the build root

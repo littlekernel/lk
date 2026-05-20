@@ -16,13 +16,22 @@
 #include <lk/err.h>
 #include <lk/init.h>
 
+#if WITH_LIB_CMDLINE
+#include <lib/cmdline.h>
+#endif
+
 static struct list_node test_case_list = LIST_INITIAL_VALUE(test_case_list);
 
-#if WITH_LIB_CONSOLE
+#if WITH_LIB_CONSOLE && WITH_LIB_CMDLINE
 #include <lib/console.h>
 
-#if RUN_UNITTESTS_AT_BOOT
 static void unittest_run_at_boot(uint level) {
+    bool run_at_boot = false;
+    status_t st = cmdline_get_bool("lk.unittests_at_boot", &run_at_boot);
+    if (st != NO_ERROR || !run_at_boot) {
+        return;
+    }
+
     const char run_at_boot_script[] = "sleep 5; ut all";
     console_t *con = console_create(false);
     if (con) {
@@ -32,7 +41,6 @@ static void unittest_run_at_boot(uint level) {
 }
 
 LK_INIT_HOOK(unittest_at_boot, unittest_run_at_boot, LK_INIT_LEVEL_LAST)
-#endif
 #endif
 
 /*
