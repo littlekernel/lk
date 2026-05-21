@@ -15,6 +15,8 @@ static const char *test_cmdline_basic = "foo=bar debug nofoo count=42";
 
 static bool test_cmdline_basic_init(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     // Reset state by calling init
@@ -25,11 +27,14 @@ static bool test_cmdline_basic_init(void) {
     st = cmdline_init("other", 5);
     EXPECT_EQ(st, ERR_ALREADY_STARTED, "second init should fail with ERR_ALREADY_STARTED");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_basic_get_value(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     cmdline_init(test_cmdline_basic, strlen(test_cmdline_basic));
@@ -56,11 +61,14 @@ static bool test_cmdline_basic_get_value(void) {
     st = cmdline_get_value(NULL, &val, &len);
     EXPECT_EQ(st, ERR_INVALID_ARGS, "NULL var should return ERR_INVALID_ARGS");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_is_present(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     cmdline_init(test_cmdline_basic, strlen(test_cmdline_basic));
@@ -70,11 +78,14 @@ static bool test_cmdline_is_present(void) {
     EXPECT_TRUE(cmdline_is_present("nofoo"), "nofoo should be present");
     EXPECT_FALSE(cmdline_is_present("missing"), "missing should not be present");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_get_bool(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "flag1 noflag flag2=true flag3=false flag4=yes flag5=no flag6=1 flag7=0";
@@ -121,11 +132,14 @@ static bool test_cmdline_get_bool(void) {
     EXPECT_EQ(cmdline_get_bool("invalid", &b), ERR_INVALID_ARGS,
               "unparseable value should return ERR_INVALID_ARGS");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_get_string(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "simple=hello msg=\"hello world\" escaped=\"foo\\nbar\"";
@@ -153,11 +167,14 @@ static bool test_cmdline_get_string(void) {
     EXPECT_EQ(cmdline_get_string("simple", buf, 3, NULL), ERR_NOT_ENOUGH_BUFFER,
               "small buffer should return ERR_NOT_ENOUGH_BUFFER");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_get_uint32(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "dec=42 hex=0x2a HEX=0xFF octal=052 leading_zero=0xFF";
@@ -192,11 +209,14 @@ static bool test_cmdline_get_uint32(void) {
     EXPECT_EQ(cmdline_get_uint32("invalid", &val), ERR_INVALID_ARGS,
               "invalid should return ERR_INVALID_ARGS");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_get_uint64(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "big=0x123456789abcdef";
@@ -207,11 +227,14 @@ static bool test_cmdline_get_uint64(void) {
     EXPECT_EQ(cmdline_get_uint64("big", &val), 0, "should parse large hex");
     EXPECT_EQ(val, 0x123456789abcdefULL, "big hex value");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_get_int(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "pos=42 neg=-42 zero=0 hex=0x10 neg_hex=-0x10";
@@ -239,11 +262,14 @@ static bool test_cmdline_get_int(void) {
     EXPECT_EQ(cmdline_get_int("neg_hex", &val), 0, "should parse neg_hex");
     EXPECT_EQ(val, -0x10, "neg_hex=-0x10");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_quoted_values(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "a=\"quoted\" b='single' c=unquoted d=\"with spaces\"";
@@ -263,11 +289,14 @@ static bool test_cmdline_quoted_values(void) {
     EXPECT_EQ(cmdline_get_string("d", buf, sizeof(buf), NULL), 0, "should get quoted with spaces");
     EXPECT_EQ(0, strcmp(buf, "with spaces"), "quoted value with spaces");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_escapes(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "newline=\"hello\\nworld\" quote=\"say \\\"hi\\\"\" "
@@ -290,11 +319,14 @@ static bool test_cmdline_escapes(void) {
     EXPECT_EQ(cmdline_get_string("tab", buf, sizeof(buf), &len), 0, "should get tab");
     EXPECT_EQ(buf[1], '\t', "should have actual tab");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_raw_access(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "foo=bar debug";
@@ -308,11 +340,14 @@ static bool test_cmdline_raw_access(void) {
     size_t len = cmdline_get_raw_size();
     EXPECT_EQ(len, cmdline_len, "raw size should match");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_empty_values(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "empty= other=value";
@@ -324,11 +359,14 @@ static bool test_cmdline_empty_values(void) {
     EXPECT_EQ(cmdline_get_value("empty", &val, &len), 0, "should find empty");
     EXPECT_EQ(len, 0U, "empty should have 0 length");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
 static bool test_cmdline_duplicates(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "var=first var=second";
@@ -341,6 +379,7 @@ static bool test_cmdline_duplicates(void) {
     EXPECT_BYTES_EQ((const uint8_t *)"first", (const uint8_t *)val, 5,
                     "first occurrence should win");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
@@ -350,6 +389,8 @@ static bool test_cmdline_duplicates(void) {
  */
 static bool test_cmdline_unterminated_quote(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     // Lone opening quote - no closing quote at all
     cmdline_reset_for_testing();
@@ -373,6 +414,7 @@ static bool test_cmdline_unterminated_quote(void) {
     EXPECT_EQ(len, 5U, "unterminated quote: value length should be 5");
     EXPECT_EQ(0, strcmp(buf, "hello"), "unterminated quote: value should be 'hello'");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
@@ -383,6 +425,8 @@ static bool test_cmdline_unterminated_quote(void) {
  */
 static bool test_cmdline_quoted_spaces_then_lookup(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "first=\"one two\" target=99 last=end";
@@ -402,6 +446,7 @@ static bool test_cmdline_quoted_spaces_then_lookup(void) {
     EXPECT_EQ(cmdline_get_string("first", buf, sizeof(buf), NULL), 0, "first should be found");
     EXPECT_EQ(0, strcmp(buf, "one two"), "first value should be 'one two'");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
@@ -412,6 +457,8 @@ static bool test_cmdline_quoted_spaces_then_lookup(void) {
  */
 static bool test_cmdline_string_exact_buffer_size(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     // value "hello" is 5 bytes
@@ -431,6 +478,7 @@ static bool test_cmdline_string_exact_buffer_size(void) {
     EXPECT_EQ(len, 5U, "length should be 5");
     EXPECT_EQ(0, strcmp(buf6, "hello"), "value should be 'hello'");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
@@ -439,6 +487,8 @@ static bool test_cmdline_string_exact_buffer_size(void) {
  */
 static bool test_cmdline_get_int_min(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "minval=-2147483648 maxval=2147483647 overflow=-2147483649";
@@ -455,6 +505,7 @@ static bool test_cmdline_get_int_min(void) {
     EXPECT_EQ(cmdline_get_int("overflow", &val), ERR_INVALID_ARGS,
               "value below INT_MIN should overflow");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
@@ -463,6 +514,8 @@ static bool test_cmdline_get_int_min(void) {
  */
 static bool test_cmdline_int_trailing_garbage(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     cmdline_reset_for_testing();
     const char *cmdline = "bad=42abc ok=42";
@@ -474,6 +527,7 @@ static bool test_cmdline_int_trailing_garbage(void) {
     EXPECT_EQ(cmdline_get_uint32("ok", &val), 0, "clean integer should still parse");
     EXPECT_EQ(val, 42U, "ok should be 42");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
@@ -488,6 +542,8 @@ static bool test_cmdline_int_trailing_garbage(void) {
  */
 static bool test_cmdline_escape_shrink_no_false_truncation(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     // "\\n" is 2 raw bytes but decodes to 1 byte ('\n').
     // A 2-byte buffer (1 data byte + null terminator) must succeed.
@@ -524,6 +580,7 @@ static bool test_cmdline_escape_shrink_no_false_truncation(void) {
     EXPECT_EQ(cmdline_get_string("key", buf3, sizeof(buf3), NULL), ERR_NOT_ENOUGH_BUFFER,
               "three decoded bytes do not fit in 3-byte buffer");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
@@ -543,6 +600,8 @@ static bool test_cmdline_escape_shrink_no_false_truncation(void) {
  */
 static bool test_cmdline_high_byte_chars(void) {
     BEGIN_TEST;
+    struct cmdline_saved_state saved;
+    cmdline_save_state_for_testing(&saved);
 
     // High byte embedded in an unquoted value: the entire 3-byte sequence
     // {a, 0x80, b} should be returned as the value.
@@ -570,6 +629,7 @@ static bool test_cmdline_high_byte_chars(void) {
               "normal variable after high-byte token should be found");
     EXPECT_EQ(len, 1U, "real value length should be 1");
 
+    cmdline_restore_state_for_testing(&saved);
     END_TEST;
 }
 
