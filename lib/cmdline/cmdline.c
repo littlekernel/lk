@@ -246,49 +246,53 @@ bool cmdline_is_present(const char *var) {
  * Helper: unescape and optionally unquote a value
  * Returns number of bytes written to dst (not including null terminator if added)
  */
+// Returns the number of bytes the fully-unescaped value would occupy (like
+// snprintf).  Writes at most dst_len bytes to dst; any bytes beyond dst_len
+// are counted but not written.  Callers can detect truncation by checking
+// whether the return value exceeds the dst_len they passed.
 static size_t unescape_value(const char *src, size_t src_len, char *dst, size_t dst_len) {
     const char *src_end = src + src_len;
     const char *dst_end = dst + dst_len;
     size_t written = 0;
 
-    while (src < src_end && dst < dst_end) {
+    while (src < src_end) {
+        char out;
         if (*src == '\\' && src + 1 < src_end) {
             src++;
-            char c = *src;
-
-            switch (c) {
+            switch (*src) {
                 case 'n':
-                    *dst++ = '\n';
+                    out = '\n';
                     break;
                 case 'r':
-                    *dst++ = '\r';
+                    out = '\r';
                     break;
                 case 't':
-                    *dst++ = '\t';
+                    out = '\t';
                     break;
                 case '\\':
-                    *dst++ = '\\';
+                    out = '\\';
                     break;
                 case '"':
-                    *dst++ = '"';
+                    out = '"';
                     break;
                 case '\'':
-                    *dst++ = '\'';
+                    out = '\'';
                     break;
                 case '0':
-                    *dst++ = '\0';
+                    out = '\0';
                     break;
                 default:
-                    // Unknown escape: treat as literal
-                    *dst++ = c;
+                    out = *src;
                     break;
             }
             src++;
-            written++;
         } else {
-            *dst++ = *src++;
-            written++;
+            out = *src++;
         }
+        if (dst < dst_end) {
+            *dst++ = out;
+        }
+        written++;
     }
 
     return written;
@@ -311,28 +315,19 @@ status_t cmdline_get_string(const char *var, char *buf, size_t buf_len, size_t *
         return st;
     }
 
-    // Unescape the value into the output buffer, leaving one byte for the null
-    // terminator.  Pass buf_len-1 as the limit so unescape_value never touches
-    // buf[buf_len-1].
+    // Unescape into buf, reserving buf[buf_len-1] for the null terminator.
+    // unescape_value returns the total would-be length (snprintf-style): if it
+    // exceeds buf_len-1 the value was truncated.
     size_t unescaped_len = unescape_value(value, value_len, buf, buf_len - 1);
 
-    if (unescaped_len == buf_len - 1) {
-        // The buffer is exactly full.  We cannot tell from the return value alone
-        // whether the source was fully consumed (escape sequences shrink output,
-        // so the raw value_len is not a reliable proxy).  Re-run with one extra
-        // byte of space — buf[buf_len-1] is safe to probe here because it will
-        // be unconditionally null-terminated below.
-        if (unescape_value(value, value_len, buf, buf_len) > unescaped_len) {
-            // The source had more data; the first pass was cut short.
-            return ERR_NOT_ENOUGH_BUFFER;
-        }
+    if (unescaped_len >= buf_len) {
+        return ERR_NOT_ENOUGH_BUFFER;
     }
 
     if (actual_len_out) {
         *actual_len_out = unescaped_len;
     }
 
-    // Null-terminate
     buf[unescaped_len] = '\0';
 
     return 0;
