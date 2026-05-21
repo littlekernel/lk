@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FAT_TEST_DIR="$LK_ROOT/lib/fs/fat/test"
 BOOT_TEST_SCRIPT="$SCRIPT_DIR/run-qemu-boot-tests.py"
+FAT_TEST_CMDLINE="${FAT_TEST_CMDLINE:-test.fat.device=virtio0}"
 
 # Map type names to image filenames
 declare -A IMAGES=(
@@ -41,7 +42,7 @@ for t in "${TYPES[@]}"; do
     img="${IMAGES[$t]}"
     echo ""
     echo "=== Running QEMU boot tests with $t image ==="
-    if "$BOOT_TEST_SCRIPT" --arch arm64 -d "$img"; then
+    if "$BOOT_TEST_SCRIPT" --arch arm64 -A "$FAT_TEST_CMDLINE" -d "$img"; then
         qemu_ok=0
     else
         qemu_ok=1

@@ -7,6 +7,7 @@
  */
 
 #include <endian.h>
+#include <lib/cmdline.h>
 #include <lib/bio.h>
 #include <lib/fs.h>
 #include <lib/unittest.h>
@@ -33,29 +34,34 @@ INCFILE(test_file_8kb, test_file_8kb_size, LOCAL_DIR "/test_8kb.bin");
 
 namespace {
 
-// TODO: make this much less hard coded
-const char *test_device_name = "virtio0";
-#define test_path "/fat"
-
-bool is_test_device_present() {
+// Returns the device name from the command line if configured and the device
+// can be opened, otherwise nullptr.  Result is cached after the first call.
+const char *get_test_device() {
     static bool checked = false;
-    static bool present = false;
+    static char device_name[128];
+    static const char *result = nullptr;
 
     if (!checked) {
         checked = true;
-        auto bio = bio_open(test_device_name);
-        if (bio) {
-            present = true;
-            bio_close(bio);
+        size_t len = 0;
+        status_t st = cmdline_get_string("test.fat.device", device_name, sizeof(device_name), &len);
+        if (st == NO_ERROR && len > 0) {
+            auto bio = bio_open(device_name);
+            if (bio) {
+                bio_close(bio);
+                result = device_name;
+            }
         }
     }
-    return present;
+    return result;
 }
+
+#define test_path "/fat"
 
 #define SKIP_TEST_IF_NO_DEVICE()                                                          \
     do {                                                                                  \
-        if (!is_test_device_present()) {                                                  \
-            unittest_printf(" no device '%s' present, skipping test ", test_device_name); \
+        if (!get_test_device()) {                                                         \
+            unittest_printf(" test.fat.device not set or device absent, skipping test "); \
             return true;                                                                  \
         }                                                                                 \
     } while (0)
@@ -68,7 +74,9 @@ bool test_mount_wrapper(R routine) {
 
     SKIP_TEST_IF_NO_DEVICE();
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_NONE));
+    const char *device_name = get_test_device();
+    ASSERT_NONNULL(device_name);
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", device_name, FS_MOUNT_OPTION_NONE));
     // clean up by unmounting no matter what happens here
     auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
 
@@ -89,7 +97,9 @@ bool test_fat_mount() {
 
     SKIP_TEST_IF_NO_DEVICE();
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_NONE));
+    const char *device_name = get_test_device();
+    ASSERT_NONNULL(device_name);
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", device_name, FS_MOUNT_OPTION_NONE));
     ASSERT_EQ(NO_ERROR, fs_unmount(test_path));
 
     END_TEST;
@@ -763,7 +773,9 @@ bool test_fat_read_only() {
 
     SKIP_TEST_IF_NO_DEVICE();
 
-    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", test_device_name, FS_MOUNT_OPTION_READ_ONLY));
+    const char *device_name = get_test_device();
+    ASSERT_NONNULL(device_name);
+    ASSERT_EQ(NO_ERROR, fs_mount(test_path, "fat", device_name, FS_MOUNT_OPTION_READ_ONLY));
     auto unmount_cleanup = lk::make_auto_call([]() { fs_unmount(test_path); });
 
     filehandle *fh = nullptr;
