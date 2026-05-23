@@ -384,6 +384,10 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
     return INT_RESCHEDULE;
 }
 
+enum handler_return virtio_net_config_change_callback(virtio_device *dev) {
+    return INT_NO_RESCHEDULE;
+}
+
 int virtio_net_rx_worker(void *arg) {
     virtio_net_dev *ndev = (virtio_net_dev *)arg;
 
@@ -462,6 +466,9 @@ status_t virtio_net_init(virtio_device *dev) {
     event_init(&ndev->rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
     list_initialize(&ndev->completed_rx_queue);
 
+    /* start from a known reset state */
+    dev->bus()->virtio_reset_device();
+
     /* ack and set the driver status bit */
     dev->bus()->virtio_status_acknowledge_driver();
 
@@ -472,6 +479,20 @@ status_t virtio_net_init(virtio_device *dev) {
     // XXX check features bits and ack/nak them
     uint64_t host_features = dev->bus()->virtio_read_host_feature_word_64(0);
     dump_feature_bits(host_features);
+
+    // Negotiate the small set of features this driver actually depends on.
+    uint32_t guest_features = 0;
+    if (host_features & VIRTIO_NET_F_MAC) {
+        guest_features |= VIRTIO_NET_F_MAC;
+    }
+    if (host_features & VIRTIO_NET_F_STATUS) {
+        guest_features |= VIRTIO_NET_F_STATUS;
+    }
+    dev->bus()->virtio_set_guest_features(0, guest_features);
+    dprintf(INFO, "virtio-net: guest features 0x%x%s%s\n",
+            guest_features,
+            (guest_features & VIRTIO_NET_F_MAC) ? " MAC" : "",
+            (guest_features & VIRTIO_NET_F_STATUS) ? " STATUS" : "");
 
     /* set our irq handler */
     dev->set_irq_callbacks(&virtio_net_irq_driver_callback, nullptr);

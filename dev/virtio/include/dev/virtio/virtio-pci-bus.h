@@ -8,6 +8,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <limits.h>
 #include <sys/types.h>
 
 #include <dev/virtio/virtio-bus.h>
@@ -45,6 +46,12 @@ public:
 private:
     static handler_return virtio_pci_irq(void *arg);
 
+    enum class irq_mode : uint8_t {
+        Legacy,
+        Msi,
+        Msix,
+    };
+
     struct config_pointer {
         bool valid;
         int bar;
@@ -69,8 +76,11 @@ private:
     config_pointer device_cfg_ = {};
     config_pointer pci_cfg_ = {};
     bool legacy_ = {};
+    irq_mode irq_mode_ = irq_mode::Legacy;
 
     uint32_t notify_offset_multiplier_ = {};
+    static constexpr size_t kMaxRings = 4;
+    uint16_t queue_notify_off_[kMaxRings] = { USHRT_MAX, USHRT_MAX, USHRT_MAX, USHRT_MAX };
 
     // Given one of the config_pointer structs, return a uint8_t * pointer
     // to its mapping.
