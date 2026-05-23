@@ -62,6 +62,23 @@ status_t virtio_rng_init(virtio_device *dev) {
     rng.last_rx_len = 0;
     event_init(&rng.irq_wait, false, 0);
 
+    /* start from a known reset state */
+    dev->bus()->virtio_reset_device();
+
+    const bool modern = dev->config_is_modern();
+    dprintf(INFO, "virtio-rng: modern config %u, expecting %s-endian config\n",
+            modern, modern ? "little" : "native");
+
+    /* ack and set the driver status bit */
+    dev->bus()->virtio_status_acknowledge_driver();
+
+    /* negotiate mandatory VERSION_1 for modern transports (feature bit 32) */
+    constexpr uint32_t version1_bit_word1 = 1u << 0;
+    uint32_t host_features_word1 = dev->bus()->virtio_read_host_feature_word(1);
+    if (host_features_word1 & version1_bit_word1) {
+        dev->bus()->virtio_set_guest_features(1, version1_bit_word1);
+    }
+
     status_t err = dev->virtio_alloc_ring(RNG_QUEUE_INDEX, 32);
     if (err != NO_ERROR) {
         TRACEF("virtio-rng: Failed to allocate virtqueue\n");
