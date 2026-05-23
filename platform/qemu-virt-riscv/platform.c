@@ -21,11 +21,7 @@
 #include <lib/fdtwalk.h>
 #include <dev/bus/pci.h>
 #include <dev/virtio.h>
-#include <dev/virtio/net.h>
 #include <dev/interrupt/riscv_plic.h>
-#if WITH_LIB_MINIP
-#include <lib/minip.h>
-#endif
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #else
@@ -100,30 +96,6 @@ void platform_init(void) {
 
     virtio_mmio_detect((void *)VIRTIO_BASE_VIRT, NUM_VIRTIO_TRANSPORTS, virtio_irqs, VIRTIO_STRIDE);
 
-#if WITH_LIB_MINIP
-    if (virtio_net_found() > 0) {
-        uint8_t mac_addr[6];
-
-        virtio_net_get_mac_addr(mac_addr);
-
-        TRACEF("found virtio networking interface\n");
-
-        /* start minip */
-        minip_set_eth(virtio_net_send_minip_pkt, NULL, mac_addr);
-
-        virtio_net_start();
-
-#if 0
-        __UNUSED uint32_t ip_addr = IPV4(192, 168, 0, 99);
-        __UNUSED uint32_t ip_mask = IPV4(255, 255, 255, 0);
-        __UNUSED uint32_t ip_gateway = IPV4_NONE;
-
-        minip_start_static(ip_addr, ip_mask, ip_gateway);
-#else
-        minip_start_dhcp();
-#endif
-    }
-#endif
 }
 
 static void reboot_(void) {

@@ -19,7 +19,7 @@
 
 #include "minip-internal.h"
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 static struct list_node netif_list = LIST_INITIAL_VALUE(netif_list);
 static mutex_t lock = MUTEX_INITIAL_VALUE(lock);

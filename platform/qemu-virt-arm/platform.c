@@ -128,14 +128,6 @@ void platform_init(void) {
     }
 
     virtio_mmio_detect((void *)VIRTIO_BASE, NUM_VIRTIO_TRANSPORTS, virtio_irqs, 0x200);
-
-#if WITH_LIB_MINIP
-    if (virtio_net_found() > 0) {
-        TRACEF("found virtio networking interface\n");
-
-        virtio_net_start();
-    }
-#endif
 }
 
 status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,

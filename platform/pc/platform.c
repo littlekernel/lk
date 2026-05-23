@@ -501,15 +501,3 @@ void platform_init(void) {
 
     platform_init_mmu_mappings();
 }
-
-#if WITH_LIB_MINIP
-void _start_minip(uint level) {
-    extern status_t e1000_register_with_minip(void);
-    status_t err = e1000_register_with_minip();
-    if (err == NO_ERROR) {
-        minip_start_dhcp();
-    }
-}
-
-LK_INIT_HOOK(start_minip, _start_minip, LK_INIT_LEVEL_APPS - 1);
-#endif

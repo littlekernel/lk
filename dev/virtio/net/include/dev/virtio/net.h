@@ -16,9 +16,5 @@ __BEGIN_CDECLS
 struct virtio_device;
 
 status_t virtio_net_init(struct virtio_device *dev) __NONNULL();
-status_t virtio_net_start(void);
-
-/* return the count of virtio interfaces found */
-int virtio_net_found(void);
 
 __END_CDECLS

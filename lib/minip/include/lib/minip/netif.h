@@ -68,5 +68,14 @@ static inline ipv4_addr_t netif_get_broadcast_ipv4(netif_t *n) {
     return netif_get_network_ipv4(n) | ~netif_get_netmask_ipv4(n);
 }
 
+static inline bool netif_is_loopback(netif_t *n) {
+    return (n->flags & NETIF_FLAG_LOOPBACK) != 0;
+}
+
+static inline bool netif_is_configured(netif_t *n) {
+    return (n->flags & NETIF_FLAG_ETH_CONFIGURED) != 0;
+}
+
+
 __END_CDECLS
 

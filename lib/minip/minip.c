@@ -484,6 +484,8 @@ void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p) {
     DEBUG_ASSERT(netif);
     DEBUG_ASSERT(p);
 
+    LTRACEF("netif %p, p %p, dlen %u\n", netif, p, p->dlen);
+
     struct eth_hdr *eth;
     if ((eth = (void *) pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
         return;
