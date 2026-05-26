@@ -231,12 +231,27 @@ handler_return virtio_pci_bus::virtio_pci_irq(void *arg) {
 
     LTRACEF("dev %p, bus %p\n", bus->dev_, bus);
 
-    // With MSI-X, vector delivery itself identifies an interrupt and ISR status
-    // does not reliably carry queue/config cause bits.
+    // With MSI-X, vector delivery itself is supposed to identify an interrupt,
+    // but the current MSI-X setup allocates one vector and maps both queue and
+    // config interrupts to it, so process both paths.
     if (bus->irq_mode_ == irq_mode::Msix) {
-        return bus->dev_->handle_queue_interrupt();
+        enum handler_return ret = INT_NO_RESCHEDULE;
+
+        auto _ret = bus->dev_->handle_queue_interrupt();
+        if (_ret == INT_RESCHEDULE) {
+            ret = _ret;
+        }
+
+        _ret = bus->dev_->handle_config_interrupt();
+        if (_ret == INT_RESCHEDULE) {
+            ret = _ret;
+        }
+
+        return ret;
     }
 
+    // Regular MSI or legacy interrupt, we need to read the ISR
+    // status register to see what type of interrupt this is.
     volatile uint8_t *isr_status = bus->config_ptr(bus->isr_cfg_);
     LTRACEF("isr status register %p\n", isr_status);
 
