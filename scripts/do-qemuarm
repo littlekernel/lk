@@ -254,11 +254,11 @@ elif (( DO_NET_TAP )); then
     # quick note to enable tap interface
     # IFNAME=qemu0
     # BRIDGE=bridge0
-    # sudo tunctl -u $(whoami) -t ${IFNAME}
-    # sudo ifconfig ${IFNAME} up
-    # sudo ip link set ${IFNAME} master ${BRIDGE}
-    ARGS+=(" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
-    ARGS+=(" -device ${VIRTIO_NET_DEVICE},netdev=vmnic")
+    # sudo ip tuntap add name "${IFNAME}" mode tap user $(whoami)
+    # sudo ip link set "${IFNAME}" master "${BRIDGE}"
+    # sudo ip link set "${IFNAME}" up
+    ARGS+=("-netdev" "tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
+    ARGS+=("-device" "${VIRTIO_NET_DEVICE},netdev=vmnic")
     #SUDO="sudo "
 else
     ARGS+=("-net" "none")
