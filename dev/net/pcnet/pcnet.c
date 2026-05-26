@@ -10,16 +10,17 @@
 #include <arch/x86.h>
 #include <assert.h>
 #include <dev/bus/pci.h>
-#include <dev/class/netif.h>
 #include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <kernel/thread.h>
+#include <lib/minip.h>
+#include <lib/minip/netif.h>
+#include <lib/pktbuf.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
-#include <lwip/pbuf.h>
 #include <malloc.h>
 #include <pcnet.h>
 #include <platform/interrupts.h>
@@ -35,6 +36,8 @@
 #define QEMU_IRQ_BUG_WORKAROUND 1
 
 struct pcnet_state {
+    unsigned unit;
+
     int irq;
     addr_t base;
 
@@ -45,8 +48,8 @@ struct pcnet_state {
     struct rd_style3 *rd;
     struct td_style3 *td;
 
-    struct pbuf **rx_buffers;
-    struct pbuf **tx_buffers;
+    pktbuf_t **rx_buffers;
+    pktbuf_t **tx_buffers;
 
     /* queue accounting */
     int rd_head;
@@ -65,108 +68,106 @@ struct pcnet_state {
     event_t initialized;
     bool done;
 
-    struct netstack_state *netstack_state;
+    netif_t netif;
 };
 
-static status_t pcnet_init_device(struct device *dev, pci_location_t loc);
-static status_t pcnet_read_pci_config(struct device *dev, pci_location_t loc);
+static status_t pcnet_init_device(struct pcnet_state *state, pci_location_t loc);
+static status_t pcnet_read_pci_config(struct pcnet_state *state, pci_location_t loc);
 
-static enum handler_return pcnet_irq_handler(void *arg- Error codes are defined in `include/lk/err.h` (e.g. `ERR_NOT_FOUND`, `ERR_NO_MEMORY`, etc.) and are negative integers.
+static enum handler_return pcnet_irq_handler(void *arg);
 
 static int pcnet_thread(void *arg);
-static bool pcnet_service_tx(struct device *dev);
-static bool pcnet_service_rx(struct device *dev);
+static bool pcnet_service_tx(struct pcnet_state *state);
+static bool pcnet_service_rx(struct pcnet_state *state);
 
-static status_t pcnet_set_state(struct device *dev, struct netstack_state *state);
-static ssize_t pcnet_get_hwaddr(struct device *dev, void *buf, size_t max_len);
-static ssize_t pcnet_get_mtu(struct device *dev);
+static status_t pcnet_output(struct pcnet_state *state, pktbuf_t *p);
+static int pcnet_send_minip_pkt(void *arg, pktbuf_t *p);
 
-static status_t pcnet_output(struct device *dev, struct pbuf *p);
-
-static struct netif_ops pcnet_ops = {
-    .set_state = pcnet_set_state,
-    .get_hwaddr = pcnet_get_hwaddr,
-    .get_mtu = pcnet_get_mtu,
-
-    .output = pcnet_output,
-};
-
-static const struct driver pcnet_driver = {
-    .type = "pcnet",
-    .ops = &pcnet_ops.std,
-};
-
-static inline uint32_t pcnet_read_csr(struct device *dev, uint8_t rap) {
-    struct pcnet_state *state = dev->state;
-
+static inline uint32_t pcnet_read_csr(struct pcnet_state *state, uint8_t rap) {
     outpd(state->base + REG_RAP, rap);
     return inpd(state->base + REG_RDP);
 }
 
-static inline void pcnet_write_csr(struct device *dev, uint8_t rap, uint16_t data) {
-    struct pcnet_state *state = dev->state;
-
+static inline void pcnet_write_csr(struct pcnet_state *state, uint8_t rap, uint16_t data) {
     outpd(state->base + REG_RAP, rap);
     outpd(state->base + REG_RDP, data);
 }
 
-static inline uint32_t pcnet_read_bcr(struct device *dev, uint8_t rap) {
-    struct pcnet_state *state = dev->state;
-
+static inline uint32_t pcnet_read_bcr(struct pcnet_state *state, uint8_t rap) {
     outpd(state->base + REG_RAP, rap);
     return inpd(state->base + REG_BDP);
 }
 
-static inline void pcnet_write_bcr(struct device *dev, uint8_t rap, uint16_t data) {
-    struct pcnet_state *state = dev->state;
-
+static inline void pcnet_write_bcr(struct pcnet_state *state, uint8_t rap, uint16_t data) {
     outpd(state->base + REG_RAP, rap);
     outpd(state->base + REG_BDP, data);
 }
 
-static status_t pcnet_init_device(struct device *dev, pci_location_t loc) {
-    status_t res = NO_ERROR;
-    int i;
-
-    struct pcnet_state *state = calloc(1, sizeof(struct pcnet_state));
+static void pcnet_free_buffers(struct pcnet_state *state) {
     if (!state) {
-        return ERR_NO_MEMORY;
+        return;
     }
 
-    dev->state = state;
+    if (state->rx_buffers) {
+        for (int i = 0; i < state->rd_count; i++) {
+            if (state->rx_buffers[i]) {
+                pktbuf_free(state->rx_buffers[i], true);
+                state->rx_buffers[i] = NULL;
+            }
+        }
+    }
 
-    res = pcnet_read_pci_config(dev, loc);
+    if (state->tx_buffers) {
+        for (int i = 0; i < state->td_count; i++) {
+            if (state->tx_buffers[i]) {
+                pktbuf_free(state->tx_buffers[i], true);
+                state->tx_buffers[i] = NULL;
+            }
+        }
+    }
+}
+
+static status_t pcnet_init_device(struct pcnet_state *state, pci_location_t loc) {
+    status_t res = NO_ERROR;
+
+    char loc_str[14];
+    dprintf(ALWAYS, "pcnet: init start at %s\n", pci_loc_string(loc, loc_str));
+
+    res = pcnet_read_pci_config(state, loc);
     if (res) {
         goto error;
     }
 
-    for (i = 0; i < 6; i++) {
+    for (int i = 0; i < 6; i++) {
         state->padr[i] = inp(state->base + i);
     }
 
-    LTRACEF("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", state->padr[0], state->padr[1], state->padr[2],
-            state->padr[3], state->padr[4], state->padr[5]);
+    dprintf(ALWAYS, "pcnet: io base %#lx irq %d mac %02x:%02x:%02x:%02x:%02x:%02x\n", state->base,
+            state->irq, state->padr[0], state->padr[1], state->padr[2], state->padr[3],
+            state->padr[4], state->padr[5]);
 
     /* put the controller into 32bit wide mode by performing a 32bit write to CSR0 */
     outpd(state->base + 0, 0);
 
     /* stop the controller for configuration */
-    pcnet_write_csr(dev, 0, CSR0_STOP);
+    pcnet_write_csr(state, 0, CSR0_STOP);
 
     /* setup 32bit (style 3) structures, burst, all CSR4 bits valid, TDM1[29] is ADD_FCS */
-    pcnet_write_csr(dev, 58, 3);
+    pcnet_write_csr(state, 58, 3);
 
     /* DMA plus enable */
-    pcnet_write_csr(dev, 4, pcnet_read_csr(dev, 4) | CSR4_DMAPLUS);
+    pcnet_write_csr(state, 4, pcnet_read_csr(state, 4) | CSR4_DMAPLUS);
 
-    /* allocate 128 tx and 128 rx descriptor rings */
+    /* Allocate a TX ring of 128 and a smaller RX ring so pktbuf pool is not exhausted.
+     * pktbuf_alloc consumes two pool objects per RX buffer.
+     */
     state->td_count = 128;
-    state->rd_count = 128;
+    state->rd_count = 64;
     state->td = memalign(16, state->td_count * DESC_SIZE);
     state->rd = memalign(16, state->rd_count * DESC_SIZE);
 
-    state->rx_buffers = calloc(state->rd_count, sizeof(struct pbuf *));
-    state->tx_buffers = calloc(state->td_count, sizeof(struct pbuf *));
+    state->rx_buffers = (pktbuf_t **)calloc(state->rd_count, sizeof(pktbuf_t *));
+    state->tx_buffers = (pktbuf_t **)calloc(state->td_count, sizeof(pktbuf_t *));
 
     state->tx_pending = 0;
 
@@ -185,30 +186,33 @@ static status_t pcnet_init_device(struct device *dev, pci_location_t loc) {
         goto error;
     }
 
-    LTRACEF("Init block addr: %p\n", state->ib);
-
     /* setup init block */
     state->ib->tlen = 7; // 128 descriptors
     state->ib->rlen = 7; // 128 descriptors
     state->ib->mode = 0;
 
     state->ib->ladr = ~0;
-    state->ib->tdra = (uint32_t)state->td;
-    state->ib->rdra = (uint32_t)state->rd;
+    state->ib->tdra = (uint32_t)(uintptr_t)state->td;
+    state->ib->rdra = (uint32_t)(uintptr_t)state->rd;
 
     memcpy(state->ib->padr, state->padr, 6);
 
     /* load the init block address */
-    pcnet_write_csr(dev, 1, (uint32_t)state->ib);
-    pcnet_write_csr(dev, 2, (uint32_t)state->ib >> 16);
+    pcnet_write_csr(state, 1, (uint32_t)(uintptr_t)state->ib);
+    pcnet_write_csr(state, 2, (uint32_t)((uintptr_t)state->ib >> 16));
 
     /* setup receive descriptors */
-    for (i = 0; i < state->rd_count; i++) {
-        // LTRACEF("Allocating pbuf %d\n", i);
-        struct pbuf *p = pbuf_alloc(PBUF_RAW, MAX_PACKET_SIZE, PBUF_RAM);
+    for (int i = 0; i < state->rd_count; i++) {
+        pktbuf_t *p = pktbuf_alloc();
+        if (!p) {
+            res = ERR_NO_MEMORY;
+            goto error;
+        }
 
-        state->rd[i].rbadr = (uint32_t)p->payload;
-        state->rd[i].bcnt = -p->tot_len;
+        pktbuf_reset(p, 0);
+
+        state->rd[i].rbadr = pktbuf_data_phys(p);
+        state->rd[i].bcnt = -(int16_t)p->blen;
         state->rd[i].ones = 0xf;
         state->rd[i].own = 1;
 
@@ -222,61 +226,68 @@ static status_t pcnet_init_device(struct device *dev, pci_location_t loc) {
     event_init(&state->initialized, false, 0);
 
     /* start up a thread to process packet activity */
-    thread_resume(thread_create("[pcnet bh]", pcnet_thread, dev, DEFAULT_PRIORITY,
-                                DEFAULT_STACK_SIZE));
+    thread_resume(
+        thread_create("[pcnet bh]", pcnet_thread, state, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
 
-    register_int_handler(state->irq, pcnet_irq_handler, dev);
+    register_int_handler(state->irq, pcnet_irq_handler, state);
     unmask_interrupt(state->irq);
 
 #if QEMU_IRQ_BUG_WORKAROUND
-    register_int_handler(INT_BASE + 15, pcnet_irq_handler, dev);
+    register_int_handler(INT_BASE + 15, pcnet_irq_handler, state);
     unmask_interrupt(INT_BASE + 15);
 #endif
 
     /* wait for initialization to complete */
     res = event_wait_timeout(&state->initialized, PCNET_INIT_TIMEOUT);
     if (res) {
-        /* TODO: cancel bottom half thread and tear down device instance */
-        LTRACEF("Failed to wait for IDON: %d\n", res);
-        return res;
+        dprintf(ALWAYS, "pcnet: init timed out waiting for IDON (%d)\n", res);
+        goto error;
     }
 
-    LTRACE_EXIT;
-    return res;
+    char if_name[16];
+    snprintf(if_name, sizeof(if_name), "pcnet-%u", state->unit);
+    if (!netif_create(&state->netif, if_name)) {
+        res = ERR_NO_MEMORY;
+        goto error;
+    }
+
+    res = netif_set_eth(&state->netif, pcnet_send_minip_pkt, state, state->padr);
+    if (res != NO_ERROR) {
+        goto error;
+    }
+
+    res = netif_register(&state->netif);
+    if (res != NO_ERROR) {
+        goto error;
+    }
+
+    dprintf(ALWAYS, "pcnet: initialization complete\n");
+    return NO_ERROR;
 
 error:
-    LTRACEF("Error: %d\n", res);
-
-    if (state) {
-        free(state->td);
-        free(state->rd);
-        free(state->ib);
-        free(state->tx_buffers);
-        free(state->rx_buffers);
-    }
-
-    free(state);
-
+    dprintf(ALWAYS, "pcnet: init failed (%d)\n", res);
+    pcnet_free_buffers(state);
+    free(state->td);
+    state->td = NULL;
+    free(state->rd);
+    state->rd = NULL;
+    free(state->ib);
+    state->ib = NULL;
+    free((void *)state->tx_buffers);
+    state->tx_buffers = NULL;
+    free((void *)state->rx_buffers);
+    state->rx_buffers = NULL;
     return res;
 }
 
-static status_t pcnet_read_pci_config(struct device *dev, pci_location_t loc) {
+static status_t pcnet_read_pci_config(struct pcnet_state *state, pci_location_t loc) {
     status_t res = NO_ERROR;
     pci_config_t config;
-    unsigned i;
-
-    DEBUG_ASSERT(dev->state);
-
-    struct pcnet_state *state = dev->state;
 
     pci_read_config(loc, &config);
 
-    LTRACEF("Resources:\n");
-
-    for (i = 0; i < countof(config.type0.base_addresses); i++) {
+    for (unsigned i = 0; i < countof(config.type0.base_addresses); i++) {
         if (config.type0.base_addresses[i] & 0x1) {
-            LTRACEF("  BAR %d  I/O REG: %04x\n", i, config.type0.base_addresses[i] & ~0x3);
-
             state->base = config.type0.base_addresses[i] & ~0x3;
             break;
         }
@@ -288,27 +299,22 @@ static status_t pcnet_read_pci_config(struct device *dev, pci_location_t loc) {
     }
 
     if (config.type0.interrupt_line != 0xff) {
-        LTRACEF("  IRQ %u\n", config.type0.interrupt_line);
-
         state->irq = config.type0.interrupt_line + INT_BASE;
     } else {
         res = ERR_NOT_CONFIGURED;
         goto error;
     }
 
-    LTRACEF("Command: %04x\n", config.command);
-    LTRACEF("Status:  %04x\n", config.status);
-
     pci_write_config_half(loc, PCI_CONFIG_COMMAND,
-                          (config.command | PCI_COMMAND_IO_EN | PCI_COMMAND_BUS_MASTER_EN) & ~PCI_COMMAND_MEM_EN);
+                          (config.command | PCI_COMMAND_IO_EN | PCI_COMMAND_BUS_MASTER_EN) &
+                              ~PCI_COMMAND_MEM_EN);
 
 error:
     return res;
 }
 
 static enum handler_return pcnet_irq_handler(void *arg) {
-    struct device *dev = arg;
-    struct pcnet_state *state = dev->state;
+    struct pcnet_state *state = arg;
 
     mask_interrupt(state->irq);
 
@@ -324,36 +330,20 @@ static enum handler_return pcnet_irq_handler(void *arg) {
 static int pcnet_thread(void *arg) {
     DEBUG_ASSERT(arg);
 
-    struct device *dev = arg;
-    struct pcnet_state *state = dev->state;
+    struct pcnet_state *state = arg;
 
     /* kick off init, enable ints, and start operation */
-    pcnet_write_csr(dev, 0, CSR0_INIT | CSR0_IENA | CSR0_STRT);
+    pcnet_write_csr(state, 0, CSR0_INIT | CSR0_IENA | CSR0_STRT);
 
     while (!state->done) {
-        LTRACEF("Waiting for event.\n");
-        // event_wait_timeout(&state->event, 5000);
         event_wait(&state->event);
 
-        int csr0 = pcnet_read_csr(dev, 0);
+        uint32_t csr0 = pcnet_read_csr(state, 0);
 
         /* disable interrupts at the controller */
-        pcnet_write_csr(dev, 0, csr0 & ~CSR0_IENA);
-
-        LTRACEF("CSR0 = %04x\n", csr0);
-
-#if LOCAL_TRACE
-        if (csr0 & CSR0_RINT) {
-            TRACEF("RINT\n");
-        }
-        if (csr0 & CSR0_TINT) {
-            TRACEF("TINT\n");
-        }
-#endif
+        pcnet_write_csr(state, 0, csr0 & ~CSR0_IENA);
 
         if (csr0 & CSR0_IDON) {
-            LTRACEF("IDON\n");
-
             /* free the init block that we no longer need */
             free(state->ib);
             state->ib = NULL;
@@ -362,21 +352,17 @@ static int pcnet_thread(void *arg) {
         }
 
         if (csr0 & CSR0_ERR) {
-            LTRACEF("ERR\n");
-
-            /* TODO: handle errors, though not many need it */
-
             /* clear flags, preserve necessary enables */
-            pcnet_write_csr(dev, 0, csr0 & (CSR0_TXON | CSR0_RXON | CSR0_IENA));
+            pcnet_write_csr(state, 0, csr0 & (CSR0_TXON | CSR0_RXON | CSR0_IENA));
         }
 
         bool again = !!(csr0 & (CSR0_RINT | CSR0_TINT));
         while (again) {
-            again = pcnet_service_tx(dev) | pcnet_service_rx(dev);
+            again = pcnet_service_tx(state) || pcnet_service_rx(state);
         }
 
         /* enable interrupts at the controller */
-        pcnet_write_csr(dev, 0, CSR0_IENA);
+        pcnet_write_csr(state, 0, CSR0_IENA);
         unmask_interrupt(state->irq);
 
 #if QEMU_IRQ_BUG_WORKAROUND
@@ -387,188 +373,98 @@ static int pcnet_thread(void *arg) {
     return 0;
 }
 
-static bool pcnet_service_tx(struct device *dev) {
-    LTRACE_ENTRY;
-
-    struct pcnet_state *state = dev->state;
-
+static bool pcnet_service_tx(struct pcnet_state *state) {
     mutex_acquire(&state->tx_lock);
 
     struct td_style3 *td = &state->td[state->td_tail];
 
     if (state->tx_pending && td->own == 0) {
-        struct pbuf *p = state->tx_buffers[state->td_tail];
+        pktbuf_t *p = state->tx_buffers[state->td_tail];
         DEBUG_ASSERT(p);
 
         state->tx_buffers[state->td_tail] = NULL;
 
-        LTRACEF("Retiring packet: td_tail=%d p=%p tot_len=%u\n", state->td_tail, p, p->tot_len);
-
         state->tx_pending--;
         state->td_tail = (state->td_tail + 1) % state->td_count;
 
-        if (td->err) {
-            LTRACEF("Descriptor error status encountered\n");
-            hexdump8(td, sizeof(*td));
-        }
-
         mutex_release(&state->tx_lock);
 
-        pbuf_free(p);
-
-        LTRACE_EXIT;
+        pktbuf_free(p, true);
         return true;
-    } else {
-        mutex_release(&state->tx_lock);
-
-#if 0
-        LTRACEF("Nothing to do for TX.\n");
-        for (int i=0; i < state->td_count; i++)
-            printf("%d ", state->td[i].own);
-        printf("\n");
-#endif
-
-        LTRACE_EXIT;
-        return false;
     }
+
+    mutex_release(&state->tx_lock);
+    return false;
 }
 
-static bool pcnet_service_rx(struct device *dev) {
-    LTRACE_ENTRY;
-
-    struct pcnet_state *state = dev->state;
-
+static bool pcnet_service_rx(struct pcnet_state *state) {
     struct rd_style3 *rd = &state->rd[state->rd_head];
 
     if (rd->own == 0) {
-        struct pbuf *p = state->rx_buffers[state->rd_head];
+        pktbuf_t *p = state->rx_buffers[state->rd_head];
         DEBUG_ASSERT(p);
 
-        LTRACEF("Processing RX descriptor %d\n", state->rd_head);
-
-        if (rd->err) {
-            LTRACEF("Descriptor error status encountered\n");
-            hexdump8(rd, sizeof(*rd));
-        } else {
-            if (rd->mcnt <= p->tot_len) {
-
-                pbuf_realloc(p, rd->mcnt);
+        if (!rd->err) {
+            if (rd->mcnt <= p->blen) {
+                p->dlen = rd->mcnt;
 
 #if LOCAL_TRACE
-                LTRACEF("payload=%p len=%u\n", p->payload, p->tot_len);
-                hexdump8(p->payload, p->tot_len);
+                LTRACEF("payload=%p len=%u\n", p->data, p->dlen);
+                hexdump8(p->data, p->dlen);
 #endif
 
-                class_netstack_input(dev, state->netstack_state, p);
-
-                p = state->rx_buffers[state->rd_head] = pbuf_alloc(PBUF_RAW, MAX_PACKET_SIZE, PBUF_RAM);
+                minip_rx_driver_callback(&state->netif, p);
             } else {
-                LTRACEF("RX packet size error: mcnt = %u, buf len = %u\n", rd->mcnt, p->tot_len);
+                LTRACEF("RX packet size error: mcnt = %u, buf len = %u\n", rd->mcnt, p->blen);
             }
         }
 
-        memset(rd, 0, sizeof(*rd));
-        memset(p->payload, 0, p->tot_len);
+        pktbuf_reset(p, 0);
 
-        rd->rbadr = (uint32_t)p->payload;
-        rd->bcnt = -p->tot_len;
+        memset(rd, 0, sizeof(*rd));
+        rd->rbadr = pktbuf_data_phys(p);
+        rd->bcnt = -(int16_t)p->blen;
         rd->ones = 0xf;
         rd->own = 1;
 
         state->rd_head = (state->rd_head + 1) % state->rd_count;
-
-        LTRACE_EXIT;
         return true;
-    } else {
-#if 0
-        LTRACEF("Nothing to do for RX: rd_head=%d.\n", state->rd_head);
-        for (int i=0; i < state->rd_count; i++)
-            printf("%d ", state->rd[i].own);
-        printf("\n");
-#endif
     }
 
-    LTRACE_EXIT;
     return false;
 }
 
-static status_t pcnet_set_state(struct device *dev, struct netstack_state *netstack_state) {
-    if (!dev) {
+static status_t pcnet_output(struct pcnet_state *state, pktbuf_t *p) {
+    if (!state || !p) {
         return ERR_INVALID_ARGS;
-    }
-
-    if (!dev->state) {
-        return ERR_NOT_CONFIGURED;
-    }
-
-    struct pcnet_state *state = dev->state;
-
-    state->netstack_state = netstack_state;
-
-    return NO_ERROR;
-}
-
-static ssize_t pcnet_get_hwaddr(struct device *dev, void *buf, size_t max_len) {
-    if (!dev || !buf) {
-        return ERR_INVALID_ARGS;
-    }
-
-    if (!dev->state) {
-        return ERR_NOT_CONFIGURED;
-    }
-
-    struct pcnet_state *state = dev->state;
-
-    memcpy(buf, state->padr, MIN(sizeof(state->padr), max_len));
-
-    return sizeof(state->padr);
-}
-
-static ssize_t pcnet_get_mtu(struct device *dev) {
-    if (!dev) {
-        return ERR_INVALID_ARGS;
-    }
-
-    return 1500;
-}
-
-static status_t pcnet_output(struct device *dev, struct pbuf *p) {
-    LTRACE_ENTRY;
-
-    if (!dev || !p) {
-        return ERR_INVALID_ARGS;
-    }
-
-    if (!dev->state) {
-        return ERR_NOT_CONFIGURED;
     }
 
     status_t res = NO_ERROR;
-    struct pcnet_state *state = dev->state;
 
     mutex_acquire(&state->tx_lock);
 
     struct td_style3 *td = &state->td[state->td_head];
 
     if (td->own) {
-        LTRACEF("TX descriptor ring full\n");
-        res = ERR_NOT_READY; // maybe this should be ERR_NOT_ENOUGH_BUFFER?
+        res = ERR_NOT_READY;
         goto done;
     }
 
-    pbuf_ref(p);
-    p = pbuf_coalesce(p, PBUF_RAW);
+    if (p->dlen > MAX_PACKET_SIZE) {
+        res = ERR_TOO_BIG;
+        goto done;
+    }
 
 #if LOCAL_TRACE
-    LTRACEF("Queuing packet: td_head=%d p=%p tot_len=%u\n", state->td_head, p, p->tot_len);
-    hexdump8(p->payload, p->tot_len);
+    LTRACEF("Queuing packet: td_head=%d p=%p len=%u\n", state->td_head, p, p->dlen);
+    hexdump8(p->data, p->dlen);
 #endif
 
     /* clear flags */
     memset(td, 0, sizeof(*td));
 
-    td->tbadr = (uint32_t)p->payload;
-    td->bcnt = -p->tot_len;
+    td->tbadr = pktbuf_data_phys(p);
+    td->bcnt = -(int16_t)p->dlen;
     td->stp = 1;
     td->enp = 1;
     td->add_no_fcs = 1;
@@ -582,15 +478,22 @@ static status_t pcnet_output(struct device *dev, struct pbuf *p) {
     td->own = 1;
 
     /* trigger tx */
-    pcnet_write_csr(dev, 0, CSR0_TDMD);
+    pcnet_write_csr(state, 0, CSR0_TDMD);
 
 done:
     mutex_release(&state->tx_lock);
-    LTRACE_EXIT;
     return res;
 }
 
+static int pcnet_send_minip_pkt(void *arg, pktbuf_t *p) {
+    struct pcnet_state *state = arg;
+    return pcnet_output(state, p);
+}
+
 static void pcnet_init_hook(uint level) {
+    dprintf(ALWAYS, "pcnet: probing PCI for AMD PCnet devices\n");
+
+    unsigned found = 0;
     for (size_t i = 0;; i++) {
         pci_location_t loc;
         status_t err = pci_bus_mgr_find_device(&loc, 0x2000, 0x1022, i);
@@ -598,25 +501,29 @@ static void pcnet_init_hook(uint level) {
             break;
         }
 
-        struct device *dev = calloc(1, sizeof(struct device));
-        if (!dev) {
+        found++;
+        char loc_str[14];
+        dprintf(ALWAYS, "pcnet: found candidate %zu at %s\n", i, pci_loc_string(loc, loc_str));
+
+        struct pcnet_state *state = calloc(1, sizeof(struct pcnet_state));
+        if (!state) {
             break;
         }
 
-        dev->name = "pcnet";
-        dev->driver = &pcnet_driver;
+        state->unit = found - 1;
 
-        err = pcnet_init_device(dev, loc);
+        err = pcnet_init_device(state, loc);
         if (err != NO_ERROR) {
-            free(dev);
+            dprintf(ALWAYS, "pcnet: device init failed (%d)\n", err);
+            free(state);
             continue;
         }
 
-        err = class_netif_add(dev);
-        if (err != NO_ERROR) {
-            free(dev);
-            continue;
-        }
+        dprintf(ALWAYS, "pcnet: device registered as minip interface '%s'\n", state->netif.name);
+    }
+
+    if (found == 0) {
+        dprintf(ALWAYS, "pcnet: no matching PCI devices found\n");
     }
 }
 

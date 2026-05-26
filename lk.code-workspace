@@ -36,7 +36,12 @@
         },
         "chat.tools.terminal.autoApprove": {
             "make": true,
-            "./scripts/run-qemu-boot-tests.py": true
+            "./scripts/run-qemu-boot-tests.py": true,
+            "./scripts/do-qemuarm": true,
+            "./scripts/do-qemum68k": true,
+            "./scripts/do-qemumips": true,
+            "./scripts/do-qemuriscv": true,
+            "./scripts/do-qemux86": true,
         }
     },
     "extensions": {
