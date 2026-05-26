@@ -20,5 +20,4 @@ typedef enum {
 struct pktbuf;
 
 status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy);
-status_t stm32_eth_send_minip_pkt(void *arg, struct pktbuf *p);
 

@@ -25,6 +25,13 @@
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
+#include <lib/minip/netif.h>
+
+static netif_t zynq_netif;
+
+static void zynq_gem_rx_callback(pktbuf_t *p) {
+    minip_rx_driver_callback(&zynq_netif, p);
+}
 #endif
 
 #define BLOCK_DEVICE_NAME "spi0"
@@ -174,15 +181,21 @@ static void zynq_common_target_init(uint level) {
 
     gem_set_macaddr(mac_addr);
 
-    minip_set_eth(gem_send_raw_pkt, NULL, mac_addr);
+    netif_create(&zynq_netif, "gem");
+    netif_set_eth(&zynq_netif, gem_send_raw_pkt, NULL, mac_addr);
 
     if (!use_dhcp && ip_addr != IPV4_NONE) {
-        minip_start_static(ip_addr, ip_mask, ip_gateway);
-    } else {
-        /* Configure IP stack and hook to the driver */
-        minip_start_dhcp();
+        uint8_t subnet_width = (uint8_t)__builtin_popcount(ip_mask);
+        netif_set_ipv4_addr(&zynq_netif, ip_addr, subnet_width);
+
+        if (ip_gateway != IPV4_NONE) {
+            minip_set_gateway(ip_gateway);
+        }
+        minip_set_configured();
     }
-    gem_set_callback(minip_rx_driver_callback);
+
+    netif_register(&zynq_netif);
+    gem_set_callback(zynq_gem_rx_callback);
 #endif
 }
 
