@@ -308,15 +308,7 @@ static status_t pcnet_read_pci_config(struct pcnet_state *state, pci_location_t 
         return res;
     }
 
-    /* Prefer the pre-configured legacy IRQ line if firmware already routed it. */
-    uint8_t interrupt_line = 0xff;
-    res = pci_bus_mgr_read_interrupt_line(loc, &interrupt_line);
-    if (res == NO_ERROR && interrupt_line != 0xff) {
-        state->irq = interrupt_line + INT_BASE;
-        return NO_ERROR;
-    }
-
-    /* Fallback to bus-manager IRQ allocation/mapping when no line is configured. */
+    /* Request a routed IRQ vector from the bus manager/platform interrupt layer. */
     uint irq_base;
     res = pci_bus_mgr_allocate_irq(loc, &irq_base);
     if (res != NO_ERROR) {
