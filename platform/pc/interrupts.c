@@ -17,6 +17,8 @@
 #include <lk/err.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
+#include <lk/console_cmd.h>
+#include <string.h>
 #include <platform/interrupts.h>
 #include <platform/pc.h>
 #include <sys/types.h>
@@ -34,6 +36,7 @@ static spin_lock_t lock;
 #define INTC_TYPE_INTERNAL 0
 #define INTC_TYPE_PIC      1
 #define INTC_TYPE_MSI      2
+#define INTC_TYPE_IOAPIC   3
 
 struct int_vector {
     int_handler handler;
@@ -42,10 +45,164 @@ struct int_vector {
         uint allocated : 1;
         uint type      : 2; // INTC_TYPE
         uint edge      : 1; // edge vs level
+        uint gsi_valid : 1;
+        uint gsi       : 16;
     } flags;
 };
 
 static struct int_vector int_table[INT_VECTORS];
+
+#if WITH_LIB_ACPI_LITE
+struct irq_override_lookup {
+    uint source_irq;
+    uint gsi;
+    uint16_t flags;
+    bool found;
+};
+
+static void int_source_override_callback(const void *_entry, size_t entry_len, void *cookie) {
+    (void)entry_len;
+
+    const struct acpi_madt_int_source_override_entry *entry = _entry;
+    struct irq_override_lookup *lookup = cookie;
+
+    if (lookup->found) {
+        return;
+    }
+
+    // ISA bus only. PCI routing is handled elsewhere; this remaps legacy IRQ numbers to GSIs.
+    if (entry->bus == 0 && entry->source == lookup->source_irq) {
+        lookup->gsi = entry->global_sys_interrupt;
+        lookup->flags = entry->flags;
+        lookup->found = true;
+    }
+}
+#endif
+
+status_t pc_get_legacy_irq_route(uint source_irq, pc_irq_route_t *route) {
+    if (!route) {
+        return ERR_INVALID_ARGS;
+    }
+
+    memset(route, 0, sizeof(*route));
+    route->source_irq = source_irq;
+    route->gsi = source_irq;
+
+#if WITH_LIB_ACPI_LITE
+    struct irq_override_lookup lookup = {
+        .source_irq = source_irq,
+        .gsi = source_irq,
+        .flags = 0,
+        .found = false,
+    };
+
+    if (acpi_process_madt_entries_etc(ACPI_MADT_TYPE_INT_SOURCE_OVERRIDE,
+                                      int_source_override_callback,
+                                      &lookup) == NO_ERROR &&
+        lookup.found) {
+        route->gsi = lookup.gsi;
+        route->has_override = true;
+        route->route_active_low =
+            (lookup.flags & ACPI_MADT_FLAG_POLARITY_MASK) == ACPI_MADT_FLAG_POLARITY_LOW;
+        route->route_level_triggered =
+            (lookup.flags & ACPI_MADT_FLAG_TRIGGER_MASK) == ACPI_MADT_FLAG_TRIGGER_LEVEL;
+    }
+#endif
+
+    ioapic_redir_state_t redir;
+    status_t err = ioapic_get_redir_state(route->gsi, &redir);
+    if (err == NO_ERROR) {
+        route->has_ioapic_redir = true;
+        route->ioapic_id = redir.ioapic_id;
+        route->vector = redir.vector;
+        route->destination_apic_id = redir.destination_apic_id;
+        route->masked = redir.masked;
+        route->level_triggered = redir.level_triggered;
+        route->active_low = redir.active_low;
+    } else if (err != ERR_NOT_FOUND) {
+        return err;
+    }
+
+    return NO_ERROR;
+}
+
+static void pc_dump_legacy_irq_route(uint source_irq) {
+    pc_irq_route_t route;
+    status_t err = pc_get_legacy_irq_route(source_irq, &route);
+    if (err != NO_ERROR) {
+        printf("pc: irq %u route lookup failed (%d)\n", source_irq, err);
+        return;
+    }
+
+    printf("pc: irq %u -> gsi %u%s\n",
+           source_irq,
+           route.gsi,
+           route.has_override ? " (madt override)" : "");
+
+    if (!route.has_ioapic_redir) {
+        printf("pc:   no ioapic redirection entry found for gsi %u\n", route.gsi);
+        return;
+    }
+
+    printf("pc:   ioapic %u vec %#04x dest_apic %u trig %s pol %s mask %u\n",
+           route.ioapic_id,
+           route.vector,
+           route.destination_apic_id,
+           route.level_triggered ? "level" : "edge",
+           route.active_low ? "low" : "high",
+           route.masked ? 1 : 0);
+}
+
+static int cmd_ioapic(int argc, const console_cmd_args *argv) {
+    if (argc == 1) {
+        ioapic_dump_redir_table();
+        return 0;
+    }
+
+    if (!strcmp(argv[1].str, "irq")) {
+        if (argc < 3) {
+            printf("usage: %s irq <legacy_irq>\n", argv[0].str);
+            return -1;
+        }
+        pc_dump_legacy_irq_route((uint)argv[2].u);
+        return 0;
+    }
+
+    if (!strcmp(argv[1].str, "gsi")) {
+        if (argc < 3) {
+            printf("usage: %s gsi <gsi>\n", argv[0].str);
+            return -1;
+        }
+        ioapic_redir_state_t state;
+        status_t err = ioapic_get_redir_state((uint)argv[2].u, &state);
+        if (err != NO_ERROR) {
+            printf("pc: gsi %u lookup failed (%d)\n", (uint)argv[2].u, err);
+            return -1;
+        }
+        printf("pc: gsi %u -> ioapic %u vec %#04x dest_apic %u trig %s pol %s mask %u\n",
+               state.gsi,
+               state.ioapic_id,
+               state.vector,
+               state.destination_apic_id,
+               state.level_triggered ? "level" : "edge",
+               state.active_low ? "low" : "high",
+               state.masked ? 1 : 0);
+        return 0;
+    }
+
+    printf("usage: %s [irq <legacy_irq> | gsi <gsi>]\n", argv[0].str);
+    return -1;
+}
+
+static int cmd_irqroute(int argc, const console_cmd_args *argv) {
+    if (argc < 2) {
+        printf("usage: %s <legacy_irq>\n", argv[0].str);
+        return -1;
+    }
+
+    pc_dump_legacy_irq_route((uint)argv[1].u);
+    return 0;
+}
 
 void platform_init_interrupts(void) {
     pic_init();
@@ -78,6 +235,9 @@ status_t mask_interrupt(unsigned int vector) {
 
     if (int_table[vector].flags.type == INTC_TYPE_PIC) {
         pic_enable(vector, false);
+    } else if (int_table[vector].flags.type == INTC_TYPE_IOAPIC &&
+               int_table[vector].flags.gsi_valid) {
+        ioapic_set_gsi_mask(int_table[vector].flags.gsi, true);
     }
 
     spin_unlock_irqrestore(&lock, state);
@@ -96,6 +256,9 @@ status_t unmask_interrupt(unsigned int vector) {
 
     if (int_table[vector].flags.type == INTC_TYPE_PIC) {
         pic_enable(vector, true);
+    } else if (int_table[vector].flags.type == INTC_TYPE_IOAPIC &&
+               int_table[vector].flags.gsi_valid) {
+        ioapic_set_gsi_mask(int_table[vector].flags.gsi, false);
     }
 
     spin_unlock_irqrestore(&lock, state);
@@ -114,7 +277,7 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
 
     // edge triggered interrupts are acked beforehand
     if (handler->flags.edge) {
-        if (handler->flags.type == INTC_TYPE_MSI) {
+        if (handler->flags.type == INTC_TYPE_MSI || handler->flags.type == INTC_TYPE_IOAPIC) {
             lapic_eoi(vector);
         } else {
             pic_eoi(vector);
@@ -129,7 +292,7 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
 
     // level triggered ack
     if (!handler->flags.edge) {
-        if (handler->flags.type == INTC_TYPE_MSI) {
+        if (handler->flags.type == INTC_TYPE_MSI || handler->flags.type == INTC_TYPE_IOAPIC) {
             lapic_eoi(vector);
         } else {
             pic_eoi(vector);
@@ -155,7 +318,12 @@ static void register_int_handler_etc(unsigned int vector, int_handler handler, v
 }
 
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
-    register_int_handler_etc(vector, handler, arg, false, INTC_TYPE_PIC);
+    uint type = INTC_TYPE_PIC;
+    if (vector < INT_VECTORS && int_table[vector].flags.type == INTC_TYPE_IOAPIC) {
+        type = INTC_TYPE_IOAPIC;
+    }
+
+    register_int_handler_etc(vector, handler, arg, false, type);
 }
 
 void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {
@@ -166,29 +334,78 @@ void platform_mask_irqs(void) {
     pic_mask_interrupts();
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int_pin, unsigned int pci_bus,
-                                    unsigned int pci_dev, unsigned int pci_func,
-                                    unsigned int *vector) {
-    (void)pci_bus;
-    (void)pci_dev;
-    (void)pci_func;
+#if WITH_DEV_BUS_PCI
+status_t platform_pci_int_line_to_vector(unsigned int pci_int_line, pci_location_t loc,
+                                         unsigned int *vector) {
+    (void)loc;
 
-    LTRACEF("pci_int %u\n", pci_int_pin);
-
-    // NOTE: this whole translation is probably not what we want since it's passing in
-    // the INT pin from the PCI config which is 1..4 for INTA..INTD. Also the
-    // BIOS may have already configured the legacy interrupt and the INT_LINE
-    // field in the PCI config may already be set to the final value already.
-
-    // pci interrupts are relative to PIC style irq #s so simply add INT_BASE to it
-    uint out_vector = pci_int_pin + INT_BASE;
-    if (out_vector > INT_VECTORS) {
+    if (!vector) {
         return ERR_INVALID_ARGS;
     }
+
+    if (pci_int_line >= 16) {
+        return ERR_INVALID_ARGS;
+    }
+
+    LTRACEF("pci_line %u\n", pci_int_line);
+
+    pc_irq_route_t route;
+    status_t err = pc_get_legacy_irq_route(pci_int_line, &route);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    uint out_vector = pci_int_line + INT_BASE;
+    if (out_vector >= INT_VECTORS) {
+        return ERR_INVALID_ARGS;
+    }
+
+    ioapic_redir_state_t redir = {
+        .gsi = route.gsi,
+        .ioapic_id = route.ioapic_id,
+        .vector = (uint8_t)out_vector,
+        .destination_apic_id = (uint8_t)lapic_get_apic_id(),
+        .masked = false,
+        .level_triggered = route.route_level_triggered,
+        .active_low = route.route_active_low,
+    };
+
+    err = ioapic_set_redir_state(route.gsi, &redir);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
+    int_table[out_vector].flags.allocated = true;
+    int_table[out_vector].flags.type = INTC_TYPE_IOAPIC;
+    int_table[out_vector].flags.edge = !route.route_level_triggered;
+    int_table[out_vector].flags.gsi_valid = true;
+    int_table[out_vector].flags.gsi = route.gsi;
+    spin_unlock_irqrestore(&lock, state);
+
+    dprintf(ALWAYS,
+            "PC: routed legacy irq %u -> gsi %u -> vector %#x (dest apic %u, %s/%s)\n",
+            pci_int_line,
+            route.gsi,
+            out_vector,
+            redir.destination_apic_id,
+            route.route_level_triggered ? "level" : "edge",
+            route.route_active_low ? "low" : "high");
 
     *vector = out_vector;
     return NO_ERROR;
 }
+
+status_t platform_pci_int_pin_to_vector(unsigned int pci_int_pin, pci_location_t loc,
+                                        unsigned int *vector) {
+    (void)pci_int_pin;
+    (void)loc;
+    (void)vector;
+
+    // x86/pc routes using the configured legacy IRQ line, not raw INTA-D pin.
+    return ERR_NOT_SUPPORTED;
+}
+#endif
 
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi,
                                       unsigned int *vector) {
@@ -265,3 +482,9 @@ void platform_init_interrupts_postvm(void) {
     acpi_process_madt_entries_etc(ACPI_MADT_TYPE_IO_APIC, &io_apic_callback, NULL);
 #endif
 }
+
+STATIC_COMMAND_START
+STATIC_COMMAND("ioapic", "dump ioapic redirection state; ioapic irq <n>; ioapic gsi <n>",
+               &cmd_ioapic)
+STATIC_COMMAND("irqroute", "show legacy irq to gsi/ioapic route", &cmd_irqroute)
+STATIC_COMMAND_END(pc_interrupts);

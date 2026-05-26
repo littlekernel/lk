@@ -291,8 +291,14 @@ status_t device::init_msix_capability(capability *cap) {
 status_t device::allocate_irq(uint *irq) {
     LTRACE_ENTRY;
 
+    uint8_t interrupt_line;
+    status_t err = pci_read_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, &interrupt_line);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
     uint8_t interrupt_pin;
-    status_t err = pci_read_config_byte(loc(), PCI_CONFIG_INTERRUPT_PIN, &interrupt_pin);
+    err = pci_read_config_byte(loc(), PCI_CONFIG_INTERRUPT_PIN, &interrupt_pin);
     if (err != NO_ERROR) {
         return err;
     }
@@ -301,15 +307,19 @@ status_t device::allocate_irq(uint *irq) {
         return ERR_NO_RESOURCES;
     }
 
-    // map the irq number in config space to platform vector space
-    err = platform_pci_int_to_vector(interrupt_pin, loc().bus, loc().dev,
-                                     loc().fn, irq);
+    // Prefer the already-routed legacy IRQ line from PCI config space.
+    if (interrupt_line != 0xff) {
+        err = platform_pci_int_line_to_vector(interrupt_line, loc(), irq);
+        if (err == NO_ERROR) {
+            return NO_ERROR;
+        }
+    }
+
+    // Fallback for platforms that route legacy INTx by pin swizzle.
+    err = platform_pci_int_pin_to_vector(interrupt_pin, loc(), irq);
     if (err != NO_ERROR) {
         return err;
     }
-
-    // write it back to the pci config in the interrupt line offset
-    pci_write_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, *irq);
 
     return err;
 }

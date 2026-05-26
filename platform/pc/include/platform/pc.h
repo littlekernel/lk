@@ -8,6 +8,9 @@
  */
 #pragma once
 
+#include <stdbool.h>
+#include <sys/types.h>
+
 #include <platform/pc/iomap.h>
 #include <platform/pc/memmap.h>
 
@@ -40,3 +43,20 @@
 /* PIC remap bases */
 #define INT_PIC1_BASE 0x20
 #define INT_PIC2_BASE 0x28
+
+typedef struct pc_irq_route {
+	uint source_irq;
+	uint gsi;
+	bool has_override;
+	bool route_level_triggered;
+	bool route_active_low;
+	bool has_ioapic_redir;
+	uint ioapic_id;
+	uint8_t vector;
+	uint8_t destination_apic_id;
+	bool masked;
+	bool level_triggered;
+	bool active_low;
+} pc_irq_route_t;
+
+status_t pc_get_legacy_irq_route(uint source_irq, pc_irq_route_t *route);

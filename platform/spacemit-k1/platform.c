@@ -83,16 +83,25 @@ void platform_halt(platform_halt_action suggested_action, platform_halt_reason r
     platform_halt_default(suggested_action, reason, &reboot_, &shutdown_);
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
-        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
-    (void)pci_bus;
-    (void)pci_dev;
-    (void)pci_func;
+#if WITH_DEV_BUS_PCI
+status_t platform_pci_int_line_to_vector(unsigned int pci_int_line, pci_location_t loc,
+        unsigned int *vector) {
+    (void)loc;
 
     // at the moment there's no translation between PCI IRQs and native irqs
-    *vector = pci_int;
+    *vector = pci_int_line;
     return NO_ERROR;
 }
+
+status_t platform_pci_int_pin_to_vector(unsigned int pci_int_pin, pci_location_t loc,
+        unsigned int *vector) {
+    (void)loc;
+
+    // at the moment there's no translation between PCI IRQs and native irqs
+    *vector = pci_int_pin;
+    return NO_ERROR;
+}
+#endif
 
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
     return ERR_NOT_SUPPORTED;

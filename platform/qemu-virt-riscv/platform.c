@@ -118,22 +118,32 @@ void platform_halt(platform_halt_action suggested_action, platform_halt_reason r
     platform_halt_default(suggested_action, reason, &reboot_, &shutdown_);
 }
 
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
-        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector) {
-    (void)pci_bus;
-    (void)pci_func;
+#if WITH_DEV_BUS_PCI
+status_t platform_pci_int_line_to_vector(unsigned int pci_int_line, pci_location_t loc,
+        unsigned int *vector) {
+    (void)pci_int_line;
+    (void)loc;
+    (void)vector;
+
+    // QEMU virt riscv uses INTx pin swizzling for legacy routing.
+    return ERR_NOT_SUPPORTED;
+}
+
+status_t platform_pci_int_pin_to_vector(unsigned int pci_int_pin, pci_location_t loc,
+    unsigned int *vector) {
 
     // QEMU virt machine maps PCI INTx to PLIC lines 32..35 with slot swizzling:
     // irq = 32 + ((pin - 1 + slot) % 4), where pin is 1..4 for INTA..INTD.
     static const unsigned int PCIE_IRQ_BASE = 0x20;
 
-    if (pci_int < 1 || pci_int > 4) {
+    if (pci_int_pin < 1 || pci_int_pin > 4) {
         return ERR_OUT_OF_RANGE;
     }
 
-    *vector = PCIE_IRQ_BASE + ((pci_int - 1 + pci_dev) % 4);
+    *vector = PCIE_IRQ_BASE + ((pci_int_pin - 1 + loc.dev) % 4);
     return NO_ERROR;
 }
+#endif
 
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
     TRACEF("count %zu, align_log2 %u, msi %d\n", count, align_log2, msi);
