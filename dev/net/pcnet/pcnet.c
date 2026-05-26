@@ -32,8 +32,8 @@
 
 #define PCNET_INIT_TIMEOUT 20000
 #define MAX_PACKET_SIZE    1518
-
-#define QEMU_IRQ_BUG_WORKAROUND 1
+#define PCNET_TX_DESC_COUNT 64
+#define PCNET_RX_DESC_COUNT 64
 
 struct pcnet_state {
     unsigned unit;
@@ -82,6 +82,18 @@ static bool pcnet_service_rx(struct pcnet_state *state);
 
 static status_t pcnet_output(struct pcnet_state *state, pktbuf_t *p);
 static int pcnet_send_minip_pkt(void *arg, pktbuf_t *p);
+
+static uint16_t pcnet_ring_log2(unsigned count) {
+    DEBUG_ASSERT(count != 0);
+    DEBUG_ASSERT((count & (count - 1)) == 0);
+
+    uint16_t shift = 0;
+    while ((1U << shift) < count) {
+        shift++;
+    }
+
+    return shift;
+}
 
 static inline uint32_t pcnet_read_csr(struct pcnet_state *state, uint8_t rap) {
     outpd(state->base + REG_RAP, rap);
@@ -158,11 +170,8 @@ static status_t pcnet_init_device(struct pcnet_state *state, pci_location_t loc)
     /* DMA plus enable */
     pcnet_write_csr(state, 4, pcnet_read_csr(state, 4) | CSR4_DMAPLUS);
 
-    /* Allocate a TX ring of 128 and a smaller RX ring so pktbuf pool is not exhausted.
-     * pktbuf_alloc consumes two pool objects per RX buffer.
-     */
-    state->td_count = 128;
-    state->rd_count = 64;
+    state->td_count = PCNET_TX_DESC_COUNT;
+    state->rd_count = (int)pktbuf_recommended_eth_rx_depth(PCNET_RX_DESC_COUNT);
     state->td = memalign(16, state->td_count * DESC_SIZE);
     state->rd = memalign(16, state->rd_count * DESC_SIZE);
 
@@ -187,8 +196,8 @@ static status_t pcnet_init_device(struct pcnet_state *state, pci_location_t loc)
     }
 
     /* setup init block */
-    state->ib->tlen = 7; // 128 descriptors
-    state->ib->rlen = 7; // 128 descriptors
+    state->ib->tlen = pcnet_ring_log2(state->td_count);
+    state->ib->rlen = pcnet_ring_log2(state->rd_count);
     state->ib->mode = 0;
 
     state->ib->ladr = ~0;
@@ -231,11 +240,6 @@ static status_t pcnet_init_device(struct pcnet_state *state, pci_location_t loc)
 
     register_int_handler(state->irq, pcnet_irq_handler, state);
     unmask_interrupt(state->irq);
-
-#if QEMU_IRQ_BUG_WORKAROUND
-    register_int_handler(INT_BASE + 15, pcnet_irq_handler, state);
-    unmask_interrupt(INT_BASE + 15);
-#endif
 
     /* wait for initialization to complete */
     res = event_wait_timeout(&state->initialized, PCNET_INIT_TIMEOUT);
@@ -281,46 +285,52 @@ error:
 }
 
 static status_t pcnet_read_pci_config(struct pcnet_state *state, pci_location_t loc) {
-    status_t res = NO_ERROR;
-    pci_config_t config;
+    pci_bar_t bars[6];
+    status_t res = pci_bus_mgr_read_bars(loc, bars);
+    if (res != NO_ERROR) {
+        return res;
+    }
 
-    pci_read_config(loc, &config);
-
-    for (unsigned i = 0; i < countof(config.type0.base_addresses); i++) {
-        if (config.type0.base_addresses[i] & 0x1) {
-            state->base = config.type0.base_addresses[i] & ~0x3;
+    state->base = 0;
+    for (unsigned i = 0; i < countof(bars); i++) {
+        if (bars[i].valid && bars[i].io && bars[i].addr != 0) {
+            state->base = bars[i].addr;
             break;
         }
     }
 
     if (!state->base) {
-        res = ERR_NOT_CONFIGURED;
-        goto error;
+        return ERR_NOT_CONFIGURED;
     }
 
-    if (config.type0.interrupt_line != 0xff) {
-        state->irq = config.type0.interrupt_line + INT_BASE;
-    } else {
-        res = ERR_NOT_CONFIGURED;
-        goto error;
+    res = pci_bus_mgr_enable_device(loc);
+    if (res != NO_ERROR) {
+        return res;
     }
 
-    pci_write_config_half(loc, PCI_CONFIG_COMMAND,
-                          (config.command | PCI_COMMAND_IO_EN | PCI_COMMAND_BUS_MASTER_EN) &
-                              ~PCI_COMMAND_MEM_EN);
+    /* Prefer the pre-configured legacy IRQ line if firmware already routed it. */
+    uint8_t interrupt_line = 0xff;
+    res = pci_bus_mgr_read_interrupt_line(loc, &interrupt_line);
+    if (res == NO_ERROR && interrupt_line != 0xff) {
+        state->irq = interrupt_line + INT_BASE;
+        return NO_ERROR;
+    }
 
-error:
-    return res;
+    /* Fallback to bus-manager IRQ allocation/mapping when no line is configured. */
+    uint irq_base;
+    res = pci_bus_mgr_allocate_irq(loc, &irq_base);
+    if (res != NO_ERROR) {
+        return res;
+    }
+
+    state->irq = (int)irq_base;
+    return NO_ERROR;
 }
 
 static enum handler_return pcnet_irq_handler(void *arg) {
     struct pcnet_state *state = arg;
 
     mask_interrupt(state->irq);
-
-#if QEMU_IRQ_BUG_WORKAROUND
-    mask_interrupt(INT_BASE + 15);
-#endif
 
     event_signal(&state->event, false);
 
@@ -364,10 +374,6 @@ static int pcnet_thread(void *arg) {
         /* enable interrupts at the controller */
         pcnet_write_csr(state, 0, CSR0_IENA);
         unmask_interrupt(state->irq);
-
-#if QEMU_IRQ_BUG_WORKAROUND
-        unmask_interrupt(INT_BASE + 15);
-#endif
     }
 
     return 0;

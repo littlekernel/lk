@@ -292,6 +292,23 @@ status_t pci_bus_mgr_read_bars(const pci_location_t loc, pci_bar_t bar[6]) {
     return d->read_bars(bar);
 }
 
+status_t pci_bus_mgr_read_interrupt_line(const pci_location_t loc, uint8_t *interrupt_line) {
+    char str[14];
+    LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    if (!interrupt_line) {
+        return ERR_INVALID_ARGS;
+    }
+
+    device *d = lookup_device_by_loc(loc);
+    if (!d) {
+        return ERR_NOT_FOUND;
+    }
+
+    *interrupt_line = d->interrupt_line();
+    return NO_ERROR;
+}
+
 bool pci_bus_mgr_has_msi(const pci_location_t loc) {
     char str[14];
     LTRACEF("%s\n", pci_loc_string(loc, str));

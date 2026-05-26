@@ -88,6 +88,7 @@ public:
     uint8_t base_class() const { return config_.base_class; }
     uint8_t sub_class() const { return config_.sub_class; }
     uint8_t interface() const { return config_.program_interface; }
+    uint8_t interrupt_line() const { return config_.type0.interrupt_line; }
     uint8_t header_type() const { return config_.header_type & PCI_HEADER_TYPE_MASK; }
 
     status_t read_bars(pci_bar_t bar[6]);

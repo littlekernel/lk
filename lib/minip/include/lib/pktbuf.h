@@ -18,6 +18,14 @@ __BEGIN_CDECLS
 #define PKTBUF_POOL_SIZE 256
 #endif
 
+/* Reserve this many pktbuf pool objects for non-RX-ring traffic by default.
+ * Since pktbuf_alloc() consumes two pool objects (header + buffer), this keeps
+ * space for TX/control traffic such as ARP/DHCP.
+ */
+#ifndef PKTBUF_ETH_RX_POOL_RESERVE_OBJECTS
+#define PKTBUF_ETH_RX_POOL_RESERVE_OBJECTS 64
+#endif
+
 #ifndef PKTBUF_SIZE
 #define PKTBUF_SIZE     1536
 #endif
@@ -114,5 +122,10 @@ void pktbuf_create(void *ptr, size_t size);
 void pktbuf_create_bufs(void *ptr, size_t size);
 
 void pktbuf_dump(pktbuf_t *p);
+
+// Return a safe ethernet RX preallocation depth based on pool capacity.
+// Each RX descriptor that uses pktbuf_alloc() consumes two pool objects.
+// The returned value is clamped to requested_depth.
+size_t pktbuf_recommended_eth_rx_depth(size_t requested_depth);
 
 __END_CDECLS

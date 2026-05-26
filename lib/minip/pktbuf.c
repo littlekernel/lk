@@ -20,6 +20,7 @@
 #include <lib/pktbuf.h>
 #include <lib/pool.h>
 #include <lk/init.h>
+#include <lk/pow2.h>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -30,6 +31,31 @@
 static pool_t pktbuf_pool;
 static semaphore_t pktbuf_sem;
 static spin_lock_t lock;
+
+size_t pktbuf_recommended_eth_rx_depth(size_t requested_depth) {
+    const size_t objects_per_rx = 2;
+
+    if (requested_depth == 0) {
+        return 0;
+    }
+
+    size_t available_objects = PKTBUF_POOL_SIZE;
+    if (available_objects > PKTBUF_ETH_RX_POOL_RESERVE_OBJECTS) {
+        available_objects -= PKTBUF_ETH_RX_POOL_RESERVE_OBJECTS;
+    } else {
+        available_objects = 0;
+    }
+
+    size_t max_depth = available_objects / objects_per_rx;
+    if (max_depth == 0) {
+        max_depth = 1;
+    }
+
+    size_t depth = (requested_depth < max_depth) ? requested_depth : max_depth;
+    size_t pow2_depth = valpow2(log2_uint((uint)depth));
+
+    return (pow2_depth != 0) ? pow2_depth : 1;
+}
 
 /* Take an object from the pool of pktbuf objects to act as a header or buffer.  */
 static void *get_pool_object(void) {
