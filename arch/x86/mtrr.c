@@ -255,6 +255,45 @@ status_t x86_mtrr_set_framebuffer(uint64_t fb_phys_addr, uint64_t fb_size) {
     dprintf(INFO, "MTRR: Framebuffer base=%#" PRIx64 " size=%#" PRIx64 " (%" PRIu64 " MB)\n",
             fb_phys_addr, fb_size, fb_size / (1024 * 1024));
 
+    uint64_t fb_end = fb_phys_addr + fb_size;
+
+    /* Reuse an existing variable MTRR if it already covers this range.
+     * Also avoid creating overlaps with incompatible memory types.
+     */
+    for (int i = 0; i < num_mtrrs; i++) {
+        uint32_t base_msr, mask_msr;
+        get_mtrr_addresses(i, &base_msr, &mask_msr);
+
+        uint64_t base_val = read_msr(base_msr);
+        uint64_t mask_val = read_msr(mask_msr);
+        if (!(mask_val & MTRR_PHYSMASK_VALID)) {
+            continue;
+        }
+
+        uint64_t base_addr = base_val & 0xFFFFFFF000ULL;
+        uint64_t mask_addr = mask_val & 0xFFFFFFF000ULL;
+        uint64_t size = (~mask_addr & 0xFFFFFFF000ULL) + 0x1000ULL;
+        uint64_t end_addr = base_addr + size;
+        uint8_t type = (uint8_t)(base_val & MTRR_PHYSBASE_TYPE_MASK);
+
+        bool contains = fb_phys_addr >= base_addr && fb_end <= end_addr;
+        bool overlaps = fb_phys_addr < end_addr && fb_end > base_addr;
+
+        if (contains && type == MTRR_TYPE_WC) {
+            dprintf(INFO,
+                    "MTRR: Reusing existing WC MTRR%d for framebuffer (addr=%#" PRIx64
+                    " size=%#" PRIx64 ")\n",
+                    i, base_addr, size);
+            return NO_ERROR;
+        }
+
+        if (overlaps && type != MTRR_TYPE_WC) {
+            TRACEF("Framebuffer overlaps existing MTRR%d type %u (%s), skipping new MTRR\n", i,
+                   type, x86_mtrr_type_name(type));
+            return ERR_ALREADY_EXISTS;
+        }
+    }
+
     for (int i = 0; i < num_mtrrs; i++) {
         uint32_t base_msr, mask_msr;
         get_mtrr_addresses(i, &base_msr, &mask_msr);
