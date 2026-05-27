@@ -159,7 +159,7 @@ int pktbuf_free(pktbuf_t *p, bool reschedule) {
     if (p->cb) {
         p->cb(p->buffer, p->cb_args);
     }
-    free_pool_object((pktbuf_pool_object_t *)p, false);
+    free_pool_object((pktbuf_pool_object_t *)p, reschedule);
 
     return 1;
 }
