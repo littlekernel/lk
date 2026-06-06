@@ -1,4 +1,5 @@
 // Copyright 2020 The Fuchsia Authors
+// Copyright 2026 Travis Geiselbrecht
 //
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file or at
@@ -10,10 +11,45 @@
 
 #ifdef __ASSEMBLER__
 
+// Routine to iterate over a range of addresses, performing the specified cache
+// operation on each cache line in the range.
+// Only x0-x3 are used as temporary registers.
+//
+// inputs:
+//  x0 = start address
+//  x1 = length of range in bytes
+//  cache = cache maintenance instruction (dc, ic)
+//  op = cache operation (e.g. cvau, ivau)
+//  icache = 1 if the operation is for the instruction cache, 0 for data cache
+.macro cache_range_op, cache op, icache = 0
+    add     x2, x0, x1                  // x2 = end address
+    mrs     x3, ctr_el0                 // x3 = CTR_EL0
+.if \icache
+    // i-cache line size is in bits 3:0 (log2 of line size in words)
+    ubfx    w3, w3, #0, #4
+.else
+    // d-cache line size is in bits 19:16 (log2 of line size in words)
+    ubfx    w3, w3, #16, #4
+.endif
+    // x3 now contains log2(cache_line_size / 4)
+    // Convert to actual cache line size: line_size = 4 << log2_size
+    mov     x1, #4
+    lsl     x3, x1, x3                  // x3 = 4 << log2_size = cache line size in bytes
+    sub     x1, x3, #1                  // x1 = cache line mask
+    bic     x1, x0, x1                  // x1 = aligned start address
+.Lcache_range_op_loop\@:
+    \cache  \op, x1
+    add     x1, x1, x3
+    cmp     x1, x2
+    blo     .Lcache_range_op_loop\@
+    dsb     sy
+.endm
+
 // Routine to iterate over all ways/sets across all levels of data caches
 // from level 0 to the point of coherence.
 //
 // Adapted from example code in the ARM Architecture Reference Manual ARMv8.
+// TODO: handle the newer format of CLIDR to accommodate larger caches.
 .macro cache_way_set_op, op name
     mrs     x0, clidr_el1
     and     w3, w0, #0x07000000     // get 2x level of coherence
