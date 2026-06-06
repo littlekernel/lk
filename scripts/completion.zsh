@@ -95,6 +95,5 @@ if typeset -f compdef >/dev/null 2>&1; then
     compdef _lk_qemu_completion_zsh do-qemuriscv
     compdef _lk_qemu_completion_zsh do-qemum68k
     compdef _lk_qemu_completion_zsh do-qemum6
-    compdef _lk_qemu_completion_zsh do-qemum4
     compdef _lk_qemu_completion_zsh do-qemumips
 fi

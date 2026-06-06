@@ -96,5 +96,4 @@ complete -F _lk_qemu_completion_bash do-qemux86
 complete -F _lk_qemu_completion_bash do-qemuriscv
 complete -F _lk_qemu_completion_bash do-qemum68k
 complete -F _lk_qemu_completion_bash do-qemum6
-complete -F _lk_qemu_completion_bash do-qemum4
 complete -F _lk_qemu_completion_bash do-qemumips
