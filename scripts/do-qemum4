@@ -21,10 +21,9 @@ DO_CMPCTMALLOC=0
 DO_MINIHEAP=0
 MEMSIZE=8
 
-while getopts bdhm:cMnt6 FLAG; do
+while getopts cMhm: FLAG; do
     case $FLAG in
         c) DO_CMPCTMALLOC=1;;
-        M) DO_MINIHEAP=1;;
         M) DO_MINIHEAP=1;;
         h) HELP;;
         \?)

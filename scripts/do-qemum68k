@@ -33,7 +33,7 @@ CMDLINE=""
 DO_V9P=0
 DO_V9P_DIR=""
 
-while getopts A:c:d:fgm:pg:Xnh FLAG; do
+while getopts A:c:d:f:gm:p:Xnh FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) CPU=$OPTARG;;

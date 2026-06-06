@@ -47,7 +47,7 @@ SUDO=""
 PROJECT=""
 DO_DRYRUN=0
 
-while getopts A:cCd:ghm:Mmnteu6p:s:SX FLAG; do
+while getopts A:cCd:ghm:Mnteu6p:s:SX FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) DO_CMPCTMALLOC=1;;
