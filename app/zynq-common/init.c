@@ -157,6 +157,7 @@ static void zynq_common_target_init(uint level) {
 
 #if WITH_LIB_MINIP
     /* pull some network stack related params out of the sysparam block */
+    // TODO: consider making these more generic and supporting multiple interfaces for all platforms
     uint8_t mac_addr[6];
     uint32_t ip_addr = IPV4_NONE;
     uint32_t ip_mask = IPV4_NONE;

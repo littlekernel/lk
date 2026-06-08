@@ -32,17 +32,11 @@ typedef int (*tx_func_t)(void *arg, pktbuf_t *p);
 typedef void (*udp_callback_t)(void *data, size_t len,
                                uint32_t srcaddr, uint16_t srcport, void *arg);
 
-/* initialize and start minip with static configuration */
-//void minip_start_static(uint32_t ip, uint32_t netmask, uint32_t gateway);
-
 /* initialize and start minip with DHCP configuration
  * note: may take a while to have an ip address assigned, check
  * for configuration with minip_is_configured()
  */
 void minip_start_dhcp(netif_t *);
-
-/* ethernet driver install hook */
-void minip_set_eth(tx_func_t tx_handler, void *tx_arg, const uint8_t *macaddr);
 
 /* check or wait for minip to be configured */
 bool minip_is_configured(void);

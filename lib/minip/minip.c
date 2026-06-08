@@ -113,11 +113,6 @@ void gen_random_mac_address(uint8_t *mac_addr) {
     mac_addr[0] |= (1<<1);
 }
 
-void minip_start_static(uint32_t ip, uint32_t mask, uint32_t gateway) {
-    PANIC_UNIMPLEMENTED;
-    minip_set_gateway(gateway);
-}
-
 // search for an ipv4 route given the destination
 // bumps the ref of the route upon return
 ipv4_route_t *ipv4_search_route(ipv4_addr_t dest) {
