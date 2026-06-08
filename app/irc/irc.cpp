@@ -6,30 +6,31 @@
  * https://opensource.org/licenses/MIT
  */
 
-#include <string.h>
-#include <stdio.h>
+#include <app.h>
+#include <kernel/mutex.h>
+#include <kernel/thread.h>
+#include <lib/minip.h>
+#include <lib/version.h>
+#include <lk/cpp.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <app.h>
-#include <lib/minip.h>
-#include <kernel/thread.h>
-#include <kernel/mutex.h>
-#include <lk/cpp.h>
+#include <stdio.h>
+#include <string.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 namespace {
 
 // constexpr IRC_SERVER = IPV4(176,58,122,119) // irc.libera.chat
-constexpr ipv4_addr_t IRC_SERVER  = IPV4(88,99,244,4); // irc.sortix.org
+constexpr ipv4_addr_t IRC_SERVER = IPV4(88, 99, 244, 4); // irc.sortix.org
 constexpr uint16_t IRC_PORT = 6667;
 constexpr const char *IRC_USER = "geist";
 constexpr const char *IRC_NICK = "geist-lk";
 constexpr const char *IRC_CHAN = "#sortix";
 
 class irc_client {
-public:
+  public:
     irc_client() = default;
     ~irc_client() = default;
 
@@ -43,7 +44,7 @@ public:
     void set_server(uint32_t server) { server_ip_ = server; }
     void set_server_port(uint16_t port) { server_port_ = port; }
 
-private:
+  private:
     DISALLOW_COPY_AND_ASSIGN_ALLOW_MOVE(irc_client);
 
     mutex_t lock_ = MUTEX_INITIAL_VALUE(lock_);
@@ -56,10 +57,11 @@ private:
         CONNECTED,
         HANDSHOOK,
     } state_ = state::INITIAL;
+
+    void handle_ctcp_request(const char *nick, const char *ctcp_cmd);
 };
 
-void irc_client::init() {
-}
+void irc_client::init() {}
 
 void irc_client::shutdown() {
     AutoLock al(&lock_);
@@ -73,6 +75,22 @@ void irc_client::shutdown() {
         }
         tcp_close(sock_);
         sock_ = nullptr;
+    }
+}
+
+void irc_client::handle_ctcp_request(const char *nick, const char *ctcp_cmd) {
+    char buf[256];
+
+    // Handle VERSION request
+    if (strncmp(ctcp_cmd, "VERSION", strlen("VERSION")) == 0) {
+        snprintf(buf, sizeof(buf), "NOTICE %s :\001VERSION LK %s (%s) littlekernel\001\r\n", nick,
+                 lk_version.buildid, lk_version.arch);
+        tcp_write(sock_, buf, strlen(buf));
+    }
+    // Handle TIME request
+    else if (strncmp(ctcp_cmd, "TIME", strlen("TIME")) == 0) {
+        snprintf(buf, sizeof(buf), "NOTICE %s :\001TIME Wed Jan 01 00:00:00 2020\001\r\n", nick);
+        tcp_write(sock_, buf, strlen(buf));
     }
 }
 
@@ -127,15 +145,77 @@ status_t irc_client::read_loop() {
 
         // we've completed a line, process it
         line[pos] = 0; // terminate the string
-        pos = 0; // next time around we start over
+        pos = 0;       // next time around we start over
 
         AutoLock al(&lock_);
 
-        if (strncmp(line, "PING", strlen("PING"))== 0) {
+        if (strncmp(line, "PING", strlen("PING")) == 0) {
             // handle a PONG
             tcp_write(sock_, "PONG\r\n", strlen("PONG\r\n"));
             printf("%s", line);
             printf("PING/PONG\n");
+        } else if (strstr(line, " PRIVMSG ") != nullptr) {
+            // Parse PRIVMSG lines: :nick!user@host PRIVMSG target :message
+            char nick[64] = { 0 };
+            char target[64] = { 0 };
+            const char *message = nullptr;
+
+            // Extract nick from ":nick!user@host" format
+            if (line[0] == ':') {
+                const char *exclaim = strchr(line, '!');
+                if (exclaim != nullptr) {
+                    ptrdiff_t nick_len = exclaim - line - 1; // -1 to skip the ':'
+                    if (nick_len > 0 && nick_len < (ptrdiff_t)sizeof(nick)) {
+                        strncpy(nick, &line[1], nick_len);
+                        nick[nick_len] = 0;
+                    }
+                }
+            }
+
+            // Extract target (channel or nick) and message
+            const char *privmsg_pos = strstr(line, "PRIVMSG");
+            if (privmsg_pos != nullptr && nick[0] != 0) {
+                const char *target_start = privmsg_pos + strlen("PRIVMSG") + 1; // +1 to skip space
+                const char *colon = strchr(target_start, ':');
+                if (colon) {
+                    ptrdiff_t target_len =
+                        colon - target_start - 1; // -1 to skip space before colon
+                    if (target_len > 0 && target_len < (ptrdiff_t)sizeof(target)) {
+                        strncpy(target, target_start, target_len);
+                        target[target_len] = 0;
+                    }
+                    message = colon + 1;
+                }
+            }
+
+            LTRACEF("Parsed PRIVMSG - Nick: '%s', Target: '%s', Message: '%s'\n", nick, target,
+                    message ? message : "(null)");
+
+            // Check for CTCP requests
+            const char *ctcp_start = message ? strchr(message, '\001') : nullptr;
+            if (ctcp_start != nullptr) {
+                // Extract CTCP command (between \001 markers)
+                char ctcp_cmd[64] = { 0 };
+                const char *cmd_start = ctcp_start + 1;
+                const char *cmd_end = strchr(cmd_start, '\001');
+                if (cmd_end != nullptr && nick[0] != 0) {
+                    ptrdiff_t cmd_len = cmd_end - cmd_start;
+                    if (cmd_len > 0 && cmd_len < (ptrdiff_t)sizeof(ctcp_cmd)) {
+                        strncpy(ctcp_cmd, cmd_start, cmd_len);
+                        ctcp_cmd[cmd_len] = 0;
+                        handle_ctcp_request(nick, ctcp_cmd);
+                    }
+                }
+                printf("%s", line);
+            } else if (strcmp(target, IRC_NICK) == 0 && message != nullptr) {
+                // Check if it's a direct private message to the bot
+                printf("[PM from %s]: %s", nick, message);
+            } else if (strcmp(target, IRC_CHAN) == 0 && message != nullptr) {
+                // If it's from the channel, just prefix the channel
+                printf("[%s] %s: %s", IRC_CHAN, nick, message);
+            } else {
+                printf("%s", line);
+            }
         } else {
             printf("%s", line);
         }
@@ -145,7 +225,7 @@ status_t irc_client::read_loop() {
 }
 
 status_t irc_client::console_input_line(const char *line, bool &exit) {
-    //printf("CONSOLE LINE '%s'\n", line);
+    // printf("CONSOLE LINE '%s'\n", line);
 
     if (strlen(line) == 0) {
         return NO_ERROR;
@@ -162,6 +242,14 @@ status_t irc_client::console_input_line(const char *line, bool &exit) {
             shutdown();
             exit = true;
             return NO_ERROR;
+        } else if (strncmp(&line[1], "me ", strlen("me ")) == 0) {
+            // /me command - send CTCP ACTION
+            AutoLock al(&lock_);
+            const char *action_text = &line[4]; // skip "/me "
+            char buf[256];
+            snprintf(buf, sizeof(buf), "PRIVMSG #sortix :\001ACTION %s\001\r\n", action_text);
+            auto err = tcp_write(sock_, buf, strlen(buf));
+            return (err < 0) ? static_cast<status_t>(err) : NO_ERROR;
         } else {
             printf("bad command\n");
             return NO_ERROR;
@@ -230,7 +318,7 @@ int console_thread_worker(void *arg) {
             pos = 0;
         }
 
-        //printf("char %c (%d)\n", c, c);
+        // printf("char %c (%d)\n", c, c);
         switch (c) {
             case '\n':
             case '\r':
@@ -246,7 +334,7 @@ int console_thread_worker(void *arg) {
                 }
                 break;
             case '\b': // backspace
-            case 127: // DEL
+            case 127:  // DEL
                 if (pos > 0) {
                     pos--;
                     fputs("\b \b", stdout); // wipe out a character
@@ -258,14 +346,12 @@ int console_thread_worker(void *arg) {
                 putchar(c);
                 break;
         }
-
     }
 
     LTRACEF("console thread exiting\n");
 
     return 0;
 };
-
 
 void irc_app_entry(const struct app_descriptor *app, void *args) {
     LTRACE_ENTRY;
@@ -282,12 +368,11 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
     irc->init();
 
     // clean up and delete the object on the way out
-    auto cleanup = [&irc]() {
+    auto ac = lk::make_auto_call([&irc]() {
         printf("cleaning up IRC\n");
         irc->shutdown();
         delete irc;
-    };
-    auto ac = lk::make_auto_call(cleanup);
+    });
 
     // configure the parameters
     irc->set_server(IRC_SERVER);
@@ -307,7 +392,8 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
     thread_t *console_thread;
     thread_t *server_thread;
 
-    console_thread = thread_create("irc console", console_thread_worker, irc, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    console_thread = thread_create("irc console", console_thread_worker, irc, DEFAULT_PRIORITY,
+                                   DEFAULT_STACK_SIZE);
     thread_resume(console_thread);
 
     auto server_thread_worker = [](void *arg) -> int {
@@ -318,7 +404,8 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
 
         return 0;
     };
-    server_thread = thread_create("irc socket", server_thread_worker, irc, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    server_thread = thread_create("irc socket", server_thread_worker, irc, DEFAULT_PRIORITY,
+                                  DEFAULT_STACK_SIZE);
     thread_resume(server_thread);
 
     thread_join(server_thread, nullptr, INFINITE_TIME);
@@ -327,11 +414,12 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
     LTRACE_EXIT;
 }
 
+// clang-format off
 APP_START(irc)
-.init = nullptr,
-.entry = irc_app_entry,
-.flags = APP_FLAG_NO_AUTOSTART,
-.stack_size = 0,
+    .init = nullptr,
+    .entry = irc_app_entry,
+    .flags = APP_FLAG_NO_AUTOSTART,
+    .stack_size = 0,
 APP_END
 
 } // namespace
