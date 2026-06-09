@@ -106,13 +106,13 @@ STATIC_ASSERT(sizeof(struct virtio_net_hdr) == 12);
 #define VIRTIO_NET_S_LINK_UP                (1<<0)
 #define VIRTIO_NET_S_ANNOUNCE               (1<<1)
 
-#define TX_RING_SIZE 16
-#define RX_RING_SIZE 16
+constexpr uint16_t TX_RING_SIZE = 64;
+constexpr uint16_t RX_RING_SIZE = 64;
 
-#define RING_RX 0
-#define RING_TX 1
+constexpr uint32_t RING_RX = 0;
+constexpr uint32_t RING_TX = 1;
 
-#define VIRTIO_NET_MSS 1514
+constexpr size_t VIRTIO_NET_MSS = 1514;
 
 struct virtio_net_dev {
     virtio_device *dev;
