@@ -141,6 +141,7 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
 static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence);
 static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
+static ssize_t tcp_write_pending_data(tcp_socket_t *s);
 static void handle_retransmit_timeout(void *_s);
 static void handle_time_wait_timeout(void *_s);
 static void handle_delayed_ack_timeout(void *_s);
@@ -639,7 +640,7 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
         /* it intersects the bottom of our window, so it's in order */
 
         /* copy the data we need to our cbuf */
-        size_t offset = sequence - s->rx_win_low;
+        size_t offset = s->rx_win_low - sequence;
         size_t copy_len = MIN(s->rx_win_high - s->rx_win_low, len - offset);
 
         DEBUG_ASSERT(offset < len);
@@ -810,6 +811,9 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
 
         /* we have opened the transmit buffer */
         event_signal(&s->tx_event, true);
+
+        /* send any pending data that can now fit in the window */
+        tcp_write_pending_data(s);
     }
 }
 
@@ -827,10 +831,17 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
     uint32_t pending = s->tx_buffer_offset - outstanding;
     LTRACEF("outstanding %u, pending %u\n", outstanding, pending);
 
+    /* check the remote window limit */
+    int32_t allowed = (int32_t)(s->tx_win_high - s->tx_highest_seq);
+    if (allowed < 0) {
+        allowed = 0;
+    }
+    uint32_t to_send = MIN(pending, (uint32_t)allowed);
+
     /* send packets that cover the pending area of the window */
     uint32_t offset = 0;
-    while (offset < pending) {
-        uint32_t tosend = MIN(s->mss, pending - offset);
+    while (offset < to_send) {
+        uint32_t tosend = MIN(s->mss, to_send - offset);
 
         tcp_socket_send(s, s->tx_buffer + outstanding + offset, tosend, PKT_ACK|PKT_PSH, NULL, 0, s->tx_highest_seq);
         s->tx_highest_seq += tosend;
