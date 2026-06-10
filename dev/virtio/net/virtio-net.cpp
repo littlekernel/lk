@@ -282,6 +282,7 @@ status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick) {
 
     /* point our header to the base of the pktbuf */
     p->data = p->buffer;
+    p->flags = 0;
     virtio_net_hdr *hdr = (virtio_net_hdr *)p->data;
     memset(hdr, 0, sizeof(virtio_net_hdr) - 2);
 
@@ -411,7 +412,10 @@ int virtio_net_rx_worker(void *arg) {
                 /* process our packet */
                 const auto *hdr = static_cast<const virtio_net_hdr *>(pktbuf_consume(p, sizeof(virtio_net_hdr) - 2));
                 if (hdr) {
-                    // TODO: use the header flags to do checksum offload and GSO offload
+                    /* signal checksum offload to the stack if the device validated it */
+                    if (hdr->flags & VIRTIO_NET_HDR_F_DATA_VALID) {
+                        p->flags |= PKTBUF_FLAG_CKSUM_TCP_GOOD | PKTBUF_FLAG_CKSUM_UDP_GOOD;
+                    }
 
                     /* call up into the stack */
                     minip_rx_driver_callback(&ndev->netif, p);
@@ -488,11 +492,15 @@ status_t virtio_net_init(virtio_device *dev) {
     if (host_features & VIRTIO_NET_F_STATUS) {
         guest_features |= VIRTIO_NET_F_STATUS;
     }
+    if (host_features & VIRTIO_NET_F_GUEST_CSUM) {
+        guest_features |= VIRTIO_NET_F_GUEST_CSUM;
+    }
     dev->bus()->virtio_set_guest_features(0, guest_features);
-    dprintf(INFO, "virtio-net: guest features 0x%x%s%s\n",
+    dprintf(INFO, "virtio-net: guest features 0x%x%s%s%s\n",
             guest_features,
             (guest_features & VIRTIO_NET_F_MAC) ? " MAC" : "",
-            (guest_features & VIRTIO_NET_F_STATUS) ? " STATUS" : "");
+            (guest_features & VIRTIO_NET_F_STATUS) ? " STATUS" : "",
+            (guest_features & VIRTIO_NET_F_GUEST_CSUM) ? " GUEST_CSUM" : "");
 
     /* set our irq handler */
     dev->set_irq_callbacks(&virtio_net_irq_driver_callback, nullptr);
