@@ -11,6 +11,10 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#if WITH_DEV_BUS_PCI
+#include <dev/bus/pci.h>
+#endif
+
 __BEGIN_CDECLS
 
 /* Routines implemented by the platform or system specific interrupt controller
@@ -34,14 +38,23 @@ void register_int_handler_msi(unsigned int vector, int_handler handler, void *ar
  */
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector);
 
-/* Map the incoming interrupt line number from the pci bus config to raw
- * vector number, usable in the above apis.
+#if WITH_DEV_BUS_PCI
+/* Map a PCI INTERRUPT_LINE value (legacy IRQ line, typically 0..15) to a
+ * platform interrupt vector.
  *
  * Full PCI BDF context is provided so platform code can implement routing
  * policy however needed.
  */
-status_t platform_pci_int_to_vector(unsigned int pci_int, unsigned int pci_bus,
-        unsigned int pci_dev, unsigned int pci_func, unsigned int *vector);
+status_t platform_pci_int_line_to_vector(unsigned int pci_int_line, pci_location_t loc,
+        unsigned int *vector);
+
+/* Map a PCI INTERRUPT_PIN value (1..4 for INTA..INTD) to a platform interrupt
+ * vector. Platforms that route legacy interrupts using swizzle logic should
+ * implement this entry point.
+ */
+status_t platform_pci_int_pin_to_vector(unsigned int pci_int_pin, pci_location_t loc,
+        unsigned int *vector);
+#endif
 
 /* Ask the platform to compute for us the value to stuff in the MSI address and data fields. */
 status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool edge,

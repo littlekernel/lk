@@ -33,3 +33,18 @@ void lapic_cancel_timer(void);
 
 // io apic(s)
 status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base);
+
+typedef struct ioapic_redir_state {
+	uint gsi;
+	uint ioapic_id;
+	uint8_t vector;
+	uint8_t destination_apic_id;
+	bool masked;
+	bool level_triggered;
+	bool active_low;
+} ioapic_redir_state_t;
+
+status_t ioapic_get_redir_state(uint gsi, ioapic_redir_state_t *state);
+status_t ioapic_set_redir_state(uint gsi, const ioapic_redir_state_t *state);
+status_t ioapic_set_gsi_mask(uint gsi, bool masked);
+void ioapic_dump_redir_table(void);

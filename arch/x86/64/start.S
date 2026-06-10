@@ -27,6 +27,10 @@ _start:
 
 .align 8
 /* flags for multiboot header */
+/* NOTE: This MB2 header only advertises the legacy i386 handoff path.
+ * GRUB UEFI/PXE may require EFI amd64 MB2 entry tags and a 64-bit EFI-aware
+ * entry stub; use MB1 on that path until LK grows that support.
+ */
 .type multiboot2_header, STT_OBJECT
 multiboot2_header:
     .long MULTIBOOT2_HEADER_MAGIC               /* Multiboot header magic */

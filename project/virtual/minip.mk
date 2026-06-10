@@ -2,5 +2,6 @@
 
 MODULES += \
     lib/minip \
-    app/inetsrv
+    app/inetsrv \
+    app/irc
 

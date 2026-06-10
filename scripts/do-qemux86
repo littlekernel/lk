@@ -16,8 +16,8 @@ function HELP {
     echo "-d <disk image>     : add an IDE disk device (may be used multiple times)"
     echo "-g                  : with graphics (VGA display, keyboard, mouse)"
     echo "-n                  : enable user mode networking (default driver: e1000e)"
-    echo "-N <network driver> : specify network driver (requires -n, e.g., virtio-net-pci, e1000e)"
-    echo "-t                  : use tap interface qemu0 for networking (requires -n)"
+    echo "-N <network driver> : specify network driver (requires -n or -t, e.g., virtio-net-pci, e1000e)"
+    echo "-t                  : use tap interface qemu0 for networking"
     echo "-f <shared dir>   : add a virtio 9p device with a host shared directory"
     echo "-V                  : use virtio versions of devices where possible"
     echo "-k                  : use KVM acceleration"
@@ -39,6 +39,7 @@ DO_VIRTIO=0
 DO_V9P=0
 DO_V9P_DIR=""
 NETDEV=e1000e
+DO_NETDEV_OVERRIDE=0
 MEMSIZE=0
 SMP=1
 SUDO=""
@@ -58,7 +59,7 @@ while getopts A:6d:gf:klm:nN:s:thVX FLAG; do
         m) MEMSIZE=$OPTARG;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
-        N) NETDEV=$OPTARG;;
+        N) NETDEV=$OPTARG; DO_NETDEV_OVERRIDE=1;;
         s) SMP=$OPTARG;;
         V) DO_VIRTIO=1;;
         X) DO_DRYRUN=1;;
@@ -70,6 +71,16 @@ while getopts A:6d:gf:klm:nN:s:thVX FLAG; do
 done
 
 shift $((OPTIND-1))
+
+if (( DO_NET && DO_NET_TAP )); then
+    echo "Error: Cannot use both -n (user network) and -t (tap network) together"
+    exit 1
+fi
+
+if (( DO_NETDEV_OVERRIDE && ! ( DO_NET || DO_NET_TAP ) )); then
+    echo "Error: -N requires either -n (user network) or -t (tap network)"
+    exit 1
+fi
 
 # pick the appropriate qemu and project
 if (( DO_64BIT )); then
@@ -163,11 +174,17 @@ for img in "${DISK_IMAGES[@]}"; do
     ((DISK_COUNT++))
 done
 
-if (( DO_NET )); then
+if (( DO_NET || DO_NET_TAP )); then
     if (( ! DO_LEGACY )); then
-        if (( ! DO_NET_TAP )); then
+        if (( DO_NET )); then
             ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
-        else
+        elif (( DO_NET_TAP )); then
+            # quick note to enable tap interface
+            # IFNAME=qemu0
+            # BRIDGE=bridge0
+            # sudo ip tuntap add name "${IFNAME}" mode tap user $(whoami)
+            # sudo ip link set "${IFNAME}" master "${BRIDGE}"
+            # sudo ip link set "${IFNAME}" up
             ARGS+=("-netdev" "tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
             #SUDO="sudo"
         fi
@@ -184,7 +201,9 @@ if (( DO_V9P )); then
     ARGS+=("-device" "${VIRTIO_9P_DEVICE},fsdev=v9p0,mount_tag=V9P0")
 fi
 
-ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
+if (( ! DO_LEGACY )); then
+    ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
+fi
 
 CMD=()
 if [[ -n "$SUDO" ]]; then

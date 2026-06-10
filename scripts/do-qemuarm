@@ -41,6 +41,7 @@ function HELP {
     echo "-A <cmd line>     : append command line (may be used multiple times)"
     echo "-d <disk image>   : add a virtio disk device (may be used multiple times)"
     echo "-n                : add a virtio network device (user mode networking)"
+    echo "-N <network driver> : specify network driver (requires -n or -t, e.g., virtio-net-device, virtio-net-pci)"
     echo "-t                : add a virtio tap network device (requires tap interface setup)"
     echo "-g                : add a virtio display (GPU, keyboard, mouse)"
     echo "-f <shared dir>   : add a virtio 9p device with a host shared directory"
@@ -73,8 +74,10 @@ SUDO=""
 PROJECT=""
 DO_DRYRUN=0
 GIC_VERSION=""
+NETDEV=""
+DO_NETDEV_OVERRIDE=0
 
-while getopts A:cCd:gG:hkm:Mnt36vp:P:s:f:X FLAG; do
+while getopts A:cCd:gG:hkm:MntN:36vp:P:s:f:X FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) DO_CMPCTMALLOC=1;;
@@ -89,6 +92,7 @@ while getopts A:cCd:gG:hkm:Mnt36vp:P:s:f:X FLAG; do
         M) DO_MINIHEAP=1;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
+        N) NETDEV=$OPTARG; DO_NETDEV_OVERRIDE=1;;
         3) DO_CORTEX_M3=1;;
         6) DO_64BIT=1;;
         v) DO_VIRT=1;;
@@ -137,6 +141,11 @@ fi
 
 if (( DO_NET && DO_NET_TAP )); then
     echo "Error: Cannot use both -n (user network) and -t (tap network) together"
+    exit 1
+fi
+
+if (( DO_NETDEV_OVERRIDE && ! ( DO_NET || DO_NET_TAP ) )); then
+    echo "Error: -N requires either -n (user network) or -t (tap network)"
     exit 1
 fi
 
@@ -210,7 +219,7 @@ if [ -z "$PROJECT" ]; then
     PROJECT=$_PROJECT
 fi
 
-if (( $DO_PCI_VIRTIO )); then
+if (( DO_PCI_VIRTIO )); then
     VIRTIO_BLOCK_DEVICE="virtio-blk-pci"
     VIRTIO_NET_DEVICE="virtio-net-pci"
     VIRTIO_GPU_DEVICE="virtio-gpu-pci"
@@ -226,6 +235,10 @@ else
     VIRTIO_MOUSE_DEVICE="virtio-mouse-device"
     VIRTIO_9P_DEVICE="virtio-9p-device"
     VIRTIO_RNG_DEVICE="virtio-rng-device"
+fi
+
+if (( ! DO_NETDEV_OVERRIDE )); then
+    NETDEV="$VIRTIO_NET_DEVICE"
 fi
 
 # construct a list of args based on previous variables using arrays
@@ -248,17 +261,17 @@ for img in "${DISK_IMAGES[@]}"; do
 done
 
 if (( DO_NET )); then
-    ARGS+=("-netdev" "user,id=vmnic,hostname=qemu")
-    ARGS+=("-device" "${VIRTIO_NET_DEVICE},netdev=vmnic")
+    ARGS+=("-netdev" "user,id=vmnic,hostname=qemu,hostfwd=tcp::10007-:7,hostfwd=tcp::10009-:9,hostfwd=tcp::10019-:19,hostfwd=tcp::10023-:23")
+    ARGS+=("-device" "${NETDEV},netdev=vmnic")
 elif (( DO_NET_TAP )); then
     # quick note to enable tap interface
     # IFNAME=qemu0
     # BRIDGE=bridge0
-    # sudo tunctl -u $(whoami) -t ${IFNAME}
-    # sudo ifconfig ${IFNAME} up
-    # sudo ip link set ${IFNAME} master ${BRIDGE}
-    ARGS+=(" -netdev tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
-    ARGS+=(" -device ${VIRTIO_NET_DEVICE},netdev=vmnic")
+    # sudo ip tuntap add name "${IFNAME}" mode tap user $(whoami)
+    # sudo ip link set "${IFNAME}" master "${BRIDGE}"
+    # sudo ip link set "${IFNAME}" up
+    ARGS+=("-netdev" "tap,id=vmnic,ifname=qemu0,script=no,downscript=no")
+    ARGS+=("-device" "${NETDEV},netdev=vmnic")
     #SUDO="sudo "
 else
     ARGS+=("-net" "none")

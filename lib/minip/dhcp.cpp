@@ -26,7 +26,7 @@
 
 namespace {
 
-typedef struct dhcp_msg {
+struct dhcp_msg {
     u8 opcode;
     u8 hwtype;  // hw addr type
     u8 hwalen;  // hw addr length
@@ -43,7 +43,7 @@ typedef struct dhcp_msg {
     u8 file[128];   // Boot File Name, AsciiZ
     u32 cookie;
     u8 options[0];
-} dhcp_msg_t;
+};
 
 #define DHCP_FLAG_BROADCAST 0x8000
 
@@ -58,6 +58,7 @@ typedef struct dhcp_msg {
 #define OP_DHCPNAK  6   // Server disconfirms or lease expires
 #define OP_DHCPRELEASE  7   // Client releases address
 
+#define OPT_PAD     0
 #define OPT_NET_MASK    1   // len 4, mask
 #define OPT_ROUTERS 3   // len 4n, gateway0, ...
 #define OPT_DNS     6   // len 4n, nameserver0, ...
@@ -65,6 +66,7 @@ typedef struct dhcp_msg {
 #define OPT_REQUEST_IP  50  // len 4
 #define OPT_MSG_TYPE    53  // len 1, type same as op
 #define OPT_SERVER_ID   54  // len 4, server ident ipaddr
+#define OPT_CLASSLESS_STATIC_ROUTE 121 // RFC3442 classless static routes
 #define OPT_DONE    255
 
 #define DHCP_CLIENT_PORT    68
@@ -77,7 +79,7 @@ public:
     dhcp() = default;
     ~dhcp() = default;
 
-    status_t start();
+    status_t start(netif_t *netif);
 
 private:
     // must call the following two with the lock held
@@ -93,6 +95,7 @@ private:
     Mutex lock_;
     udp_socket_t *dhcp_udp_handle_ = nullptr;
     thread_t *dhcp_thr_ = nullptr;
+    netif_t *netif_ = nullptr;
 
     volatile bool configured_ = false;
     uint32_t xid_ = rand();
@@ -109,7 +112,7 @@ status_t dhcp::send_discover() {
     DEBUG_ASSERT(lock_.is_held());
 
     struct {
-        dhcp_msg_t msg;
+        dhcp_msg msg;
         u8 opt[128];
     } s = {};
     u8 *opt = s.opt;
@@ -118,7 +121,7 @@ status_t dhcp::send_discover() {
     s.msg.hwalen = 6;
     s.msg.xid = xid_;
     s.msg.cookie = 0x63538263;
-    minip_get_macaddr(s.msg.chaddr);
+    mac_addr_copy(s.msg.chaddr, netif_->mac_address);
 
     *opt++ = OPT_MSG_TYPE;
     *opt++ = 1;
@@ -139,7 +142,7 @@ status_t dhcp::send_discover() {
     printf("sending dhcp discover\n");
 #endif
     state_ = DISCOVER_SENT;
-    status_t ret = udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle_);
+    status_t ret = udp_send(&s.msg, sizeof(dhcp_msg) + (opt - s.opt), dhcp_udp_handle_);
     if (ret != NO_ERROR) {
         printf("DHCP_DISCOVER failed: %d\n", ret);
     }
@@ -151,7 +154,7 @@ status_t dhcp::send_request(u32 server, u32 reqip) {
     DEBUG_ASSERT(lock_.is_held());
 
     struct {
-        dhcp_msg_t msg;
+        dhcp_msg msg;
         u8 opt[128];
     } s = {};
     u8 *opt = s.opt;
@@ -160,7 +163,7 @@ status_t dhcp::send_request(u32 server, u32 reqip) {
     s.msg.hwalen = 6;
     s.msg.xid = xid_;
     s.msg.cookie = 0x63538263;
-    minip_get_macaddr(s.msg.chaddr);
+    mac_addr_copy(s.msg.chaddr, netif_->mac_address);
 
     *opt++ = OPT_MSG_TYPE;
     *opt++ = 1;
@@ -191,7 +194,7 @@ status_t dhcp::send_request(u32 server, u32 reqip) {
     printf("sending dhcp request\n");
 #endif
     state_ = REQUEST_SENT;
-    status_t ret = udp_send(&s.msg, sizeof(dhcp_msg_t) + (opt - s.opt), dhcp_udp_handle_);
+    status_t ret = udp_send(&s.msg, sizeof(dhcp_msg) + (opt - s.opt), dhcp_udp_handle_);
     if (ret != NO_ERROR) {
         printf("DHCP_REQUEST failed: %d\n", ret);
     }
@@ -206,7 +209,7 @@ void dhcp::dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, void
 }
 
 void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport) {
-    const dhcp_msg_t *msg = (dhcp_msg_t *)data;
+    const dhcp_msg *msg = (dhcp_msg *)data;
     const u8 *opt;
     u32 netmask = 0;
     u32 gateway = 0;
@@ -225,15 +228,13 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
         }
     }
 
-    if (sz < sizeof(dhcp_msg_t)) return;
+    if (sz < sizeof(dhcp_msg)) return;
 
-    uint8_t mac[6];
-    minip_get_macaddr(mac);
-    if (memcmp(msg->chaddr, mac, 6)) return;
+    if (memcmp(msg->chaddr, netif_->mac_address, sizeof(netif_->mac_address))) return;
 
 #if TRACE_DHCP
     printf("received DHCP op %d, len %zu, from p %d, ip=", msg->opcode, sz, srcport);
-    printip(srcip);
+    print_ipv4_address(srcip);
     printf("\n");
 #endif
 
@@ -242,63 +243,101 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
         return;
     }
 #if TRACE_DHCP
-    printip_named("\tciaddr", msg->ciaddr);
-    printip_named(" yiaddr", msg->yiaddr);
-    printip_named(" siaddr", msg->siaddr);
-    printip_named(" giaddr", msg->giaddr);
+    print_ipv4_address_named("\tciaddr", msg->ciaddr);
+    print_ipv4_address_named(" yiaddr", msg->yiaddr);
+    print_ipv4_address_named(" siaddr", msg->siaddr);
+    print_ipv4_address_named(" giaddr", msg->giaddr);
     printf(" chaddr %02x:%02x:%02x:%02x:%02x:%02x\n",
            msg->chaddr[0], msg->chaddr[1], msg->chaddr[2],
            msg->chaddr[3], msg->chaddr[4], msg->chaddr[5]);
     printf("\toptions: ");
 #endif
-    sz -= sizeof(dhcp_msg_t);
+    sz -= sizeof(dhcp_msg);
     opt = msg->options;
 #if TRACE_DHCP
     printf("\toptions: ");
 #endif
-    while (sz >= 2) {
-        sz -= 2;
-        if (opt[1] > sz) {
+    while (sz > 0) {
+        u8 code = opt[0];
+
+        // Pad and end are single-byte options.
+        if (code == OPT_PAD) {
+            opt++;
+            sz--;
+            continue;
+        }
+        if (code == OPT_DONE) {
+            break;
+        }
+
+        if (sz < 2) {
+            break;
+        }
+        u8 optlen = opt[1];
+        if (sz < static_cast<size_t>(2 + optlen)) {
             break;
         }
 #if TRACE_DHCP
-        printf("#%d (%d), ", opt[0], opt[1]);
+        printf("#%d (%d), ", code, optlen);
 #endif
-        switch (opt[0]) {
+        switch (code) {
             case OPT_MSG_TYPE:
-                if (opt[1] == 1) op = opt[2];
+                if (optlen == 1) op = opt[2];
                 break;
             case OPT_NET_MASK:
-                if (opt[1] == 4) memcpy(&netmask, opt + 2, 4);
+                if (optlen == 4) memcpy(&netmask, opt + 2, 4);
                 break;
             case OPT_ROUTERS:
-                if (opt[1] >= 4) memcpy(&gateway, opt + 2, 4);
+                if (optlen >= 4) memcpy(&gateway, opt + 2, 4);
                 break;
             case OPT_DNS:
-                if (opt[1] >= 4) memcpy(&dns, opt + 2, 4);
+                if (optlen >= 4) memcpy(&dns, opt + 2, 4);
                 break;
             case OPT_SERVER_ID:
-                if (opt[1] == 4) memcpy(&server, opt + 2, 4);
+                if (optlen == 4) memcpy(&server, opt + 2, 4);
                 break;
-            case OPT_DONE:
-                goto done;
+            case OPT_CLASSLESS_STATIC_ROUTE: {
+                // RFC3442: list of [prefix-width][dest bytes][router-ip].
+                // If present and option 3 is absent, use the default route (0/0).
+                const u8 *p = opt + 2;
+                size_t left = optlen;
+                while (left > 0) {
+                    u8 prefix_width = p[0];
+                    p++;
+                    left--;
+
+                    size_t dst_bytes = (prefix_width + 7) / 8;
+                    if (left < dst_bytes + 4) {
+                        break;
+                    }
+
+                    if ((prefix_width == 0) && (gateway == 0)) {
+                        memcpy(&gateway, p + dst_bytes, 4);
+                    }
+
+                    p += dst_bytes + 4;
+                    left -= dst_bytes + 4;
+                }
+                break;
+            }
+            default:
+                break;
         }
-        opt += opt[1] + 2;
-        sz -= opt[1];
+        opt += optlen + 2;
+        sz -= static_cast<size_t>(optlen + 2);
     }
-done:
 #if TRACE_DHCP
     printf("\n\t");
-    if (server) printip_named("server", server);
-    if (netmask) printip_named(" netmask", netmask);
-    if (gateway) printip_named(" gateway", gateway);
-    if (dns) printip_named(" dns", dns);
+    if (server) print_ipv4_address_named("server", server);
+    if (netmask) print_ipv4_address_named(" netmask", netmask);
+    if (gateway) print_ipv4_address_named(" gateway", gateway);
+    if (dns) print_ipv4_address_named(" dns", dns);
     printf("\n");
 #endif
     if (state_ == DISCOVER_SENT) {
         if (op == OP_DHCPOFFER) {
 #if TRACE_DHCP
-            printip_named("dhcp: offer:", msg->yiaddr);
+            print_ipv4_address_named("dhcp: offer:", msg->yiaddr);
             printf("\n");
 #endif
             if (server) {
@@ -309,14 +348,16 @@ done:
     } else if (state_ == REQUEST_SENT) {
         if (op == OP_DHCPACK) {
 #if TRACE_DHCP
-            printip_named("dhcp: ack:", msg->yiaddr);
+            print_ipv4_address_named("dhcp: ack:", msg->yiaddr);
             printf("\n");
 #endif
             printf("DHCP configured\n");
-            minip_set_ipaddr(msg->yiaddr);
+            uint8_t netwidth = 32;
             if (netmask) {
-                minip_set_netmask(netmask);
+                netwidth = __builtin_ctz(~netmask);
+                //printf("netmask %#x netwidth %u\n", netmask, netwidth);
             }
+            netif_set_ipv4_addr(netif_, msg->yiaddr, netwidth);
             if (gateway) {
                 minip_set_gateway(gateway);
             }
@@ -359,10 +400,13 @@ int dhcp::dhcp_thread(void *arg) {
     return 0;
 }
 
-status_t dhcp::start() {
+status_t dhcp::start(netif_t *netif) {
     AutoLock guard(lock_);
 
-    int ret = udp_open(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, &dhcp_udp_handle_);
+    netif_ = netif;
+
+    // open a udp socket bound to the interface we're dhcping
+    int ret = udp_open_raw(IPV4_BCAST, DHCP_CLIENT_PORT, DHCP_SERVER_PORT, netif_, &dhcp_udp_handle_);
     if (ret != NO_ERROR) {
         printf("DHCP: error opening udp socket\n");
         return ret;
@@ -378,7 +422,9 @@ status_t dhcp::start() {
 
 } // anonymous namespace
 
-void minip_start_dhcp() {
-    static dhcp d;
-    d.start();
+void minip_start_dhcp(netif_t *netif) {
+    DEBUG_ASSERT(netif);
+
+    auto *d = new dhcp();
+    d->start(netif);
 }

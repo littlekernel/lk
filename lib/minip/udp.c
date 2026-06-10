@@ -30,10 +30,14 @@ struct udp_listener {
 };
 
 typedef struct udp_socket {
-    uint32_t host;
+    ipv4_addr_t local_ip;
+    ipv4_addr_t remote_ip;
     uint16_t sport;
     uint16_t dport;
-    const uint8_t *mac;
+    ipv4_route_t *route;
+
+    // only set if bound to a particular network interface
+    netif_t *netif;
 } udp_socket_t;
 
 typedef struct udp_hdr {
@@ -42,7 +46,6 @@ typedef struct udp_hdr {
     uint16_t len;
     uint16_t chksum;
 } __PACKED udp_hdr_t;
-
 
 int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
     struct udp_listener *entry, *temp;
@@ -70,31 +73,61 @@ int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
     return 0;
 }
 
-status_t udp_open(uint32_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle) {
+status_t udp_open(ipv4_addr_t host, uint16_t sport, uint16_t dport, udp_socket_t **handle) {
     LTRACEF("host %u.%u.%u.%u sport %u dport %u handle %p\n",
             IPV4_SPLIT(host), sport, dport, handle);
     udp_socket_t *socket;
-    const uint8_t *dst_mac;
 
     if (handle == NULL) {
         return -EINVAL;
     }
 
-    socket = (udp_socket_t *) malloc(sizeof(udp_socket_t));
+    socket = (udp_socket_t *) calloc(1, sizeof(udp_socket_t));
     if (!socket) {
         return -ENOMEM;
     }
 
-    dst_mac = arp_get_dest_mac(host);
-    if (dst_mac == NULL) {
-        free(socket);
-        return -EHOSTUNREACH;
+    // look up route to set local address
+    ipv4_route_t *route = ipv4_search_route(host);
+    if (!route) {
+        return ERR_NO_ROUTE;
     }
 
-    socket->host = host;
+    netif_t *netif = route->interface;
+
+    socket->local_ip = netif->ipv4_addr;
+    socket->remote_ip = host;
     socket->sport = sport;
     socket->dport = dport;
-    socket->mac = dst_mac;
+    socket->route = route;
+
+    *handle = socket;
+
+    return NO_ERROR;
+}
+
+status_t udp_open_raw(ipv4_addr_t host, uint16_t sport, uint16_t dport, netif_t *netif, udp_socket_t **handle) {
+    LTRACEF("host %u.%u.%u.%u sport %u dport %u netif '%s' handle %p\n",
+            IPV4_SPLIT(host), sport, dport, netif->name, handle);
+    udp_socket_t *socket;
+
+    if (handle == NULL) {
+        return -EINVAL;
+    }
+    if (netif == NULL) {
+        return -EINVAL;
+    }
+
+    socket = (udp_socket_t *) calloc(1, sizeof(udp_socket_t));
+    if (!socket) {
+        return -ENOMEM;
+    }
+
+    socket->local_ip = netif->ipv4_addr;
+    socket->remote_ip = host;
+    socket->sport = sport;
+    socket->dport = dport;
+    socket->netif = netif;
 
     *handle = socket;
 
@@ -106,16 +139,17 @@ status_t udp_close(udp_socket_t *handle) {
         return -EINVAL;
     }
 
+    if (handle->route) {
+        ipv4_dec_route_ref(handle->route);
+    }
+
     free(handle);
     return NO_ERROR;
 }
 
 status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle) {
     pktbuf_t *p;
-    struct eth_hdr *eth;
-    struct ipv4_hdr *ip;
     udp_hdr_t *udp;
-    status_t ret = NO_ERROR;
     void *buf;
     ssize_t len;
 
@@ -130,29 +164,39 @@ status_t udp_send_iovec(const iovec_t *iov, uint iov_count, udp_socket_t *handle
     len = iovec_size(iov, iov_count);
 
     buf = pktbuf_append(p, len);
-    udp = pktbuf_prepend(p, sizeof(udp_hdr_t));
-    ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
-    eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
 
     iovec_to_membuf(buf, len, iov, iov_count, 0);
 
+    udp = pktbuf_prepend(p, sizeof(udp_hdr_t));
     udp->src_port   = htons(handle->sport);
     udp->dst_port   = htons(handle->dport);
     udp->len        = htons(sizeof(udp_hdr_t) + len);
     udp->chksum     = 0;
 
-    minip_build_mac_hdr(eth, handle->mac, ETH_TYPE_IPV4);
-    minip_build_ipv4_hdr(ip, handle->host, IP_PROTO_UDP, len + sizeof(udp_hdr_t));
+#if MINIP_USE_UDP_CHECKSUM
+    {
+        ipv4_pseudo_header_t pheader;
+        pheader.source_addr = handle->local_ip;
+        pheader.dest_addr = handle->remote_ip;
+        pheader.zero = 0;
+        pheader.protocol = IP_PROTO_UDP;
+        pheader.tcp_length = htons(p->dlen);
 
-#if (MINIP_USE_UDP_CHECKSUM != 0)
-    udp->chksum = rfc768_chksum(ip, udp);
+        udp->chksum = cksum_pheader(&pheader, p->data, p->dlen);
+    }
 #endif
 
-    LTRACEF("packet paylod len %ld\n", len);
+    LTRACEF("sending udp packet, len %u\n", p->dlen);
 
-    minip_tx_handler(minip_tx_arg, p);
+    status_t err;
+    if (handle->netif) {
+        // XXX: does this always use the broadcast mac?
+        err = minip_ipv4_send_raw(p, handle->remote_ip, IP_PROTO_UDP, bcast_mac, handle->netif);
+    } else {
+        err = minip_ipv4_send(p, handle->remote_ip, IP_PROTO_UDP);
+    }
 
-    return ret;
+    return err;
 }
 
 status_t udp_send(void *buf, size_t len, udp_socket_t *handle) {
@@ -170,7 +214,7 @@ status_t udp_send(void *buf, size_t len, udp_socket_t *handle) {
     return udp_send_iovec(&iov, 1, handle);
 }
 
-void udp_input(pktbuf_t *p, uint32_t src_ip) {
+void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip) {
     udp_hdr_t *udp;
     struct udp_listener *e;
     uint16_t port;

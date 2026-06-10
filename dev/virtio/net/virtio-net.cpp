@@ -22,6 +22,8 @@
 #include <lib/pktbuf.h>
 #include <lib/minip.h>
 #include <dev/virtio/virtio-device.h>
+#include <lib/minip/netif.h>
+#include <arch/atomic.h>
 
 #define LOCAL_TRACE 0
 
@@ -104,18 +106,16 @@ STATIC_ASSERT(sizeof(struct virtio_net_hdr) == 12);
 #define VIRTIO_NET_S_LINK_UP                (1<<0)
 #define VIRTIO_NET_S_ANNOUNCE               (1<<1)
 
-#define TX_RING_SIZE 16
-#define RX_RING_SIZE 16
+constexpr uint16_t TX_RING_SIZE = 64;
+constexpr uint16_t RX_RING_SIZE = 64;
 
-#define RING_RX 0
-#define RING_TX 1
+constexpr uint32_t RING_RX = 0;
+constexpr uint32_t RING_TX = 1;
 
-#define VIRTIO_NET_MSS 1514
+constexpr size_t VIRTIO_NET_MSS = 1514;
 
 struct virtio_net_dev {
     virtio_device *dev;
-    bool started;
-
 
     spin_lock_t lock;
     event_t rx_event;
@@ -126,14 +126,16 @@ struct virtio_net_dev {
 
     uint tx_pending_count;
     struct list_node completed_rx_queue;
+
+    /* the minip ethernet structure */
+    netif_t netif;
 };
 
 enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e);
 int virtio_net_rx_worker(void *arg);
 status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick = true);
-
-// XXX remove need for this
-virtio_net_dev *the_ndev;
+void virtio_net_get_mac_addr(virtio_net_dev *ndev, uint8_t mac_addr[6]);
+status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p);
 
 void dump_feature_bits(uint64_t feature) {
     printf("virtio-net host features (%#" PRIx64 "):", feature);
@@ -174,74 +176,13 @@ void dump_feature_bits(uint64_t feature) {
     printf("\n");
 }
 
-} // namespace
+void virtio_net_get_mac_addr(virtio_net_dev *ndev, uint8_t mac_addr[6]) {
+    DEBUG_ASSERT(ndev);
 
-status_t virtio_net_init(virtio_device *dev) {
-    LTRACEF("dev %p\n", dev);
-
-    /* allocate a new net device */
-    auto *ndev = (virtio_net_dev *)calloc(1, sizeof(virtio_net_dev));
-    if (!ndev)
-        return ERR_NO_MEMORY;
-
-    ndev->dev = dev;
-    dev->set_priv(ndev);
-    ndev->started = false;
-
-    ndev->lock = SPIN_LOCK_INITIAL_VALUE;
-    event_init(&ndev->rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
-    list_initialize(&ndev->completed_rx_queue);
-
-    /* ack and set the driver status bit */
-    dev->bus()->virtio_status_acknowledge_driver();
-
-    const bool modern = dev->config_is_modern();
-    dprintf(INFO, "virtio-net: modern %u, expecting %s-endian config\n",
-            modern, modern ? "little" : "native");
-
-    // XXX check features bits and ack/nak them
-    uint64_t host_features = dev->bus()->virtio_read_host_feature_word_64(0);
-    dump_feature_bits(host_features);
-
-    /* set our irq handler */
-    dev->set_irq_callbacks(&virtio_net_irq_driver_callback, nullptr);
-    dev->bus()->unmask_interrupt();
-
-    /* allocate a pair of virtio rings */
-    dev->virtio_alloc_ring(RING_RX, RX_RING_SIZE); // rx
-    dev->virtio_alloc_ring(RING_TX, TX_RING_SIZE); // tx
-
-    /* set DRIVER_OK */
-    dev->bus()->virtio_status_driver_ok();
-    the_ndev = ndev;
-
-    return NO_ERROR;
-}
-
-status_t virtio_net_start(void) {
-    LTRACE_ENTRY;
-    if (the_ndev->started)
-        return ERR_ALREADY_STARTED;
-
-    the_ndev->started = true;
-
-    /* start the rx worker thread */
-    thread_resume(thread_create("virtio_net_rx", &virtio_net_rx_worker, (void *)the_ndev, HIGH_PRIORITY, DEFAULT_STACK_SIZE));
-
-    /* queue up a bunch of rxes */
-    for (uint i = 0; i < RX_RING_SIZE - 1; i++) {
-        pktbuf_t *p = pktbuf_alloc();
-        if (p) {
-            virtio_net_queue_rx(the_ndev, p, false);
-        }
+    for (int i = 0; i < 6; i++) {
+        mac_addr[i] = ndev->dev->config_read8(offsetof(virtio_net_config, mac) + i);
     }
-    /* kick all at once */
-    the_ndev->dev->bus()->virtio_kick(RING_RX);
-
-    return NO_ERROR;
 }
-
-namespace {
 
 status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     virtio_device *vdev = ndev->dev;
@@ -443,6 +384,10 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
     return INT_RESCHEDULE;
 }
 
+enum handler_return virtio_net_config_change_callback(virtio_device *dev) {
+    return INT_NO_RESCHEDULE;
+}
+
 int virtio_net_rx_worker(void *arg) {
     virtio_net_dev *ndev = (virtio_net_dev *)arg;
 
@@ -462,11 +407,15 @@ int virtio_net_rx_worker(void *arg) {
 
             LTRACEF("got packet len %u\n", p->dlen);
 
-            /* process our packet */
-            virtio_net_hdr *hdr = (virtio_net_hdr *)pktbuf_consume(p, sizeof(virtio_net_hdr) - 2);
-            if (hdr) {
-                /* call up into the stack */
-                minip_rx_driver_callback(p);
+            if (likely(netif_is_configured(&ndev->netif))) {
+                /* process our packet */
+                const auto *hdr = static_cast<const virtio_net_hdr *>(pktbuf_consume(p, sizeof(virtio_net_hdr) - 2));
+                if (hdr) {
+                    // TODO: use the header flags to do checksum offload and GSO offload
+
+                    /* call up into the stack */
+                    minip_rx_driver_callback(&ndev->netif, p);
+                }
             }
 
             /* requeue the pktbuf in the rx queue */
@@ -476,27 +425,13 @@ int virtio_net_rx_worker(void *arg) {
     return 0;
 }
 
-} // namespace
-
-int virtio_net_found(void) {
-    return the_ndev ? 1 : 0;
-}
-
-status_t virtio_net_get_mac_addr(uint8_t mac_addr[6]) {
-    if (!the_ndev)
-        return ERR_NOT_FOUND;
-
-    for (int i = 0; i < 6; i++) {
-        mac_addr[i] = the_ndev->dev->config_read8(offsetof(virtio_net_config, mac) + i);
-    }
-
-    return NO_ERROR;
-}
-
 status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p) {
+    auto *ndev = static_cast<virtio_net_dev *>(arg);
+
     LTRACEF("p %p, dlen %u, flags 0x%x\n", p, p->dlen, p->flags);
 
     DEBUG_ASSERT(p && p->dlen);
+    DEBUG_ASSERT(ndev);
 
     if ((p->flags & PKTBUF_FLAG_EOF) == 0) {
         /* can't handle multi part packets yet */
@@ -506,11 +441,93 @@ status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p) {
     }
 
     /* hand the pktbuf off to the nic, it owns the pktbuf from now on out unless it fails */
-    status_t err = virtio_net_queue_tx_pktbuf(the_ndev, p);
+    status_t err = virtio_net_queue_tx_pktbuf(ndev, p);
     if (err < 0) {
         pktbuf_free(p, true);
     }
 
     return err;
+}
+
+} // namespace
+
+status_t virtio_net_init(virtio_device *dev) {
+    LTRACEF("dev %p\n", dev);
+
+    /* allocate a new net device */
+    auto *ndev = static_cast<virtio_net_dev *>(calloc(1, sizeof(virtio_net_dev)));
+    if (!ndev)
+        return ERR_NO_MEMORY;
+
+    ndev->dev = dev;
+    dev->set_priv(ndev);
+
+    ndev->lock = SPIN_LOCK_INITIAL_VALUE;
+    event_init(&ndev->rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
+    list_initialize(&ndev->completed_rx_queue);
+
+    /* start from a known reset state */
+    dev->bus()->virtio_reset_device();
+
+    /* ack and set the driver status bit */
+    dev->bus()->virtio_status_acknowledge_driver();
+
+    const bool modern = dev->config_is_modern();
+    dprintf(INFO, "virtio-net: modern %u, expecting %s-endian config\n",
+            modern, modern ? "little" : "native");
+
+    // XXX check features bits and ack/nak them
+    uint64_t host_features = dev->bus()->virtio_read_host_feature_word_64(0);
+    dump_feature_bits(host_features);
+
+    // Negotiate the small set of features this driver actually depends on.
+    uint32_t guest_features = 0;
+    if (host_features & VIRTIO_NET_F_MAC) {
+        guest_features |= VIRTIO_NET_F_MAC;
+    }
+    if (host_features & VIRTIO_NET_F_STATUS) {
+        guest_features |= VIRTIO_NET_F_STATUS;
+    }
+    dev->bus()->virtio_set_guest_features(0, guest_features);
+    dprintf(INFO, "virtio-net: guest features 0x%x%s%s\n",
+            guest_features,
+            (guest_features & VIRTIO_NET_F_MAC) ? " MAC" : "",
+            (guest_features & VIRTIO_NET_F_STATUS) ? " STATUS" : "");
+
+    /* set our irq handler */
+    dev->set_irq_callbacks(&virtio_net_irq_driver_callback, nullptr);
+    dev->bus()->unmask_interrupt();
+
+    /* allocate a pair of virtio rings */
+    dev->virtio_alloc_ring(RING_RX, RX_RING_SIZE); // rx
+    dev->virtio_alloc_ring(RING_TX, TX_RING_SIZE); // tx
+
+    /* set DRIVER_OK */
+    dev->bus()->virtio_status_driver_ok();
+
+    /* start the rx worker thread */
+    thread_resume(thread_create("virtio_net_rx", &virtio_net_rx_worker, static_cast<void *>(ndev), HIGH_PRIORITY, DEFAULT_STACK_SIZE));
+
+    /* queue up a bunch of rxes */
+    for (uint i = 0; i < RX_RING_SIZE - 1; i++) {
+        pktbuf_t *p = pktbuf_alloc();
+        if (p) {
+            virtio_net_queue_rx(ndev, p, false);
+        }
+    }
+    /* kick all at once */
+    ndev->dev->bus()->virtio_kick(RING_RX);
+
+    /* construct and register the minip netif interface */
+    char str[32];
+    static volatile int ndev_count = 0;
+    snprintf(str, sizeof(str), "virtio-net-%d", atomic_add(&ndev_count, 1));
+    netif_create(&ndev->netif, str);
+    uint8_t mac[6];
+    virtio_net_get_mac_addr(ndev, mac);
+    netif_set_eth(&ndev->netif, virtio_net_send_minip_pkt, ndev, mac);
+    netif_register(&ndev->netif);
+
+    return NO_ERROR;
 }
 

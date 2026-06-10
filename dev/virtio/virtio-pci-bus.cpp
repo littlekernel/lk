@@ -150,6 +150,18 @@ void virtio_pci_bus::virtio_status_acknowledge_driver() {
 }
 
 void virtio_pci_bus::virtio_status_driver_ok() {
+    // Modern virtio requires confirming feature negotiation before DRIVER_OK:
+    // set FEATURES_OK and read it back, since the device may clear it to reject
+    // the negotiated feature set.
+    if (!legacy_ && !(common_config()->device_status & VIRTIO_STATUS_FEATURES_OK)) {
+        common_config()->device_status |= VIRTIO_STATUS_FEATURES_OK;
+        if (!(common_config()->device_status & VIRTIO_STATUS_FEATURES_OK)) {
+            common_config()->device_status |= VIRTIO_STATUS_FAILED;
+            printf("virtio-pci: device rejected feature negotiation\n");
+            return;
+        }
+    }
+
     common_config()->device_status |= VIRTIO_STATUS_DRIVER_OK;
 }
 
@@ -164,7 +176,16 @@ void virtio_pci_bus::virtio_set_guest_features(uint32_t word, uint32_t features)
 }
 
 void virtio_pci_bus::virtio_kick(uint16_t ring_index) {
-    auto *notify = reinterpret_cast<volatile uint16_t *>(config_ptr(notify_cfg_) + static_cast<size_t>(ring_index * notify_offset_multiplier_));
+    DEBUG_ASSERT(ring_index < virtio_device::MAX_VIRTIO_RINGS);
+
+    uint16_t notify_off = queue_notify_off_[ring_index];
+    if (notify_off == USHRT_MAX) {
+        // Fall back to queue index if the ring was not registered yet.
+        notify_off = ring_index;
+    }
+
+    auto *notify = reinterpret_cast<volatile uint16_t *>(
+            config_ptr(notify_cfg_) + static_cast<size_t>(notify_off * notify_offset_multiplier_));
 
     LTRACEF("notify ring %u ptr %p\n", ring_index, notify);
 
@@ -189,11 +210,19 @@ void virtio_pci_bus::register_ring(uint32_t page_size, uint32_t queue_sel, uint3
     LTRACEF("existing queue_size %u\n", ccfg->queue_size);
     LTRACEF("existing notify off %u\n", ccfg->queue_notify_off);
 
+    if (queue_sel < virtio_device::MAX_VIRTIO_RINGS) {
+        queue_notify_off_[queue_sel] = ccfg->queue_notify_off;
+    }
+
     ccfg->queue_size = queue_num;
     ccfg->queue_desc = ring_descriptor_paddr;
     ccfg->queue_driver = ring_available_paddr;
     ccfg->queue_device = ring_used_paddr;
-    ccfg->queue_msix_vector = 0;
+    if (irq_mode_ == irq_mode::Msix) {
+        ccfg->queue_msix_vector = 0;
+    } else {
+        ccfg->queue_msix_vector = 0xffff;
+    }
     ccfg->queue_enable = 1;
 }
 
@@ -202,6 +231,27 @@ handler_return virtio_pci_bus::virtio_pci_irq(void *arg) {
 
     LTRACEF("dev %p, bus %p\n", bus->dev_, bus);
 
+    // With MSI-X, vector delivery itself is supposed to identify an interrupt,
+    // but the current MSI-X setup allocates one vector and maps both queue and
+    // config interrupts to it, so process both paths.
+    if (bus->irq_mode_ == irq_mode::Msix) {
+        enum handler_return ret = INT_NO_RESCHEDULE;
+
+        auto _ret = bus->dev_->handle_queue_interrupt();
+        if (_ret == INT_RESCHEDULE) {
+            ret = _ret;
+        }
+
+        _ret = bus->dev_->handle_config_interrupt();
+        if (_ret == INT_RESCHEDULE) {
+            ret = _ret;
+        }
+
+        return ret;
+    }
+
+    // Regular MSI or legacy interrupt, we need to read the ISR
+    // status register to see what type of interrupt this is.
     volatile uint8_t *isr_status = bus->config_ptr(bus->isr_cfg_);
     LTRACEF("isr status register %p\n", isr_status);
 
@@ -236,14 +286,13 @@ status_t virtio_pci_bus::init(virtio_device *dev, pci_location_t loc, size_t ind
     dev_ = dev;
     loc_ = loc;
 
-    // Devices before a certain device ID are legacy, and devices after that are modern.
+    // Devices before a certain device ID are transitional and may support either
+    // legacy or modern transport.
     uint16_t device_id;
     if (pci_read_config_half(loc, PCI_CONFIG_DEVICE_ID, &device_id) < 0) {
         return ERR_NOT_FOUND;
     }
-    if (device_id < 0x1040) {
-        legacy_ = true;
-    }
+    legacy_ = (device_id < 0x1040);
 
     // read all of the capabilities for this virtio device
     bool map_bars[6] = {};
@@ -299,6 +348,10 @@ common:
     if (!(common_cfg_.valid && notify_cfg_.valid && isr_cfg_.valid && pci_cfg_.valid)) {
         return ERR_NOT_FOUND;
     }
+
+    // If modern capabilities are present, use modern transport semantics even
+    // on transitional device IDs.
+    legacy_ = false;
 
     // map in the bars we care about
     pci_bar_t bars[6];
@@ -358,6 +411,7 @@ common:
         err = pci_bus_mgr_allocate_msix(loc_, 1, &irq_base);
         if (err == NO_ERROR) {
             uses_msi = true;
+            irq_mode_ = irq_mode::Msix;
         } else {
             printf("virtio: MSI-X allocation failed (%d), falling back to legacy IRQ\n", err);
         }
@@ -365,6 +419,7 @@ common:
         err = pci_bus_mgr_allocate_msi(loc_, 1, &irq_base);
         if (err == NO_ERROR) {
             uses_msi = true;
+            irq_mode_ = irq_mode::Msi;
         } else {
             printf("virtio: MSI allocation failed (%d), falling back to legacy IRQ\n", err);
         }
@@ -377,7 +432,11 @@ common:
             printf("virtio: unable to allocate IRQ\n");
             return err;
         }
+        irq_mode_ = irq_mode::Legacy;
     }
+
+    // Disable config change MSI-X routing unless MSI-X is active.
+    common_config()->config_msix_vector = (irq_mode_ == irq_mode::Msix) ? 0 : 0xffff;
 
     ::mask_interrupt(irq_base);
     if (uses_msi) {

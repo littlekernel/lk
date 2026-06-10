@@ -36,14 +36,6 @@ typedef struct tcp_header {
     uint16_t urg_pointer;
 } __PACKED tcp_header_t;
 
-typedef struct tcp_pseudo_header {
-    ipv4_addr source_addr;
-    ipv4_addr dest_addr;
-    uint8_t zero;
-    uint8_t protocol;
-    uint16_t tcp_length;
-} __PACKED tcp_pseudo_header_t;
-
 typedef struct tcp_mss_option {
     uint8_t kind; /* 0x2 */
     uint8_t len;  /* 0x4 */
@@ -80,10 +72,11 @@ typedef struct tcp_socket {
     volatile int ref;
 
     tcp_state_t state;
-    ipv4_addr local_ip;
-    ipv4_addr remote_ip;
+    ipv4_addr_t local_ip;
+    ipv4_addr_t remote_ip;
     uint16_t local_port;
     uint16_t remote_port;
+    ipv4_route_t *route;
 
     uint32_t mss;
 
@@ -121,7 +114,7 @@ typedef struct tcp_socket {
 #define DEFAULT_RX_WINDOW_SIZE (8192)
 #define DEFAULT_TX_BUFFER_SIZE (8192)
 
-#define RETRANSMIT_TIMEOUT (50)
+#define RETRANSMIT_TIMEOUT (250)
 #define DELAYED_ACK_TIMEOUT (50)
 #define TIME_WAIT_TIMEOUT (60000) // 1 minute
 
@@ -138,16 +131,17 @@ static struct list_node tcp_socket_list = LIST_INITIAL_VALUE(tcp_socket_list);
 static bool tcp_debug = false;
 
 /* local routines */
-static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port);
+static tcp_socket_t *lookup_socket(ipv4_addr_t remote_ip, ipv4_addr_t local_ip, uint16_t remote_port, uint16_t local_port);
 static void add_socket_to_list(tcp_socket_t *s);
 static void remove_socket_from_list(tcp_socket_t *s);
 static tcp_socket_t *create_tcp_socket(bool alloc_buffers);
-static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip, uint16_t src_port, const void *buf,
+static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port, const void *buf,
                          size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size);
 static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t sequence);
 static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence);
 static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
+static ssize_t tcp_write_pending_data(tcp_socket_t *s);
 static void handle_retransmit_timeout(void *_s);
 static void handle_time_wait_timeout(void *_s);
 static void handle_delayed_ack_timeout(void *_s);
@@ -155,11 +149,6 @@ static void tcp_remote_close(tcp_socket_t *s);
 static void tcp_wakeup_waiters(tcp_socket_t *s);
 static void inc_socket_ref(tcp_socket_t *s);
 static bool dec_socket_ref(tcp_socket_t *s);
-
-static uint16_t cksum_pheader(const tcp_pseudo_header_t *pheader, const void *buf, size_t len) {
-    uint16_t checksum = ones_sum16(0, pheader, sizeof(*pheader));
-    return ~ones_sum16(checksum, buf, len);
-}
 
 __NO_INLINE static void dump_tcp_header(const tcp_header_t *header) {
     printf("TCP: src_port %u, dest_port %u, seq %u, ack %u, win %u, flags %c%c%c%c%c%c\n",
@@ -216,7 +205,7 @@ static void dump_socket(tcp_socket_t *s) {
     }
 }
 
-static tcp_socket_t *lookup_socket(ipv4_addr remote_ip, ipv4_addr local_ip, uint16_t remote_port, uint16_t local_port) {
+static tcp_socket_t *lookup_socket(ipv4_addr_t remote_ip, ipv4_addr_t local_ip, uint16_t remote_port, uint16_t local_port) {
     LTRACEF_LEVEL(2, "remote ip 0x%x local ip 0x%x remote port %u local port %u\n", remote_ip, local_ip, remote_port, local_port);
 
     mutex_acquire(&tcp_socket_list_lock);
@@ -299,6 +288,10 @@ static bool dec_socket_ref(tcp_socket_t *s) {
 
     if (oldval == 1) {
         LTRACEF("destroying socket\n");
+        if (s->route) {
+            ipv4_dec_route_ref(s->route);
+            s->route = NULL;
+        }
         event_destroy(&s->tx_event);
         event_destroy(&s->rx_event);
         event_destroy(&s->connect_event);
@@ -328,7 +321,7 @@ static void tcp_timer_cancel(tcp_socket_t *s, net_timer_t *timer) {
         dec_socket_ref(s);
 }
 
-void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
+void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
     if (unlikely(tcp_debug))
         TRACEF("p %p (len %u), src_ip 0x%x, dst_ip 0x%x\n", p, p->dlen, src_ip, dst_ip);
 
@@ -351,7 +344,7 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
     /* checksum */
     if (FORCE_TCP_CHECKSUM || (p->flags & PKTBUF_FLAG_CKSUM_TCP_GOOD) == 0) {
-        tcp_pseudo_header_t pheader;
+        ipv4_pseudo_header_t pheader;
 
         // set up the pseudo header for checksum purposes
         pheader.source_addr = src_ip;
@@ -427,11 +420,18 @@ void tcp_input(pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 goto done;
 
             /* set it up */
-            accept_socket->local_ip = minip_get_ipaddr();
+            accept_socket->local_ip = netif->ipv4_addr;
             accept_socket->local_port = s->local_port;
             accept_socket->remote_ip = src_ip;
             accept_socket->remote_port = header->source_port;
             accept_socket->state = STATE_SYN_RCVD;
+
+            /* look up and cache the route for the accepted socket */
+            ipv4_route_t *route = ipv4_search_route(src_ip);
+            if (!route) {
+                goto done;
+            }
+            accept_socket->route = route;
 
             mutex_acquire(&accept_socket->lock);
 
@@ -640,7 +640,7 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
         /* it intersects the bottom of our window, so it's in order */
 
         /* copy the data we need to our cbuf */
-        size_t offset = sequence - s->rx_win_low;
+        size_t offset = s->rx_win_low - sequence;
         size_t copy_len = MIN(s->rx_win_high - s->rx_win_low, len - offset);
 
         DEBUG_ASSERT(offset < len);
@@ -719,7 +719,7 @@ static void send_ack(tcp_socket_t *s) {
     tcp_socket_send(s, NULL, 0, PKT_ACK, NULL, 0, s->tx_win_low);
 }
 
-static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip, uint16_t src_port, const void *buf,
+static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port, const void *buf,
                          size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size) {
     DEBUG_ASSERT(len == 0 || buf);
     DEBUG_ASSERT(options_length == 0 || options);
@@ -751,7 +751,7 @@ static status_t tcp_send(ipv4_addr dest_ip, uint16_t dest_port, ipv4_addr src_ip
     /* compute the checksum */
     /* XXX get the tx ckecksum capability from the nic */
     if (FORCE_TCP_CHECKSUM || true) {
-        tcp_pseudo_header_t pheader;
+        ipv4_pseudo_header_t pheader;
         pheader.source_addr = src_ip;
         pheader.dest_addr = dest_ip;
         pheader.zero = 0;
@@ -811,6 +811,9 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
 
         /* we have opened the transmit buffer */
         event_signal(&s->tx_event, true);
+
+        /* send any pending data that can now fit in the window */
+        tcp_write_pending_data(s);
     }
 }
 
@@ -828,10 +831,17 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
     uint32_t pending = s->tx_buffer_offset - outstanding;
     LTRACEF("outstanding %u, pending %u\n", outstanding, pending);
 
+    /* check the remote window limit */
+    int32_t allowed = (int32_t)(s->tx_win_high - s->tx_highest_seq);
+    if (allowed < 0) {
+        allowed = 0;
+    }
+    uint32_t to_send = MIN(pending, (uint32_t)allowed);
+
     /* send packets that cover the pending area of the window */
     uint32_t offset = 0;
-    while (offset < pending) {
-        uint32_t tosend = MIN(s->mss, pending - offset);
+    while (offset < to_send) {
+        uint32_t tosend = MIN(s->mss, to_send - offset);
 
         tcp_socket_send(s, s->tx_buffer + outstanding + offset, tosend, PKT_ACK|PKT_PSH, NULL, 0, s->tx_highest_seq);
         s->tx_highest_seq += tosend;
@@ -996,8 +1006,16 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
     lk_bigtime_t t = current_time_hires();
     rand_add_entropy(&t, sizeof(t));
 
+    // look up route to set local address
+    ipv4_route_t *route = ipv4_search_route(addr);
+    if (!route) {
+        return ERR_NO_ROUTE;
+    }
+    netif_t *netif = route->interface;
+    s->route = route;
+
     // set up the socket for outgoing connections
-    s->local_ip = minip_get_ipaddr();
+    s->local_ip = netif->ipv4_addr;
     s->local_port = (rand() + 1024) & 0xffff; // TODO: allocate sanely
     DEBUG_ASSERT(s->local_port <= 0xffff);
     s->remote_ip = addr;
@@ -1027,6 +1045,7 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
 
     // block to wait for a successful connection
     if (event_wait(&s->connect_event) == ERR_TIMED_OUT) {
+        ipv4_dec_route_ref(s->route);
         return ERR_TIMED_OUT;
     }
 
@@ -1276,7 +1295,7 @@ out:
 }
 
 /* debug stuff */
-static int cmd_tcp(int argc, const console_cmd_args *argv) {
+int cmd_tcp(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
 notenoughargs:
         printf("ERROR not enough arguments\n");
@@ -1358,8 +1377,4 @@ usage:
 
     return NO_ERROR;
 }
-
-STATIC_COMMAND_START
-STATIC_COMMAND("tcp", "tcp commands", &cmd_tcp)
-STATIC_COMMAND_END(tcp);
 

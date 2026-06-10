@@ -16,46 +16,18 @@
 #include <kernel/thread.h>
 #include <kernel/vm.h>
 #include <lib/minip.h>
+#include <lib/minip/netif.h>
 #include <lib/pktbuf.h>
 #include <string.h>
 #include <platform/interrupts.h>
-#include <type_traits>
 
 #include "e1000_hw.h"
+#include "e1000_ids.h"
 
 #define LOCAL_TRACE 0
 
+namespace {
 class e1000;
-static e1000 *the_e; // XXX hack to remember the first e1000 seen and use for minip
-
-// list of known 8086:x e1000 devices to match against
-struct e1000_id_features {
-    uint16_t id;
-    bool e1000e;
-};
-
-const e1000_id_features e1000_ids[] = {
-    { 0x100c, false }, // 82544GC QEMU 'e1000-82544gc'
-    { 0x100e, false }, // 82540EM QEMU 'e1000'
-    { 0x100f, false }, // 82545EM QEMU 'e1000-82544em'
-    { 0x10d3, true }, // 82574L  QEMU 'e1000e'
-    { 0x1533, true }, // i210
-};
-
-// i210 ids
-// 0x1533
-// 0x1536
-// 0x1537
-// 0x1538
-
-// i219 ids
-// 0x156f
-// 0x1570
-//    soc integrated versions?
-// 0x1a1c // i219-LM (17)
-// 0x1a1d // i219-V  (17)
-// 0x1a1e // i219-LM (16)
-// 0x1a1f // i219-V  (16)
 
 
 class e1000 {
@@ -70,6 +42,7 @@ public:
     bool is_e1000e() const { return id_feat_->e1000e; }
 
     const uint8_t *mac_addr() const { return mac_addr_; }
+    netif_t *netif() { return &netif_; }
 
 private:
     static const size_t rxring_len = 64;
@@ -98,12 +71,16 @@ private:
     uint8_t mac_addr_[6] = {};
     const e1000_id_features *id_feat_ = nullptr;
 
+    // minip network interface
+    netif_t netif_ = {};
+
     // rx ring
     rdesc *rxring_ = nullptr;
     uint32_t rx_last_head_ = 0;
     uint32_t rx_tail_ = 0;
     pktbuf_t *rx_pktbuf_[rxring_len] = {};
     uint8_t *rx_buf_ = nullptr; // rxbuffer_len * rxring_len byte buffer that rx_pktbuf[] points to
+    pktbuf_t *rx_pending_pkt_ = nullptr;
 
     // rx worker thread
     list_node rx_queue_ = LIST_INITIAL_VALUE(rx_queue_);
@@ -137,14 +114,22 @@ uint16_t e1000::read_eeprom(uint8_t offset) {
         write_reg(e1000_reg::EERD, (offset << 2) | 0x1); // data + start bit
 
         // spin while bit 1 (DONE) is clear
-        while (((val = read_reg(e1000_reg::EERD)) & (1<<1)) == 0)
-            ;
+        int timeout = 10000;
+        while (((val = read_reg(e1000_reg::EERD)) & (1<<1)) == 0) {
+            if (--timeout == 0) {
+                return 0xffff;
+            }
+        }
     } else {
         write_reg(e1000_reg::EERD, (offset << 8) | 0x1); // data + start bit
 
         // spin while bit 4 (DONE) is clear
-        while (((val = read_reg(e1000_reg::EERD)) & (1<<4)) == 0)
-            ;
+        int timeout = 10000;
+        while (((val = read_reg(e1000_reg::EERD)) & (1<<4)) == 0) {
+            if (--timeout == 0) {
+                return 0xffff;
+            }
+        }
     }
     return val >> 16;
 }
@@ -169,18 +154,37 @@ handler_return e1000::irq_handler() {
 
     handler_return ret = INT_NO_RESCHEDULE;
 
-    if (icr & (1<<0)) { // TXDW - transmit descriptor written back
-        PANIC_UNIMPLEMENTED;
+    if (icr & E1000_ICR_TXDW) { // TXDW - transmit descriptor written back
+        // Walk from last known head to current TDH, freeing completed TX pktbufs.
+        auto tdh = read_reg(e1000_reg::TDH);
+        while (tx_last_head_ != tdh) {
+            if (tx_pktbuf_[tx_last_head_]) {
+                pktbuf_free(tx_pktbuf_[tx_last_head_], false);
+                tx_pktbuf_[tx_last_head_] = nullptr;
+                ret = INT_RESCHEDULE;
+            }
+            tx_last_head_ = (tx_last_head_ + 1) % txring_len;
+        }
     }
-    if (icr & (1<<1)) { // TXQE - transmit queue empty
-        //PANIC_UNIMPLEMENTED;
+    if (icr & E1000_ICR_LSC) { // LSC - link status change
+        LTRACEF("link status change, STATUS=%#x\n", read_reg(e1000_reg::STATUS));
+    }
+    if (icr & E1000_ICR_TXQE) { // TXQE - transmit queue empty
         // nothing to really do here
     }
-    if (icr & (1<<6)) {
-        printf("e1000: RX OVERRUN\n");
+    if (icr & E1000_ICR_RXO) {
+        LTRACEF("RX overrun\n");
+
+        // Any in-flight multi-descriptor frame is no longer trustworthy after overrun.
+        // Drop it so subsequent fragments do not get appended to stale packet state.
+        if (rx_pending_pkt_) {
+            pktbuf_reset(rx_pending_pkt_, 0);
+            add_pktbuf_to_rxring_locked(rx_pending_pkt_);
+            rx_pending_pkt_ = nullptr;
+        }
     }
-    if (icr & (1<<7)) { // RXTO - rx timer interrupt
-        // rx timer fired, packets are probably ready
+    if (icr & (E1000_ICR_RXTO | E1000_ICR_RXO)) { // RXTO/RXO - rx work pending
+        // Packets may be ready, or descriptors may need draining after overrun.
         auto rdh = read_reg(e1000_reg::RDH);
         auto rdt = read_reg(e1000_reg::RDT);
 
@@ -198,20 +202,59 @@ handler_return e1000::irq_handler() {
             pktbuf_t *pkt = rx_pktbuf_[rx_last_head_];
 
             bool consumed_pkt = false;
-            if (rxd.status & (1 << 0)) { // descriptor done, we own it now
-                if (rxd.status & (1<<1)) { // end of packet
-                    if (rxd.errors == 0) {
-                        // good packet, trim data len according to the rx descriptor
+            if (rxd.status & E1000_RXD_STAT_DD) { // descriptor done, we own it now
+                bool eop = (rxd.status & E1000_RXD_STAT_EOP);
+
+                if (rxd.errors == 0) {
+                    if (rx_pending_pkt_) {
+                        // We are in the middle of a multi-descriptor packet. Append this fragment.
+                        if (pktbuf_avail_tail(rx_pending_pkt_) >= rxd.length) {
+                            // minip consumes a single contiguous pktbuf per frame. Copying this fragment
+                            // lets us present one complete packet while returning this descriptor buffer
+                            // immediately to the RX ring.
+                            memcpy(pktbuf_append(rx_pending_pkt_, rxd.length), pkt->data, rxd.length);
+
+                            // This fragment buffer was consumed by copy. Recycle it to the rx ring.
+                            pktbuf_reset(pkt, 0);
+                            add_pktbuf_to_rxring_locked(pkt);
+                            consumed_pkt = true;
+
+                            if (eop) {
+                                // Packet is now complete.
+                                rx_pending_pkt_->flags |= PKTBUF_FLAG_EOF;
+                                list_add_tail(&rx_queue_, &rx_pending_pkt_->list);
+                                rx_pending_pkt_ = nullptr;
+                                event_signal(&rx_event_, false);
+                                ret = INT_RESCHEDULE;
+                            }
+                        } else {
+                            // Coalesced packet exceeded our fixed receive buffer. Drop and recover.
+                            pktbuf_reset(rx_pending_pkt_, 0);
+                            add_pktbuf_to_rxring_locked(rx_pending_pkt_);
+                            rx_pending_pkt_ = nullptr;
+                        }
+                    } else {
+                        // Start or finish a packet from this descriptor.
                         pkt->dlen = rxd.length;
-                        pkt->flags |= PKTBUF_FLAG_EOF; // just to make sure
-
-                        // queue it in the rx queue
-                        list_add_tail(&rx_queue_, &pkt->list);
-
-                        // wake up the rx worker
-                        event_signal(&rx_event_, false);
-                        ret = INT_RESCHEDULE;
-                        consumed_pkt = true;
+                        if (eop) {
+                            pkt->flags |= PKTBUF_FLAG_EOF;
+                            list_add_tail(&rx_queue_, &pkt->list);
+                            event_signal(&rx_event_, false);
+                            ret = INT_RESCHEDULE;
+                            consumed_pkt = true;
+                        } else {
+                            // Save first fragment until we see EOP.
+                            pkt->flags &= ~PKTBUF_FLAG_EOF;
+                            rx_pending_pkt_ = pkt;
+                            consumed_pkt = true;
+                        }
+                    }
+                } else {
+                    // Descriptor has errors. Drop this packet and any in-progress coalesced frame.
+                    if (rx_pending_pkt_) {
+                        pktbuf_reset(rx_pending_pkt_, 0);
+                        add_pktbuf_to_rxring_locked(rx_pending_pkt_);
+                        rx_pending_pkt_ = nullptr;
                     }
                 }
             }
@@ -250,7 +293,7 @@ int e1000::rx_worker_routine() {
             }
 
             // push it up the stack
-            minip_rx_driver_callback(p);
+            minip_rx_driver_callback(&netif_, p);
 
             // we own the pktbuf again
 
@@ -275,7 +318,7 @@ int e1000::tx(pktbuf_t *p) {
     tdesc td = {};
     td.addr = pktbuf_data_phys(p);
     td.length = p->dlen;
-    td.cmd = (1<<0); // end of packet (EOP)
+    td.cmd = (1<<3) | (1<<1) | (1<<0); // RS | IFCS | EOP
     copy(&txring_[tx_tail_], &td);
 
     // save a copy of the pktbuf in our list
@@ -349,7 +392,7 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
 
     pci_bus_mgr_enable_device(loc_);
 
-    // read the mac address out of the eeprom
+    // read the mac address: try EEPROM first, fall back to RAL0/RAH0
     uint16_t tmp;
     tmp = read_eeprom(0);
     mac_addr_[0] = tmp & 0xff;
@@ -360,6 +403,28 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     tmp = read_eeprom(2);
     mac_addr_[4] = tmp & 0xff;
     mac_addr_[5] = tmp >> 8;
+
+    // If EEPROM timed out (all 0xff) fall back to the receive address registers
+    // programmed by firmware (common on PCH-integrated i219).
+    bool mac_invalid = (mac_addr_[0] == 0xff && mac_addr_[1] == 0xff &&
+                        mac_addr_[2] == 0xff && mac_addr_[3] == 0xff &&
+                        mac_addr_[4] == 0xff && mac_addr_[5] == 0xff);
+    if (mac_invalid) {
+        // EEPROM not accessible (e.g. PCH-integrated i219): read MAC from receive address
+        // registers programmed by firmware.
+        uint32_t ral = read_reg(e1000_reg::RAL0);
+        uint32_t rah = read_reg(e1000_reg::RAH0);
+        if (rah & (1u << 31)) { // valid bit
+            mac_addr_[0] = (ral >>  0) & 0xff;
+            mac_addr_[1] = (ral >>  8) & 0xff;
+            mac_addr_[2] = (ral >> 16) & 0xff;
+            mac_addr_[3] = (ral >> 24) & 0xff;
+            mac_addr_[4] = (rah >>  0) & 0xff;
+            mac_addr_[5] = (rah >>  8) & 0xff;
+        } else {
+            printf("e1000 %d: unable to read MAC address\n", unit_);
+        }
+    }
 
     printf("e1000 %d: mac address %02x:%02x:%02x:%02x:%02x:%02x\n", unit_, mac_addr_[0], mac_addr_[1], mac_addr_[2],
            mac_addr_[3], mac_addr_[4], mac_addr_[5]);
@@ -493,7 +558,7 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
 
     // unmask receive irq
     auto ims = read_reg(e1000_reg::IMS);
-    write_reg(e1000_reg::IMS, ims | (1<<7) | (1<<6)); // RXO, RXTO
+    write_reg(e1000_reg::IMS, ims | E1000_ICR_RXTO | E1000_ICR_RXO);
 
     // set up the tx path
     write_reg(e1000_reg::TDH, 0);
@@ -511,31 +576,30 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     write_reg(e1000_reg::TDLEN, txring_len * sizeof(tdesc));
 
     // enable the transmitter and appropriate irqs
+    // TIPG: standard copper gigabit inter-packet gap (IPGR2=6, IPGR1=8, IPGT=8)
+    write_reg(e1000_reg::TIPG, (6u << 20) | (8u << 10) | 8u);
     write_reg(e1000_reg::TCTL, (1<<3) | (1<<1)); // short packet pad, tx enable
 
     // unmask tx irq
     ims = read_reg(e1000_reg::IMS);
-    write_reg(e1000_reg::IMS, ims | (1<<1) | (1<<0)); // transmit queue empty, tx descriptor write back
+    write_reg(e1000_reg::IMS, ims | E1000_ICR_TXQE | E1000_ICR_TXDW);
+
+    // register this NIC instance with minip's netif layer
+    snprintf(str, sizeof(str), "e1000-%d", unit_);
+    netif_create(&netif_, str);
+    auto tx = [](void *arg, pktbuf_t *p) -> int {
+        auto *e = static_cast<e1000 *>(arg);
+        DEBUG_ASSERT(e);
+        return e->tx(p);
+    };
+
+    netif_set_eth(&netif_, tx, this, mac_addr_);
+    netif_register(&netif_);
 
     return NO_ERROR;
 }
 
-extern "C"
-status_t e1000_register_with_minip() {
-    auto tx_routine = [](void *arg, pktbuf_t *p) {
-        auto *e = static_cast<e1000 *>(arg);
-        return e->tx(p);
-    };
-
-    if (the_e) {
-        minip_set_eth(tx_routine, the_e, the_e->mac_addr());
-        return NO_ERROR;
-    }
-
-    return ERR_NOT_FOUND;
-}
-
-static void e1000_init(uint level) {
+void e1000_init(uint level) {
     LTRACE_ENTRY;
 
     auto ac = lk::make_auto_call([]() { LTRACE_EXIT; });
@@ -559,10 +623,10 @@ static void e1000_init(uint level) {
                 continue;
             }
 
-            // XXX first e1000 found is remembered
-            the_e = e;
         }
     }
 }
 
 LK_INIT_HOOK(e1000, &e1000_init, LK_INIT_LEVEL_PLATFORM + 1);
+
+} // namespace

@@ -52,6 +52,7 @@
 
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
+#include <lib/minip/netif.h>
 #include <lib/pktbuf.h>
 #endif
 
@@ -75,6 +76,10 @@ struct eth_status {
     ETH_DMADescTypeDef  *DMATxDscrTab;  // ETH_TXBUFNB
     uint8_t             *Rx_Buff;       // ETH_RXBUFNB * ETH_RX_BUF_SIZE
     uint8_t             *Tx_Buff;       // ETH_TXBUFNB * ETH_TX_BUF_SIZE
+
+#if WITH_LIB_MINIP
+    netif_t netif;
+#endif
 };
 
 static struct eth_status eth;
@@ -82,7 +87,7 @@ static struct eth_status eth;
 static int eth_rx_worker(void *arg);
 
 #if WITH_LIB_MINIP
-static int eth_send_raw_pkt(pktbuf_t *p);
+static status_t stm32_eth_send_minip_pkt(void *arg, pktbuf_t *p);
 #endif
 
 status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy) {
@@ -180,6 +185,13 @@ status_t eth_init(const uint8_t *mac_addr, eth_phy_itf eth_phy) {
 
     /* enable interrupts */
     HAL_NVIC_EnableIRQ(ETH_IRQn);
+
+#if WITH_LIB_MINIP
+    /* register this interface with minip's netif layer */
+    netif_create(&eth.netif, "stm32-eth");
+    netif_set_eth(&eth.netif, stm32_eth_send_minip_pkt, NULL, mac_addr);
+    netif_register(&eth.netif);
+#endif
 
     LTRACE_EXIT;
 
@@ -284,7 +296,7 @@ static int eth_rx_worker(void *arg) {
                                       0, 0, NULL, NULL);
                     p->dlen = eth.EthHandle.RxFrameInfos.length;
 
-                    minip_rx_driver_callback(p);
+                    minip_rx_driver_callback(&eth.netif, p);
 
                     pktbuf_free(p, true);
                 }
@@ -320,7 +332,7 @@ static int eth_rx_worker(void *arg) {
 
 #if WITH_LIB_MINIP
 
-status_t stm32_eth_send_minip_pkt(void *arg, pktbuf_t *p) {
+static status_t stm32_eth_send_minip_pkt(void *arg, pktbuf_t *p) {
     LTRACEF("p %p, dlen %zu, eof %u\n", p, p->dlen, p->flags & PKTBUF_FLAG_EOF);
 
     DEBUG_ASSERT(p && p->dlen);

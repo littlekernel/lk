@@ -16,6 +16,7 @@
 #include <lk/init.h>
 #include <lk/reg.h>
 #include <lk/trace.h>
+#include <string.h>
 #include <sys/types.h>
 
 #define LOCAL_TRACE 0
@@ -54,6 +55,124 @@ static uint32_t ioapic_write(struct ioapic *ioapic, enum ioapic_regs reg, uint32
     mmio_write32(ioapic->mmio + IOAPIC_REGSEL, reg);
     mmio_write32(ioapic->mmio + IOAPIC_IOWIN, val);
     return 0;
+}
+
+static struct ioapic *ioapic_for_gsi(uint gsi) {
+    for (size_t i = 0; i < num_ioapics; ++i) {
+        struct ioapic *ioapic = &ioapics[i];
+        const uint gsi_start = ioapic->gsi_base;
+        const uint gsi_end = ioapic->gsi_base + ioapic->num_redir_entries;
+        if (gsi >= gsi_start && gsi < gsi_end) {
+            return ioapic;
+        }
+    }
+
+    return NULL;
+}
+
+static void ioapic_dump_redir_gsi(uint gsi) {
+    ioapic_redir_state_t state;
+    status_t err = ioapic_get_redir_state(gsi, &state);
+    if (err != NO_ERROR) {
+        printf("X86: ioapic gsi %u: unavailable (%d)\n", gsi, err);
+        return;
+    }
+
+    printf("X86: ioapic %u gsi %3u vec %#04x dest_apic %3u trig %s pol %s mask %u\n",
+           state.ioapic_id,
+           state.gsi,
+           state.vector,
+           state.destination_apic_id,
+           state.level_triggered ? "level" : "edge",
+           state.active_low ? "low" : "high",
+           state.masked ? 1 : 0);
+}
+
+status_t ioapic_get_redir_state(uint gsi, ioapic_redir_state_t *state) {
+    if (!state) {
+        return ERR_INVALID_ARGS;
+    }
+
+    struct ioapic *ioapic = ioapic_for_gsi(gsi);
+    if (!ioapic) {
+        return ERR_NOT_FOUND;
+    }
+
+    const uint redir_index = gsi - ioapic->gsi_base;
+    const uint32_t lo = ioapic_read(ioapic, IOAPIC_REDIR_TABLE_BASE + redir_index * 2);
+    const uint32_t hi = ioapic_read(ioapic, IOAPIC_REDIR_TABLE_BASE + redir_index * 2 + 1);
+
+    memset(state, 0, sizeof(*state));
+    state->gsi = gsi;
+    state->ioapic_id = ioapic->apic_id;
+    state->vector = (uint8_t)(lo & 0xff);
+    state->destination_apic_id = (uint8_t)(hi >> 24);
+    state->active_low = ((lo >> 13) & 0x1) != 0;
+    state->level_triggered = ((lo >> 15) & 0x1) != 0;
+    state->masked = ((lo >> 16) & 0x1) != 0;
+
+    return NO_ERROR;
+}
+
+status_t ioapic_set_redir_state(uint gsi, const ioapic_redir_state_t *state) {
+    if (!state) {
+        return ERR_INVALID_ARGS;
+    }
+
+    struct ioapic *ioapic = ioapic_for_gsi(gsi);
+    if (!ioapic) {
+        return ERR_NOT_FOUND;
+    }
+
+    const uint redir_index = gsi - ioapic->gsi_base;
+    uint32_t lo = (uint32_t)(state->vector & 0xff);
+    uint32_t hi = ((uint32_t)state->destination_apic_id) << 24;
+
+    if (state->active_low) {
+        lo |= (1u << 13);
+    }
+    if (state->level_triggered) {
+        lo |= (1u << 15);
+    }
+    if (state->masked) {
+        lo |= (1u << 16);
+    }
+
+    // Program destination first, then arm/unmask via the low dword.
+    ioapic_write(ioapic, IOAPIC_REDIR_TABLE_BASE + redir_index * 2 + 1, hi);
+    ioapic_write(ioapic, IOAPIC_REDIR_TABLE_BASE + redir_index * 2, lo);
+
+    return NO_ERROR;
+}
+
+status_t ioapic_set_gsi_mask(uint gsi, bool masked) {
+    ioapic_redir_state_t state;
+    status_t err = ioapic_get_redir_state(gsi, &state);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    state.masked = masked;
+    return ioapic_set_redir_state(gsi, &state);
+}
+
+void ioapic_dump_redir_table(void) {
+    if (num_ioapics == 0) {
+        printf("X86: no ioapics initialized\n");
+        return;
+    }
+
+    for (size_t i = 0; i < num_ioapics; ++i) {
+        struct ioapic *ioapic = &ioapics[i];
+        printf("X86: ioapic %zu id %u gsi [%u..%u)\n",
+               i,
+               ioapic->apic_id,
+               ioapic->gsi_base,
+               ioapic->gsi_base + ioapic->num_redir_entries);
+        for (uint n = 0; n < ioapic->num_redir_entries; ++n) {
+            ioapic_dump_redir_gsi(ioapic->gsi_base + n);
+        }
+    }
 }
 
 status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base) {

@@ -146,7 +146,12 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
     dprintf(SPEW, "PC: multiboot v2 address %#" PRIx32 "\n", _multiboot2_info);
     if (_multiboot2_info != 0) {
         struct multiboot2_info *multiboot_info =
-            (struct multiboot2_info *)((uintptr_t)_multiboot2_info + KERNEL_BASE);
+            paddr_to_kvaddr((paddr_t)_multiboot2_info);
+        if (!multiboot_info) {
+            dprintf(INFO, "PC: multiboot v2 info at %#" PRIx32 " is outside the early kernel mappings\n",
+                    _multiboot2_info);
+            return ERR_NOT_FOUND;
+        }
 
         dprintf(SPEW, "PC: multiboot info total size: %u\n", multiboot_info->total_size);
 
@@ -218,7 +223,17 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
                     struct multiboot2_tag_framebuffer *framebuffer_tag =
                         (struct multiboot2_tag_framebuffer *)tag;
 
-                    fb_console_init(framebuffer_tag);
+                    if (framebuffer_tag->common.framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
+                        struct fb_console_boot_info fb_info = {
+                            .framebuffer_addr = framebuffer_tag->common.framebuffer_addr,
+                            .framebuffer_pitch = framebuffer_tag->common.framebuffer_pitch,
+                            .framebuffer_width = framebuffer_tag->common.framebuffer_width,
+                            .framebuffer_height = framebuffer_tag->common.framebuffer_height,
+                            .framebuffer_bpp = framebuffer_tag->common.framebuffer_bpp,
+                        };
+
+                        fb_console_init(&fb_info);
+                    }
 
                     dprintf(SPEW, "PC: multiboot framebuffer info present:\n");
                     dprintf(SPEW, "\taddress %#" PRIx64 " pitch %u, width %u height %u bpp %hhu ",
@@ -279,9 +294,12 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
         return ERR_NOT_FOUND;
     }
 
-    /* bump the multiboot pointer up to the kernel mapping */
-    /* TODO: test that it's within range of the kernel mapping */
-    const multiboot_info_t *multiboot_info = (void *)((uintptr_t)_multiboot1_info + KERNEL_BASE);
+    const multiboot_info_t *multiboot_info = paddr_to_kvaddr((paddr_t)_multiboot1_info);
+    if (!multiboot_info) {
+        dprintf(INFO, "PC: multiboot v1 info at %#" PRIx32 " is outside the early kernel mappings\n",
+                _multiboot1_info);
+        return ERR_NOT_FOUND;
+    }
 
     dprintf(SPEW, "\tflags %#x\n", multiboot_info->flags);
 
@@ -305,8 +323,12 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
     // more modern multiboot mmap array
     if (multiboot_info->flags & MB_INFO_MMAP) {
-        const memory_map_t *mmap = (const memory_map_t *)(uintptr_t)multiboot_info->mmap_addr;
-        mmap = (void *)((uintptr_t)mmap + KERNEL_BASE);
+        const memory_map_t *mmap = paddr_to_kvaddr((paddr_t)multiboot_info->mmap_addr);
+        if (!mmap) {
+            dprintf(INFO, "PC: multiboot mmap at %#" PRIx32 " is outside the early kernel mappings\n",
+                    multiboot_info->mmap_addr);
+            return ERR_NOT_FOUND;
+        }
 
         dprintf(SPEW, "PC: multiboot memory map, length %u:\n", multiboot_info->mmap_length);
         parse_multiboot_mmap(mmap, multiboot_info->mmap_length, found_mem_arenas);
@@ -314,8 +336,12 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
 
     // multiboot v1 command line
     if (multiboot_info->flags & MB_INFO_CMD_LINE) {
-        const char *cmdline = (const char *)(uintptr_t)multiboot_info->cmdline;
-        cmdline = (void *)((uintptr_t)cmdline + KERNEL_BASE);
+        const char *cmdline = paddr_to_kvaddr((paddr_t)multiboot_info->cmdline);
+        if (!cmdline) {
+            dprintf(INFO, "PC: multiboot cmdline at %#" PRIx32 " is outside the early kernel mappings\n",
+                    multiboot_info->cmdline);
+            return ERR_NOT_FOUND;
+        }
         dprintf(SPEW, "PC: multiboot cmdline = \"%s\"\n", cmdline);
 
         strlcpy(cmdline_copy, cmdline, sizeof(cmdline_copy));
@@ -327,6 +353,18 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
     }
 
     if (multiboot_info->flags & MB_INFO_FRAMEBUFFER) {
+        if (multiboot_info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB) {
+            struct fb_console_boot_info fb_info = {
+                .framebuffer_addr = multiboot_info->framebuffer_addr,
+                .framebuffer_pitch = multiboot_info->framebuffer_pitch,
+                .framebuffer_width = multiboot_info->framebuffer_width,
+                .framebuffer_height = multiboot_info->framebuffer_height,
+                .framebuffer_bpp = multiboot_info->framebuffer_bpp,
+            };
+
+            fb_console_init(&fb_info);
+        }
+
         dprintf(SPEW, "PC: multiboot framebuffer info present\n");
         dprintf(SPEW, "\taddress %#" PRIx64 " pitch %u width %u height %u bpp %hhu type %u\n",
                 multiboot_info->framebuffer_addr, multiboot_info->framebuffer_pitch,
@@ -384,6 +422,8 @@ void platform_early_init(void) {
 
 // Look for the ACPI tables just after the vm is initialized.
 void platform_init_postvm(uint level) {
+    fb_console_init_postvm();
+
 #if WITH_LIB_ACPI_LITE
     // Look for the root ACPI table
     status_t err = acpi_lite_init(0);
@@ -501,15 +541,3 @@ void platform_init(void) {
 
     platform_init_mmu_mappings();
 }
-
-#if WITH_LIB_MINIP
-void _start_minip(uint level) {
-    extern status_t e1000_register_with_minip(void);
-    status_t err = e1000_register_with_minip();
-    if (err == NO_ERROR) {
-        minip_start_dhcp();
-    }
-}
-
-LK_INIT_HOOK(start_minip, _start_minip, LK_INIT_LEVEL_APPS - 1);
-#endif

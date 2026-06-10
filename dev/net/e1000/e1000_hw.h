@@ -76,7 +76,32 @@ enum class e1000_reg {
     // rx dma
     RXDCTL = 0x2828,
     RXCSUM = 0x5000,
+
+    // receive address
+    RAL0 = 0x5400,  // Receive Address Low  (MAC bytes 0-3)
+    RAH0 = 0x5404,  // Receive Address High (MAC bytes 4-5, bit31=valid)
 };
+
+// Interrupt Cause Register (ICR) bits
+#define E1000_ICR_TXDW         (1u << 0)  // Transmit descriptor write-back
+#define E1000_ICR_TXQE         (1u << 1)  // Transmit queue empty
+#define E1000_ICR_LSC          (1u << 2)  // Link status change
+#define E1000_ICR_RXSEQ        (1u << 3)  // Receive sequence error
+#define E1000_ICR_RXDMT0       (1u << 4)  // RX descriptor minimum threshold reached
+#define E1000_ICR_RXO          (1u << 6)  // RX overrun
+#define E1000_ICR_RXTO         (1u << 7)  // RX timer interrupt
+#define E1000_ICR_MDAC         (1u << 9)  // MDI/O access completed
+#define E1000_ICR_RXCFG        (1u << 10) // Receiving /C/ ordered set
+#define E1000_ICR_GPI_SDP6     (1u << 12) // General purpose interrupt on SDP6
+#define E1000_ICR_GPI_SDP7     (1u << 13) // General purpose interrupt on SDP7
+#define E1000_ICR_GPI_SDP2     (1u << 14) // General purpose interrupt on SDP2
+#define E1000_ICR_GPI_SDP3     (1u << 15) // General purpose interrupt on SDP3
+#define E1000_ICR_TXD_LOW      (1u << 16) // Transmit descriptor low threshold hit
+#define E1000_ICR_SRPD         (1u << 17) // Small receive packet detected
+#define E1000_ICR_ACK          (1u << 20) // Receive ACK frame detected
+#define E1000_ICR_MNG          (1u << 21) // Manageability event
+#define E1000_ICR_DOCK         (1u << 22) // Dock/undock event
+#define E1000_ICR_INT_ASSERTED (1u << 31) // Device has asserted interrupt
 
 // receive descriptor
 struct rdesc {
@@ -95,6 +120,25 @@ struct rdesc {
 };
 static_assert(sizeof(rdesc) == 16, "");
 
+// Legacy RX descriptor status bits (rdesc.status)
+#define E1000_RXD_STAT_DD      (1u << 0) // Descriptor done
+#define E1000_RXD_STAT_EOP     (1u << 1) // End of packet
+#define E1000_RXD_STAT_IXSM    (1u << 2) // Ignore checksum indication
+#define E1000_RXD_STAT_VP      (1u << 3) // 802.1Q VLAN packet
+#define E1000_RXD_STAT_UDPCS   (1u << 4) // UDP checksum calculated on packet data
+#define E1000_RXD_STAT_TCPCS   (1u << 5) // TCP checksum calculated on packet data
+#define E1000_RXD_STAT_IPCS    (1u << 6) // IP checksum calculated on packet data
+#define E1000_RXD_STAT_PIF     (1u << 7) // Passed inexact filter
+
+// Legacy RX descriptor error bits (rdesc.errors)
+#define E1000_RXD_ERR_CE       (1u << 0) // CRC or alignment error
+#define E1000_RXD_ERR_SE       (1u << 1) // Symbol error
+#define E1000_RXD_ERR_SEQ      (1u << 2) // Sequence error
+#define E1000_RXD_ERR_CXE      (1u << 4) // Carrier extension error
+#define E1000_RXD_ERR_TCPE     (1u << 5) // TCP/UDP checksum error
+#define E1000_RXD_ERR_IPE      (1u << 6) // IP checksum error
+#define E1000_RXD_ERR_RXE      (1u << 7) // RX data error
+
 // transmit descriptor (legacy)
 struct tdesc {
     uint64_t addr;
@@ -112,6 +156,12 @@ struct tdesc {
 };
 static_assert(sizeof(tdesc) == 16, "");
 
+// TX descriptor status bits (tdesc.sta_rsv)
+#define E1000_TXD_STAT_DD      (1u << 0) // Descriptor done (TX complete)
+#define E1000_TXD_STAT_EC      (1u << 1) // Excess collisions
+#define E1000_TXD_STAT_LC      (1u << 2) // Late collision
+#define E1000_TXD_STAT_TU      (1u << 3) // Transmit underrun
+
 // efficient copy for rx/tx descriptors out/into uncached memory
 template <typename T>
 inline void copy(T *_dst, const T *_src) {
@@ -119,8 +169,8 @@ inline void copy(T *_dst, const T *_src) {
     static_assert(sizeof(T) == 16, "");
 
     // treat as two 8 byte copies
-    uint64_t *dst = (uint64_t *)_dst;
-    const uint64_t *src = (uint64_t *)_src;
+    volatile uint64_t *dst = (volatile uint64_t *)_dst;
+    const volatile uint64_t *src = (const volatile uint64_t *)_src;
 
     dst[0] = src[0];
     dst[1] = src[1];

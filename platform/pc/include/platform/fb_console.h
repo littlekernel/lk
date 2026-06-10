@@ -5,14 +5,23 @@
  */
 #pragma once
 
-#include <hw/multiboot.h>
+#include <stdint.h>
 #include <lk/compiler.h>
 
 // Interface for a simple frame buffer console, used when multiboot framebuffer info is present.
 
 __BEGIN_CDECLS
 
-void fb_console_init(struct multiboot2_tag_framebuffer *framebuffer);
+struct fb_console_boot_info {
+	uint64_t framebuffer_addr;
+	uint32_t framebuffer_pitch;
+	uint32_t framebuffer_width;
+	uint32_t framebuffer_height;
+	uint8_t framebuffer_bpp;
+};
+
+void fb_console_init(const struct fb_console_boot_info *boot_info);
+void fb_console_init_postvm(void);
 bool fb_console_present(void);
 void fb_console_dputc(char c);
 
