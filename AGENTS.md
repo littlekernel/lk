@@ -73,7 +73,7 @@ make build-qemu-virt-arm64-test clean
 make spotless
 
 # Build all projects (for CI/verification)
-scripts/buildall -q -e -r  # quiet, errors-as-warnings, release builds
+scripts/buildall -q -e -r  # quiet, warnings-as-errors, release builds
 
 Output will be written to buildall.log. To run the build with full output
 during the build, omit the -q flag.
@@ -213,9 +213,9 @@ Select heap implementation in project or via make:
 
 ```make
 # In project.mk or command line
-LK_HEAP_IMPLEMENTATION ?= dlmalloc  # default
-# LK_HEAP_IMPLEMENTATION ?= cmpctmalloc  # compact allocator
-# LK_HEAP_IMPLEMENTATION ?= miniheap     # simple very memory efficient but slow allocator
+LK_HEAP_IMPLEMENTATION ?= miniheap   # default
+# LK_HEAP_IMPLEMENTATION ?= dlmalloc      # Doug Lea's allocator
+# LK_HEAP_IMPLEMENTATION ?= cmpctmalloc   # compact allocator
 
 # Controlled in lib/heap/rules.mk
 ```
@@ -274,8 +274,8 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
     at boot time if `RUN_UNITTESTS_AT_BOOT` is defined at build time.
 - When a library adds its own unit tests, it should add a `tests/` subdirectory with test source
   files and a `rules.mk` that defines a module for the tests. The module should have `MODULE_DEPS`
-  on the library being tested. MODULE_OPTIONS of the parent module should have 'tests' to ensure the
-  tests module is only built when testing is enabled.
+  on the library being tested. MODULE_OPTIONS of the parent module should have 'test' to ensure the
+  tests module is only built when `WITH_TESTS` is enabled.
 
 ## Key Files Reference
 
