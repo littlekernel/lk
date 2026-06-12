@@ -289,7 +289,7 @@ static inline ulong x86_get_cr0(void) {
 }
 
 static inline void x86_set_cr0(ulong in_val) {
-    __asm__ __volatile__("mov %0,%%cr0 \n\t" : : "r"(in_val));
+    __asm__ __volatile__("mov %0,%%cr0 \n\t" : : "r"(in_val) : "memory");
 }
 
 static inline void set_in_cr0(ulong mask) {
@@ -316,7 +316,7 @@ static inline ulong x86_get_cr3(void) {
 }
 
 static inline void x86_set_cr3(ulong in_val) {
-    __asm__ __volatile__("mov %0,%%cr3 \n\t" : : "r"(in_val));
+    __asm__ __volatile__("mov %0,%%cr3 \n\t" : : "r"(in_val) : "memory");
 }
 
 static inline ulong x86_get_cr4(void) {
@@ -327,7 +327,7 @@ static inline ulong x86_get_cr4(void) {
 }
 
 static inline void x86_set_cr4(ulong in_val) {
-    __asm__ __volatile__("mov %0,%%cr4 \n\t" : : "r"(in_val));
+    __asm__ __volatile__("mov %0,%%cr4 \n\t" : : "r"(in_val) : "memory");
 }
 
 #define DEFINE_REGISTER_ACCESSOR(REG)                                                              \
@@ -395,7 +395,8 @@ static inline void outprep(uint16_t _port, uint8_t *_buffer, uint32_t _writes) {
                          "rep outsb \n\t"
                          "popf \n\t"
                          : "+S"(_buffer), "+c"(_writes)
-                         : "d"(_port));
+                         : "d"(_port)
+                         : "memory");
 }
 
 static inline void inpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _reads) {
@@ -416,7 +417,8 @@ static inline void outpwrep(uint16_t _port, uint16_t *_buffer, uint32_t _writes)
                          "rep outsw \n\t"
                          "popf \n\t"
                          : "+S"(_buffer), "+c"(_writes)
-                         : "d"(_port));
+                         : "d"(_port)
+                         : "memory");
 }
 
 static inline void inpdrep(uint16_t _port, uint32_t *_buffer, uint32_t _reads) {
@@ -437,7 +439,8 @@ static inline void outpdrep(uint16_t _port, uint32_t *_buffer, uint32_t _writes)
                          "rep outsl \n\t"
                          "popf \n\t"
                          : "+S"(_buffer), "+c"(_writes)
-                         : "d"(_port));
+                         : "d"(_port)
+                         : "memory");
 }
 
 static inline bool x86_is_paging_enabled(void) {

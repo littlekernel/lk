@@ -26,7 +26,7 @@ static inline __ALWAYS_INLINE uint32_t mips_read_##regname##_relaxed(void) { \
 } \
 \
 static inline __ALWAYS_INLINE void mips_write_##regname(uint32_t val) { \
-    __asm__ volatile("mtc0 %0, $" #regnum ", " #sel :: "r" (val)); \
+    __asm__ volatile("mtc0 %0, $" #regnum ", " #sel :: "r" (val) : "memory"); \
 } \
 \
 static inline __ALWAYS_INLINE void mips_write_##regname##_relaxed(uint32_t val) { \

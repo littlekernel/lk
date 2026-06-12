@@ -106,7 +106,8 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
                          "1:					\n\t"
 
                          :
-                         : "d"(&oldthread->arch.sp), "a"(newthread->arch.sp));
+                         : "d"(&oldthread->arch.sp), "a"(newthread->arch.sp)
+                         : "memory");
 
     /*__asm__ __volatile__ (
         "pushf              \n\t"

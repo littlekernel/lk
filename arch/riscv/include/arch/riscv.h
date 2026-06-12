@@ -222,9 +222,9 @@ static inline struct thread *riscv_get_current_thread(void) {
 
 static inline void riscv_set_current_thread(struct thread *t) {
 #if __riscv_xlen == 32
-    __asm__ volatile("sw %0, 0(tp)" :: "r"(t));
+    __asm__ volatile("sw %0, 0(tp)" :: "r"(t) : "memory");
 #else
-    __asm__ volatile("sd %0, 0(tp)" :: "r"(t));
+    __asm__ volatile("sd %0, 0(tp)" :: "r"(t) : "memory");
 #endif
 }
 

@@ -24,25 +24,25 @@ extern uint32_t mt_interrupt_needed_for_secure(void);
 extern uint64_t mt_irq_get_affinity(void);
 
 static void mt_gic_icc_primask_write(uint32_t reg) {
-    __asm__ volatile("MCR p15, 0, %0, c4, c6, 0" :: "r" (reg));
+    __asm__ volatile("MCR p15, 0, %0, c4, c6, 0" :: "r" (reg) : "memory");
 }
 
 static uint32_t mt_gic_icc_primask_read(void) {
     uint32_t reg;
 
-    __asm__ volatile("MRC p15, 0, %0, c4, c6, 0" : "=r" (reg));
+    __asm__ volatile("MRC p15, 0, %0, c4, c6, 0" : "=r" (reg) :: "memory");
 
     return reg;
 }
 
 static void mt_gic_icc_igrpen1_write(uint32_t reg) {
-    __asm__ volatile("MCR p15, 0, %0, c12, c12, 7" :: "r" (reg));
+    __asm__ volatile("MCR p15, 0, %0, c12, c12, 7" :: "r" (reg) : "memory");
 }
 
 static uint32_t mt_gic_icc_igrpen1_read(void) {
     uint32_t reg;
 
-    __asm__ volatile("MRC p15, 0, %0, c12, c12, 7" : "=r" (reg));
+    __asm__ volatile("MRC p15, 0, %0, c12, c12, 7" : "=r" (reg) :: "memory");
 
     return reg;
 }
@@ -50,7 +50,7 @@ static uint32_t mt_gic_icc_igrpen1_read(void) {
 static uint32_t mt_gic_icc_iar1_read(void) {
     uint32_t reg;
 
-    __asm__ volatile("MRC p15, 0, %0, c12, c12, 0" : "=r" (reg));
+    __asm__ volatile("MRC p15, 0, %0, c12, c12, 0" : "=r" (reg) :: "memory");
 
     return reg;
 }
@@ -74,20 +74,20 @@ static void mt_gic_icc_msre_write(void) {
 }
 
 static void mt_gic_icc_sre_write(uint32_t reg) {
-    __asm__ volatile("MCR p15, 0, %0, c12, c12, 5" :: "r" (reg));
+    __asm__ volatile("MCR p15, 0, %0, c12, c12, 5" :: "r" (reg) : "memory");
     dsb();
 }
 
 static uint32_t mt_gic_icc_sre_read(void) {
     uint32_t reg;
 
-    __asm__ volatile("MRC p15, 0, %0, c12, c12, 5" : "=r" (reg));
+    __asm__ volatile("MRC p15, 0, %0, c12, c12, 5" : "=r" (reg) :: "memory");
 
     return reg;
 }
 
 static void mt_gic_icc_eoir1_write(uint32_t reg) {
-    __asm__ volatile("MCR p15, 0, %0, c12, c12, 1" :: "r" (reg));
+    __asm__ volatile("MCR p15, 0, %0, c12, c12, 1" :: "r" (reg) : "memory");
 }
 
 uint32_t mt_mpidr_read(void) {

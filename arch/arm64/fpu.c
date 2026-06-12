@@ -49,7 +49,8 @@ static void arm64_fpu_load_state(struct thread *t) {
         "msr     fpcr, %1\n"
         "msr     fpsr, %2\n"
         ".arch_extension nofp\n" ::"r"(fpstate),
-        "r"((uint64_t)fpstate->fpcr), "r"((uint64_t)fpstate->fpsr));
+        "r"((uint64_t)fpstate->fpcr), "r"((uint64_t)fpstate->fpsr)
+        : "memory");
 }
 
 void arm64_fpu_save_state(struct thread *t) {
@@ -77,7 +78,8 @@ void arm64_fpu_save_state(struct thread *t) {
         "mrs     %1, fpsr\n"
         ".arch_extension nofp\n"
         : "=r"(fpcr), "=r"(fpsr)
-        : "r"(fpstate));
+        : "r"(fpstate)
+        : "memory");
     fpstate->fpcr = (uint32_t)fpcr;
     fpstate->fpsr = (uint32_t)fpsr;
 

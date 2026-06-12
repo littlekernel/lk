@@ -394,7 +394,7 @@ static int cmd_timeh(int argc, const console_cmd_args *argv) {
 static int cmd_crash(int argc, const console_cmd_args *argv) {
 #if ARCH_ARM && ARM_ONLY_THUMB
     /* a branch directly to an aligned address should trigger a fault */
-    asm("bx %0":: "r"(0));
+    asm volatile("bx %0":: "r"(0));
 #else
     /* should crash */
     volatile uint32_t *ptr = (void *)1;

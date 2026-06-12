@@ -129,7 +129,7 @@ pci_bios32 *pci_bios32::detect() {
     b32_entry.offset = (uint32_t)(uintptr_t)pci->entry + KERNEL_BASE;
     b32_entry.selector = CODE_SELECTOR;
 
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%edi)"
         : "=a"(err),    /* AL out=status */
         "=b"(adr),    /* EBX out=code segment base adr */
@@ -158,7 +158,7 @@ pci_bios32 *pci_bios32::detect() {
     // now call PCI_BIOS_PRESENT to get version, hw mechanism, and last bus
     uint16_t present, version, busses;
     uint32_t signature;
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%edi)		\n\t"
         "jc 1f				\n\t"
         "xor %%ah,%%ah		\n"
@@ -198,7 +198,7 @@ int pci_bios32::read_config_byte(const pci_location_t state, uint32_t reg, uint8
     bx = state.bus;
     bx <<= 8;
     bx |= (state.dev << 3) | state.fn;
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%esi)			\n\t"
         "jc 1f					\n\t"
         "xor %%ah,%%ah			\n"
@@ -220,7 +220,7 @@ int pci_bios32::read_config_half(const pci_location_t state, uint32_t reg, uint1
     bx = state.bus;
     bx <<= 8;
     bx |= (state.dev << 3) | state.fn;
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%esi)			\n\t"
         "jc 1f					\n\t"
         "xor %%ah,%%ah			\n"
@@ -242,7 +242,7 @@ int pci_bios32::read_config_word(const pci_location_t state, uint32_t reg, uint3
     bx = state.bus;
     bx <<= 8;
     bx |= (state.dev << 3) | state.fn;
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%esi)			\n\t"
         "jc 1f					\n\t"
         "xor %%ah,%%ah			\n"
@@ -264,7 +264,7 @@ int pci_bios32::write_config_byte(const pci_location_t state, uint32_t reg, uint
     bx = state.bus;
     bx <<= 8;
     bx |= (state.dev << 3) | state.fn;
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%esi)			\n\t"
         "jc 1f					\n\t"
         "xor %%ah,%%ah			\n"
@@ -286,7 +286,7 @@ int pci_bios32::write_config_half(const pci_location_t state, uint32_t reg, uint
     bx = state.bus;
     bx <<= 8;
     bx |= (state.dev << 3) | state.fn;
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%esi)	\n\t"
         "jc 1f					\n\t"
         "xor %%ah,%%ah			\n"
@@ -308,7 +308,7 @@ int pci_bios32::write_config_word(const pci_location_t state, uint32_t reg, uint
     bx = state.bus;
     bx <<= 8;
     bx |= (state.dev << 3) | state.fn;
-    __asm__(
+    __asm__ volatile(
         "lcall *(%%esi)			\n\t"
         "jc 1f					\n\t"
         "xor %%ah,%%ah			\n"

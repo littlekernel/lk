@@ -121,7 +121,7 @@ void riscv_set_satp(uint asid, paddr_t pt) {
     riscv_csr_write(RISCV_CSR_SATP, satp);
 
     // TODO: TLB flush here or use asid properly
-    asm("sfence.vma zero, zero");
+    asm volatile("sfence.vma zero, zero" ::: "memory");
 }
 
 void riscv_tlb_flush_vma_range(vaddr_t base, size_t count) {
@@ -135,7 +135,7 @@ void riscv_tlb_flush_vma_range(vaddr_t base, size_t count) {
     // locally shoot down
     // XXX: is this needed or does the sbi call do it if included in the local hart mask?
     while (count > 0) {
-        asm volatile("sfence.vma %0, zero" :: "r"(base));
+        asm volatile("sfence.vma %0, zero" :: "r"(base) : "memory");
         base += PAGE_SIZE;
         count--;
     }

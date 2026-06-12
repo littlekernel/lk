@@ -24,7 +24,7 @@ static inline bool is_16regs(void) {
 static inline uint32_t read_fpexc(void) {
     uint32_t val;
     /* use legacy encoding of vmsr reg, fpexc */
-    __asm__("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
+    __asm__ volatile("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
     return val;
 }
 
@@ -80,11 +80,11 @@ void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread) {
             /* make sure that the fpu is enabled, so the next instructions won't fault */
             arm_fpu_set_enable(true);
 
-            __asm__ volatile("vmrs  %0, fpscr" : "=r" (oldthread->arch.fpscr));
-            __asm__ volatile("vstm   %0, { d0-d15 }" :: "r" (&oldthread->arch.fpregs[0]));
+            __asm__ volatile("vmrs  %0, fpscr" : "=r" (oldthread->arch.fpscr) :: "memory");
+            __asm__ volatile("vstm   %0, { d0-d15 }" :: "r" (&oldthread->arch.fpregs[0]) : "memory");
 #if(!__ARM_ARCH_7R__)
             if (!is_16regs()) {
-                __asm__ volatile("vstm   %0, { d16-d31 }" :: "r" (&oldthread->arch.fpregs[16]));
+                __asm__ volatile("vstm   %0, { d16-d31 }" :: "r" (&oldthread->arch.fpregs[16]) : "memory");
             }
 #endif
 
@@ -96,12 +96,12 @@ void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread) {
         if (newthread->arch.fpused) {
             // load the new state
             arm_fpu_set_enable(true);
-            __asm__ volatile("vmsr  fpscr, %0" :: "r" (newthread->arch.fpscr));
+            __asm__ volatile("vmsr  fpscr, %0" :: "r" (newthread->arch.fpscr) : "memory");
 
-            __asm__ volatile("vldm   %0, { d0-d15 }" :: "r" (&newthread->arch.fpregs[0]));
+            __asm__ volatile("vldm   %0, { d0-d15 }" :: "r" (&newthread->arch.fpregs[0]) : "memory");
 #if(!__ARM_ARCH_7R__)
             if (!is_16regs()) {
-                __asm__ volatile("vldm   %0, { d16-d31 }" :: "r" (&newthread->arch.fpregs[16]));
+                __asm__ volatile("vldm   %0, { d16-d31 }" :: "r" (&newthread->arch.fpregs[16]) : "memory");
             }
 #endif
             write_fpexc(newthread->arch.fpexc);

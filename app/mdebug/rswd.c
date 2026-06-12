@@ -268,7 +268,7 @@ done:
     usb_xmit(tx, txc * 4);
 
     if (func) {
-        for (n = 0; n < 1000000; n++) asm("nop");
+        for (n = 0; n < 1000000; n++) asm volatile("nop");
         func();
         for (;;) ;
     }

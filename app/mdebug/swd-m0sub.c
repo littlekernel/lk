@@ -134,7 +134,7 @@ int swd_write(unsigned hdr, unsigned data) {
     writel(data, COMM_ARG2);
     writel(RSP_BUSY, COMM_RESP);
     DSB;
-    asm("sev");
+    asm volatile("sev");
     while ((n = readl(COMM_RESP)) == RSP_BUSY) ;
     //printf("wr s=%d\n", n);
     return n;
@@ -146,7 +146,7 @@ int swd_read(unsigned hdr, unsigned *val) {
     writel(hdr << 8, COMM_ARG1);
     writel(RSP_BUSY, COMM_RESP);
     DSB;
-    asm("sev");
+    asm volatile("sev");
     while ((n = readl(COMM_RESP)) == RSP_BUSY) ;
     if (n) {
         return n;
@@ -175,7 +175,7 @@ void swd_reset(unsigned kind) {
     writel(kind, COMM_CMD);
     writel(RSP_BUSY, COMM_RESP);
     DSB;
-    asm("sev");
+    asm volatile("sev");
     while ((n = readl(COMM_RESP)) == RSP_BUSY) ;
 }
 
@@ -193,7 +193,7 @@ unsigned swd_set_clock(unsigned khz) {
     writel(khz/1000, COMM_ARG1);
     writel(RSP_BUSY, COMM_RESP);
     DSB;
-    asm("sev");
+    asm volatile("sev");
     while ((n = readl(COMM_RESP)) == RSP_BUSY) ;
 
     return clocktab[n];

@@ -100,7 +100,7 @@ uint64_t pvclock_get_tsc_freq(void) {
     do {
         pre_version = vcpu_time_info->version;
         if (pre_version % 2 != 0) {
-            asm("pause");
+            asm volatile("pause");
             continue;
         }
         tsc_mul = vcpu_time_info->tsc_to_system_mul;

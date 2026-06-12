@@ -178,7 +178,7 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
     for (uint i = 0; i < ITER; i++) {
         for (uint j = 0; j < BUFSIZE / sizeof(*buf) / 8; j++) {
             __asm__ volatile(
-                "stm    %0, {r0-r7};" ::"r"(&buf[j * 8]));
+                "stm    %0, {r0-r7};" ::"r"(&buf[j * 8]) : "memory");
         }
     }
     count = arch_cycle_count() - count;

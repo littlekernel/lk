@@ -14,6 +14,7 @@
         "l.mtspr r0, %1, %0"                    \
         :                                       \
         : "K" (_spr), "r" (_val)                \
+        : "memory"                              \
     )
 
 #define mtspr_off(_spr, _off, _val)             \
@@ -21,6 +22,7 @@
         "l.mtspr %0, %1, %2"                    \
         :                                       \
         : "r" (_off), "r" (_val), "K" (_spr)    \
+        : "memory"                              \
     )
 
 #define mfspr(_spr)                             \
@@ -30,6 +32,7 @@
         "l.mfspr %0, r0, %1"                    \
         : "=r"(_val)                            \
         : "K" (_spr)                            \
+        : "memory"                              \
         );                                      \
     _val;                                       \
 })
@@ -41,6 +44,7 @@
         "l.mfspr %0, %1, %2"                    \
         : "=r" (_val)                           \
         : "r" (_off), "K" (_spr)                \
+        : "memory"                              \
         );                                      \
     _val;                                       \
 })
