@@ -36,16 +36,16 @@ GLOBAL_DEFINES += NOVM_DEFAULT_ARENA=0
 GLOBAL_DEFINES += ARCH_DO_RELOCATION=1
 GLOBAL_DEFINES += CONSOLE_HAS_INPUT_BUFFER=1
 
-ADF_GEN := $(BUILDDIR)/platform/amiga/adfgen
+ADF_GEN := $(call TOBUILDDIR,$(MODULE)/adfgen)
 ADF_GEN_SRC := $(LOCAL_DIR)/adfgen.c
 
-STAGE1_ELF := $(BUILDDIR)/platform/amiga/stage1.S.o
-STAGE1_RAW := $(BUILDDIR)/platform/amiga/stage1.raw
+STAGE1_ELF := $(call TOBUILDDIR,$(MODULE)/stage1.S.o)
+STAGE1_RAW := $(call TOBUILDDIR,$(MODULE)/stage1.raw)
 
-STAGE2_ELF := $(BUILDDIR)/platform/amiga/stage2.S.o
-STAGE2_RAW := $(BUILDDIR)/platform/amiga/stage2.raw
+STAGE2_ELF := $(call TOBUILDDIR,$(MODULE)/stage2.S.o)
+STAGE2_RAW := $(call TOBUILDDIR,$(MODULE)/stage2.raw)
 
-BOOTLOADER := $(BUILDDIR)/platform/amiga/bootloader.raw
+BOOTLOADER := $(call TOBUILDDIR,$(MODULE)/bootloader.raw)
 
 KERNEL_IMAGE := $(OUTBIN)
 ADF_IMAGE := $(basename $(KERNEL_IMAGE)).adf
@@ -53,32 +53,36 @@ ADF_IMAGE := $(basename $(KERNEL_IMAGE)).adf
 HOST_CC ?= cc
 
 $(ADF_GEN): $(ADF_GEN_SRC)
-	mkdir -p $(dir $@)
-	$(HOST_CC) -o $@ $<
+	@$(MKDIR)
+	$(HOST_CC) -o "$@" "$<"
 
 $(STAGE1_RAW): $(STAGE1_ELF)
-	m68k-elf-objcopy -O binary $< $@
-	truncate -s 512 $@; \
+	@$(MKDIR)
+	m68k-elf-objcopy -O binary "$<" "$@"
+	truncate -s 512 "$@"
 
 # Build and pad stage2 payload
 $(STAGE2_RAW): $(STAGE2_ELF)
-	m68k-elf-objcopy -O binary $< $@
-	truncate -s 512 $@
+	@$(MKDIR)
+	m68k-elf-objcopy -O binary "$<" "$@"
+	truncate -s 512 "$@"
 
 $(BOOTLOADER): $(STAGE1_RAW) $(STAGE2_RAW)
-	dd if=/dev/zero bs=1024 count=1 of=$@; \
-	
-	dd if=$(STAGE1_RAW) of=$@ bs=1 seek=0 conv=notrunc; \
-	dd if=$(STAGE2_RAW) of=$@ bs=1 seek=512 conv=notrunc; \
-	truncate -s 1012 $@; \
+	@$(MKDIR)
+	dd if=/dev/zero bs=1024 count=1 of="$@"; \
+
+	dd if="$(STAGE1_RAW)" of="$@" bs=1 seek=0 conv=notrunc; \
+	dd if="$(STAGE2_RAW)" of="$@" bs=1 seek=512 conv=notrunc; \
+	truncate -s 1012 "$@"
 
 $(ADF_IMAGE): $(KERNEL_IMAGE) $(BOOTLOADER) $(ADF_GEN)
-	rm -f $@
-	$(ADF_GEN) $(BOOTLOADER) $@
+	@$(MKDIR)
+	rm -f -- "$@"
+	"$(ADF_GEN)" "$(BOOTLOADER)" "$@"
 	@KSIZE=$$(stat -c %s "$(KERNEL_IMAGE)"); \
 	echo -n "$$KSIZE"; \
-	printf '%08x' "$$KSIZE" | xxd -r -p | dd of=$@ bs=1024 seek=1 conv=notrunc; \
-	dd if=$(KERNEL_IMAGE) of=$@ bs=1024 seek=2 conv=notrunc; \
+	printf '%08x' "$$KSIZE" | xxd -r -p | dd of="$@" bs=1024 seek=1 conv=notrunc; \
+	dd if="$(KERNEL_IMAGE)" of="$@" bs=1024 seek=2 conv=notrunc
 
 EXTRA_BUILDDEPS += $(ADF_IMAGE)
 GENERATED += $(ADF_GEN) $(ADF_IMAGE) $(BOOTLOADER) $(STAGE1_RAW) $(STAGE2_RAW) $(STAGE1_ELF) $(STAGE2_ELF)
