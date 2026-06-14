@@ -513,7 +513,7 @@ void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p) {
 // utility routines
 uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len) {
     uint8_t ip[4] = { 0, 0, 0, 0 };
-    uint8_t pos = 0, i = 0;
+    size_t pos = 0, i = 0;
 
     while (pos < len) {
         char c = ipaddr_str[pos];

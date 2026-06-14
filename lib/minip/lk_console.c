@@ -17,24 +17,6 @@
 #include <kernel/timer.h>
 #include <lk/err.h>
 
-static uint32_t str_ip_to_int(const char *s, size_t len) {
-    uint8_t ip[4] = { 0, 0, 0, 0 };
-    uint8_t pos = 0, i = 0;
-
-    while (pos < len) {
-        char c = s[pos];
-        if (c == '.') {
-            i++;
-        } else {
-            ip[i] *= 10;
-            ip[i] += c - '0';
-        }
-        pos++;
-    }
-
-    return IPV4_PACK(ip);
-}
-
 static void arp_usage(void) {
     printf("arp list                        print arp table\n");
     printf("arp query <ipv4 address>        query arp address\n");
@@ -51,7 +33,7 @@ static int cmd_arp(int argc, const console_cmd_args *argv) {
         arp_cache_dump();
     } else if (argc == 3 && strncmp(cmd, "query", sizeof("query")) == 0) {
         const char *addr_s = argv[2].str;
-        uint32_t addr = str_ip_to_int(addr_s, strlen(addr_s));
+        uint32_t addr = minip_parse_ipaddr(addr_s, strlen(addr_s));
 
         arp_get_dest_mac(addr);
     } else {
@@ -100,7 +82,7 @@ minip_usage:
                         port = argv[3].u;
                     /* fallthrough */
                     case 3:
-                        host = str_ip_to_int(argv[2].str, strlen(argv[2].str));
+                        host = minip_parse_ipaddr(argv[2].str, strlen(argv[2].str));
                         break;
                 }
 
