@@ -193,9 +193,114 @@ static bool is_full_wraparound(void) {
     END_TEST;
 }
 
+static bool peek_tests(void) {
+    BEGIN_TEST;
+    cbuf_t cbuf;
+
+    cbuf_initialize(&cbuf, 16);
+
+    // Initial peek of empty buffer should return 0
+    iovec_t regions[2];
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(0UL, cbuf_peek(&cbuf, regions), "");
+    EXPECT_EQ(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(0UL, regions[0].iov_len, "");
+    EXPECT_EQ(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(0UL, regions[1].iov_len, "");
+
+    // Write some data, no wraparound
+    EXPECT_EQ(8UL, cbuf_write(&cbuf, "01234567", 8, false), "");
+
+    // cbuf_peek should return 8, with regions[0] having length 8 and regions[1] being empty
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(8UL, cbuf_peek(&cbuf, regions), "");
+    EXPECT_NE(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(8UL, regions[0].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[0].iov_base, "01234567", 8), "");
+    EXPECT_EQ(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(0UL, regions[1].iov_len, "");
+
+    // cbuf_peek_at inside the data range
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(5UL, cbuf_peek_at(&cbuf, 3, 5, regions), "");
+    EXPECT_NE(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(5UL, regions[0].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[0].iov_base, "34567", 5), "");
+    EXPECT_EQ(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(0UL, regions[1].iov_len, "");
+
+    // cbuf_peek_at partially out of range
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(5UL, cbuf_peek_at(&cbuf, 3, 10, regions), "");
+    EXPECT_NE(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(5UL, regions[0].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[0].iov_base, "34567", 5), "");
+    EXPECT_EQ(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(0UL, regions[1].iov_len, "");
+
+    // cbuf_peek_at completely out of range
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(0UL, cbuf_peek_at(&cbuf, 8, 5, regions), "");
+    EXPECT_EQ(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(0UL, regions[0].iov_len, "");
+    EXPECT_EQ(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(0UL, regions[1].iov_len, "");
+
+    // cbuf_peek_at way out of range
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(0UL, cbuf_peek_at(&cbuf, 100, 5, regions), "");
+    EXPECT_EQ(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(0UL, regions[0].iov_len, "");
+    EXPECT_EQ(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(0UL, regions[1].iov_len, "");
+
+    // Now consume some data to move tail, then write enough to cause wraparound
+    char dummy[4];
+    EXPECT_EQ(4UL, cbuf_read(&cbuf, dummy, 4, false), "");
+
+    // Write 8 more bytes to wrap around
+    EXPECT_EQ(8UL, cbuf_write(&cbuf, "89ABCDEF", 8, false), "");
+
+    // Write 1 more byte to cause non-zero regions[1] length
+    EXPECT_EQ(1UL, cbuf_write(&cbuf, "G", 1, false), "");
+
+    // cbuf_peek should return 13, regions[0] len 12, regions[1] len 1.
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(13UL, cbuf_peek(&cbuf, regions), "");
+    EXPECT_NE(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(12UL, regions[0].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[0].iov_base, "456789ABCDEF", 12), "");
+    EXPECT_NE(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(1UL, regions[1].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[1].iov_base, "G", 1), "");
+
+    // cbuf_peek_at with offset that doesn't wrap
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(4UL, cbuf_peek_at(&cbuf, 2, 4, regions), "");
+    EXPECT_NE(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(4UL, regions[0].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[0].iov_base, "6789", 4), "");
+    EXPECT_EQ(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(0UL, regions[1].iov_len, "");
+
+    // cbuf_peek_at with offset that wraps
+    memset(regions, 0x55, sizeof(regions));
+    EXPECT_EQ(3UL, cbuf_peek_at(&cbuf, 10, 3, regions), "");
+    EXPECT_NE(NULL, regions[0].iov_base, "");
+    EXPECT_EQ(2UL, regions[0].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[0].iov_base, "EF", 2), "");
+    EXPECT_NE(NULL, regions[1].iov_base, "");
+    EXPECT_EQ(1UL, regions[1].iov_len, "");
+    EXPECT_EQ(0, memcmp(regions[1].iov_base, "G", 1), "");
+
+    free(cbuf.buf);
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(cbuf_tests)
 RUN_TEST(basic)
 RUN_TEST(random)
 RUN_TEST(is_full_edge_cases)
 RUN_TEST(is_full_wraparound)
+RUN_TEST(peek_tests)
 END_TEST_CASE(cbuf_tests)

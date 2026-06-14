@@ -18,8 +18,7 @@
 
 #define LOCAL_TRACE 0
 
-#define INC_POINTER(cbuf, ptr, inc) \
-    modpow2(((ptr) + (inc)), (cbuf)->len_pow2)
+#define INC_POINTER(cbuf, ptr, inc) modpow2(((ptr) + (inc)), (cbuf)->len_pow2)
 
 void cbuf_initialize(cbuf_t *cbuf, size_t len) {
     cbuf_initialize_etc(cbuf, len, malloc(len));
@@ -73,12 +72,10 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
                 // Special case - if tail is at position 0, we can't write all
                 // the way to the end of the buffer. Otherwise, head ends up at
                 // 0, head == tail, and buffer is considered "empty" again.
-                write_len =
-                    MIN(valpow2(cbuf->len_pow2) - cbuf->head - 1, len - pos);
+                write_len = MIN(valpow2(cbuf->len_pow2) - cbuf->head - 1, len - pos);
             } else {
                 // Write to the end of the buffer.
-                write_len =
-                    MIN(valpow2(cbuf->len_pow2) - cbuf->head, len - pos);
+                write_len = MIN(valpow2(cbuf->len_pow2) - cbuf->head, len - pos);
             }
         } else {
             // Write from head to tail-1.
@@ -196,6 +193,45 @@ size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions) {
         regions[1].iov_len = ret - regions[0].iov_len;
     } else {
         regions[0].iov_len = ret;
+        regions[1].iov_base = NULL;
+        regions[1].iov_len = 0;
+    }
+
+    spin_unlock_irqrestore(&cbuf->lock, state);
+    return ret;
+}
+
+size_t cbuf_peek_at(cbuf_t *cbuf, size_t offset, size_t len, iovec_t *regions) {
+    DEBUG_ASSERT(cbuf && regions);
+
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&cbuf->lock);
+
+    size_t size = cbuf_size(cbuf);
+    size_t mask = size - 1;
+    size_t space_used = (cbuf->head - cbuf->tail) & mask;
+    size_t ret = 0;
+
+    if (offset < space_used) {
+        size_t avail = space_used - offset;
+        size_t to_copy = MIN(avail, len);
+
+        size_t curr_tail = (cbuf->tail + offset) & mask;
+        regions[0].iov_base = cbuf->buf + curr_tail;
+
+        size_t chunk1_avail = size - curr_tail;
+        if (to_copy <= chunk1_avail) {
+            regions[0].iov_len = to_copy;
+            regions[1].iov_base = NULL;
+            regions[1].iov_len = 0;
+        } else {
+            regions[0].iov_len = chunk1_avail;
+            regions[1].iov_base = cbuf->buf;
+            regions[1].iov_len = to_copy - chunk1_avail;
+        }
+        ret = to_copy;
+    } else {
+        regions[0].iov_base = NULL;
+        regions[0].iov_len = 0;
         regions[1].iov_base = NULL;
         regions[1].iov_len = 0;
     }

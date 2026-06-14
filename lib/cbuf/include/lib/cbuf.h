@@ -77,9 +77,27 @@ size_t cbuf_read(cbuf_t *cbuf, void *buf, size_t buflen, bool block);
  * for read.  NOTE: regions must point to a chunk of memory which is at least
  * sizeof(iovec_t) * 2 bytes long.
  *
- * @return The number of bytes which were written (or skipped).
+ * @return The number of bytes which were peeked at.
  */
 size_t cbuf_peek(cbuf_t *cbuf, iovec_t *regions);
+
+/**
+ * cbuf_peek_at
+ *
+ * Peek at the data available for read in the cbuf right now.  Does not actually
+ * consume the data, it just fills out a pair of iovec structures describing the
+ * (up to) two contiguous regions currently available for read.
+ *
+ * @param[in] cbuf The cbuf instance to write to.
+ * @param[in] offset The offset into the cbuf to start peeking from.
+ * @param[in] len The maximum number of bytes to peek at.
+ * @param[out] A pointer to two iovec structures to hold the contiguous regions
+ * for read.  NOTE: regions must point to a chunk of memory which is at least
+ * sizeof(iovec_t) * 2 bytes long.
+ *
+ * @return The number of bytes which were peeked at.
+ */
+size_t cbuf_peek_at(cbuf_t *cbuf, size_t offset, size_t len, iovec_t *regions);
 
 /**
  * cbuf_write
