@@ -212,7 +212,7 @@ handler_return e1000::irq_handler() {
                             // minip consumes a single contiguous pktbuf per frame. Copying this fragment
                             // lets us present one complete packet while returning this descriptor buffer
                             // immediately to the RX ring.
-                            memcpy(pktbuf_append(rx_pending_pkt_, rxd.length), pkt->data, rxd.length);
+                            pktbuf_append_data(rx_pending_pkt_, pkt->data, rxd.length);
 
                             // This fragment buffer was consumed by copy. Recycle it to the rx ring.
                             pktbuf_reset(pkt, 0);
