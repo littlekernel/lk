@@ -94,9 +94,8 @@ typedef struct tcp_socket {
     uint32_t tx_win_low;  // low side of the acked window
     uint32_t tx_win_high; // tx_win_low + their advertised window size
     uint32_t tx_highest_seq; // highest sequence we have txed them
-    uint8_t  *tx_buffer;  // our outgoing buffer
-    uint32_t tx_buffer_size; // size of tx_buffer
-    uint32_t tx_buffer_offset; // offset into the buffer to append new data to
+    uint8_t  *tx_buffer_raw; // our outgoing buffer backing memory
+    cbuf_t   tx_buffer;   // our outgoing circular buffer
     event_t  tx_event;
     net_timer_t retransmit_timer;
 
@@ -135,9 +134,12 @@ static tcp_socket_t *lookup_socket(ipv4_addr_t remote_ip, ipv4_addr_t local_ip, 
 static void add_socket_to_list(tcp_socket_t *s);
 static void remove_socket_from_list(tcp_socket_t *s);
 static tcp_socket_t *create_tcp_socket(bool alloc_buffers);
-static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port, const void *buf,
-                         size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size);
-static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t sequence);
+static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port,
+                         const iovec_t *iov, size_t iov_cnt,
+                         tcp_flags_t flags, const void *options, size_t options_length,
+                         uint32_t ack, uint32_t sequence, uint16_t window_size);
+static status_t tcp_socket_send(tcp_socket_t *s, const iovec_t *iov, size_t iov_cnt,
+                                tcp_flags_t flags, const void *options, size_t options_length, uint32_t sequence);
 static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t sequence);
 static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
@@ -198,12 +200,14 @@ static void dump_socket(tcp_socket_t *s) {
         printf("\trx: wsize %u wlo %u whi %u (%u)\n",
                s->rx_win_size, s->rx_win_low, s->rx_win_high,
                s->rx_win_high - s->rx_win_low);
-        printf("\ttx: wlo %u whi %u (%u) highest_seq %u (%u) bufsize %u bufoff %u\n",
+        printf("\ttx: wlo %u whi %u (%u) highest_seq %u (%u) bufsize %zu space_used %u\n",
                s->tx_win_low, s->tx_win_high, s->tx_win_high - s->tx_win_low,
                s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
-               s->tx_buffer_size, s->tx_buffer_offset);
+               cbuf_size(&s->tx_buffer), (uint32_t)cbuf_space_used(&s->tx_buffer));
     }
 }
+
+
 
 static tcp_socket_t *lookup_socket(ipv4_addr_t remote_ip, ipv4_addr_t local_ip, uint16_t remote_port, uint16_t local_port) {
     LTRACEF_LEVEL(2, "remote ip 0x%x local ip 0x%x remote port %u local port %u\n", remote_ip, local_ip, remote_port, local_port);
@@ -297,7 +301,7 @@ static bool dec_socket_ref(tcp_socket_t *s) {
         event_destroy(&s->connect_event);
 
         free(s->rx_buffer_raw);
-        free(s->tx_buffer);
+        free(s->tx_buffer_raw);
 
         free(s);
     }
@@ -674,11 +678,11 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
     }
 }
 
-static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, tcp_flags_t flags,
-                                const void *options, size_t options_length, uint32_t sequence) {
+static status_t tcp_socket_send(tcp_socket_t *s, const iovec_t *iov, size_t iov_cnt,
+                                tcp_flags_t flags, const void *options, size_t options_length, uint32_t sequence) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
-    DEBUG_ASSERT(len == 0 || data);
+    DEBUG_ASSERT(iov_cnt == 0 || iov);
     DEBUG_ASSERT(options_length == 0 || options);
     DEBUG_ASSERT((options_length % 4) == 0);
 
@@ -703,7 +707,7 @@ static status_t tcp_socket_send(tcp_socket_t *s, const void *data, size_t len, t
         tcp_timer_cancel(s, &s->ack_delay_timer);
     }
 
-    status_t err = tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, data, len, flags,
+    status_t err = tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, iov, iov_cnt, flags,
                             options, options_length, (flags & PKT_ACK) ? s->rx_win_low : 0, sequence, win_size);
 
     return err;
@@ -719,9 +723,10 @@ static void send_ack(tcp_socket_t *s) {
     tcp_socket_send(s, NULL, 0, PKT_ACK, NULL, 0, s->tx_win_low);
 }
 
-static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port, const void *buf,
-                         size_t len, tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size) {
-    DEBUG_ASSERT(len == 0 || buf);
+static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port,
+                         const iovec_t *iov, size_t iov_cnt,
+                         tcp_flags_t flags, const void *options, size_t options_length, uint32_t ack, uint32_t sequence, uint16_t window_size) {
+    DEBUG_ASSERT(iov_cnt == 0 || iov);
     DEBUG_ASSERT(options_length == 0 || options);
     DEBUG_ASSERT((options_length % 4) == 0);
 
@@ -745,8 +750,14 @@ static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t sr
         memcpy(header + 1, options, options_length);
 
     /* append the data */
-    if (len > 0)
-        pktbuf_append_data(p, buf, len);
+    if (iov) {
+        for (size_t i = 0; i < iov_cnt; i++) {
+            if (iov[i].iov_len > 0) {
+                DEBUG_ASSERT(iov[i].iov_base);
+                pktbuf_append_data(p, iov[i].iov_base, iov[i].iov_len);
+            }
+        }
+    }
 
     /* compute the checksum */
     /* XXX get the tx ckecksum capability from the nic */
@@ -777,8 +788,8 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %u offset %u\n",
-            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, s->tx_buffer_size, s->tx_buffer_offset);
+    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %zu space_used %zu\n",
+            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, cbuf_size(&s->tx_buffer), cbuf_space_used(&s->tx_buffer));
     if (SEQUENCE_LTE(sequence, s->tx_win_low)) {
         /* they're acking stuff we've already received an ack for */
         return;
@@ -793,12 +804,12 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
 
         LTRACEF("acked len %u\n", acked_len);
 
-        DEBUG_ASSERT(acked_len <= s->tx_buffer_size);
-        DEBUG_ASSERT(acked_len <= s->tx_buffer_offset);
+        DEBUG_ASSERT(acked_len <= cbuf_size(&s->tx_buffer));
+        DEBUG_ASSERT(acked_len <= cbuf_space_used(&s->tx_buffer));
 
-        memmove(s->tx_buffer, s->tx_buffer + acked_len, s->tx_buffer_offset - acked_len);
+        size_t consumed = cbuf_read(&s->tx_buffer, NULL, acked_len, false);
+        DEBUG_ASSERT(consumed == acked_len);
 
-        s->tx_buffer_offset -= acked_len;
         s->tx_win_low += acked_len;
         s->tx_win_high = s->tx_win_low + win_size;
 
@@ -818,17 +829,16 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
 }
 
 static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
-    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %u offset %u\n",
-            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, s->tx_buffer_size, s->tx_buffer_offset);
+    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %zu space_used %zu\n",
+            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, cbuf_size(&s->tx_buffer), cbuf_space_used(&s->tx_buffer));
 
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
-    DEBUG_ASSERT(s->tx_buffer_size > 0);
-    DEBUG_ASSERT(s->tx_buffer_offset <= s->tx_buffer_size);
+    DEBUG_ASSERT(cbuf_size(&s->tx_buffer) > 0);
 
     /* do we have any new data to send? */
     uint32_t outstanding = (s->tx_highest_seq - s->tx_win_low);
-    uint32_t pending = s->tx_buffer_offset - outstanding;
+    uint32_t pending = cbuf_space_used(&s->tx_buffer) - outstanding;
     LTRACEF("outstanding %u, pending %u\n", outstanding, pending);
 
     /* check the remote window limit */
@@ -843,7 +853,10 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
     while (offset < to_send) {
         uint32_t tosend = MIN(s->mss, to_send - offset);
 
-        tcp_socket_send(s, s->tx_buffer + outstanding + offset, tosend, PKT_ACK|PKT_PSH, NULL, 0, s->tx_highest_seq);
+        iovec_t iov[2];
+        cbuf_peek_at(&s->tx_buffer, outstanding + offset, tosend, iov);
+
+        tcp_socket_send(s, iov, 2, PKT_ACK|PKT_PSH, NULL, 0, s->tx_highest_seq);
         s->tx_highest_seq += tosend;
         offset += tosend;
     }
@@ -871,7 +884,11 @@ static ssize_t tcp_retransmit(tcp_socket_t *s) {
     uint32_t tosend = MIN(s->mss, outstanding);
 
     LTRACEF("s %p, tosend %u seq %u\n", s, tosend, s->tx_win_low);
-    tcp_socket_send(s, s->tx_buffer, tosend, PKT_ACK|PKT_PSH, NULL, 0, s->tx_win_low);
+
+    iovec_t iov[2];
+    cbuf_peek_at(&s->tx_buffer, 0, tosend, iov);
+
+    tcp_socket_send(s, iov, 2, PKT_ACK|PKT_PSH, NULL, 0, s->tx_win_low);
 
     return tosend;
 }
@@ -981,8 +998,8 @@ static tcp_socket_t *create_tcp_socket(bool alloc_buffers) {
         s->rx_buffer_raw = malloc(s->rx_win_size);
         cbuf_initialize_etc(&s->rx_buffer, s->rx_win_size, s->rx_buffer_raw);
 
-        s->tx_buffer_size = DEFAULT_TX_BUFFER_SIZE;
-        s->tx_buffer = malloc(s->tx_buffer_size);
+        s->tx_buffer_raw = malloc(DEFAULT_TX_BUFFER_SIZE);
+        cbuf_initialize_etc(&s->tx_buffer, DEFAULT_TX_BUFFER_SIZE, s->tx_buffer_raw);
     }
 
     sem_init(&s->accept_sem, 0);
@@ -1194,22 +1211,22 @@ ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len) {
             return ERR_CHANNEL_CLOSED;
         }
 
-        DEBUG_ASSERT(s->tx_buffer_size > 0);
-        DEBUG_ASSERT(s->tx_buffer_offset <= s->tx_buffer_size);
+        DEBUG_ASSERT(cbuf_size(&s->tx_buffer) > 0);
 
         /* figure out how much data to copy in */
-        size_t to_copy = MIN(s->tx_buffer_size - s->tx_buffer_offset, len - off);
-        if (to_copy == 0) {
+        size_t avail = cbuf_space_avail(&s->tx_buffer);
+        if (avail == 0) {
+            event_unsignal(&s->tx_event);
             mutex_release(&s->lock);
             continue;
         }
+        size_t to_copy = MIN(avail, len - off);
 
-        memcpy(s->tx_buffer + s->tx_buffer_offset, (uint8_t *)buf + off, to_copy);
-        s->tx_buffer_offset += to_copy;
+        size_t written = cbuf_write(&s->tx_buffer, (const uint8_t *)buf + off, to_copy, false);
+        DEBUG_ASSERT(written == to_copy);
 
         /* if this has completely filled it, unsignal the event */
-        DEBUG_ASSERT(s->tx_buffer_offset <= s->tx_buffer_size);
-        if (s->tx_buffer_offset == s->tx_buffer_size) {
+        if (cbuf_space_avail(&s->tx_buffer) == 0) {
             event_unsignal(&s->tx_event);
         }
 

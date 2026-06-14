@@ -218,24 +218,22 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
 }
 
 void pktbuf_dump(pktbuf_t *p) {
-    printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p\n",
-           p->data, p->buffer, p->dlen, (uintptr_t)p->data - (uintptr_t)p->buffer,
-           (void *)p->phys_base);
+    printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p\n", p->data,
+           p->buffer, p->dlen, (uintptr_t)p->data - (uintptr_t)p->buffer, (void *)p->phys_base);
 }
 
 static void pktbuf_init(uint level) {
     void *slab;
 
 #if LK_DEBUGLEVEL > 0
-    printf("pktbuf: creating %u pktbuf entries of size %zu (total %zu)\n",
-           PKTBUF_POOL_SIZE, sizeof(struct pktbuf_pool_object),
-           PKTBUF_POOL_SIZE * sizeof(struct pktbuf_pool_object));
+    printf("pktbuf: creating %u pktbuf entries of size %zu (total %zu)\n", PKTBUF_POOL_SIZE,
+           sizeof(struct pktbuf_pool_object), PKTBUF_POOL_SIZE * sizeof(struct pktbuf_pool_object));
 #endif
 
 #if WITH_KERNEL_VM
     if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf",
-                             PKTBUF_POOL_SIZE * sizeof(struct pktbuf_pool_object),
-                             &slab, 0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
+                             PKTBUF_POOL_SIZE * sizeof(struct pktbuf_pool_object), &slab, 0, 0,
+                             ARCH_MMU_FLAG_CACHED) < 0) {
         printf("Failed to initialize pktbuf hdr slab\n");
         return;
     }

@@ -20,4 +20,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/tcp.c \
 	$(LOCAL_DIR)/udp.c
 
+MODULE_OPTIONS := test
+
 include make/module.mk
