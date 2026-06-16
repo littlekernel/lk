@@ -140,8 +140,10 @@ static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap
  * of physical memory to bootstrap the pmm areas.
  * Returns number of arenas initialized in passed in pointer
  */
-static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
+static status_t platform_parse_multiboot_info(size_t *found_mem_arenas,
+                                             bool *have_framebuffer_console) {
     *found_mem_arenas = 0;
+    *have_framebuffer_console = false;
 
     dprintf(SPEW, "PC: multiboot v2 address %#" PRIx32 "\n", _multiboot2_info);
     if (_multiboot2_info != 0) {
@@ -233,6 +235,7 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
                         };
 
                         fb_console_init(&fb_info);
+                        *have_framebuffer_console = true;
                     }
 
                     dprintf(SPEW, "PC: multiboot framebuffer info present:\n");
@@ -363,6 +366,7 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas) {
             };
 
             fb_console_init(&fb_info);
+            *have_framebuffer_console = true;
         }
 
         dprintf(SPEW, "PC: multiboot framebuffer info present\n");
@@ -389,17 +393,22 @@ void platform_early_init(void) {
     /* get the debug output working */
     platform_init_debug_early();
 
-    /* get the text console working */
-    vga_console_init();
-
     /* initialize the interrupt controller */
     platform_init_interrupts();
 
-    /* look at multiboot to determine our memory size */
-    size_t found_arenas;
-    platform_parse_multiboot_info(&found_arenas);
-    if (found_arenas <= 0) {
-        /* if we couldn't find any memory, initialize a default arena */
+    /* parse the multiboot info to find memory and console information */
+    size_t found_arenas = 0;
+    bool have_framebuffer_console = false;
+    platform_parse_multiboot_info(&found_arenas, &have_framebuffer_console);
+
+    /* try to get the vga console working only if we don't have a framebuffer console */
+    if (!have_framebuffer_console) {
+        dprintf(INFO, "PC: using VGA console\n");
+        vga_console_init();
+    }
+
+    /* if we couldn't find any memory, initialize a default arena */
+    if (found_arenas == 0) {
         mem_arena[0] = (pmm_arena_t){ .name = "memory",
                                       .base = MEMBASE,
                                       .size = DEFAULT_MEMEND,
@@ -421,7 +430,7 @@ void platform_early_init(void) {
 }
 
 // Look for the ACPI tables just after the vm is initialized.
-void platform_init_postvm(uint level) {
+static void platform_init_postvm(uint level) {
     fb_console_init_postvm();
 
 #if WITH_LIB_ACPI_LITE

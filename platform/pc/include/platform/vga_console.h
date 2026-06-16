@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <stdbool.h>
 #include <lk/compiler.h>
 
 // Simple interface for the VGA text mode console.
@@ -14,6 +15,7 @@
 __BEGIN_CDECLS
 
 void vga_console_init(void);
+bool vga_console_present(void);
 void vga_console_putc(char c);
 
 __END_CDECLS

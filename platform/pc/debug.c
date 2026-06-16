@@ -94,7 +94,7 @@ void platform_dputc(char c) {
 
     if (fb_console_present()) {
         fb_console_dputc(c);
-    } else {
+    } else if (vga_console_present()) {
         vga_console_putc(c);
     }
     debug_uart_putc(c);

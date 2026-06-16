@@ -37,6 +37,7 @@ static unsigned char curr_attr = 0x7;
 
 static int active_page = 0;
 static int visual_page = 0;
+static bool console_initialized = false;
 
 static int curs_x[PAGE_MAX];
 static int curs_y[PAGE_MAX];
@@ -68,6 +69,11 @@ void vga_console_init(void) {
     window(0, 0, 79, 24);
     clear();
     place(0, 0);
+    console_initialized = true;
+}
+
+bool vga_console_present(void) {
+    return console_initialized;
 }
 
 static void set_visual_page(int page) {
