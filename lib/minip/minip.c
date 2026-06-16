@@ -31,6 +31,9 @@
 // 1. Tear endian code out into something that flips words before/after tx/rx calls
 
 #define LOCAL_TRACE 0
+
+bool minip_trace = (LOCAL_TRACE != 0);
+
 static ipv4_addr_t minip_gateway = IPV4_NONE;
 
 static char minip_hostname[32] = "";
@@ -392,7 +395,7 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
     }
 
     /* print packets for us */
-    if (LOCAL_TRACE) {
+    if (minip_trace) {
         dump_ipv4_packet(ip);
     }
 
@@ -486,7 +489,7 @@ void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p) {
         return;
     }
 
-    if (LOCAL_TRACE) {
+    if (minip_trace) {
         dump_eth_packet(eth);
     }
 

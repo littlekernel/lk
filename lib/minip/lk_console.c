@@ -47,13 +47,17 @@ static int cmd_minip(int argc, const console_cmd_args *argv) {
     if (argc == 1) {
 minip_usage:
         printf("minip commands\n");
+        printf("mi tra[c]e                      toggle packet tracing\n");
         printf("mi [i]interfaces                dump interface list\n");
         printf("mi [r]outes                     dump routing table\n");
         printf("mi [s]tatus                     print ip status\n");
         printf("mi [t]est [dest] [port] [cnt]   send <cnt> test packets to the dest:port\n");
     } else {
         switch (argv[1].str[0]) {
-
+            case 'c':
+                minip_trace = !minip_trace;
+                printf("packet tracing: %s\n", minip_trace ? "enabled" : "disabled");
+                break;
             case 'i':
                 netif_dump();
                 break;

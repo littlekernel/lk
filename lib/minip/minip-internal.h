@@ -174,3 +174,6 @@ void net_timer_init(void);
 static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src) {
     memcpy(dest, src, 6);
 }
+
+// Whether to trace packet activity
+extern bool minip_trace;
