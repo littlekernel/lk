@@ -19,25 +19,25 @@
 
 #define _ARCH_MMIO_READ8(addr) ({ \
     uint8_t val; \
-    __asm__ volatile("ldrb %0, %1" : "=r"(val) : "m"(*(addr)) : "memory"); \
+    __asm__ volatile("ldrb %0, %1" : "=l"(val) : "m"(*(addr)) : "memory"); \
     val; \
 })
 #define _ARCH_MMIO_READ16(addr) ({ \
     uint16_t val; \
-    __asm__ volatile("ldrh %0, %1" : "=r"(val) : "m"(*(addr)) : "memory"); \
+    __asm__ volatile("ldrh %0, %1" : "=l"(val) : "m"(*(addr)) : "memory"); \
     val; \
 })
 #define _ARCH_MMIO_READ32(addr) ({ \
     uint32_t val; \
-    __asm__ volatile("ldr %0, %1" : "=r"(val) : "m"(*(addr)) : "memory"); \
+    __asm__ volatile("ldr %0, %1" : "=l"(val) : "m"(*(addr)) : "memory"); \
     val; \
 })
 
 #define _ARCH_MMIO_WRITE8(addr, val) \
-    __asm__ volatile("strb %1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("strb %1, %0" : "=m"(*(addr)) : "l"(val) : "memory")
 #define _ARCH_MMIO_WRITE16(addr, val) \
-    __asm__ volatile("strh %1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("strh %1, %0" : "=m"(*(addr)) : "l"(val) : "memory")
 #define _ARCH_MMIO_WRITE32(addr, val) \
-    __asm__ volatile("str %1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("str %1, %0" : "=m"(*(addr)) : "l"(val) : "memory")
 
 
