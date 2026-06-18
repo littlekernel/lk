@@ -17,27 +17,36 @@
 
 #define ARCH_MMIO_READ_WRITE_OVERRIDE 1
 
+// Thumb-1 (ARMv6-M / ARMv8-M Baseline) 16-bit str/ldr encodings only have a
+// 3-bit register field, so operands must be R0-R7 ("l" constraint).
+// In ARM state or Thumb-2 the full register file ("r") is fine.
+#if defined(__thumb__) && !defined(__thumb2__)
+#define _ARCH_MMIO_REG_CONSTRAINT "l"
+#else
+#define _ARCH_MMIO_REG_CONSTRAINT "r"
+#endif
+
 #define _ARCH_MMIO_READ8(addr) ({ \
     uint8_t val; \
-    __asm__ volatile("ldrb %0, %1" : "=r"(val) : "m"(*(addr)) : "memory"); \
+    __asm__ volatile("ldrb %0, %1" : "=" _ARCH_MMIO_REG_CONSTRAINT (val) : "m"(*(addr)) : "memory"); \
     val; \
 })
 #define _ARCH_MMIO_READ16(addr) ({ \
     uint16_t val; \
-    __asm__ volatile("ldrh %0, %1" : "=r"(val) : "m"(*(addr)) : "memory"); \
+    __asm__ volatile("ldrh %0, %1" : "=" _ARCH_MMIO_REG_CONSTRAINT (val) : "m"(*(addr)) : "memory"); \
     val; \
 })
 #define _ARCH_MMIO_READ32(addr) ({ \
     uint32_t val; \
-    __asm__ volatile("ldr %0, %1" : "=r"(val) : "m"(*(addr)) : "memory"); \
+    __asm__ volatile("ldr %0, %1" : "=" _ARCH_MMIO_REG_CONSTRAINT (val) : "m"(*(addr)) : "memory"); \
     val; \
 })
 
 #define _ARCH_MMIO_WRITE8(addr, val) \
-    __asm__ volatile("strb %1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("strb %1, %0" : "=m"(*(addr)) : _ARCH_MMIO_REG_CONSTRAINT (val) : "memory")
 #define _ARCH_MMIO_WRITE16(addr, val) \
-    __asm__ volatile("strh %1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("strh %1, %0" : "=m"(*(addr)) : _ARCH_MMIO_REG_CONSTRAINT (val) : "memory")
 #define _ARCH_MMIO_WRITE32(addr, val) \
-    __asm__ volatile("str %1, %0" : "=m"(*(addr)) : "r"(val) : "memory")
+    __asm__ volatile("str %1, %0" : "=m"(*(addr)) : _ARCH_MMIO_REG_CONSTRAINT (val) : "memory")
 
 
