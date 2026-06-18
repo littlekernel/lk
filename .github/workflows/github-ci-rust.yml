@@ -48,6 +48,7 @@ jobs:
     - name: compute toolchain
       shell: bash
       run: |
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get update
         sudo apt-get install -y clang-${{ matrix.toolchain-ver }} lld-${{ matrix.toolchain-ver }}
         GCC_TOOLCHAIN_PREFIX=$(make list-toolchain | grep TOOLCHAIN_PREFIX | tail -1 | cut -d ' ' -f 3)
         # Map the GCC toolchain prefix to a clang --target argument:
@@ -76,7 +77,6 @@ jobs:
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
       shell: bash
       run: |
-        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get update
         env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm expect
     - name: uefi unittest
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
