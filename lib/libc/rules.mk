@@ -15,6 +15,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/eabi.c \
 	$(LOCAL_DIR)/errno.c \
 	$(LOCAL_DIR)/printf.c \
+	$(LOCAL_DIR)/printf_helpers.c \
 	$(LOCAL_DIR)/qsort.c \
 	$(LOCAL_DIR)/rand.c \
 	$(LOCAL_DIR)/stdio.c \
