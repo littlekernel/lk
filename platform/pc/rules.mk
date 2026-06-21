@@ -15,6 +15,7 @@ MODULE_DEPS += dev/block/ide
 ifneq ($(CPU),legacy)
 MODULE_DEPS += dev/bus/pci/drivers
 MODULE_DEPS += lib/acpi_lite
+MODULE_DEPS += external/lib/uacpi
 endif
 
 MODULE_SRCS += \
