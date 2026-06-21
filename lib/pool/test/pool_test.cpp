@@ -14,7 +14,7 @@ bool test_pool_basic() {
     BEGIN_TEST;
 
     uint64_t *test_storage = new uint64_t[256];
-    lk::make_auto_call([&]() { delete[] test_storage; });
+    auto ac = lk::make_auto_call([&]() { delete[] test_storage; });
 
     pool_t pool{};
     pool_init(&pool, 8, 8, 3, test_storage);

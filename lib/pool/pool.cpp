@@ -14,6 +14,8 @@ void pool_init(pool_t *pool, size_t object_size, size_t object_align, size_t obj
     assert(!object_count || storage);
     assert((intptr_t)storage % pool_storage_align(object_size, object_align) == 0);
 
+    pool->next_free = NULL;
+
     size_t offset = 0;
     for (size_t i = 0; i < object_count; ++i) {
         pool_free(pool, static_cast<uint8_t *>(storage) + offset);
