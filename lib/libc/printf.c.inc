@@ -293,33 +293,111 @@ static char *double_to_string(char *buf, size_t len, double d, uint flag) {
                 OUTREV('0');
             size_t decimal_spot = pos;
 
-            /* print the integer portion */
+            /* Extract integer and fractional parts */
             uint64_t u;
+            uint64_t frac_bits_q64;
+
             if (exponent_signed >= 0) {
-                u = fraction;
-                u |= (1ULL<<52);
-                u >>= (52 - exponent_signed);
+                /* Mantissa (53 bits) with implicit 1 */
+                uint64_t mantissa = (1ULL << 52) | fraction;
 
-                char *s = longlong_to_string(buf, u, pos + 1, flag, &(char) {0});
+                /* Integer part: shift right by (52 - exponent_signed) */
+                /* Safe shift: ensure shift amount is valid */
+                int shift_right = 52 - exponent_signed;
+                if (shift_right >= 64) {
+                    u = 0;
+                } else if (shift_right <= 0) {
+                    u = mantissa << (-shift_right);
+                } else {
+                    u = mantissa >> shift_right;
+                }
 
-                pos = s - buf;
+                /* Fractional bits: lower bits that were shifted out */
+                int frac_bit_count = 52 - exponent_signed;
+                if (frac_bit_count <= 0) {
+                    /* All bits are in the integer part; no fractional part */
+                    frac_bits_q64 = 0;
+                } else if (frac_bit_count >= 64) {
+                    /* All 64 bits can be fractional */
+                    frac_bits_q64 = mantissa << (64 - 52);
+                } else {
+                    /* Extract fractional bits and left-align to 64 bits */
+                    uint64_t frac_mask = (1ULL << frac_bit_count) - 1;
+                    frac_bits_q64 = mantissa & frac_mask;
+                    frac_bits_q64 <<= (64 - frac_bit_count);
+                }
             } else {
-                /* exponent is negative */
+                /* exponent is negative: all bits are fractional, integer part is 0 */
                 u = 0;
-                OUTREV('0');
+
+                /* Fractional bits: implicit 1 plus all 52 bits of fraction */
+                int frac_bit_count = 52 - exponent_signed;
+                if (frac_bit_count > 64) {
+                    /* More than 64 bits of precision needed; right-shift to fit */
+                    int shift_right = frac_bit_count - 64;
+                    if (shift_right >= 64) {
+                        /* Shift is too large; result is essentially 0 */
+                        frac_bits_q64 = 0;
+                    } else {
+                        uint64_t mantissa_with_implicit = (1ULL << 52) | fraction;
+                        frac_bits_q64 = mantissa_with_implicit >> shift_right;
+                    }
+                } else {
+                    /* Fewer than 64 bits; left-align to fill the 64-bit Q64 value */
+                    uint64_t mantissa_with_implicit = (1ULL << 52) | fraction;
+                    frac_bits_q64 = mantissa_with_implicit << (64 - frac_bit_count);
+                }
             }
+
+            /* Convert Q64 fractional bits to decimal digits using pure integer math */
+            uint32_t frac = 0;
+            for (int i = 0; i < 7; i++) {
+                /* Multiply Q64 by 10 to extract next decimal digit */
+                /* Q64 * 10 is a 128-bit result; digit = result >> 64; remainder = result & 0xFFFFFFFFFFFFFFFF */
+                uint64_t xlo = frac_bits_q64 & 0xFFFFFFFFULL;
+                uint64_t xhi = frac_bits_q64 >> 32;
+
+                /* Compute (xhi << 32 + xlo) * 10 = xhi*10*2^32 + xlo*10 */
+                uint64_t lo_product = xlo * 10;
+                uint64_t hi_product = xhi * 10;
+
+                /* Extract carry from lo_product into hi_product */
+                uint64_t carry = lo_product >> 32;
+                hi_product += carry;
+
+                /* The digit is the new high 32 bits (overflow from hi_product) */
+                uint digit = (uint)(hi_product >> 32);
+
+                /* New Q64: keep lower 32 of hi_product and all of lo_product */
+                frac_bits_q64 = ((hi_product & 0xFFFFFFFFULL) << 32) | (lo_product & 0xFFFFFFFFULL);
+
+                frac = frac * 10 + digit;
+            }
+
+            /* Round to 6 decimal places: if 7th digit >= 5, round up */
+            uint seventh_digit = frac % 10;
+            frac /= 10;
+            if (seventh_digit >= 5) {
+                frac++;
+                /* Check for rounding overflow (frac overflowed to 1000000) */
+                if (frac >= 1000000) {
+                    /* Rounding caused carry into integer part */
+                    frac = 0;
+                    u++;
+                }
+            }
+
+            /* print the integer portion */
+            char *s = longlong_to_string(buf, u, decimal_spot + 1, flag, &(char) {0});
+            pos = s - buf;
 
             buf[decimal_spot] = '.';
 
-            /* handle the fractional part */
-            uint32_t frac = ((d - u) * 1000000) + .5;
-
+            /* Print the fractional part (6 digits, zero-padded) */
             uint i = decimal_spot + 6 + 1;
-            while (frac != 0) {
+            for (int j = 0; j < 6; j++) {
                 uint digit = frac % 10;
-
                 buf[--i] = digit + '0';
-
                 frac /= 10;
             }
 
