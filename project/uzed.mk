@@ -12,5 +12,4 @@ GLOBAL_DEFINES += \
 	SYSPARAM_ALLOW_WRITE=1
 
 include project/target/uzed.mk
-include project/virtual/test.mk
 
