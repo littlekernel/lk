@@ -143,6 +143,7 @@ int FUNC(vprintf)(const char *fmt, va_list ap) {
 #define LEFTFORMATFLAG 0x00000800
 #define LEADZEROFLAG   0x00001000
 #define BLANKPOSFLAG   0x00002000
+#define HAS_PRECISION  0x00004000
 
 static char *longlong_to_string(char *buf, unsigned long long n, size_t len, uint flag, char *signchar) {
     size_t pos = len;
@@ -433,6 +434,7 @@ int FUNC(_printf_engine)(_printf_engine_output_func out, void *state, const char
     void *ptr;
     int flags;
     unsigned int format_num;
+    unsigned int precision_num;
     char signchar;
     size_t chars_written = 0;
     char num_buffer[32];
@@ -442,8 +444,10 @@ int FUNC(_printf_engine)(_printf_engine_output_func out, void *state, const char
 
     for (;;) {
         /* reset the format state */
+        n = 0;
         flags = 0;
         format_num = 0;
+        precision_num = 0;
         signchar = '\0';
 
         /* handle regular chars that aren't format related */
@@ -470,13 +474,37 @@ next_format:
 
         switch (c) {
             case '0'...'9':
-                if (c == '0' && format_num == 0)
-                    flags |= LEADZEROFLAG;
-                format_num *= 10;
-                format_num += c - '0';
+                if (flags & HAS_PRECISION) {
+                    precision_num *= 10;
+                    precision_num += c - '0';
+                } else {
+                    if (c == '0' && format_num == 0)
+                        flags |= LEADZEROFLAG;
+                    format_num *= 10;
+                    format_num += c - '0';
+                }
                 goto next_format;
             case '.':
-                /* XXX for now eat numeric formatting */
+                flags |= HAS_PRECISION;
+                precision_num = 0;
+                goto next_format;
+            case '*':
+                if (flags & HAS_PRECISION) {
+                    int val = va_arg(ap, int);
+                    if (val < 0) {
+                        flags &= ~HAS_PRECISION;
+                    } else {
+                        precision_num = val;
+                    }
+                } else {
+                    int val = va_arg(ap, int);
+                    if (val < 0) {
+                        flags |= LEFTFORMATFLAG;
+                        format_num = -val;
+                    } else {
+                        format_num = val;
+                    }
+                }
                 goto next_format;
             case '%':
                 OUTPUT_CHAR('%');
@@ -618,11 +646,44 @@ hex:
         /* shared output code */
 _output_string:
         string_len = strlen(s);
+        uint precision_fill = 0;
+        if (c == 's') {
+            if (flags & HAS_PRECISION) {
+                string_len = strnlen(s, precision_num);
+            }
+        } else if (c == 'd' || c == 'i' || c == 'u' || c == 'x') {
+            if (flags & HAS_PRECISION) {
+                flags &= ~LEADZEROFLAG;
+                if (precision_num == 0 && n == 0) {
+                    string_len = 0;
+                } else if (string_len < precision_num) {
+                    precision_fill = precision_num - string_len;
+                    string_len = precision_num;
+                }
+            }
+        }
 
         if (flags & LEFTFORMATFLAG) {
             /* left justify the text */
-            OUTPUT_STRING(s, string_len);
-            uint written = err;
+            if (signchar != '\0') {
+                OUTPUT_CHAR(signchar);
+                if (format_num > 0)
+                    format_num--;
+            }
+
+            if (c == 'x' && (flags & ALTFLAG)) {
+                OUTPUT_CHAR('0');
+                OUTPUT_CHAR(flags & CAPSFLAG ? 'X' : 'x');
+                if (format_num >= 2) {
+                    format_num -= 2;
+                }
+            }
+
+            for (uint i = 0; i < precision_fill; i++) {
+                OUTPUT_CHAR('0');
+            }
+            OUTPUT_STRING(s, string_len - precision_fill);
+            uint written = string_len;
 
             /* pad to the right (if necessary) */
             for (; format_num > written; format_num--)
@@ -659,7 +720,10 @@ _output_string:
                 OUTPUT_CHAR(signchar);
 
             /* output the string */
-            OUTPUT_STRING(s, string_len);
+            for (uint i = 0; i < precision_fill; i++) {
+                OUTPUT_CHAR('0');
+            }
+            OUTPUT_STRING(s, string_len - precision_fill);
         }
     }
 

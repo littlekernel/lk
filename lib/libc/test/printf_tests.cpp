@@ -496,12 +496,48 @@ bool snprintf_truncation_test_null_buffer() {
   END_TEST;
 }
 
+bool numeric_precision() {
+  BEGIN_TEST;
+
+  // Test integer precision zero padding
+  EXPECT_TRUE(test_printf("00005", "%.5d", 5));
+  EXPECT_TRUE(test_printf("00005", "%.5i", 5));
+  EXPECT_TRUE(test_printf("00005", "%.5u", 5));
+  EXPECT_TRUE(test_printf("00000005", "%.8x", 5));
+  EXPECT_TRUE(test_printf("00000005", "%.8X", 5));
+
+  // Test precision larger than width
+  EXPECT_TRUE(test_printf("  00005", "%7.5d", 5));
+  EXPECT_TRUE(test_printf("00005  ", "%-7.5d", 5));
+
+  // Test precision smaller than width
+  EXPECT_TRUE(test_printf("      5", "%7.1d", 5));
+  EXPECT_TRUE(test_printf("5      ", "%-7.1d", 5));
+
+  // Test precision with negative numbers
+  EXPECT_TRUE(test_printf("-00005", "%.5d", -5));
+  EXPECT_TRUE(test_printf(" -00005", "%7.5d", -5));
+  EXPECT_TRUE(test_printf("-00005 ", "%-7.5d", -5));
+
+  // Test precision with zero value
+  EXPECT_TRUE(test_printf("00000", "%.5d", 0));
+  EXPECT_TRUE(test_printf("", "%.0d", 0));
+  EXPECT_TRUE(test_printf("   ", "%3.0d", 0));
+
+  // Test variable precision with numbers
+  EXPECT_TRUE(test_printf("00005", "%.*d", 5, 5));
+  EXPECT_TRUE(test_printf("  00005", "%*.*d", 7, 5, 5));
+
+  END_TEST;
+}
+
 BEGIN_TEST_CASE(printf_tests)
 RUN_TEST(numbers)
 RUN_TEST(hex)
 RUN_TEST(alt_and_sign)
 RUN_TEST(formatting)
-//RUN_TEST(printf_field_width_and_precision_test)
+RUN_TEST(numeric_precision)
+RUN_TEST(printf_field_width_and_precision_test)
 RUN_TEST(snprintf_truncation_test)
 RUN_TEST(snprintf_truncation_test_zero_length)
 RUN_TEST(snprintf_truncation_test_null_buffer)
