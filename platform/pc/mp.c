@@ -7,6 +7,7 @@
  */
 
 #include "platform_p.h"
+#include <assert.h>
 
 #include <arch/x86/apic.h>
 #include <kernel/thread.h>
@@ -18,7 +19,9 @@
 
 #if WITH_SMP
 
-#include <lib/acpi_lite.h>
+#if WITH_LIB_ACPI
+#include <lib/acpi.h>
+#endif
 
 #define TRAMPOLINE_ADDRESS 0x4000
 
@@ -105,29 +108,33 @@ struct detected_cpus {
     uint32_t apic_ids[SMP_MAX_CPUS];
 };
 
-static void local_apic_callback(const void *_entry, size_t entry_len, void *cookie) {
-    const struct acpi_madt_local_apic_entry *entry = _entry;
+#if WITH_LIB_ACPI
+static void local_apic_callback(const struct acpi_entry_hdr *hdr, void *cookie) {
+    const struct acpi_madt_lapic *entry = (const struct acpi_madt_lapic *)hdr;
     struct detected_cpus *cpus = cookie;
 
-    if ((entry->flags & ACPI_MADT_FLAG_ENABLED) == 0) {
+    if ((entry->flags & ACPI_PIC_ENABLED) == 0) {
         return;
     }
 
-    if (entry->apic_id == x86_get_apic_id()) {
+    if (entry->id == x86_get_apic_id()) {
         // skip the boot cpu
         return;
     }
     if (cpus->num_detected < SMP_MAX_CPUS) {
-        cpus->apic_ids[cpus->num_detected++] = entry->apic_id;
+        cpus->apic_ids[cpus->num_detected++] = entry->id;
     }
 }
+#endif
 
 void platform_start_secondary_cpus(void) {
     struct detected_cpus cpus;
     cpus.num_detected = 1;
     cpus.apic_ids[0] = 0; // the boot cpu
 
-    acpi_process_madt_entries_etc(ACPI_MADT_TYPE_LOCAL_APIC, &local_apic_callback, &cpus);
+#if WITH_LIB_ACPI
+    acpi_process_madt_entries(ACPI_MADT_ENTRY_TYPE_LAPIC, &local_apic_callback, &cpus);
+#endif
 
     // TODO: fall back to legacy methods if ACPI fails
     // TODO: deal with cpu topology

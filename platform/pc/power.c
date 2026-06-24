@@ -7,8 +7,13 @@
  */
 #include <arch/x86.h>
 #include <lk/debug.h>
+#include <lk/err.h>
 #include <platform.h>
 #include <platform/keyboard.h>
+
+#if WITH_LIB_ACPI
+#include <lib/acpi.h>
+#endif
 
 /*
  * 0xCF9: Reset Control Register (RCR). Common on PCI/ISA chipsets and modern
@@ -34,6 +39,12 @@
 #define ACPI_SLP_EN              (1u << 13)
 
 static void pc_reboot(void) {
+#if WITH_LIB_ACPI
+    if (acpi_reboot() == NO_ERROR) {
+        return;
+    }
+#endif
+
     platform_i8042_keyboard_reset();
 
     outp(RESET_CTRL_PORT, 0x02);
@@ -43,6 +54,12 @@ static void pc_reboot(void) {
 }
 
 static void pc_shutdown(void) {
+#if WITH_LIB_ACPI
+    if (acpi_shutdown() == NO_ERROR) {
+        return;
+    }
+#endif
+
     outpw(QEMU_ACPI_PM1A_CNT_PORT, ACPI_SLP_EN);
     outpw(BOCHS_ACPI_PM1A_CNT_PORT, ACPI_SLP_EN);
 }

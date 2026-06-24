@@ -38,8 +38,8 @@
 #if WITH_LIB_MINIP
 #include <lib/minip.h>
 #endif
-#if WITH_LIB_ACPI_LITE
-#include <lib/acpi_lite.h>
+#if WITH_LIB_ACPI
+#include <lib/acpi.h>
 
 static bool found_acpi = false;
 #endif
@@ -433,18 +433,18 @@ void platform_early_init(void) {
 static void platform_init_postvm(uint level) {
     fb_console_init_postvm();
 
-#if WITH_LIB_ACPI_LITE
+#if WITH_LIB_ACPI
     // Look for the root ACPI table
-    status_t err = acpi_lite_init(0);
+    status_t err = acpi_init();
     if (err != NO_ERROR) {
         return;
     }
     found_acpi = true;
 
     if (LOCAL_TRACE) {
-        acpi_lite_dump_tables(false);
+        acpi_dump_tables(false);
     }
-    acpi_lite_dump_madt_table();
+    acpi_dump_madt_table();
 #endif
 
     platform_init_interrupts_postvm();
@@ -465,20 +465,21 @@ void platform_init(void) {
 
 #if WITH_DEV_BUS_PCI
     bool pci_initted = false;
+#if WITH_LIB_ACPI
     if (found_acpi) {
         // TODO: handle interrupt source overrides from the MADT table
 
         // try to find the mcfg table
-        const struct acpi_mcfg_table *table =
-            (const struct acpi_mcfg_table *)acpi_get_table_by_sig(ACPI_MCFG_SIG);
+        const struct acpi_mcfg *table =
+            (const struct acpi_mcfg *)acpi_get_table_by_sig(ACPI_MCFG_SIGNATURE);
         if (table) {
-            if (table->header.length >= sizeof(*table) + sizeof(struct acpi_mcfg_entry)) {
-                const struct acpi_mcfg_entry *entry = (const void *)(table + 1);
+            if (table->hdr.length >= sizeof(*table) + sizeof(struct acpi_mcfg_allocation)) {
+                const struct acpi_mcfg_allocation *entry = &table->entries[0];
                 printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n", entry->segment,
-                       entry->start_bus, entry->end_bus, entry->base_address);
+                       entry->start_bus, entry->end_bus, entry->address);
 
                 // try to initialize pci based on the MCFG ecam aperture
-                status_t err = pci_init_ecam(entry->base_address, entry->segment, entry->start_bus,
+                status_t err = pci_init_ecam(entry->address, entry->segment, entry->start_bus,
                                              entry->end_bus);
                 if (err == NO_ERROR) {
                     pci_bus_mgr_init();
@@ -487,6 +488,7 @@ void platform_init(void) {
             }
         }
     }
+#endif
 
     // fall back to legacy pci if we couldn't find the pcie aperture
     if (!pci_initted) {
