@@ -23,8 +23,8 @@
 #include <platform/pc.h>
 #include <sys/types.h>
 
-#if WITH_LIB_ACPI_LITE
-#include <lib/acpi_lite.h>
+#if WITH_LIB_ACPI
+#include <lib/acpi.h>
 #endif
 
 #define LOCAL_TRACE 0
@@ -52,7 +52,7 @@ struct int_vector {
 
 static struct int_vector int_table[INT_VECTORS];
 
-#if WITH_LIB_ACPI_LITE
+#if WITH_LIB_ACPI
 struct irq_override_lookup {
     uint source_irq;
     uint gsi;
@@ -60,10 +60,9 @@ struct irq_override_lookup {
     bool found;
 };
 
-static void int_source_override_callback(const void *_entry, size_t entry_len, void *cookie) {
-    (void)entry_len;
-
-    const struct acpi_madt_int_source_override_entry *entry = _entry;
+static void int_source_override_callback(const struct acpi_entry_hdr *hdr, void *cookie) {
+    const struct acpi_madt_interrupt_source_override *entry =
+        (const struct acpi_madt_interrupt_source_override *)hdr;
     struct irq_override_lookup *lookup = cookie;
 
     if (lookup->found) {
@@ -72,7 +71,7 @@ static void int_source_override_callback(const void *_entry, size_t entry_len, v
 
     // ISA bus only. PCI routing is handled elsewhere; this remaps legacy IRQ numbers to GSIs.
     if (entry->bus == 0 && entry->source == lookup->source_irq) {
-        lookup->gsi = entry->global_sys_interrupt;
+        lookup->gsi = entry->gsi;
         lookup->flags = entry->flags;
         lookup->found = true;
     }
@@ -88,7 +87,7 @@ status_t pc_get_legacy_irq_route(uint source_irq, pc_irq_route_t *route) {
     route->source_irq = source_irq;
     route->gsi = source_irq;
 
-#if WITH_LIB_ACPI_LITE
+#if WITH_LIB_ACPI
     struct irq_override_lookup lookup = {
         .source_irq = source_irq,
         .gsi = source_irq,
@@ -96,16 +95,16 @@ status_t pc_get_legacy_irq_route(uint source_irq, pc_irq_route_t *route) {
         .found = false,
     };
 
-    if (acpi_process_madt_entries_etc(ACPI_MADT_TYPE_INT_SOURCE_OVERRIDE,
-                                      int_source_override_callback,
-                                      &lookup) == NO_ERROR &&
+    if (acpi_process_madt_entries(ACPI_MADT_ENTRY_TYPE_INTERRUPT_SOURCE_OVERRIDE,
+                                  int_source_override_callback,
+                                  &lookup) == NO_ERROR &&
         lookup.found) {
         route->gsi = lookup.gsi;
         route->has_override = true;
         route->route_active_low =
-            (lookup.flags & ACPI_MADT_FLAG_POLARITY_MASK) == ACPI_MADT_FLAG_POLARITY_LOW;
+            (lookup.flags & ACPI_MADT_POLARITY_MASK) == ACPI_MADT_POLARITY_ACTIVE_LOW;
         route->route_level_triggered =
-            (lookup.flags & ACPI_MADT_FLAG_TRIGGER_MASK) == ACPI_MADT_FLAG_TRIGGER_LEVEL;
+            (lookup.flags & ACPI_MADT_TRIGGERING_MASK) == ACPI_MADT_TRIGGERING_LEVEL;
     }
 #endif
 
@@ -460,13 +459,13 @@ status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool
 #endif
 
 // Try to detect the ioapic(s) from ACPI and initialize them
-#if WITH_LIB_ACPI_LITE
-static void io_apic_callback(const void *_entry, size_t entry_len, void *cookie) {
-    const struct acpi_madt_io_apic_entry *entry = _entry;
+#if WITH_LIB_ACPI
+static void io_apic_callback(const struct acpi_entry_hdr *hdr, void *cookie) {
+    const struct acpi_madt_ioapic *entry = (const struct acpi_madt_ioapic *)hdr;
 
     static int index = 0;
-    ioapic_init(index++, entry->io_apic_address, entry->io_apic_id,
-                entry->global_system_interrupt_base);
+    ioapic_init(index++, entry->address, entry->id,
+                entry->gsi_base);
 }
 #endif
 
@@ -477,9 +476,9 @@ void platform_init_interrupts_postvm(void) {
     lapic_init_postvm();
 #endif
 
-#if WITH_LIB_ACPI_LITE
+#if WITH_LIB_ACPI
     // Now that we've scanned ACPI, try to initialize the ioapic(s)
-    acpi_process_madt_entries_etc(ACPI_MADT_TYPE_IO_APIC, &io_apic_callback, NULL);
+    acpi_process_madt_entries(ACPI_MADT_ENTRY_TYPE_IOAPIC, &io_apic_callback, NULL);
 #endif
 }
 
