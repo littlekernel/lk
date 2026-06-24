@@ -374,6 +374,62 @@ void uacpi_kernel_unlock_spinlock(uacpi_handle handle, uacpi_cpu_flags flags) {
     spin_unlock_irqrestore(lock, state);
 }
 
+#if WITH_DEV_BUS_PCI
+#include <dev/bus/pci.h>
+
+uacpi_status uacpi_kernel_pci_device_open(uacpi_pci_address address, uacpi_handle *out_handle) {
+    pci_location_t *loc = malloc(sizeof(pci_location_t));
+    if (!loc) {
+        return UACPI_STATUS_OUT_OF_MEMORY;
+    }
+    loc->segment = address.segment;
+    loc->bus = address.bus;
+    loc->dev = address.device;
+    loc->fn = address.function;
+    *out_handle = (uacpi_handle)loc;
+    return UACPI_STATUS_OK;
+}
+
+void uacpi_kernel_pci_device_close(uacpi_handle handle) {
+    free(handle);
+}
+
+uacpi_status uacpi_kernel_pci_read8(uacpi_handle device, uacpi_size offset, uacpi_u8 *value) {
+    pci_location_t *loc = (pci_location_t *)device;
+    status_t status = pci_read_config_byte(*loc, (uint32_t)offset, value);
+    return status == NO_ERROR ? UACPI_STATUS_OK : UACPI_STATUS_INTERNAL_ERROR;
+}
+
+uacpi_status uacpi_kernel_pci_read16(uacpi_handle device, uacpi_size offset, uacpi_u16 *value) {
+    pci_location_t *loc = (pci_location_t *)device;
+    status_t status = pci_read_config_half(*loc, (uint32_t)offset, value);
+    return status == NO_ERROR ? UACPI_STATUS_OK : UACPI_STATUS_INTERNAL_ERROR;
+}
+
+uacpi_status uacpi_kernel_pci_read32(uacpi_handle device, uacpi_size offset, uacpi_u32 *value) {
+    pci_location_t *loc = (pci_location_t *)device;
+    status_t status = pci_read_config_word(*loc, (uint32_t)offset, value);
+    return status == NO_ERROR ? UACPI_STATUS_OK : UACPI_STATUS_INTERNAL_ERROR;
+}
+
+uacpi_status uacpi_kernel_pci_write8(uacpi_handle device, uacpi_size offset, uacpi_u8 value) {
+    pci_location_t *loc = (pci_location_t *)device;
+    status_t status = pci_write_config_byte(*loc, (uint32_t)offset, value);
+    return status == NO_ERROR ? UACPI_STATUS_OK : UACPI_STATUS_INTERNAL_ERROR;
+}
+
+uacpi_status uacpi_kernel_pci_write16(uacpi_handle device, uacpi_size offset, uacpi_u16 value) {
+    pci_location_t *loc = (pci_location_t *)device;
+    status_t status = pci_write_config_half(*loc, (uint32_t)offset, value);
+    return status == NO_ERROR ? UACPI_STATUS_OK : UACPI_STATUS_INTERNAL_ERROR;
+}
+
+uacpi_status uacpi_kernel_pci_write32(uacpi_handle device, uacpi_size offset, uacpi_u32 value) {
+    pci_location_t *loc = (pci_location_t *)device;
+    status_t status = pci_write_config_word(*loc, (uint32_t)offset, value);
+    return status == NO_ERROR ? UACPI_STATUS_OK : UACPI_STATUS_INTERNAL_ERROR;
+}
+#else
 uacpi_status uacpi_kernel_pci_device_open(uacpi_pci_address address, uacpi_handle *out_handle) {
     return UACPI_STATUS_NOT_FOUND;
 }
@@ -403,6 +459,7 @@ uacpi_status uacpi_kernel_pci_write16(uacpi_handle device, uacpi_size offset, ua
 uacpi_status uacpi_kernel_pci_write32(uacpi_handle device, uacpi_size offset, uacpi_u32 value) {
     return UACPI_STATUS_UNIMPLEMENTED;
 }
+#endif
 
 uacpi_status uacpi_kernel_io_map(uacpi_io_addr base, uacpi_size len, uacpi_handle *out_handle) {
     *out_handle = (uacpi_handle)(uintptr_t)base;

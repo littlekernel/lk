@@ -14,8 +14,11 @@
 
 __BEGIN_CDECLS
 
-// Initialize the ACPI subsystem, load tables and namespaces.
+// Initialize the ACPI subsystem, load tables.
 status_t acpi_init(void);
+
+// Load the ACPI namespace and initialize objects (done after PCI initialization).
+status_t acpi_init_namespace(void);
 
 // Retrieve a parsed system description table by signature.
 const struct acpi_sdt_hdr *acpi_get_table_by_sig(const char *sig);

@@ -504,6 +504,12 @@ void platform_init(void) {
     }
 #endif
 
+#if WITH_LIB_ACPI
+    if (found_acpi) {
+        acpi_init_namespace();
+    }
+#endif
+
     const struct platform_ide_config pci_ide0 = {
         .isa = false,
         .channel = 0,
