@@ -1,23 +1,26 @@
+// Copyright 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
 #include <lk/compiler.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include <platform/time.h>
 #include <lk/console_cmd.h>
+#include <platform/time.h>
 
-#include <kernel/thread.h>
+#include <arch/interrupts.h>
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>
 #include <kernel/spinlock.h>
-#include <arch/interrupts.h>
+#include <kernel/thread.h>
 
-#if WITH_KERNEL_VM
 #include <kernel/vm.h>
-#endif
 
 #if ARCH_X86
 #include <arch/x86.h>
@@ -25,10 +28,10 @@
 #include <hw/multiboot.h>
 #endif
 
-#include <uacpi/uacpi.h>
 #include <uacpi/kernel_api.h>
-#include <uacpi/types.h>
 #include <uacpi/status.h>
+#include <uacpi/types.h>
+#include <uacpi/uacpi.h>
 
 #define LOCAL_TRACE 0
 
@@ -69,17 +72,13 @@ static void *map_region(paddr_t pa, size_t len, const char *name) {
     size_t map_len = ROUNDUP(len + align_offset, PAGE_SIZE);
 
     uint perms = ARCH_MMU_FLAG_PERM_RO;
-#if WITH_KERNEL_VM
     void *ptr;
-    status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), name, map_len,
-                                      &ptr, 0, pa_page_aligned, 0, perms);
+    status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), name, map_len, &ptr, 0,
+                                      pa_page_aligned, 0, perms);
     if (err < 0) {
         return NULL;
     }
     return (void *)((uintptr_t)ptr + align_offset);
-#else
-    return (void *)(uintptr_t)pa;
-#endif
 }
 
 static uacpi_status find_rsdp_multiboot(uacpi_phys_addr *out_rsdp_address) {
@@ -91,10 +90,9 @@ static uacpi_status find_rsdp_multiboot(uacpi_phys_addr *out_rsdp_address) {
             uint32_t total_size = multiboot_hdr->total_size;
 
             if (total_size >= sizeof(*multiboot_hdr) && total_size <= 1024 * 1024) {
-#if WITH_KERNEL_VM
                 vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)hdr_map, PAGE_SIZE));
-#endif
-                const void *rsdp_map = map_region(multiboot_phys, total_size, "uacpi rsdp map (mb2)");
+                const void *rsdp_map =
+                    map_region(multiboot_phys, total_size, "uacpi rsdp map (mb2)");
                 if (rsdp_map) {
                     uint8_t *base = (uint8_t *)rsdp_map;
                     uint8_t *end = base + total_size;
@@ -107,13 +105,13 @@ static uacpi_status find_rsdp_multiboot(uacpi_phys_addr *out_rsdp_address) {
                             break;
                         }
 
-                        if (tag->type == MULTIBOOT2_TAG_TYPE_ACPI_NEW || tag->type == MULTIBOOT2_TAG_TYPE_ACPI_OLD) {
+                        if (tag->type == MULTIBOOT2_TAG_TYPE_ACPI_NEW ||
+                            tag->type == MULTIBOOT2_TAG_TYPE_ACPI_OLD) {
                             uint8_t *rsdp_ptr = (uint8_t *)(tag + 1);
                             if (validate_rsdp(rsdp_ptr)) {
                                 *out_rsdp_address = multiboot_phys + (rsdp_ptr - base);
-#if WITH_KERNEL_VM
-                                vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)rsdp_map, PAGE_SIZE));
-#endif
+                                vmm_free_region(vmm_get_kernel_aspace(),
+                                                ROUNDDOWN((vaddr_t)rsdp_map, PAGE_SIZE));
                                 return UACPI_STATUS_OK;
                             }
                         }
@@ -121,14 +119,11 @@ static uacpi_status find_rsdp_multiboot(uacpi_phys_addr *out_rsdp_address) {
                         size_t advance = (tag->size + 7) & ~7;
                         ptr += advance;
                     }
-#if WITH_KERNEL_VM
-                    vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)rsdp_map, PAGE_SIZE));
-#endif
+                    vmm_free_region(vmm_get_kernel_aspace(),
+                                    ROUNDDOWN((vaddr_t)rsdp_map, PAGE_SIZE));
                 }
             } else {
-#if WITH_KERNEL_VM
                 vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)hdr_map, PAGE_SIZE));
-#endif
             }
         }
     }
@@ -141,29 +136,21 @@ static uacpi_status find_rsdp_bios(uacpi_phys_addr *out_rsdp_address) {
     const size_t len = range_end - range_start;
 
     const uint8_t *bios_ptr = NULL;
-#if WITH_KERNEL_VM
     status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "uacpi rsdp bios area", len,
                                       (void **)&bios_ptr, 0, range_start, 0, ARCH_MMU_FLAG_PERM_RO);
     if (err < 0) {
         return UACPI_STATUS_NOT_FOUND;
     }
-#else
-    bios_ptr = (const uint8_t *)(uintptr_t)range_start;
-#endif
 
     for (size_t i = 0; i < len; i += 16) {
         if (validate_rsdp(bios_ptr + i)) {
             *out_rsdp_address = range_start + i;
-#if WITH_KERNEL_VM
             vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)bios_ptr);
-#endif
             return UACPI_STATUS_OK;
         }
     }
 
-#if WITH_KERNEL_VM
     vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)bios_ptr);
-#endif
     return UACPI_STATUS_NOT_FOUND;
 }
 #endif
@@ -184,19 +171,44 @@ uacpi_status uacpi_kernel_get_rsdp(uacpi_phys_addr *out_rsdp_address) {
 }
 
 void *uacpi_kernel_map(uacpi_phys_addr addr, uacpi_size len) {
-#if WITH_KERNEL_VM
     void *vaddr = paddr_to_kvaddr(addr);
-    if (!vaddr) {
-        return (void *)(uintptr_t)addr;
+    if (vaddr) {
+        return vaddr;
     }
-    return vaddr;
-#else
-    return (void *)(uintptr_t)addr;
-#endif
+
+    // Not in direct map, allocate virtual mapping
+    paddr_t pa_aligned = ROUNDDOWN((paddr_t)addr, PAGE_SIZE);
+    size_t align_offset = (paddr_t)addr - pa_aligned;
+    size_t map_len = ROUNDUP(len + align_offset, PAGE_SIZE);
+
+    uint perms = ARCH_MMU_FLAG_PERM_RO;
+    if (arch_mmu_supports_nx_mappings()) {
+        perms |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+    }
+
+    void *ptr = NULL;
+    status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "uacpi_map", map_len, &ptr, 0,
+                                      pa_aligned, 0, perms);
+    if (err < 0) {
+        return UACPI_MAP_FAILED;
+    }
+
+    return (void *)((uintptr_t)ptr + align_offset);
 }
 
 void uacpi_kernel_unmap(void *addr, uacpi_size len) {
-    // Nothing to do for direct-mapped memory
+    // Only call vmm_free_region if the mapping was dynamically allocated.
+    // Direct-mapped addresses must not be freed since they reside inside the permanent "physmap"
+    // region.
+    paddr_t pa = vaddr_to_paddr(addr);
+    if (pa) {
+        void *direct_vaddr = paddr_to_kvaddr(pa);
+        if (direct_vaddr == addr) {
+            return;
+        }
+    }
+
+    vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)addr, PAGE_SIZE));
 }
 
 void uacpi_kernel_log(uacpi_log_level level, const uacpi_char *str) {
@@ -319,12 +331,17 @@ uacpi_thread_id uacpi_kernel_get_thread_id(void) {
 }
 
 uacpi_interrupt_state uacpi_kernel_disable_interrupts(void) {
-    struct arch_interrupt_saved_state state = arch_interrupt_save();
-    return (uacpi_interrupt_state)state.flags;
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
+    uacpi_interrupt_state val = 0;
+    STATIC_ASSERT(sizeof(state) <= sizeof(val));
+    memcpy(&val, &state, sizeof(state));
+    return val;
 }
 
 void uacpi_kernel_restore_interrupts(uacpi_interrupt_state state_val) {
-    struct arch_interrupt_saved_state state = { .flags = (x86_flags_t)state_val };
+    arch_interrupt_saved_state_t state;
+    STATIC_ASSERT(sizeof(state) <= sizeof(state_val));
+    memcpy(&state, &state_val, sizeof(state));
     arch_interrupt_restore(state);
 }
 
@@ -343,12 +360,17 @@ void uacpi_kernel_free_spinlock(uacpi_handle handle) {
 uacpi_cpu_flags uacpi_kernel_lock_spinlock(uacpi_handle handle) {
     spin_lock_t *lock = (spin_lock_t *)handle;
     arch_interrupt_saved_state_t state = spin_lock_irqsave(lock);
-    return (uacpi_cpu_flags)state.flags;
+    uacpi_cpu_flags flags = 0;
+    STATIC_ASSERT(sizeof(state) <= sizeof(flags));
+    memcpy(&flags, &state, sizeof(state));
+    return flags;
 }
 
 void uacpi_kernel_unlock_spinlock(uacpi_handle handle, uacpi_cpu_flags flags) {
     spin_lock_t *lock = (spin_lock_t *)handle;
-    arch_interrupt_saved_state_t state = { .flags = (x86_flags_t)flags };
+    arch_interrupt_saved_state_t state;
+    STATIC_ASSERT(sizeof(state) <= sizeof(flags));
+    memcpy(&state, &flags, sizeof(state));
     spin_unlock_irqrestore(lock, state);
 }
 
@@ -356,8 +378,7 @@ uacpi_status uacpi_kernel_pci_device_open(uacpi_pci_address address, uacpi_handl
     return UACPI_STATUS_NOT_FOUND;
 }
 
-void uacpi_kernel_pci_device_close(uacpi_handle handle) {
-}
+void uacpi_kernel_pci_device_close(uacpi_handle handle) {}
 
 uacpi_status uacpi_kernel_pci_read8(uacpi_handle device, uacpi_size offset, uacpi_u8 *value) {
     return UACPI_STATUS_UNIMPLEMENTED;
@@ -388,8 +409,7 @@ uacpi_status uacpi_kernel_io_map(uacpi_io_addr base, uacpi_size len, uacpi_handl
     return UACPI_STATUS_OK;
 }
 
-void uacpi_kernel_io_unmap(uacpi_handle handle) {
-}
+void uacpi_kernel_io_unmap(uacpi_handle handle) {}
 
 uacpi_status uacpi_kernel_io_read8(uacpi_handle handle, uacpi_size offset, uacpi_u8 *out_value) {
     uacpi_io_addr addr = (uacpi_io_addr)(uintptr_t)handle + offset;
@@ -455,23 +475,20 @@ uacpi_status uacpi_kernel_handle_firmware_request(uacpi_firmware_request *req) {
     return UACPI_STATUS_OK;
 }
 
-uacpi_status uacpi_kernel_install_interrupt_handler(
-    uacpi_u32 irq, uacpi_interrupt_handler handler, uacpi_handle ctx,
-    uacpi_handle *out_irq_handle
-) {
+uacpi_status uacpi_kernel_install_interrupt_handler(uacpi_u32 irq, uacpi_interrupt_handler handler,
+                                                    uacpi_handle ctx,
+                                                    uacpi_handle *out_irq_handle) {
     *out_irq_handle = (uacpi_handle)1;
     return UACPI_STATUS_OK;
 }
 
-uacpi_status uacpi_kernel_uninstall_interrupt_handler(
-    uacpi_interrupt_handler handler, uacpi_handle irq_handle
-) {
+uacpi_status uacpi_kernel_uninstall_interrupt_handler(uacpi_interrupt_handler handler,
+                                                      uacpi_handle irq_handle) {
     return UACPI_STATUS_OK;
 }
 
-uacpi_status uacpi_kernel_schedule_work(
-    uacpi_work_type type, uacpi_work_handler handler, uacpi_handle ctx
-) {
+uacpi_status uacpi_kernel_schedule_work(uacpi_work_type type, uacpi_work_handler handler,
+                                        uacpi_handle ctx) {
     return UACPI_STATUS_OK;
 }
 
@@ -498,7 +515,8 @@ static int cmd_uacpi(int argc, const console_cmd_args *argv) {
     printf("Initializing namespace...\n");
     status = uacpi_namespace_initialize();
     if (status != UACPI_STATUS_OK) {
-        printf("uacpi_namespace_initialize failed: %s (%d)\n", uacpi_status_to_string(status), status);
+        printf("uacpi_namespace_initialize failed: %s (%d)\n", uacpi_status_to_string(status),
+               status);
         uacpi_state_reset();
         return -1;
     }
