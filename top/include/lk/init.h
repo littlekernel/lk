@@ -19,18 +19,30 @@ __BEGIN_CDECLS
 typedef void (*lk_init_hook)(uint level);
 
 enum lk_init_level {
+    // Earliest possible hook: minimal hardware available, used only for critical early setup
     LK_INIT_LEVEL_EARLIEST = 1,
 
+    // Architecture-specific early init: CPU basics, caches, memory protection setup
     LK_INIT_LEVEL_ARCH_EARLY     = 0x1000,
+    // Platform-specific early init: SoC basics, power domains, clocks
     LK_INIT_LEVEL_PLATFORM_EARLY = 0x2000,
+    // Target-specific early init: board-specific peripherals, GPIO, regulators
     LK_INIT_LEVEL_TARGET_EARLY   = 0x3000,
+    // Heap allocator initialization: malloc/free now available
     LK_INIT_LEVEL_HEAP           = 0x4000,
+    // Virtual memory subsystem init: MMU/paging now available (if WITH_KERNEL_VM enabled)
     LK_INIT_LEVEL_VM             = 0x5000,
+    // Core kernel subsystems: synchronization primitives, interrupt handling
     LK_INIT_LEVEL_KERNEL         = 0x6000,
+    // Threading subsystem: scheduler, thread execution now available
     LK_INIT_LEVEL_THREADING      = 0x7000,
+    // Architecture-specific init: complete CPU setup, SMP coordination
     LK_INIT_LEVEL_ARCH           = 0x8000,
+    // Platform-specific init: device drivers, protocol stacks
     LK_INIT_LEVEL_PLATFORM       = 0x9000,
+    // Target-specific init: board-specific drivers and features
     LK_INIT_LEVEL_TARGET         = 0xa000,
+    // Application init: user apps start, system fully operational
     LK_INIT_LEVEL_APPS           = 0xb000,
 
     LK_INIT_LEVEL_LAST = UINT16_MAX,
