@@ -21,7 +21,11 @@ status_t acpi_init(void) {
         return ERR_NOT_FOUND;
     }
 
-    status = uacpi_namespace_load();
+    return NO_ERROR;
+}
+
+status_t acpi_init_namespace(void) {
+    uacpi_status status = uacpi_namespace_load();
     if (status != UACPI_STATUS_OK) {
         dprintf(ALWAYS, "uACPI: failed to load namespace: %s (%d)\n",
                 uacpi_status_to_string(status), status);
