@@ -313,11 +313,11 @@ status_t ahci_port::queue_command(const void *fis, size_t fis_len, void *buf, si
     // LTRACEF("cmd header %p\n", cmd);
     // hexdump8((const void *)cmd, sizeof(*cmd));
 
-    // barrier here
-    wmb();
-
     // unsignal the command complete event for this slot
     event_unsignal(&cmd_complete_event_[slot]);
+
+    // barrier here
+    wmb();
 
     LTRACEF("IS %#x (before kick)\n", read_port_reg(ahci_port_reg::PxIS));
 
