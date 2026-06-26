@@ -57,7 +57,7 @@ void event_destroy(event_t *e) {
     THREAD_LOCK(state);
 
     e->magic = 0;
-    e->signaled = false;
+    __atomic_store_n(&e->signaled, 0, __ATOMIC_RELAXED);
     e->flags = 0;
     wait_queue_destroy(&e->wait, true);
 
@@ -86,11 +86,11 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
 
     THREAD_LOCK(state);
 
-    if (e->signaled) {
+    if (__atomic_load_n(&e->signaled, __ATOMIC_ACQUIRE)) {
         /* signaled, we're going to fall through */
         if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
             /* autounsignal flag lets one thread fall through before unsignaling */
-            e->signaled = false;
+            __atomic_store_n(&e->signaled, 0, __ATOMIC_RELAXED);
         }
     } else {
         /* unsignaled, block here */
@@ -127,7 +127,7 @@ int event_signal(event_t *e, bool reschedule) {
 
     THREAD_LOCK(state);
 
-    if (!e->signaled) {
+    if (!__atomic_load_n(&e->signaled, __ATOMIC_RELAXED)) {
         if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
             /* try to release one thread and leave unsignaled if successful */
             ret = wait_queue_wake_one(&e->wait, reschedule, NO_ERROR);
@@ -137,11 +137,11 @@ int event_signal(event_t *e, bool reschedule) {
                  * signaled state and let the next call to event_wait
                  * unsignal the event.
                  */
-                e->signaled = true;
+                __atomic_store_n(&e->signaled, 1, __ATOMIC_RELEASE);
             }
         } else {
             /* release all threads and remain signaled */
-            e->signaled = true;
+            __atomic_store_n(&e->signaled, 1, __ATOMIC_RELEASE);
             ret = wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
         }
     }
@@ -166,7 +166,7 @@ int event_signal(event_t *e, bool reschedule) {
 status_t event_unsignal(event_t *e) {
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    e->signaled = false;
+    __atomic_store_n(&e->signaled, 0, __ATOMIC_RELAXED);
 
     return NO_ERROR;
 }

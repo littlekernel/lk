@@ -36,7 +36,7 @@ __BEGIN_CDECLS
 
 typedef struct event {
     uint32_t magic;
-    bool signaled;
+    uint32_t signaled;
     uint flags;
     wait_queue_t wait;
 } event_t;
