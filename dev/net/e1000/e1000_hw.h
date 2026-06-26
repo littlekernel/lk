@@ -78,8 +78,8 @@ enum class e1000_reg {
     RXCSUM = 0x5000,
 
     // receive address
-    RAL0 = 0x5400,  // Receive Address Low  (MAC bytes 0-3)
-    RAH0 = 0x5404,  // Receive Address High (MAC bytes 4-5, bit31=valid)
+    RAL0 = 0x5400, // Receive Address Low  (MAC bytes 0-3)
+    RAH0 = 0x5404, // Receive Address High (MAC bytes 4-5, bit31=valid)
 };
 
 // Interrupt Cause Register (ICR) bits
@@ -113,31 +113,30 @@ struct rdesc {
     uint16_t special;
 
     void dump() {
-        printf("rdsec %p: addr %#llx len %hu cksum %#hx stat %#hhx err %#hhx spec %#hx\n",
-               this, addr, length, checksum, status, errors, special);
+        printf("rdsec %p: addr %#llx len %hu cksum %#hx stat %#hhx err %#hhx spec %#hx\n", this,
+               addr, length, checksum, status, errors, special);
     }
-
 };
 static_assert(sizeof(rdesc) == 16, "");
 
 // Legacy RX descriptor status bits (rdesc.status)
-#define E1000_RXD_STAT_DD      (1u << 0) // Descriptor done
-#define E1000_RXD_STAT_EOP     (1u << 1) // End of packet
-#define E1000_RXD_STAT_IXSM    (1u << 2) // Ignore checksum indication
-#define E1000_RXD_STAT_VP      (1u << 3) // 802.1Q VLAN packet
-#define E1000_RXD_STAT_UDPCS   (1u << 4) // UDP checksum calculated on packet data
-#define E1000_RXD_STAT_TCPCS   (1u << 5) // TCP checksum calculated on packet data
-#define E1000_RXD_STAT_IPCS    (1u << 6) // IP checksum calculated on packet data
-#define E1000_RXD_STAT_PIF     (1u << 7) // Passed inexact filter
+#define E1000_RXD_STAT_DD    (1u << 0) // Descriptor done
+#define E1000_RXD_STAT_EOP   (1u << 1) // End of packet
+#define E1000_RXD_STAT_IXSM  (1u << 2) // Ignore checksum indication
+#define E1000_RXD_STAT_VP    (1u << 3) // 802.1Q VLAN packet
+#define E1000_RXD_STAT_UDPCS (1u << 4) // UDP checksum calculated on packet data
+#define E1000_RXD_STAT_TCPCS (1u << 5) // TCP checksum calculated on packet data
+#define E1000_RXD_STAT_IPCS  (1u << 6) // IP checksum calculated on packet data
+#define E1000_RXD_STAT_PIF   (1u << 7) // Passed inexact filter
 
 // Legacy RX descriptor error bits (rdesc.errors)
-#define E1000_RXD_ERR_CE       (1u << 0) // CRC or alignment error
-#define E1000_RXD_ERR_SE       (1u << 1) // Symbol error
-#define E1000_RXD_ERR_SEQ      (1u << 2) // Sequence error
-#define E1000_RXD_ERR_CXE      (1u << 4) // Carrier extension error
-#define E1000_RXD_ERR_TCPE     (1u << 5) // TCP/UDP checksum error
-#define E1000_RXD_ERR_IPE      (1u << 6) // IP checksum error
-#define E1000_RXD_ERR_RXE      (1u << 7) // RX data error
+#define E1000_RXD_ERR_CE   (1u << 0) // CRC or alignment error
+#define E1000_RXD_ERR_SE   (1u << 1) // Symbol error
+#define E1000_RXD_ERR_SEQ  (1u << 2) // Sequence error
+#define E1000_RXD_ERR_CXE  (1u << 4) // Carrier extension error
+#define E1000_RXD_ERR_TCPE (1u << 5) // TCP/UDP checksum error
+#define E1000_RXD_ERR_IPE  (1u << 6) // IP checksum error
+#define E1000_RXD_ERR_RXE  (1u << 7) // RX data error
 
 // transmit descriptor (legacy)
 struct tdesc {
@@ -150,21 +149,21 @@ struct tdesc {
     uint16_t special;
 
     void dump() {
-        printf("tdsec %p: addr %#llx len %hu cso %#hhx cmd %#hhx sta_rsv %#hhx css %#hhx spec %#hx\n",
-               this, addr, length, cso, cmd, sta_rsv, css, special);
+        printf(
+            "tdsec %p: addr %#llx len %hu cso %#hhx cmd %#hhx sta_rsv %#hhx css %#hhx spec %#hx\n",
+            this, addr, length, cso, cmd, sta_rsv, css, special);
     }
 };
 static_assert(sizeof(tdesc) == 16, "");
 
 // TX descriptor status bits (tdesc.sta_rsv)
-#define E1000_TXD_STAT_DD      (1u << 0) // Descriptor done (TX complete)
-#define E1000_TXD_STAT_EC      (1u << 1) // Excess collisions
-#define E1000_TXD_STAT_LC      (1u << 2) // Late collision
-#define E1000_TXD_STAT_TU      (1u << 3) // Transmit underrun
+#define E1000_TXD_STAT_DD (1u << 0) // Descriptor done (TX complete)
+#define E1000_TXD_STAT_EC (1u << 1) // Excess collisions
+#define E1000_TXD_STAT_LC (1u << 2) // Late collision
+#define E1000_TXD_STAT_TU (1u << 3) // Transmit underrun
 
 // efficient copy for rx/tx descriptors out/into uncached memory
-template <typename T>
-inline void copy(T *_dst, const T *_src) {
+template <typename T> inline void copy(T *_dst, const T *_src) {
     // only allow this for structs that are precisely 16 bytes long
     static_assert(sizeof(T) == 16, "");
 
@@ -175,4 +174,3 @@ inline void copy(T *_dst, const T *_src) {
     dst[0] = src[0];
     dst[1] = src[1];
 }
-

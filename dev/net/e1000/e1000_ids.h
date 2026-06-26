@@ -19,7 +19,7 @@ constexpr e1000_id_features e1000_ids[] = {
     { 0x100c, false }, // 82544GC QEMU 'e1000-82544gc'
     { 0x100e, false }, // 82540EM QEMU 'e1000'
     { 0x100f, false }, // 82545EM QEMU 'e1000-82544em'
-    { 0x10d3, true }, // 82574L  QEMU 'e1000e'
+    { 0x10d3, true },  // 82574L  QEMU 'e1000e'
 
     // i210/i211 family
     { 0x1533, true }, // i210
