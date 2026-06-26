@@ -18,14 +18,14 @@
 //
 // If the arch didn't override it, use the default
 #if !ARCH_MMIO_READ_WRITE_OVERRIDE
-#define _MMIO_READ_DEFAULT(ptr) *ptr
+#define _MMIO_READ_DEFAULT(ptr)       *ptr
 #define _MMIO_WRITE_DEFAULT(ptr, val) *ptr = val
 
-#define _ARCH_MMIO_READ8 _MMIO_READ_DEFAULT
-#define _ARCH_MMIO_READ16 _MMIO_READ_DEFAULT
-#define _ARCH_MMIO_READ32 _MMIO_READ_DEFAULT
-#define _ARCH_MMIO_READ64 _MMIO_READ_DEFAULT
-#define _ARCH_MMIO_WRITE8 _MMIO_WRITE_DEFAULT
+#define _ARCH_MMIO_READ8   _MMIO_READ_DEFAULT
+#define _ARCH_MMIO_READ16  _MMIO_READ_DEFAULT
+#define _ARCH_MMIO_READ32  _MMIO_READ_DEFAULT
+#define _ARCH_MMIO_READ64  _MMIO_READ_DEFAULT
+#define _ARCH_MMIO_WRITE8  _MMIO_WRITE_DEFAULT
 #define _ARCH_MMIO_WRITE16 _MMIO_WRITE_DEFAULT
 #define _ARCH_MMIO_WRITE32 _MMIO_WRITE_DEFAULT
 #define _ARCH_MMIO_WRITE64 _MMIO_WRITE_DEFAULT
@@ -76,12 +76,24 @@ static inline void mmio_write64(volatile uint64_t *ptr, uint64_t val) {
 #define REG64(addr) ((volatile uint64_t *)(uintptr_t)(addr))
 #define REG32(addr) ((volatile uint32_t *)(uintptr_t)(addr))
 #define REG16(addr) ((volatile uint16_t *)(uintptr_t)(addr))
-#define REG8(addr) ((volatile uint8_t *)(uintptr_t)(addr))
+#define REG8(addr)  ((volatile uint8_t *)(uintptr_t)(addr))
 
-#define RMWREG64(addr, startbit, width, val) mmio_write64((volatile void *)(addr), (mmio_read64((volatile void *)(addr)) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit)))
-#define RMWREG32(addr, startbit, width, val) mmio_write32((volatile void *)(addr), (mmio_read32((volatile void *)(addr)) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit)))
-#define RMWREG16(addr, startbit, width, val) mmio_write16((volatile void *)(addr), (mmio_read16((volatile void *)(addr)) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit)))
-#define RMWREG8(addr, startbit, width, val) mmio_write8((volatile void *)(addr), (mmio_read8((volatile void *)(addr)) & ~(((1<<(width)) - 1) << (startbit))) | ((val) << (startbit)))
+#define RMWREG64(addr, startbit, width, val)                                                       \
+    mmio_write64((volatile void *)(addr),                                                          \
+                 (mmio_read64((volatile void *)(addr)) & ~(((1 << (width)) - 1) << (startbit))) |  \
+                     ((val) << (startbit)))
+#define RMWREG32(addr, startbit, width, val)                                                       \
+    mmio_write32((volatile void *)(addr),                                                          \
+                 (mmio_read32((volatile void *)(addr)) & ~(((1 << (width)) - 1) << (startbit))) |  \
+                     ((val) << (startbit)))
+#define RMWREG16(addr, startbit, width, val)                                                       \
+    mmio_write16((volatile void *)(addr),                                                          \
+                 (mmio_read16((volatile void *)(addr)) & ~(((1 << (width)) - 1) << (startbit))) |  \
+                     ((val) << (startbit)))
+#define RMWREG8(addr, startbit, width, val)                                                        \
+    mmio_write8((volatile void *)(addr),                                                           \
+                (mmio_read8((volatile void *)(addr)) & ~(((1 << (width)) - 1) << (startbit))) |    \
+                    ((val) << (startbit)))
 
 // Linux-style accessors
 #define readb(a) mmio_read8((volatile uint8_t *)(a))
@@ -96,5 +108,3 @@ static inline void mmio_write64(volatile uint64_t *ptr, uint64_t val) {
 #if _LP64
 #define writeq(v, a) mmio_write64((volatile uint64_t *)(a), v)
 #endif
-
-
