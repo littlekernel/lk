@@ -277,9 +277,52 @@ static bool test_memalign_stress(void) {
     END_TEST;
 }
 
+/* malloc() must return memory aligned to at least 2*sizeof(void*) for any size.
+ * This is the "two-word" minimum that covers all fundamental scalar types
+ * (uint64_t, double, etc.) on every LK architecture. */
+static bool test_malloc_alignment(void) {
+    BEGIN_TEST;
+
+    const size_t min_align = 2 * sizeof(void *);
+
+    // Verify alignment across a wide range of sizes, including awkward ones
+    // that are not multiples of any power of two.
+    static const size_t sizes[] = {
+        1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65,
+        127, 128, 255, 256, 1023, 1024,
+    };
+    for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
+        void *p = malloc(sizes[i]);
+        ASSERT_NONNULL(p, "malloc returned NULL");
+        EXPECT_EQ(0u, (uintptr_t)p % min_align, "malloc alignment violated");
+        free(p);
+    }
+
+    // Punch a hole in the freelist and re-fill it, exercising the split path.
+    void *a = malloc(1);
+    void *b = malloc(1);
+    void *c = malloc(1);
+    ASSERT_NONNULL(a, "malloc a");
+    ASSERT_NONNULL(b, "malloc b");
+    ASSERT_NONNULL(c, "malloc c");
+    EXPECT_EQ(0u, (uintptr_t)a % min_align, "a alignment");
+    EXPECT_EQ(0u, (uintptr_t)b % min_align, "b alignment");
+    EXPECT_EQ(0u, (uintptr_t)c % min_align, "c alignment");
+    free(b);
+    void *d = malloc(1);
+    ASSERT_NONNULL(d, "malloc d after hole");
+    EXPECT_EQ(0u, (uintptr_t)d % min_align, "d alignment after hole");
+    free(a);
+    free(c);
+    free(d);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(heap_tests)
     RUN_TEST(test_malloc_basic)
     RUN_TEST(test_malloc_zero)
+    RUN_TEST(test_malloc_alignment)
     RUN_TEST(test_free_null)
     RUN_TEST(test_calloc_zeroed)
     RUN_TEST(test_realloc_grow)
