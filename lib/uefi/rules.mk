@@ -10,6 +10,7 @@ MODULE_INCLUDES += \
 	lib/watchdog/include \
 
 MODULE_DEPS += \
+	lib/heap/dlmalloc \
 	lib/libcpp \
 
 MODULE_SRCS += \
