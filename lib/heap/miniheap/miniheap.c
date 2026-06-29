@@ -33,23 +33,23 @@
  */
 #include <lib/miniheap.h>
 
-#include <lk/debug.h>
-#include <lk/trace.h>
 #include <assert.h>
+#include <kernel/mutex.h>
+#include <lib/heap.h>
+#include <lib/page_alloc.h>
+#include <lk/debug.h>
 #include <lk/err.h>
+#include <lk/trace.h>
 #include <rand.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <kernel/mutex.h>
-#include <lib/heap.h>
-#include <lib/page_alloc.h>
 
 #define LOCAL_TRACE 0
 
-#define DEBUG_HEAP 0
-#define ALLOC_FILL 0x99
-#define FREE_FILL 0x77
+#define DEBUG_HEAP   0
+#define ALLOC_FILL   0x99
+#define FREE_FILL    0x77
 #define PADDING_FILL 0x55
 #define PADDING_SIZE 64
 
@@ -69,7 +69,7 @@ struct heap {
     size_t remaining;
     size_t low_watermark;
     mutex_t lock;
-    struct free_heap_chunk *free_list;  // singly-linked, kept in address order, NULL-terminated
+    struct free_heap_chunk *free_list; // singly-linked, kept in address order, NULL-terminated
 };
 
 // heap static vars
@@ -98,7 +98,7 @@ struct alloc_struct_begin {
 //   - every chunk boundary is naturally aligned for malloc() return values
 //   - the minimum-allocation-size invariant stays clean
 STATIC_ASSERT((sizeof(struct alloc_struct_begin) % HEAP_ALIGN) == 0);
-STATIC_ASSERT(sizeof(struct free_heap_chunk)    == HEAP_ALIGN);
+STATIC_ASSERT(sizeof(struct free_heap_chunk) == HEAP_ALIGN);
 
 static ssize_t heap_grow(size_t len);
 
@@ -107,16 +107,19 @@ static bool heap_range_contains(uintptr_t addr, size_t len) {
     const uintptr_t heap_end = heap_start + theheap.len;
 
     // Is the heap range valid?
-    if (unlikely(heap_end < heap_start))
+    if (unlikely(heap_end < heap_start)) {
         return false;
+    }
 
     // Is the start of the range within the heap?
-    if (unlikely(addr < heap_start || addr > heap_end))
+    if (unlikely(addr < heap_start || addr > heap_end)) {
         return false;
+    }
 
     // Is the end of the range within the heap?
-    if (unlikely(addr + len > heap_end))
+    if (unlikely(addr + len > heap_end)) {
         return false;
+    }
 
     return true;
 }
@@ -126,7 +129,8 @@ static bool heap_validate_allocation(const struct alloc_struct_begin *as) {
 }
 
 static void dump_free_chunk(struct free_heap_chunk *chunk) {
-    dprintf(INFO, "\t\tbase %p, end 0x%lx, len 0x%zx\n", chunk, (vaddr_t)chunk + chunk->len, chunk->len);
+    dprintf(INFO, "\t\tbase %p, end 0x%lx, len 0x%zx\n", chunk, (vaddr_t)chunk + chunk->len,
+            chunk->len);
 }
 
 void miniheap_dump(void) {
@@ -140,7 +144,6 @@ void miniheap_dump(void) {
         dump_free_chunk(chunk);
     }
     mutex_release(&theheap.lock);
-
 }
 
 // try to insert this free chunk into the free list, consuming the chunk by merging it with
@@ -179,7 +182,7 @@ static struct free_heap_chunk *heap_insert_free_chunk(struct free_heap_chunk *ch
         // Extend prev_chunk to absorb chunk; remove chunk from the list.
         prev_chunk->len += chunk->len;
         prev_chunk->next = chunk->next;
-        chunk = prev_chunk;  // chunk now refers to the merged block
+        chunk = prev_chunk; // chunk now refers to the merged block
     }
 
     // Try to merge with the next chunk.
@@ -199,8 +202,9 @@ static struct free_heap_chunk *heap_create_free_chunk(void *ptr, size_t len, boo
     DEBUG_ASSERT(len >= sizeof(struct free_heap_chunk));
 
 #if DEBUG_HEAP
-    if (allow_debug)
+    if (allow_debug) {
         memset(ptr, FREE_FILL, len);
+    }
 #endif
 
     struct free_heap_chunk *chunk = (struct free_heap_chunk *)ptr;
@@ -216,8 +220,9 @@ void *miniheap_alloc(size_t size, unsigned int alignment) {
     LTRACEF("size %zd, align %d\n", size, (int)alignment);
 
     // alignment must be power of 2
-    if (alignment & (alignment - 1))
+    if (alignment & (alignment - 1)) {
         return NULL;
+    }
 
     // we always put a base pointer + size in front of the allocation
     size += sizeof(struct alloc_struct_begin);
@@ -228,16 +233,18 @@ void *miniheap_alloc(size_t size, unsigned int alignment) {
     // make sure we allocate at least the size of a struct free_heap_chunk so that
     // when we free it, we can create a struct free_heap_chunk struct and stick it
     // in the spot
-    if (size < sizeof(struct free_heap_chunk))
+    if (size < sizeof(struct free_heap_chunk)) {
         size = sizeof(struct free_heap_chunk);
+    }
 
     // round up size to HEAP_ALIGN so every chunk boundary stays
     // naturally aligned and malloc() return values meet the C standard guarantee
     size = ROUNDUP(size, HEAP_ALIGN);
 
     // check that the size additions above didn't wrap around
-    if (size < original_size)
+    if (size < original_size) {
         return NULL;
+    }
 
     size_t needed_size = size;
 
@@ -250,13 +257,15 @@ retry:
     struct free_heap_chunk **prevp = &theheap.free_list;
     struct free_heap_chunk *chunk;
     for (chunk = theheap.free_list; chunk; prevp = &chunk->next, chunk = chunk->next) {
-        DEBUG_ASSERT((chunk->len % HEAP_ALIGN) == 0); // len must be a multiple of the heap alignment unit
+        DEBUG_ASSERT((chunk->len % HEAP_ALIGN) ==
+                     0); // len must be a multiple of the heap alignment unit
 
         // Calculate the exact alignment offset (front slack) for this chunk
         size_t front_slack = 0;
         if (alignment > HEAP_ALIGN) {
             uintptr_t chunk_start = (uintptr_t)chunk;
-            uintptr_t aligned_payload = ROUNDUP(chunk_start + sizeof(struct alloc_struct_begin), (uintptr_t)alignment);
+            uintptr_t aligned_payload =
+                ROUNDUP(chunk_start + sizeof(struct alloc_struct_begin), (uintptr_t)alignment);
             uintptr_t allocated_start = aligned_payload - sizeof(struct alloc_struct_begin);
             front_slack = allocated_start - chunk_start;
         }
@@ -275,13 +284,19 @@ retry:
             }
 
             // Verify heap invariants under the new split configuration
-            DEBUG_ASSERT((front_slack % HEAP_ALIGN) == 0 && (front_slack == 0 || front_slack >= sizeof(struct free_heap_chunk)));
-            DEBUG_ASSERT(total_allocated_size >= needed_size && (total_allocated_size % HEAP_ALIGN) == 0);
-            DEBUG_ASSERT(front_slack + total_allocated_size + (split_rear ? rear_slack : 0) == chunk->len);
-            DEBUG_ASSERT(split_rear ? ((rear_slack % HEAP_ALIGN) == 0 && rear_slack >= sizeof(struct free_heap_chunk)) : (rear_slack < sizeof(struct free_heap_chunk)));
+            DEBUG_ASSERT((front_slack % HEAP_ALIGN) == 0 &&
+                         (front_slack == 0 || front_slack >= sizeof(struct free_heap_chunk)));
+            DEBUG_ASSERT(total_allocated_size >= needed_size &&
+                         (total_allocated_size % HEAP_ALIGN) == 0);
+            DEBUG_ASSERT(front_slack + total_allocated_size + (split_rear ? rear_slack : 0) ==
+                         chunk->len);
+            DEBUG_ASSERT(split_rear ? ((rear_slack % HEAP_ALIGN) == 0 &&
+                                       rear_slack >= sizeof(struct free_heap_chunk))
+                                    : (rear_slack < sizeof(struct free_heap_chunk)));
             if (alignment > HEAP_ALIGN) {
                 uintptr_t allocated_start = (uintptr_t)ptr + front_slack;
-                DEBUG_ASSERT(((allocated_start + sizeof(struct alloc_struct_begin)) % alignment) == 0);
+                DEBUG_ASSERT(((allocated_start + sizeof(struct alloc_struct_begin)) % alignment) ==
+                             0);
             }
 
             // Update free list and handle splits
@@ -328,7 +343,8 @@ retry:
             }
 #if DEBUG_HEAP
             as->padding_start = ((uint8_t *)ptr + original_size);
-            as->padding_size = (((addr_t)allocated_start + total_allocated_size) - ((addr_t)ptr + original_size));
+            as->padding_size =
+                (((addr_t)allocated_start + total_allocated_size) - ((addr_t)ptr + original_size));
             memset(as->padding_start, PADDING_FILL, as->padding_size);
 #endif
 
@@ -358,7 +374,8 @@ retry:
 
 // Scan the free list to locate a free chunk starting at target_addr.
 // Returns the chunk, and sets out_prevp to its pointing pointer for list updates.
-static struct free_heap_chunk *find_free_chunk_at(vaddr_t target_addr, struct free_heap_chunk ***out_prevp) {
+static struct free_heap_chunk *find_free_chunk_at(vaddr_t target_addr,
+                                                  struct free_heap_chunk ***out_prevp) {
     struct free_heap_chunk **prevp = &theheap.free_list;
     struct free_heap_chunk *chunk = theheap.free_list;
     while (chunk) {
@@ -373,8 +390,9 @@ static struct free_heap_chunk *find_free_chunk_at(vaddr_t target_addr, struct fr
 }
 
 void *miniheap_realloc(void *ptr, size_t size) {
-    if (!ptr)
+    if (!ptr) {
         return miniheap_alloc(size, 0);
+    }
     if (size == 0) {
         miniheap_free(ptr);
         return NULL;
@@ -433,8 +451,8 @@ void *miniheap_realloc(void *ptr, size_t size) {
 
         if (remaining_len >= sizeof(struct free_heap_chunk)) {
             // Shrink next_free in-place
-            struct free_heap_chunk *new_next = heap_create_free_chunk(
-                (uint8_t *)next_free + extra_needed, remaining_len, false);
+            struct free_heap_chunk *new_next =
+                heap_create_free_chunk((uint8_t *)next_free + extra_needed, remaining_len, false);
             new_next->next = next_free->next;
             *prevp = new_next;
 
@@ -464,8 +482,9 @@ void *miniheap_realloc(void *ptr, size_t size) {
     size_t copy_size = (size < old_usable) ? size : old_usable;
 
     void *p = miniheap_alloc(size, 0);
-    if (!p)
+    if (!p) {
         return NULL;
+    }
 
     memcpy(p, ptr, copy_size);
     miniheap_free(ptr);
@@ -474,8 +493,9 @@ void *miniheap_realloc(void *ptr, size_t size) {
 }
 
 void miniheap_free(void *ptr) {
-    if (!ptr)
+    if (!ptr) {
         return;
+    }
 
     LTRACEF("ptr %p\n", ptr);
 
@@ -529,7 +549,8 @@ void miniheap_trim(void) {
 
         uintptr_t start = (uintptr_t)chunk;
         uintptr_t end = start + chunk->len;
-        DEBUG_ASSERT(end > start); // make sure it doesn't wrap the address space and has a positive len
+        DEBUG_ASSERT(end >
+                     start); // make sure it doesn't wrap the address space and has a positive len
 
         // compute the page aligned region in this free block (if any)
         uintptr_t start_page = ROUNDUP(start, PAGE_SIZE);
@@ -568,7 +589,8 @@ retry:
                 size_t new_chunk_size = end - end_page;
                 LTRACEF("will have to split, new chunk will be 0x%zx bytes long\n", new_chunk_size);
 
-                // if there's not enough space afterwards for a free chunk, we can't free the last page
+                // if there's not enough space afterwards for a free chunk, we can't free the last
+                // page
                 if (new_chunk_size < sizeof(struct free_heap_chunk)) {
                     LTRACEF("not enough space for free chunk afterwards\n");
                     end_page -= PAGE_SIZE;
@@ -580,15 +602,17 @@ retry:
                 end = end_page;
 
                 // create a new chunk after the one we're trimming and splice it in
-                struct free_heap_chunk *new_chunk = heap_create_free_chunk((void *)end_page, new_chunk_size, false);
+                struct free_heap_chunk *new_chunk =
+                    heap_create_free_chunk((void *)end_page, new_chunk_size, false);
                 new_chunk->next = next_chunk;
                 chunk->next = new_chunk;
-                next_chunk = new_chunk;  // update so the outer loop advances correctly
+                next_chunk = new_chunk; // update so the outer loop advances correctly
             }
 
             // check again to see if we are now completely covering a block
             if (start_page == start && end_page == end) {
-                LTRACEF("special case, after splitting off new chunk, free chunk completely covers page(s)\n");
+                LTRACEF("special case, after splitting off new chunk, free chunk completely covers "
+                        "page(s)\n");
                 *prevp = next_chunk;
                 goto free_chunk;
             }
@@ -598,7 +622,8 @@ retry:
 
 free_chunk:
             // return it to the allocator
-            LTRACEF("returning %p size 0x%lx to the page allocator\n", (void *)start_page, end_page - start_page);
+            LTRACEF("returning %p size 0x%lx to the page allocator\n", (void *)start_page,
+                    end_page - start_page);
             page_free((void *)start_page, (end_page - start_page) / PAGE_SIZE);
 
             // tweak accounting
@@ -649,8 +674,9 @@ static ssize_t heap_grow(size_t size) {
     heap_insert_free_chunk(heap_create_free_chunk(ptr, size, true));
 
     /* change the heap start and end variables */
-    if ((uintptr_t)ptr < (uintptr_t)theheap.base || theheap.base == 0)
+    if ((uintptr_t)ptr < (uintptr_t)theheap.base || theheap.base == 0) {
         theheap.base = ptr;
+    }
 
     uintptr_t endptr = (uintptr_t)ptr + size;
     if (endptr > (uintptr_t)theheap.base + theheap.len) {
@@ -691,7 +717,7 @@ void miniheap_init(void *ptr, size_t len) {
     theheap.low_watermark = 0;
 
     // if passed a default range, use it
-    if (len > 0)
+    if (len > 0) {
         heap_insert_free_chunk(heap_create_free_chunk(ptr, len, true));
+    }
 }
-
