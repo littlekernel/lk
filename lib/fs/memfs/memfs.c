@@ -309,6 +309,11 @@ static ssize_t memfs_write(filecookie *fcookie, const void *buf, off_t off, size
             return ERR_NO_MEMORY;
         }
 
+        // Zero out any gap created by writing past the end of the file
+        if ((size_t)off > file->len) {
+            memset((uint8_t *)ptr + file->len, 0, (size_t)off - file->len);
+        }
+
         file->ptr = ptr;
         file->len = off + len;
     }
