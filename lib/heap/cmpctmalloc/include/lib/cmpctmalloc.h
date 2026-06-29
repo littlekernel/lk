@@ -8,6 +8,7 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <stddef.h>
 
 __BEGIN_CDECLS
 

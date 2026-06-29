@@ -7,15 +7,15 @@
  */
 #include <lib/heap.h>
 
-#include <lk/trace.h>
+#include <kernel/spinlock.h>
+#include <lib/page_alloc.h>
+#include <lk/console_cmd.h>
 #include <lk/debug.h>
-#include <stdlib.h>
-#include <string.h>
 #include <lk/err.h>
 #include <lk/list.h>
-#include <kernel/spinlock.h>
-#include <lk/console_cmd.h>
-#include <lib/page_alloc.h>
+#include <lk/trace.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define LOCAL_TRACE 0
 
@@ -34,16 +34,23 @@ static spin_lock_t delayed_free_lock = SPIN_LOCK_INITIAL_VALUE;
 /* miniheap implementation */
 #include <lib/miniheap.h>
 
-static inline void *HEAP_MALLOC(size_t s) { return miniheap_alloc(s, 0); }
-static inline void *HEAP_REALLOC(void *ptr, size_t s) { return miniheap_realloc(ptr, s); }
-static inline void *HEAP_MEMALIGN(size_t boundary, size_t s) { return miniheap_alloc(s, boundary); }
+static inline void *HEAP_MALLOC(size_t s) {
+    return miniheap_alloc(s, 0);
+}
+static inline void *HEAP_REALLOC(void *ptr, size_t s) {
+    return miniheap_realloc(ptr, s);
+}
+static inline void *HEAP_MEMALIGN(size_t boundary, size_t s) {
+    return miniheap_alloc(s, boundary);
+}
 #define HEAP_FREE miniheap_free
 static inline void *HEAP_CALLOC(size_t n, size_t s) {
     size_t realsize = n * s;
 
     void *ptr = miniheap_alloc(realsize, 0);
-    if (likely(ptr))
+    if (likely(ptr)) {
         memset(ptr, 0, realsize);
+    }
     return ptr;
 }
 static inline void HEAP_INIT(void) {
@@ -61,18 +68,19 @@ static inline void HEAP_INIT(void) {
 #include <lib/cmpctmalloc.h>
 
 #define HEAP_MEMALIGN(boundary, s) cmpct_memalign(s, boundary)
-#define HEAP_MALLOC cmpct_alloc
-#define HEAP_REALLOC cmpct_realloc
-#define HEAP_FREE cmpct_free
-#define HEAP_INIT cmpct_init
-#define HEAP_DUMP cmpct_dump
-#define HEAP_TRIM cmpct_trim
+#define HEAP_MALLOC                cmpct_alloc
+#define HEAP_REALLOC               cmpct_realloc
+#define HEAP_FREE                  cmpct_free
+#define HEAP_INIT                  cmpct_init
+#define HEAP_DUMP                  cmpct_dump
+#define HEAP_TRIM                  cmpct_trim
 static inline void *HEAP_CALLOC(size_t n, size_t s) {
     size_t realsize = n * s;
 
     void *ptr = cmpct_alloc(realsize);
-    if (likely(ptr))
+    if (likely(ptr)) {
         memset(ptr, 0, realsize);
+    }
     return ptr;
 }
 
@@ -81,11 +89,11 @@ static inline void *HEAP_CALLOC(size_t n, size_t s) {
 /* dlmalloc implementation */
 #include <lib/dlmalloc.h>
 
-#define HEAP_MALLOC(s) dlmalloc(s)
-#define HEAP_CALLOC(n, s) dlcalloc(n, s)
+#define HEAP_MALLOC(s)      dlmalloc(s)
+#define HEAP_CALLOC(n, s)   dlcalloc(n, s)
 #define HEAP_MEMALIGN(b, s) dlmemalign(b, s)
-#define HEAP_REALLOC(p, s) dlrealloc(p, s)
-#define HEAP_FREE(p) dlfree(p)
+#define HEAP_REALLOC(p, s)  dlrealloc(p, s)
+#define HEAP_FREE(p)        dlfree(p)
 static inline void HEAP_INIT(void) {}
 
 void dump_callback(void *start, void *end, size_t used_bytes, void *arg) {
@@ -109,7 +117,9 @@ static inline void HEAP_DUMP(void) {
     dlmalloc_inspect_all(&dump_callback, NULL);
 }
 
-static inline void HEAP_TRIM(void) { dlmalloc_trim(0); }
+static inline void HEAP_TRIM(void) {
+    dlmalloc_trim(0);
+}
 
 /* end dlmalloc implementation */
 #else
@@ -157,8 +167,9 @@ void *malloc(size_t size) {
     }
 
     void *ptr = HEAP_MALLOC(size);
-    if (heap_trace)
+    if (heap_trace) {
         printf("caller %p malloc %zu -> %p\n", __GET_CALLER(), size, ptr);
+    }
     return ptr;
 }
 
@@ -171,8 +182,9 @@ void *memalign(size_t boundary, size_t size) {
     }
 
     void *ptr = HEAP_MEMALIGN(boundary, size);
-    if (heap_trace)
+    if (heap_trace) {
         printf("caller %p memalign %zu, %zu -> %p\n", __GET_CALLER(), boundary, size, ptr);
+    }
     return ptr;
 }
 
@@ -185,8 +197,9 @@ void *calloc(size_t count, size_t size) {
     }
 
     void *ptr = HEAP_CALLOC(count, size);
-    if (heap_trace)
+    if (heap_trace) {
         printf("caller %p calloc %zu, %zu -> %p\n", __GET_CALLER(), count, size, ptr);
+    }
     return ptr;
 }
 
@@ -199,15 +212,17 @@ void *realloc(void *ptr, size_t size) {
     }
 
     void *ptr2 = HEAP_REALLOC(ptr, size);
-    if (heap_trace)
+    if (heap_trace) {
         printf("caller %p realloc %p, %zu -> %p\n", __GET_CALLER(), ptr, size, ptr2);
+    }
     return ptr2;
 }
 
 void free(void *ptr) {
     LTRACEF("ptr %p\n", ptr);
-    if (heap_trace)
+    if (heap_trace) {
         printf("caller %p free %p\n", __GET_CALLER(), ptr);
+    }
 
     HEAP_FREE(ptr);
 }
@@ -236,7 +251,6 @@ static void heap_dump(void) {
     }
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
-
 
 #if LK_DEBUGLEVEL > 1
 
@@ -269,17 +283,23 @@ usage:
     } else if (strcmp(argv[1].str, "trim") == 0) {
         heap_trim();
     } else if (strcmp(argv[1].str, "alloc") == 0) {
-        if (argc < 3) goto notenoughargs;
+        if (argc < 3) {
+            goto notenoughargs;
+        }
 
         void *ptr = memalign((argc >= 4) ? argv[3].u : 0, argv[2].u);
         printf("memalign returns %p\n", ptr);
     } else if (strcmp(argv[1].str, "realloc") == 0) {
-        if (argc < 4) goto notenoughargs;
+        if (argc < 4) {
+            goto notenoughargs;
+        }
 
         void *ptr = realloc(argv[2].p, argv[3].u);
         printf("realloc returns %p\n", ptr);
     } else if (strcmp(argv[1].str, "free") == 0) {
-        if (argc < 3) goto notenoughargs;
+        if (argc < 3) {
+            goto notenoughargs;
+        }
 
         free(argv[2].p);
     } else {
@@ -291,5 +311,3 @@ usage:
 }
 
 #endif
-
-

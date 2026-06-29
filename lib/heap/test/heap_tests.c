@@ -5,27 +5,27 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include <lib/unittest.h>
 #include <lib/heap.h>
+#include <lib/unittest.h>
 
 #include <stdint.h>
 #include <string.h>
 
 #if !defined(MEMSIZE) || MEMSIZE >= (128 * 1024)
-#define HEAP_TEST_LARGE_ALLOCATIONS 1
-#define HEAP_TEST_MEMALIGN_MAX_ALIGN 4096
-#define HEAP_TEST_MEMALIGN_SIZE 64
-#define HEAP_TEST_STRESS_SLOTS 16
-#define HEAP_TEST_STRESS_ALIGN_BITS 8
-#define HEAP_TEST_STRESS_MAX_BYTES 8192
+#define HEAP_TEST_LARGE_ALLOCATIONS     1
+#define HEAP_TEST_MEMALIGN_MAX_ALIGN    4096
+#define HEAP_TEST_MEMALIGN_SIZE         64
+#define HEAP_TEST_STRESS_SLOTS          16
+#define HEAP_TEST_STRESS_ALIGN_BITS     8
+#define HEAP_TEST_STRESS_MAX_BYTES      8192
 #define HEAP_TEST_STRESS_ITERS_PER_SLOT 128
 #else
-#define HEAP_TEST_LARGE_ALLOCATIONS 0
-#define HEAP_TEST_MEMALIGN_MAX_ALIGN 256
-#define HEAP_TEST_MEMALIGN_SIZE 32
-#define HEAP_TEST_STRESS_SLOTS 8
-#define HEAP_TEST_STRESS_ALIGN_BITS 7
-#define HEAP_TEST_STRESS_MAX_BYTES 1024
+#define HEAP_TEST_LARGE_ALLOCATIONS     0
+#define HEAP_TEST_MEMALIGN_MAX_ALIGN    256
+#define HEAP_TEST_MEMALIGN_SIZE         32
+#define HEAP_TEST_STRESS_SLOTS          8
+#define HEAP_TEST_STRESS_ALIGN_BITS     7
+#define HEAP_TEST_STRESS_MAX_BYTES      1024
 #define HEAP_TEST_STRESS_ITERS_PER_SLOT 64
 #endif
 
@@ -33,10 +33,10 @@
 static bool test_malloc_basic(void) {
     BEGIN_TEST;
 
-    static const size_t sizes[] = { 1, 2, 4, 7, 8, 15, 16, 31, 32, 64, 128,
-                                    256, 512, 1024, 4096,
+    static const size_t sizes[] = {
+        1,     2, 4, 7, 8, 15, 16, 31, 32, 64, 128, 256, 512, 1024, 4096,
 #if HEAP_TEST_LARGE_ALLOCATIONS
-                                    65536,
+        65536,
 #endif
     };
     for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
@@ -53,7 +53,7 @@ static bool test_malloc_zero(void) {
     BEGIN_TEST;
 
     void *p = malloc(0);
-    free(p);  /* safe whether p is NULL or a valid pointer */
+    free(p); /* safe whether p is NULL or a valid pointer */
 
     END_TEST;
 }
@@ -95,7 +95,7 @@ static bool test_realloc_grow(void) {
     BEGIN_TEST;
 
     const size_t before = 32;
-    const size_t after  = 256;
+    const size_t after = 256;
 
     unsigned char *p = malloc(before);
     ASSERT_NONNULL(p, "malloc failed");
@@ -106,8 +106,7 @@ static bool test_realloc_grow(void) {
     unsigned char *p2 = realloc(p, after);
     ASSERT_NONNULL(p2, "realloc grow failed");
     for (size_t i = 0; i < before; i++) {
-        EXPECT_EQ((int)(unsigned char)(i ^ 0x5a), (int)p2[i],
-                  "data corrupted after realloc grow");
+        EXPECT_EQ((int)(unsigned char)(i ^ 0x5a), (int)p2[i], "data corrupted after realloc grow");
     }
     free(p2);
 
@@ -119,7 +118,7 @@ static bool test_realloc_shrink(void) {
     BEGIN_TEST;
 
     const size_t before = 256;
-    const size_t after  = 16;
+    const size_t after = 16;
 
     unsigned char *p = malloc(before);
     ASSERT_NONNULL(p, "malloc failed");
@@ -183,15 +182,13 @@ static bool test_memalign(void) {
 static bool test_simultaneous_allocs(void) {
     BEGIN_TEST;
 
-    static const size_t sizes[] = {
-        8, 16, 32, 64, 128, 256, 512, 1024, 1, 3, 7, 15, 100, 200,
+    static const size_t sizes[] = { 8,     16, 32, 64, 128, 256, 512, 1024, 1, 3, 7, 15, 100, 200,
 #if HEAP_TEST_LARGE_ALLOCATIONS
-        98713,
+                                    98713,
 #else
-        4096,
+                                    4096,
 #endif
-        17
-    };
+                                    17 };
     const int N = (int)(sizeof(sizes) / sizeof(sizes[0]));
     void *ptrs[sizeof(sizes) / sizeof(sizes[0])];
 
@@ -262,8 +259,7 @@ static bool test_memalign_stress(void) {
         free(ptrs[slot]);
 
         size_t align = (size_t)1 << ((unsigned)i % HEAP_TEST_STRESS_ALIGN_BITS);
-        size_t nbytes =
-            (size_t)((unsigned)i * 31 + 7) % HEAP_TEST_STRESS_MAX_BYTES + 1;
+        size_t nbytes = (size_t)((unsigned)i * 31 + 7) % HEAP_TEST_STRESS_MAX_BYTES + 1;
 
         ptrs[slot] = memalign(align, nbytes);
         ASSERT_NONNULL(ptrs[slot], "memalign failed in stress test");
@@ -288,8 +284,7 @@ static bool test_malloc_alignment(void) {
     // Verify alignment across a wide range of sizes, including awkward ones
     // that are not multiples of any power of two.
     static const size_t sizes[] = {
-        1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65,
-        127, 128, 255, 256, 1023, 1024,
+        1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 255, 256, 1023, 1024,
     };
     for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
         void *p = malloc(sizes[i]);
@@ -485,24 +480,23 @@ static bool test_realloc_multiple_steps(void) {
     END_TEST;
 }
 
-
 BEGIN_TEST_CASE(heap_tests)
-    RUN_TEST(test_malloc_basic)
-    RUN_TEST(test_malloc_zero)
-    RUN_TEST(test_malloc_alignment)
-    RUN_TEST(test_free_null)
-    RUN_TEST(test_calloc_zeroed)
-    RUN_TEST(test_realloc_grow)
-    RUN_TEST(test_realloc_shrink)
-    RUN_TEST(test_realloc_from_null)
-    RUN_TEST(test_realloc_zero_size)
-    RUN_TEST(test_realloc_in_place_shrink)
-    RUN_TEST(test_realloc_in_place_grow)
-    RUN_TEST(test_realloc_blocked_grow)
-    RUN_TEST(test_realloc_multiple_steps)
-    RUN_TEST(test_memalign)
-    RUN_TEST(test_simultaneous_allocs)
-    RUN_TEST(test_no_overlap)
-    RUN_TEST(test_memalign_stress)
-    RUN_TEST(test_heap_worst_case)
+RUN_TEST(test_malloc_basic)
+RUN_TEST(test_malloc_zero)
+RUN_TEST(test_malloc_alignment)
+RUN_TEST(test_free_null)
+RUN_TEST(test_calloc_zeroed)
+RUN_TEST(test_realloc_grow)
+RUN_TEST(test_realloc_shrink)
+RUN_TEST(test_realloc_from_null)
+RUN_TEST(test_realloc_zero_size)
+RUN_TEST(test_realloc_in_place_shrink)
+RUN_TEST(test_realloc_in_place_grow)
+RUN_TEST(test_realloc_blocked_grow)
+RUN_TEST(test_realloc_multiple_steps)
+RUN_TEST(test_memalign)
+RUN_TEST(test_simultaneous_allocs)
+RUN_TEST(test_no_overlap)
+RUN_TEST(test_memalign_stress)
+RUN_TEST(test_heap_worst_case)
 END_TEST_CASE(heap_tests)

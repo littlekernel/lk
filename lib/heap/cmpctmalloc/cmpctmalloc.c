@@ -5,18 +5,19 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <lib/cmpctmalloc.h>
+
+#include <assert.h>
+#include <kernel/mutex.h>
+#include <kernel/spinlock.h>
+#include <kernel/thread.h>
+#include <lib/heap.h>
+#include <lib/page_alloc.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <kernel/thread.h>
-#include <kernel/mutex.h>
-#include <kernel/spinlock.h>
-#include <lib/cmpctmalloc.h>
-#include <lib/heap.h>
-#include <lib/page_alloc.h>
 
 // Malloc implementation tuned for space.
 //
@@ -30,8 +31,8 @@
 
 #define LOCAL_TRACE 0
 
-#define ALLOC_FILL 0x99
-#define FREE_FILL 0x77
+#define ALLOC_FILL   0x99
+#define FREE_FILL    0x77
 #define PADDING_FILL 0x55
 
 #if WITH_KERNEL_VM && !defined(HEAP_GROW_SIZE)
@@ -61,7 +62,7 @@ STATIC_ASSERT(HEAP_GROW_SIZE <= (1u << HEAP_ALLOC_VIRTUAL_BITS));
 
 // All individual memory areas on the heap start with this.
 typedef struct header_struct {
-    struct header_struct *left;  // Pointer to the previous area in memory order.
+    struct header_struct *left; // Pointer to the previous area in memory order.
     size_t size;
 } header_t;
 
@@ -96,14 +97,14 @@ static void unlock(void) {
 }
 
 static void dump_free(header_t *header) {
-    dprintf(INFO, "\t\tbase %p, end 0x%lx, len 0x%zx\n", header, (vaddr_t)header + header->size, header->size);
+    dprintf(INFO, "\t\tbase %p, end 0x%lx, len 0x%zx\n", header, (vaddr_t)header + header->size,
+            header->size);
 }
 
 void cmpct_dump(void) {
     lock();
     dprintf(INFO, "Heap dump (using cmpctmalloc):\n");
-    dprintf(INFO, "\tsize %lu, remaining %lu\n",
-            (unsigned long)theheap.size,
+    dprintf(INFO, "\tsize %lu, remaining %lu\n", (unsigned long)theheap.size,
             (unsigned long)theheap.remaining);
 
     dprintf(INFO, "\tfree list:\n");
@@ -123,8 +124,7 @@ void cmpct_dump(void) {
 }
 
 // Operates in sizes that don't include the allocation header.
-static int size_to_index_helper(
-    size_t size, size_t *rounded_up_out, int adjust, int increment) {
+static int size_to_index_helper(size_t size, size_t *rounded_up_out, int adjust, int increment) {
     // First buckets are simply 8-spaced up to 128.
     if (size <= 128) {
         if (sizeof(size_t) == 8u && size <= sizeof(free_t) - sizeof(header_t)) {
@@ -204,10 +204,14 @@ static int find_nonempty_bucket(int index) {
     uint32_t mask = (1u << (31 - (index & 0x1f))) - 1;
     mask = mask * 2 + 1;
     mask &= theheap.free_list_bits[index >> 5];
-    if (mask != 0) return (index & ~0x1f) + __builtin_clz(mask);
+    if (mask != 0) {
+        return (index & ~0x1f) + __builtin_clz(mask);
+    }
     for (index = ROUNDUP(index + 1, 32); index <= NUMBER_OF_BUCKETS; index += 32) {
         mask = theheap.free_list_bits[index >> 5];
-        if (mask != 0u) return index + __builtin_clz(mask);
+        if (mask != 0u) {
+            return index + __builtin_clz(mask);
+        }
     }
     return -1;
 }
@@ -226,7 +230,9 @@ static void create_free_area(void *address, void *left, size_t size, free_t **bu
         bucket = &theheap.free_lists[index];
     }
     free_t *old_head = *bucket;
-    if (old_head != NULL) old_head->prev = free_area;
+    if (old_head != NULL) {
+        old_head->prev = free_area;
+    }
     free_area->next = old_head;
     free_area->prev = NULL;
     *bucket = free_area;
@@ -248,9 +254,8 @@ static void free_to_os(header_t *header, size_t size) {
 
 static void free_memory(void *address, void *left, size_t size) {
     left = untag(left);
-    if (IS_PAGE_ALIGNED(left) &&
-            is_start_of_os_allocation(left) &&
-            is_end_of_os_allocation((char *)address + size)) {
+    if (IS_PAGE_ALIGNED(left) && is_start_of_os_allocation(left) &&
+        is_end_of_os_allocation((char *)address + size)) {
         free_to_os(left, size + ((header_t *)left)->size + sizeof(header_t));
     } else {
         create_free_area(address, left, size, NULL);
@@ -264,18 +269,23 @@ static void unlink_free(free_t *free_area, int bucket) {
     free_t *prev = free_area->prev;
     if (theheap.free_lists[bucket] == free_area) {
         theheap.free_lists[bucket] = next;
-        if (next == NULL) clear_free_list_bit(bucket);
+        if (next == NULL) {
+            clear_free_list_bit(bucket);
+        }
     }
-    if (prev != NULL) prev->next = next;
-    if (next != NULL) next->prev = prev;
+    if (prev != NULL) {
+        prev->next = next;
+    }
+    if (next != NULL) {
+        next->prev = prev;
+    }
 }
 
 static void unlink_free_unknown_bucket(free_t *free_area) {
     return unlink_free(free_area, size_to_index_freeing(free_area->header.size - sizeof(header_t)));
 }
 
-static void *create_allocation_header(
-    void *address, size_t offset, size_t size, void *left) {
+static void *create_allocation_header(void *address, size_t offset, size_t size, void *left) {
     header_t *standalone = (header_t *)((char *)address + offset);
     standalone->left = untag(left);
     standalone->size = size;
@@ -288,7 +298,9 @@ static void FixLeftPointer(header_t *right, header_t *new_left) {
 }
 
 static void WasteFreeMemory(void) {
-    while (theheap.remaining != 0) cmpct_alloc(1);
+    while (theheap.remaining != 0) {
+        cmpct_alloc(1);
+    }
 }
 
 // If we just make a big allocation it gets rounded off.  If we actually
@@ -301,7 +313,9 @@ static void *TestTrimHelper(ssize_t target) {
         char *next_block = cmpct_alloc(8 + ((theheap.remaining - target) >> 2));
         *(char **)next_block = answer;
         answer = next_block;
-        if (theheap.remaining > remaining) return answer;
+        if (theheap.remaining > remaining) {
+            return answer;
+        }
         // Abandon attempt to hit particular freelist entry size if we accidentally got more memory
         // from the OS.
         remaining = theheap.remaining;
@@ -364,8 +378,12 @@ static void cmpct_test_trim(void) {
             cmpct_trim();
             ASSERT(theheap.remaining <= remaining);
             // If a was at least one page then the trim should have freed up that page.
-            if (s >= PAGE_SIZE && with_second_alloc) ASSERT(theheap.remaining < remaining);
-            if (with_second_alloc) cmpct_free(a2);
+            if (s >= PAGE_SIZE && with_second_alloc) {
+                ASSERT(theheap.remaining < remaining);
+            }
+            if (with_second_alloc) {
+                cmpct_free(a2);
+            }
         }
         ASSERT(theheap.remaining == 0);
     }
@@ -377,7 +395,9 @@ static void cmpct_test_trim(void) {
         for (int i = 0; i < sizes; i++) {
             size_t s = test_sizes[i];
 
-            if ((ssize_t)s + wobble < 0) continue;
+            if ((ssize_t)s + wobble < 0) {
+                continue;
+            }
 
             char *start_of_os_alloc = cmpct_alloc(1);
 
@@ -413,7 +433,6 @@ static void cmpct_test_trim(void) {
         }
     }
 }
-
 
 static void cmpct_test_buckets(void) {
     size_t rounded;
@@ -469,7 +488,9 @@ static void cmpct_test_buckets(void) {
 
 static void cmpct_test_get_back_newly_freed_helper(size_t size) {
     void *allocated = cmpct_alloc(size);
-    if (allocated == NULL) return;
+    if (allocated == NULL) {
+        return;
+    }
     char *allocated2 = cmpct_alloc(8);
     char *expected_position = (char *)allocated + size;
     if (allocated2 < expected_position || allocated2 > expected_position + 128) {
@@ -519,7 +540,9 @@ static void cmpct_test_return_to_os(void) {
     // It that's not the case then the allocation was met from some space in
     // the middle of an OS allocation, and our test won't work as expected, so
     // bail out.
-    if (((uintptr_t)a & (PAGE_SIZE - 1)) != sizeof(header_t) * 2) return;
+    if (((uintptr_t)a & (PAGE_SIZE - 1)) != sizeof(header_t) * 2) {
+        return;
+    }
     // No trim needed when the entire OS allocation is free.
     ASSERT(remaining == theheap.remaining);
 }
@@ -552,32 +575,35 @@ void cmpct_test(void) {
     cmpct_dump();
 
     int i;
-    for (i=0; i < 16; i++)
+    for (i = 0; i < 16; i++) {
         ptr[i] = 0;
+    }
 
-    for (i=0; i < 32768; i++) {
+    for (i = 0; i < 32768; i++) {
         unsigned int index = (unsigned int)rand() % 16;
 
-        if ((i % (16*1024)) == 0)
+        if ((i % (16 * 1024)) == 0) {
             printf("pass %d\n", i);
+        }
 
-//      printf("index 0x%x\n", index);
+        //      printf("index 0x%x\n", index);
         if (ptr[index]) {
-//          printf("freeing ptr[0x%x] = %p\n", index, ptr[index]);
+            //          printf("freeing ptr[0x%x] = %p\n", index, ptr[index]);
             cmpct_free(ptr[index]);
             ptr[index] = 0;
         }
         unsigned int align = 1 << ((unsigned int)rand() % 8);
         ptr[index] = cmpct_memalign((unsigned int)rand() % 32768, align);
-//      printf("ptr[0x%x] = %p, align 0x%x\n", index, ptr[index], align);
+        //      printf("ptr[0x%x] = %p, align 0x%x\n", index, ptr[index], align);
 
         DEBUG_ASSERT(((addr_t)ptr[index] % align) == 0);
-//      cmpct_dump();
+        //      cmpct_dump();
     }
 
-    for (i=0; i < 16; i++) {
-        if (ptr[i])
+    for (i = 0; i < 16; i++) {
+        if (ptr[i]) {
             cmpct_free(ptr[i]);
+        }
     }
 
     cmpct_dump();
@@ -615,26 +641,24 @@ void cmpct_trim(void) {
     // header. They might be at the start or the end of a block, so we can trim
     // them and free the page(s).
     lock();
-    for (int bucket = size_to_index_freeing(PAGE_SIZE);
-            bucket < NUMBER_OF_BUCKETS;
-            bucket++) {
+    for (int bucket = size_to_index_freeing(PAGE_SIZE); bucket < NUMBER_OF_BUCKETS; bucket++) {
         free_t *next;
-        for (free_t *free_area = theheap.free_lists[bucket];
-                free_area != NULL;
-                free_area = next) {
+        for (free_t *free_area = theheap.free_lists[bucket]; free_area != NULL; free_area = next) {
             DEBUG_ASSERT(free_area->header.size >= PAGE_SIZE + sizeof(header_t));
             next = free_area->next;
             header_t *right = right_header(&free_area->header);
             if (is_end_of_os_allocation((char *)right)) {
                 char *old_os_allocation_end = (char *)ROUNDUP((uintptr_t)right, PAGE_SIZE);
                 // The page will end with a smaller free list entry and a header-sized sentinel.
-                char *new_os_allocation_end = (char *)
-                                              ROUNDUP((uintptr_t)free_area + sizeof(header_t) + sizeof(free_t), PAGE_SIZE);
+                char *new_os_allocation_end = (char *)ROUNDUP(
+                    (uintptr_t)free_area + sizeof(header_t) + sizeof(free_t), PAGE_SIZE);
                 size_t freed_up = old_os_allocation_end - new_os_allocation_end;
                 DEBUG_ASSERT(IS_PAGE_ALIGNED(freed_up));
                 // Rare, because we only look at large freelist entries, but unlucky rounding
                 // could mean we can't actually free anything here.
-                if (freed_up == 0) continue;
+                if (freed_up == 0) {
+                    continue;
+                }
                 unlink_free(free_area, bucket);
                 size_t new_free_size = free_area->header.size - freed_up;
                 DEBUG_ASSERT(new_free_size >= sizeof(free_t));
@@ -645,8 +669,7 @@ void cmpct_trim(void) {
                 page_free(new_os_allocation_end, freed_up >> PAGE_SIZE_SHIFT);
                 theheap.size -= freed_up;
             } else if (is_start_of_os_allocation(untag(free_area->header.left))) {
-                char *old_os_allocation_start =
-                    (char *)ROUNDDOWN((uintptr_t)free_area, PAGE_SIZE);
+                char *old_os_allocation_start = (char *)ROUNDDOWN((uintptr_t)free_area, PAGE_SIZE);
                 // For the sentinel, we need at least one header-size of space between the page
                 // edge and the first allocation to the right of the free area.
                 char *new_os_allocation_start =
@@ -654,7 +677,9 @@ void cmpct_trim(void) {
                 size_t freed_up = new_os_allocation_start - old_os_allocation_start;
                 DEBUG_ASSERT(IS_PAGE_ALIGNED(freed_up));
                 // This should not happen because we only look at the large free list buckets.
-                if (freed_up == 0) continue;
+                if (freed_up == 0) {
+                    continue;
+                }
                 unlink_free(free_area, bucket);
                 size_t sentinel_size = sizeof(header_t);
                 size_t new_free_size = free_area->header.size - freed_up;
@@ -682,9 +707,13 @@ void cmpct_trim(void) {
 }
 
 void *cmpct_alloc(size_t size) {
-    if (size == 0u) return NULL;
+    if (size == 0u) {
+        return NULL;
+    }
 
-    if (size + sizeof(header_t) > (1u << HEAP_ALLOC_VIRTUAL_BITS)) return large_alloc(size);
+    if (size + sizeof(header_t) > (1u << HEAP_ALLOC_VIRTUAL_BITS)) {
+        return large_alloc(size);
+    }
 
     size_t rounded_up;
     int start_bucket = size_to_index_allocating(size, &rounded_up);
@@ -696,8 +725,7 @@ void *cmpct_alloc(size_t size) {
     if (bucket == -1) {
         // Grow heap by at least 12% if we can.
         size_t growby = MIN(1u << HEAP_ALLOC_VIRTUAL_BITS,
-                            MAX(theheap.size >> 3,
-                                MAX(HEAP_GROW_SIZE, rounded_up)));
+                            MAX(theheap.size >> 3, MAX(HEAP_GROW_SIZE, rounded_up)));
         while (heap_grow(growby, NULL) < 0) {
             if (growby <= rounded_up) {
                 unlock();
@@ -724,8 +752,7 @@ void *cmpct_alloc(size_t size) {
     } else {
         unlink_free(head, bucket);
     }
-    void *result =
-        create_allocation_header(head, 0, head->header.size, head->header.left);
+    void *result = create_allocation_header(head, 0, head->header.size, head->header.left);
 #ifdef CMPCT_DEBUG
     memset(result, ALLOC_FILL, size);
     memset(((char *)result) + size, PADDING_FILL, rounded_up - size - sizeof(header_t));
@@ -735,21 +762,20 @@ void *cmpct_alloc(size_t size) {
 }
 
 void *cmpct_memalign(size_t size, size_t alignment) {
-    if (alignment < 8) return cmpct_alloc(size);
-    size_t padded_size =
-        size + alignment + sizeof(free_t) + sizeof(header_t);
+    if (alignment < 8) {
+        return cmpct_alloc(size);
+    }
+    size_t padded_size = size + alignment + sizeof(free_t) + sizeof(header_t);
     char *unaligned = (char *)cmpct_alloc(padded_size);
     lock();
     size_t mask = alignment - 1;
-    uintptr_t payload_int = (uintptr_t)unaligned + sizeof(free_t) +
-                            sizeof(header_t) + mask;
+    uintptr_t payload_int = (uintptr_t)unaligned + sizeof(free_t) + sizeof(header_t) + mask;
     char *payload = (char *)(payload_int & ~mask);
     if (unaligned != payload) {
         header_t *unaligned_header = (header_t *)unaligned - 1;
         header_t *header = (header_t *)payload - 1;
         size_t left_over = payload - unaligned;
-        create_allocation_header(
-            header, 0, unaligned_header->size - left_over, unaligned_header);
+        create_allocation_header(header, 0, unaligned_header->size - left_over, unaligned_header);
         header_t *right = right_header(unaligned_header);
         unaligned_header->size = left_over;
         FixLeftPointer(right, header);
@@ -763,9 +789,11 @@ void *cmpct_memalign(size_t size, size_t alignment) {
 }
 
 void cmpct_free(void *payload) {
-    if (payload == NULL) return;
+    if (payload == NULL) {
+        return;
+    }
     header_t *header = (header_t *)payload - 1;
-    DEBUG_ASSERT(!is_tagged_as_free(header));  // Double free!
+    DEBUG_ASSERT(!is_tagged_as_free(header)); // Double free!
     size_t size = header->size;
     lock();
     header_t *left = header->left;
@@ -800,7 +828,9 @@ void cmpct_free(void *payload) {
 }
 
 void *cmpct_realloc(void *payload, size_t size) {
-    if (payload == NULL) return cmpct_alloc(size);
+    if (payload == NULL) {
+        return cmpct_alloc(size);
+    }
     header_t *header = (header_t *)payload - 1;
     size_t old_size = header->size - sizeof(header_t);
     void *new_payload = cmpct_alloc(size);
@@ -830,7 +860,9 @@ static ssize_t heap_grow(size_t size, free_t **bucket) {
     size += 2 * sizeof(header_t);
     size = ROUNDUP(size, PAGE_SIZE);
     void *ptr = page_alloc(size >> PAGE_SIZE_SHIFT, PAGE_ALLOC_ANY_ARENA);
-    if (ptr == NULL) return -1;
+    if (ptr == NULL) {
+        return -1;
+    }
     theheap.size += size;
     LTRACEF("growing heap by 0x%zx bytes, new ptr %p\n", size, ptr);
     add_to_heap(ptr, size, bucket);
