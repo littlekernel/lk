@@ -5,6 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include "cmpctmalloc_private.h"
 #include <lib/cmpctmalloc.h>
 
 #include <assert.h>
@@ -35,9 +36,6 @@
 #define FREE_FILL    0x77
 #define PADDING_FILL 0x55
 
-#define HEAP_ALIGN       (sizeof(void *) * 2)
-#define HEAP_ALIGN_SHIFT (sizeof(void *) == 8 ? 4 : 3)
-
 #if WITH_KERNEL_VM && !defined(HEAP_GROW_SIZE)
 #define HEAP_GROW_SIZE (1 * 1024 * 1024) /* Grow aggressively */
 #elif !defined(HEAP_GROW_SIZE)
@@ -46,51 +44,13 @@
 
 STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
 
-// Individual allocations above 4Mbytes are just fetched directly from the
-// block allocator.
-#define HEAP_ALLOC_VIRTUAL_BITS 22
-
 // When we grow the heap we have to have somewhere in the freelist to put the
 // resulting freelist entry, so the freelist has to have a certain number of
 // buckets.
 STATIC_ASSERT(HEAP_GROW_SIZE <= (1u << HEAP_ALLOC_VIRTUAL_BITS));
 
-// Buckets for allocations.  The smallest 15 buckets are HEAP_ALIGN-spaced up to
-// 15 * HEAP_ALIGN bytes. After that we round up to the nearest size that can be written
-// /^0*1...0*$/, giving 8 buckets per order of binary magnitude.  The freelist
-// entries in a given bucket have at least the given size, plus the header
-// size.
-// The logarithmic rows start at row HEAP_ALIGN_SHIFT + 1. Since the maximum allocation
-// size is limited by HEAP_ALLOC_VIRTUAL_BITS, the number of logarithmic rows is
-// HEAP_ALLOC_VIRTUAL_BITS - (HEAP_ALIGN_SHIFT + 4).
-// This dynamically allocates 136 buckets on 32-bit platforms and 128 buckets on 64-bit platforms.
-#define NUMBER_OF_BUCKETS (1 + 15 + (HEAP_ALLOC_VIRTUAL_BITS - (HEAP_ALIGN_SHIFT + 4)) * 8)
-
-// All individual memory areas on the heap start with this.
-typedef struct header_struct {
-    struct header_struct *left; // Pointer to the previous area in memory order.
-    size_t size;
-} header_t;
-
-typedef struct free_struct {
-    header_t header;
-    struct free_struct *next;
-    struct free_struct *prev;
-} free_t;
-
-struct heap {
-    size_t size;
-    size_t remaining;
-    mutex_t lock;
-    free_t *free_lists[NUMBER_OF_BUCKETS];
-    // We have some 32 bit words that tell us whether there is an entry in the
-    // freelist.
-#define BUCKET_WORDS (((NUMBER_OF_BUCKETS) + 31) >> 5)
-    uint32_t free_list_bits[BUCKET_WORDS];
-};
-
 // Heap static vars.
-static struct heap theheap;
+struct heap theheap;
 
 static ssize_t heap_grow(size_t len, free_t **bucket);
 
@@ -172,13 +132,13 @@ static int size_to_index_helper(size_t size, size_t *rounded_up_out, int adjust,
 }
 
 // Round up size to next bucket when allocating.
-static int size_to_index_allocating(size_t size, size_t *rounded_up_out) {
+int size_to_index_allocating(size_t size, size_t *rounded_up_out) {
     size_t rounded = ROUNDUP(size, HEAP_ALIGN);
     return size_to_index_helper(rounded, rounded_up_out, -(int)HEAP_ALIGN, 1);
 }
 
 // Round down size to next bucket when freeing.
-static int size_to_index_freeing(size_t size) {
+int size_to_index_freeing(size_t size) {
     size_t dummy;
     return size_to_index_helper(size, &dummy, 0, 0);
 }
@@ -304,319 +264,6 @@ static void FixLeftPointer(header_t *right, header_t *new_left) {
     right->left = (header_t *)(((uintptr_t)new_left & ~1) | tag);
 }
 
-static void WasteFreeMemory(void) {
-    while (theheap.remaining != 0) {
-        cmpct_alloc(1);
-    }
-}
-
-// If we just make a big allocation it gets rounded off.  If we actually
-// want to use a reasonably accurate amount of memory for test purposes, we
-// have to do many small allocations.
-static void *TestTrimHelper(ssize_t target) {
-    char *answer = NULL;
-    size_t remaining = theheap.remaining;
-    while (theheap.remaining - target > 512) {
-        char *next_block = cmpct_alloc(8 + ((theheap.remaining - target) >> 2));
-        *(char **)next_block = answer;
-        answer = next_block;
-        if (theheap.remaining > remaining) {
-            return answer;
-        }
-        // Abandon attempt to hit particular freelist entry size if we accidentally got more memory
-        // from the OS.
-        remaining = theheap.remaining;
-    }
-    return answer;
-}
-
-static void TestTrimFreeHelper(char *block) {
-    while (block) {
-        char *next_block = *(char **)block;
-        cmpct_free(block);
-        block = next_block;
-    }
-}
-
-static void cmpct_test_trim(void) {
-    WasteFreeMemory();
-
-    size_t test_sizes[200];
-    int sizes = 0;
-
-    for (size_t s = 1; s < PAGE_SIZE * 4; s = (s + 1) * 1.1) {
-        test_sizes[sizes++] = s;
-        ASSERT(sizes < 200);
-    }
-    for (ssize_t s = -32; s <= 32; s += 8) {
-        test_sizes[sizes++] = PAGE_SIZE + s;
-        ASSERT(sizes < 200);
-    }
-
-    // Test allocations at the start of an OS allocation.
-    for (int with_second_alloc = 0; with_second_alloc < 2; with_second_alloc++) {
-        for (int i = 0; i < sizes; i++) {
-            size_t s = test_sizes[i];
-
-            char *a, *a2 = NULL;
-            a = cmpct_alloc(s);
-            if (with_second_alloc) {
-                a2 = cmpct_alloc(1);
-                if (s < PAGE_SIZE >> 1) {
-                    // It is the intention of the test that a is at the start of an OS allocation
-                    // and that a2 is "right after" it.  Otherwise we are not testing what I
-                    // thought.  OS allocations are certainly not smaller than a page, so check in
-                    // that case.
-                    ASSERT((uintptr_t)(a2 - a) < s * 1.13 + 48);
-                }
-            }
-            cmpct_trim();
-            size_t remaining = theheap.remaining;
-            // We should have < 1 page on either side of the a allocation.
-            ASSERT(remaining < PAGE_SIZE * 2);
-            cmpct_free(a);
-            if (with_second_alloc) {
-                // Now only a2 is holding onto the OS allocation.
-                ASSERT(theheap.remaining > remaining);
-            } else {
-                ASSERT(theheap.remaining == 0);
-            }
-            remaining = theheap.remaining;
-            cmpct_trim();
-            ASSERT(theheap.remaining <= remaining);
-            // If a was at least one page then the trim should have freed up that page.
-            if (s >= PAGE_SIZE && with_second_alloc) {
-                ASSERT(theheap.remaining < remaining);
-            }
-            if (with_second_alloc) {
-                cmpct_free(a2);
-            }
-        }
-        ASSERT(theheap.remaining == 0);
-    }
-
-    ASSERT(theheap.remaining == 0);
-
-    // Now test allocations near the end of an OS allocation.
-    for (ssize_t wobble = -64; wobble <= 64; wobble += 8) {
-        for (int i = 0; i < sizes; i++) {
-            size_t s = test_sizes[i];
-
-            if ((ssize_t)s + wobble < 0) {
-                continue;
-            }
-
-            char *start_of_os_alloc = cmpct_alloc(1);
-
-            // If the OS allocations are very small this test does not make sense.
-            if (theheap.remaining <= s + wobble) {
-                cmpct_free(start_of_os_alloc);
-                continue;
-            }
-
-            char *big_bit_in_the_middle = TestTrimHelper(s + wobble);
-            size_t remaining = theheap.remaining;
-
-            // If the remaining is big we started a new OS allocation and the test
-            // makes no sense.
-            if (remaining > 128 + s * 1.13 + wobble) {
-                cmpct_free(start_of_os_alloc);
-                TestTrimFreeHelper(big_bit_in_the_middle);
-                continue;
-            }
-
-            cmpct_free(start_of_os_alloc);
-            remaining = theheap.remaining;
-
-            // This trim should sometimes trim a page off the end of the OS allocation.
-            cmpct_trim();
-            ASSERT(theheap.remaining <= remaining);
-            remaining = theheap.remaining;
-
-            // We should have < 1 page on either side of the big allocation.
-            ASSERT(remaining < PAGE_SIZE * 2);
-
-            TestTrimFreeHelper(big_bit_in_the_middle);
-        }
-    }
-}
-
-static void cmpct_test_buckets(void) {
-    size_t rounded;
-    unsigned bucket;
-    // Check for the HEAP_ALIGN-spaced buckets up to log_threshold.
-    const size_t log_threshold = 16 * HEAP_ALIGN;
-    for (unsigned i = 1; i <= log_threshold; i++) {
-        // Round up when allocating.
-        bucket = size_to_index_allocating(i, &rounded);
-        unsigned expected = (ROUNDUP(i, HEAP_ALIGN) >> HEAP_ALIGN_SHIFT) - 1;
-        ASSERT(bucket == expected);
-        ASSERT(IS_ALIGNED(rounded, HEAP_ALIGN));
-        ASSERT(rounded >= i);
-        if (i >= sizeof(free_t) - sizeof(header_t)) {
-            // Once we get above the size of the free area struct, we
-            // won't round up much for these small sizes.
-            ASSERT(rounded - i < HEAP_ALIGN);
-        }
-        // Only rounded sizes are freed.
-        if ((i & (HEAP_ALIGN - 1)) == 0) {
-            // Up to size log_threshold we have exact buckets for each multiple of HEAP_ALIGN.
-            ASSERT(bucket == (unsigned)size_to_index_freeing(i));
-        }
-    }
-    int bucket_base = 7;
-    for (unsigned j = 2 * HEAP_ALIGN; j < 1024 * HEAP_ALIGN / 8; j *= 2, bucket_base += 8) {
-        // Note the "<=", which ensures that we test the powers of 2 twice to ensure
-        // that both ways of calculating the bucket number match.
-        for (unsigned i = j * 8; i <= j * 16; i++) {
-            // Round up to j multiple in this range when allocating.
-            bucket = size_to_index_allocating(i, &rounded);
-            unsigned expected = bucket_base + ROUNDUP(i, j) / j;
-            ASSERT(bucket == expected);
-            ASSERT(IS_ALIGNED(rounded, j));
-            ASSERT(rounded >= i);
-            ASSERT(rounded - i < j);
-            // Only HEAP_ALIGN-rounded sizes are freed or chopped off the end of a free area
-            // when allocating.
-            if ((i & (HEAP_ALIGN - 1)) == 0) {
-                // When freeing, if we don't hit the size of the bucket precisely,
-                // we have to put the free space into a smaller bucket, because
-                // the buckets have entries that will always be big enough for
-                // the corresponding allocation size (so we don't have to
-                // traverse the free chains to find a big enough one).
-                if ((i % j) == 0) {
-                    ASSERT((int)bucket == size_to_index_freeing(i));
-                } else {
-                    ASSERT((int)bucket - 1 == size_to_index_freeing(i));
-                }
-            }
-        }
-    }
-}
-
-static void cmpct_test_get_back_newly_freed_helper(size_t size) {
-    void *allocated = cmpct_alloc(size);
-    if (allocated == NULL) {
-        return;
-    }
-    char *allocated2 = cmpct_alloc(8);
-    char *expected_position = (char *)allocated + size;
-    if (allocated2 < expected_position || allocated2 > expected_position + 128) {
-        // If the allocated2 allocation is not in the same OS allocation as the
-        // first allocation then the test may not work as expected (the memory
-        // may be returned to the OS when we free the first allocation, and we
-        // might not get it back).
-        cmpct_free(allocated);
-        cmpct_free(allocated2);
-        return;
-    }
-
-    cmpct_free(allocated);
-    void *allocated3 = cmpct_alloc(size);
-    // To avoid churn and fragmentation we would want to get the newly freed
-    // memory back again when we allocate the same size shortly after.
-    ASSERT(allocated3 == allocated);
-    cmpct_free(allocated2);
-    cmpct_free(allocated3);
-}
-
-static void cmpct_test_get_back_newly_freed(void) {
-    size_t increment = 2 * HEAP_ALIGN;
-    for (size_t i = 16 * HEAP_ALIGN; i <= 0x8000000; i *= 2, increment *= 2) {
-        for (size_t j = i; j < i * 2; j += increment) {
-            cmpct_test_get_back_newly_freed_helper(i - HEAP_ALIGN);
-            cmpct_test_get_back_newly_freed_helper(i);
-            cmpct_test_get_back_newly_freed_helper(i + 1);
-        }
-    }
-    for (size_t i = 1024; i <= 2048; i++) {
-        cmpct_test_get_back_newly_freed_helper(i);
-    }
-}
-
-static void cmpct_test_return_to_os(void) {
-    cmpct_trim();
-    size_t remaining = theheap.remaining;
-    // This goes in a new OS allocation since the trim above removed any free
-    // area big enough to contain it.
-    void *a = cmpct_alloc(5000);
-    void *b = cmpct_alloc(2500);
-    cmpct_free(a);
-    cmpct_free(b);
-    // If things work as expected the new allocation is at the start of an OS
-    // allocation.  There's just one sentinel and one header to the left of it.
-    // It that's not the case then the allocation was met from some space in
-    // the middle of an OS allocation, and our test won't work as expected, so
-    // bail out.
-    if (((uintptr_t)a & (PAGE_SIZE - 1)) != sizeof(header_t) * 2) {
-        return;
-    }
-    // No trim needed when the entire OS allocation is free.
-    ASSERT(remaining == theheap.remaining);
-}
-
-void cmpct_test(void) {
-    cmpct_test_buckets();
-    cmpct_test_get_back_newly_freed();
-    cmpct_test_return_to_os();
-    cmpct_test_trim();
-    cmpct_dump();
-    void *ptr[16];
-
-    ptr[0] = cmpct_alloc(8);
-    ptr[1] = cmpct_alloc(32);
-    ptr[2] = cmpct_alloc(7);
-    cmpct_trim();
-    ptr[3] = cmpct_alloc(0);
-    ptr[4] = cmpct_alloc(98713);
-    ptr[5] = cmpct_alloc(16);
-
-    cmpct_free(ptr[5]);
-    cmpct_free(ptr[1]);
-    cmpct_free(ptr[3]);
-    cmpct_free(ptr[0]);
-    cmpct_free(ptr[4]);
-    cmpct_free(ptr[2]);
-
-    cmpct_dump();
-    cmpct_trim();
-    cmpct_dump();
-
-    int i;
-    for (i = 0; i < 16; i++) {
-        ptr[i] = 0;
-    }
-
-    for (i = 0; i < 32768; i++) {
-        unsigned int index = (unsigned int)rand() % 16;
-
-        if ((i % (16 * 1024)) == 0) {
-            printf("pass %d\n", i);
-        }
-
-        //      printf("index 0x%x\n", index);
-        if (ptr[index]) {
-            //          printf("freeing ptr[0x%x] = %p\n", index, ptr[index]);
-            cmpct_free(ptr[index]);
-            ptr[index] = 0;
-        }
-        unsigned int align = 1 << ((unsigned int)rand() % 8);
-        ptr[index] = cmpct_memalign((unsigned int)rand() % 32768, align);
-        //      printf("ptr[0x%x] = %p, align 0x%x\n", index, ptr[index], align);
-
-        DEBUG_ASSERT(((addr_t)ptr[index] % align) == 0);
-        //      cmpct_dump();
-    }
-
-    for (i = 0; i < 16; i++) {
-        if (ptr[i]) {
-            cmpct_free(ptr[i]);
-        }
-    }
-
-    cmpct_dump();
-}
-
 static void *large_alloc(size_t size) {
 #ifdef CMPCT_DEBUG
     size_t requested_size = size;
@@ -625,6 +272,7 @@ static void *large_alloc(size_t size) {
     free_t *free_area = NULL;
     lock();
     if (heap_grow(size, &free_area) < 0) {
+        unlock();
         return 0;
     }
     void *result =
@@ -775,6 +423,9 @@ void *cmpct_memalign(size_t size, size_t alignment) {
     }
     size_t padded_size = size + alignment + sizeof(free_t) + sizeof(header_t);
     char *unaligned = (char *)cmpct_alloc(padded_size);
+    if (unaligned == NULL) {
+        return NULL;
+    }
     lock();
     size_t mask = alignment - 1;
     uintptr_t payload_int = (uintptr_t)unaligned + sizeof(free_t) + sizeof(header_t) + mask;
