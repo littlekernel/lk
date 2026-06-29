@@ -35,6 +35,9 @@
 #define FREE_FILL    0x77
 #define PADDING_FILL 0x55
 
+#define HEAP_ALIGN       (sizeof(void *) * 2)
+#define HEAP_ALIGN_SHIFT (sizeof(void *) == 8 ? 4 : 3)
+
 #if WITH_KERNEL_VM && !defined(HEAP_GROW_SIZE)
 #define HEAP_GROW_SIZE (1 * 1024 * 1024) /* Grow aggressively */
 #elif !defined(HEAP_GROW_SIZE)
@@ -52,13 +55,16 @@ STATIC_ASSERT(IS_PAGE_ALIGNED(HEAP_GROW_SIZE));
 // buckets.
 STATIC_ASSERT(HEAP_GROW_SIZE <= (1u << HEAP_ALLOC_VIRTUAL_BITS));
 
-// Buckets for allocations.  The smallest 15 buckets are 8, 16, 24, etc. up to
-// 120 bytes.  After that we round up to the nearest size that can be written
+// Buckets for allocations.  The smallest 15 buckets are HEAP_ALIGN-spaced up to
+// 15 * HEAP_ALIGN bytes. After that we round up to the nearest size that can be written
 // /^0*1...0*$/, giving 8 buckets per order of binary magnitude.  The freelist
 // entries in a given bucket have at least the given size, plus the header
-// size.  On 64 bit, the 8 byte bucket is useless, since the freelist header
-// is 16 bytes larger than the header, but we have it for simplicity.
-#define NUMBER_OF_BUCKETS (1 + 15 + (HEAP_ALLOC_VIRTUAL_BITS - 7) * 8)
+// size.
+// The logarithmic rows start at row HEAP_ALIGN_SHIFT + 1. Since the maximum allocation
+// size is limited by HEAP_ALLOC_VIRTUAL_BITS, the number of logarithmic rows is
+// HEAP_ALLOC_VIRTUAL_BITS - (HEAP_ALIGN_SHIFT + 4).
+// This dynamically allocates 136 buckets on 32-bit platforms and 128 buckets on 64-bit platforms.
+#define NUMBER_OF_BUCKETS (1 + 15 + (HEAP_ALLOC_VIRTUAL_BITS - (HEAP_ALIGN_SHIFT + 4)) * 8)
 
 // All individual memory areas on the heap start with this.
 typedef struct header_struct {
@@ -125,27 +131,28 @@ void cmpct_dump(void) {
 
 // Operates in sizes that don't include the allocation header.
 static int size_to_index_helper(size_t size, size_t *rounded_up_out, int adjust, int increment) {
-    // First buckets are simply 8-spaced up to 128.
-    if (size <= 128) {
+    const size_t log_threshold = 16 * HEAP_ALIGN;
+    // First buckets are simply HEAP_ALIGN-spaced up to log_threshold.
+    if (size <= log_threshold) {
         if (sizeof(size_t) == 8u && size <= sizeof(free_t) - sizeof(header_t)) {
             *rounded_up_out = sizeof(free_t) - sizeof(header_t);
         } else {
             *rounded_up_out = size;
         }
-        // No allocation is smaller than 8 bytes, so the first bucket is for 8
+        // No allocation is smaller than HEAP_ALIGN bytes, so the first bucket is for HEAP_ALIGN
         // byte spaces (not including the header).  For 64 bit, the free list
         // struct is 16 bytes larger than the header, so no allocation can be
         // smaller than that (otherwise how to free it), but we have empty 8
         // and 16 byte buckets for simplicity.
-        return (size >> 3) - 1;
+        return (size >> HEAP_ALIGN_SHIFT) - 1;
     }
 
     // We are going to go up to the next size to round up, but if we hit a
-    // bucket size exactly we don't want to go up. By subtracting 8 here, we
+    // bucket size exactly we don't want to go up. By subtracting HEAP_ALIGN here, we
     // will do the right thing (the carry propagates up for the round numbers
     // we are interested in).
     size += adjust;
-    // After 128 the buckets are logarithmically spaced, every 16 up to 256,
+    // After log_threshold the buckets are logarithmically spaced, every 16 up to 256,
     // every 32 up to 512 etc.  This can be thought of as rows of 8 buckets.
     // GCC intrinsic count-leading-zeros.
     // Eg. 128-255 has 24 leading zeros and we want row to be 4.
@@ -159,15 +166,15 @@ static int size_to_index_helper(size_t size, size_t *rounded_up_out, int adjust,
     // We start with 15 buckets, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96,
     // 104, 112, 120.  Then we have row 4, sizes 128 and up, with the
     // row-column 8 and up.
-    int answer = row_column + 15 - 32;
+    int answer = row_column + 15 - ((HEAP_ALIGN_SHIFT + 1) << 3);
     DEBUG_ASSERT(answer < NUMBER_OF_BUCKETS);
     return answer;
 }
 
 // Round up size to next bucket when allocating.
 static int size_to_index_allocating(size_t size, size_t *rounded_up_out) {
-    size_t rounded = ROUNDUP(size, 8);
-    return size_to_index_helper(rounded, rounded_up_out, -8, 1);
+    size_t rounded = ROUNDUP(size, HEAP_ALIGN);
+    return size_to_index_helper(rounded, rounded_up_out, -(int)HEAP_ALIGN, 1);
 }
 
 // Round down size to next bucket when freeing.
@@ -207,7 +214,7 @@ static int find_nonempty_bucket(int index) {
     if (mask != 0) {
         return (index & ~0x1f) + __builtin_clz(mask);
     }
-    for (index = ROUNDUP(index + 1, 32); index <= NUMBER_OF_BUCKETS; index += 32) {
+    for (index = ROUNDUP(index + 1, 32); index < NUMBER_OF_BUCKETS; index += 32) {
         mask = theheap.free_list_bits[index >> 5];
         if (mask != 0u) {
             return index + __builtin_clz(mask);
@@ -437,27 +444,28 @@ static void cmpct_test_trim(void) {
 static void cmpct_test_buckets(void) {
     size_t rounded;
     unsigned bucket;
-    // Check for the 8-spaced buckets up to 128.
-    for (unsigned i = 1; i <= 128; i++) {
+    // Check for the HEAP_ALIGN-spaced buckets up to log_threshold.
+    const size_t log_threshold = 16 * HEAP_ALIGN;
+    for (unsigned i = 1; i <= log_threshold; i++) {
         // Round up when allocating.
         bucket = size_to_index_allocating(i, &rounded);
-        unsigned expected = (ROUNDUP(i, 8) >> 3) - 1;
+        unsigned expected = (ROUNDUP(i, HEAP_ALIGN) >> HEAP_ALIGN_SHIFT) - 1;
         ASSERT(bucket == expected);
-        ASSERT(IS_ALIGNED(rounded, 8));
+        ASSERT(IS_ALIGNED(rounded, HEAP_ALIGN));
         ASSERT(rounded >= i);
         if (i >= sizeof(free_t) - sizeof(header_t)) {
-            // Once we get above the size of the free area struct (4 words), we
-            // won't round up much for these small size.
-            ASSERT(rounded - i < 8);
+            // Once we get above the size of the free area struct, we
+            // won't round up much for these small sizes.
+            ASSERT(rounded - i < HEAP_ALIGN);
         }
         // Only rounded sizes are freed.
-        if ((i & 7) == 0) {
-            // Up to size 128 we have exact buckets for each multiple of 8.
+        if ((i & (HEAP_ALIGN - 1)) == 0) {
+            // Up to size log_threshold we have exact buckets for each multiple of HEAP_ALIGN.
             ASSERT(bucket == (unsigned)size_to_index_freeing(i));
         }
     }
     int bucket_base = 7;
-    for (unsigned j = 16; j < 1024; j *= 2, bucket_base += 8) {
+    for (unsigned j = 2 * HEAP_ALIGN; j < 1024 * HEAP_ALIGN / 8; j *= 2, bucket_base += 8) {
         // Note the "<=", which ensures that we test the powers of 2 twice to ensure
         // that both ways of calculating the bucket number match.
         for (unsigned i = j * 8; i <= j * 16; i++) {
@@ -468,9 +476,9 @@ static void cmpct_test_buckets(void) {
             ASSERT(IS_ALIGNED(rounded, j));
             ASSERT(rounded >= i);
             ASSERT(rounded - i < j);
-            // Only 8-rounded sizes are freed or chopped off the end of a free area
+            // Only HEAP_ALIGN-rounded sizes are freed or chopped off the end of a free area
             // when allocating.
-            if ((i & 7) == 0) {
+            if ((i & (HEAP_ALIGN - 1)) == 0) {
                 // When freeing, if we don't hit the size of the bucket precisely,
                 // we have to put the free space into a smaller bucket, because
                 // the buckets have entries that will always be big enough for
@@ -513,10 +521,10 @@ static void cmpct_test_get_back_newly_freed_helper(size_t size) {
 }
 
 static void cmpct_test_get_back_newly_freed(void) {
-    size_t increment = 16;
-    for (size_t i = 128; i <= 0x8000000; i *= 2, increment *= 2) {
+    size_t increment = 2 * HEAP_ALIGN;
+    for (size_t i = 16 * HEAP_ALIGN; i <= 0x8000000; i *= 2, increment *= 2) {
         for (size_t j = i; j < i * 2; j += increment) {
-            cmpct_test_get_back_newly_freed_helper(i - 8);
+            cmpct_test_get_back_newly_freed_helper(i - HEAP_ALIGN);
             cmpct_test_get_back_newly_freed_helper(i);
             cmpct_test_get_back_newly_freed_helper(i + 1);
         }
@@ -613,7 +621,7 @@ static void *large_alloc(size_t size) {
 #ifdef CMPCT_DEBUG
     size_t requested_size = size;
 #endif
-    size = ROUNDUP(size, 8);
+    size = ROUNDUP(size, HEAP_ALIGN);
     free_t *free_area = NULL;
     lock();
     if (heap_grow(size, &free_area) < 0) {
@@ -762,7 +770,7 @@ void *cmpct_alloc(size_t size) {
 }
 
 void *cmpct_memalign(size_t size, size_t alignment) {
-    if (alignment < 8) {
+    if (alignment < HEAP_ALIGN) {
         return cmpct_alloc(size);
     }
     size_t padded_size = size + alignment + sizeof(free_t) + sizeof(header_t);
