@@ -291,7 +291,9 @@ if (( DO_V9P )); then
     ARGS+=("-device" "${VIRTIO_9P_DEVICE},fsdev=v9p0,mount_tag=V9P0")
 fi
 
-ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
+if (( ! DO_CORTEX_M3 )); then
+    ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
+fi
 
 MAKE_VARS=""
 
