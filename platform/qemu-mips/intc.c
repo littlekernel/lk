@@ -77,8 +77,8 @@ static void map(uint32_t pic1, uint32_t pic2) {
     isa_write_8(PIC2 + 1, 2);
 
     /* send ICW4 */
-    isa_write_8(PIC1 + 1, 2 | 5);
-    isa_write_8(PIC2 + 1, 2 | 1);
+    isa_write_8(PIC1 + 1, 5);
+    isa_write_8(PIC2 + 1, 1);
 
     /* disable all IRQs */
     isa_write_8(PIC1 + 1, 0xff);
@@ -127,7 +127,7 @@ static void enable(unsigned int vector, bool enable) {
             irqMask[0] &= ~bit;
             isa_write_8(PIC1 + 1, irqMask[0]);
             irqMask[0] = isa_read_8(PIC1 + 1);
-        } else if (irqMask[1] == 0 && !(irqMask[0] & bit)) {
+        } else if (irqMask[1] == 0xff && !(irqMask[0] & bit)) {
             irqMask[0] = isa_read_8(PIC1 + 1);
             irqMask[0] |= bit;
             isa_write_8(PIC1 + 1, irqMask[0]);
@@ -230,8 +230,10 @@ enum handler_return platform_irq(struct mips_iframe *iframe, uint vector) {
             return INT_NO_RESCHEDULE;
         }
         val &= ~0x80;
+        vector = val + 8;
+    } else {
+        vector = val;
     }
-    vector = val;
     LTRACEF("poll vector 0x%x\n", vector);
 
     THREAD_STATS_INC(interrupts);
@@ -242,6 +244,8 @@ enum handler_return platform_irq(struct mips_iframe *iframe, uint vector) {
     if (int_handler_table[vector].handler) {
         ret = int_handler_table[vector].handler(int_handler_table[vector].arg);
     }
+
+    issueEOI(vector);
 
     return ret;
 }

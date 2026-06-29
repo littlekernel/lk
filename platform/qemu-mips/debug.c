@@ -45,6 +45,9 @@ void uart_init_early(void) {
     isa_write_8(uart_io_port + 1, divisor >> 8); // msb
     isa_write_8(uart_io_port + 3, 3); // 8N1
     isa_write_8(uart_io_port + 2, 0x07); // enable FIFO, clear, 14-byte threshold
+
+    // Assert OUT2 to route UART IRQs to the interrupt controller.
+    isa_write_8(uart_io_port + 4, 0x0b); // OUT2 | RTS | DTR
 }
 
 void uart_init(void) {

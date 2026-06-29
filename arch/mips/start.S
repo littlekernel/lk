@@ -9,6 +9,14 @@
 
 .section ".text.boot"
 FUNCTION(_start)
+    # mark top-level entry as non-returnable for debugging/safety
+    move    $ra, $zero
+
+    # defensively disable global interrupt enable (IE) in Status before C code
+    mfc0    $t2, $12
+    andi    $t2, $t2, 0xfffe
+    mtc0    $t2, $12
+
     # set the default stack
     la      $sp, default_stack_top
 
@@ -20,11 +28,7 @@ FUNCTION(_start)
     addi    $t0, 4
     bne     $t0, $t1, 0b
 
-    # args to main and call it
-    li      $a0, 1
-    li      $a1, 2
-    li      $a2, 3
-    li      $a3, 4
+    # preserve incoming a0-a3 and pass them through to lk_main
     jal     lk_main
 
     # should never return here

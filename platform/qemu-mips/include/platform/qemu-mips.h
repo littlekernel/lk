@@ -11,9 +11,9 @@
 
 /*
  * The plain mips target for qemu has an emulated PC style UART mapped
- * into the ISA io port apterture at 0x14000000
+ * into the ISA io port apterture at 0x18000000
  */
-#define ISA_IO_BASE ((volatile uint8_t *)0x14000000 + 0x80000000)
+#define ISA_IO_BASE ((volatile uint8_t *)0x18000000 + 0xa0000000)
 #define UART_PORT_BASE (0x3f8)
 
 static inline void isa_write_8(uint16_t port, uint8_t val) {
@@ -28,4 +28,4 @@ static inline uint8_t isa_read_8(uint16_t port) {
     return *addr;
 }
 
-#define INT_VECTORS 8
+#define INT_VECTORS 16

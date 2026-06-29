@@ -48,15 +48,17 @@ void mips_irq(struct mips_iframe *iframe, uint num) {
 
     // figure out which interrupt the timer is set to
     uint32_t ipti = BITS_SHIFT(mips_read_c0_intctl(), 31, 29);
+
     if (ipti >= 2 && ipti == num) {
         // builtin timer
         ret = mips_timer_irq();
-#if PLATFORM_QEMU_MIPS
-    } else if (num == 2) {
-        ret = platform_irq(iframe, num);
-#endif
     } else {
+#if PLATFORM_QEMU_MIPS
+        // Legacy platform interrupts may be routed on different IP lines.
+        ret = platform_irq(iframe, num);
+#else
         panic("mips: unhandled irq\n");
+#endif
     }
 
     KEVLOG_IRQ_EXIT(num);

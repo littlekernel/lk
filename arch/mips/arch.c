@@ -37,8 +37,8 @@ void arch_early_init(void) {
 
     mips_write_c0_status(temp);
 
-    /* set ebase */
-    mips_write_c0_ebase(MEMBASE);
+    /* set ebase to where .text.vectab is linked */
+    mips_write_c0_ebase(KERNEL_BASE + KERNEL_LOAD_OFFSET);
 
     /* make sure we take exceptions in 32bit mips mode */
     mips_write_c0_config3(mips_read_c0_config3() & ~(1<<16));
@@ -80,7 +80,7 @@ void arch_init(void) {
     printf("\tcount   0x%x\n", mips_read_c0_count());
     printf("\tcompare 0x%x\n", mips_read_c0_compare());
 
-    __asm__ volatile("syscall");
+    // __asm__ volatile("syscall");
 
     LTRACE_EXIT;
 }
