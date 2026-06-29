@@ -319,6 +319,173 @@ static bool test_malloc_alignment(void) {
     END_TEST;
 }
 
+static bool test_heap_worst_case(void) {
+    BEGIN_TEST;
+
+    const int N = 64;
+    const size_t alloc_size = 32;
+    void *ptrs[64];
+
+    // 1. Allocate all blocks sequentially (should be back-to-back in memory)
+    for (int i = 0; i < N; i++) {
+        ptrs[i] = malloc(alloc_size);
+        ASSERT_NONNULL(ptrs[i], "malloc failed in worst-case test setup");
+        // write to it to ensure memory is backing it
+        memset(ptrs[i], 0xcc, alloc_size);
+    }
+
+    // 2. Free every other one (odd indices) to fragment the freelist
+    for (int i = 1; i < N; i += 2) {
+        free(ptrs[i]);
+        ptrs[i] = NULL;
+    }
+
+    // 3. Try to allocate a block larger than any individual hole.
+    // It should skip all the small holes and find space at the end of the heap.
+    void *large_ptr = malloc(alloc_size * 3);
+    ASSERT_NONNULL(large_ptr, "malloc for larger block failed under fragmentation");
+    memset(large_ptr, 0xdd, alloc_size * 3);
+    free(large_ptr);
+
+    // 4. Try allocating some small blocks that should fit in the holes.
+    void *temp_ptrs[5];
+    for (int i = 0; i < 5; i++) {
+        temp_ptrs[i] = malloc(alloc_size);
+        ASSERT_NONNULL(temp_ptrs[i], "malloc to fill holes failed");
+        memset(temp_ptrs[i], 0xee, alloc_size);
+    }
+    for (int i = 0; i < 5; i++) {
+        free(temp_ptrs[i]);
+    }
+
+    // 5. Free the remaining even-indexed blocks (this forces coalescing with neighbors)
+    for (int i = 0; i < N; i += 2) {
+        free(ptrs[i]);
+        ptrs[i] = NULL;
+    }
+
+    // 6. Ensure we can allocate the entire combined size in one go now
+    void *huge_ptr = malloc(alloc_size * N);
+    ASSERT_NONNULL(huge_ptr, "failed to allocate large coalesced block");
+    memset(huge_ptr, 0xff, alloc_size * N);
+    free(huge_ptr);
+
+    END_TEST;
+}
+
+static bool test_realloc_in_place_shrink(void) {
+    BEGIN_TEST;
+
+    const size_t initial_size = 256;
+    const size_t new_size = 128;
+
+    uint8_t *p = malloc(initial_size);
+    ASSERT_NONNULL(p, "malloc failed");
+
+    for (size_t i = 0; i < initial_size; i++) {
+        p[i] = (uint8_t)(i ^ 0x3c);
+    }
+
+    uint8_t *p2 = realloc(p, new_size);
+    ASSERT_NONNULL(p2, "realloc shrink failed");
+
+    // Data verification
+    for (size_t i = 0; i < new_size; i++) {
+        EXPECT_EQ((uint8_t)(i ^ 0x3c), p2[i], "data corrupted during realloc shrink");
+    }
+
+    free(p2);
+    END_TEST;
+}
+
+static bool test_realloc_in_place_grow(void) {
+    BEGIN_TEST;
+
+    const size_t initial_size = 128;
+    const size_t new_size = 256;
+
+    uint8_t *p = malloc(initial_size);
+    ASSERT_NONNULL(p, "malloc failed");
+
+    for (size_t i = 0; i < initial_size; i++) {
+        p[i] = (uint8_t)(i ^ 0xa5);
+    }
+
+    // We keep the area after p free. Realloc should ideally grow in-place if supported.
+    uint8_t *p2 = realloc(p, new_size);
+    ASSERT_NONNULL(p2, "realloc grow failed");
+
+    // Data verification
+    for (size_t i = 0; i < initial_size; i++) {
+        EXPECT_EQ((uint8_t)(i ^ 0xa5), p2[i], "data corrupted during realloc grow");
+    }
+
+    free(p2);
+    END_TEST;
+}
+
+static bool test_realloc_blocked_grow(void) {
+    BEGIN_TEST;
+
+    const size_t initial_size = 128;
+    const size_t new_size = 256;
+
+    uint8_t *p = malloc(initial_size);
+    ASSERT_NONNULL(p, "malloc failed");
+
+    // Allocate a block right after p to block in-place growth
+    uint8_t *blocker = malloc(64);
+    ASSERT_NONNULL(blocker, "malloc blocker failed");
+
+    for (size_t i = 0; i < initial_size; i++) {
+        p[i] = (uint8_t)(i ^ 0x55);
+    }
+
+    // Grow p. It must allocate a new block and copy data.
+    uint8_t *p2 = realloc(p, new_size);
+    ASSERT_NONNULL(p2, "realloc blocked grow failed");
+    EXPECT_NE(p2, blocker, "realloc returned blocker pointer!");
+
+    // Data verification
+    for (size_t i = 0; i < initial_size; i++) {
+        EXPECT_EQ((uint8_t)(i ^ 0x55), p2[i], "data corrupted during blocked realloc grow");
+    }
+
+    free(p2);
+    free(blocker);
+    END_TEST;
+}
+
+static bool test_realloc_multiple_steps(void) {
+    BEGIN_TEST;
+
+    size_t sizes[] = { 32, 128, 64, 512, 1024, 256, 16, 2048 };
+    uint8_t *p = NULL;
+
+    for (size_t step = 0; step < sizeof(sizes) / sizeof(sizes[0]); step++) {
+        size_t new_size = sizes[step];
+        size_t prev_size = (step == 0) ? 0 : sizes[step - 1];
+        size_t min_size = (new_size < prev_size) ? new_size : prev_size;
+
+        p = realloc(p, new_size);
+        ASSERT_NONNULL(p, "realloc step failed");
+
+        // Verify data from previous step is intact
+        for (size_t i = 0; i < min_size; i++) {
+            EXPECT_EQ((uint8_t)(i ^ (step - 1)), p[i], "data corrupted across steps");
+        }
+
+        // Fill with new step-specific pattern
+        for (size_t i = 0; i < new_size; i++) {
+            p[i] = (uint8_t)(i ^ step);
+        }
+    }
+
+    free(p);
+    END_TEST;
+}
+
+
 BEGIN_TEST_CASE(heap_tests)
     RUN_TEST(test_malloc_basic)
     RUN_TEST(test_malloc_zero)
@@ -329,8 +496,13 @@ BEGIN_TEST_CASE(heap_tests)
     RUN_TEST(test_realloc_shrink)
     RUN_TEST(test_realloc_from_null)
     RUN_TEST(test_realloc_zero_size)
+    RUN_TEST(test_realloc_in_place_shrink)
+    RUN_TEST(test_realloc_in_place_grow)
+    RUN_TEST(test_realloc_blocked_grow)
+    RUN_TEST(test_realloc_multiple_steps)
     RUN_TEST(test_memalign)
     RUN_TEST(test_simultaneous_allocs)
     RUN_TEST(test_no_overlap)
     RUN_TEST(test_memalign_stress)
+    RUN_TEST(test_heap_worst_case)
 END_TEST_CASE(heap_tests)
