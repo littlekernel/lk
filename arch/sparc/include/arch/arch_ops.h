@@ -1,0 +1,27 @@
+#pragma once
+
+#include <arch/ops.h>
+#include <lk/compiler.h>
+
+extern struct thread *_current_thread;
+
+static inline struct thread *arch_get_current_thread(void) {
+    return _current_thread;
+}
+
+static inline void arch_set_current_thread(struct thread *t) {
+    _current_thread = t;
+}
+
+static inline ulong arch_cycle_count(void) { return 0; }
+
+static inline uint arch_curr_cpu_num(void) {
+    return 0;
+}
+
+#define mb()        CF
+#define wmb()       CF
+#define rmb()       CF
+#define smp_mb()    CF
+#define smp_wmb()   CF
+#define smp_rmb()   CF
