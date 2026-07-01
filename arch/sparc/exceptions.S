@@ -8,7 +8,7 @@
 #include <lk/asm.h>
 #include <arch/sparc.h>
 
-// Exception handlers for SPARC 32
+// Exception handlers for SPARC v8
 // - One giant table, 4096 byte aligned, 4096 bytes long
 // - Each vector is 0x10 bytes apart
 // - At start of each exception:
@@ -18,7 +18,7 @@
 //   - PSR.ET = 0 (traps disabled)
 
 .macro handler
-    rd %psr, %l0
+    rd  %psr, %l0
     b   sparc_shared_handler
     nop
     nop
@@ -50,9 +50,9 @@ FUNCTION(sparc_vectab)
     handler // 0x8 floating point exception
     handler // 0x9 data access exception
     handler // 0xa tag overflow
-    handler // 0xb division by zero ?
-    handler // 0xc software trap ?
-    handler // 0xd breakpoint ?
+    handler // 0xb watchpoint detected
+    handler // 0xc reserved
+    handler // 0xd reserved
     handler // 0xe reserved
     handler // 0xf reserved
     handler // 0x10 reserved
@@ -62,9 +62,14 @@ FUNCTION(sparc_vectab)
     handler
 .endr
 
-// TODO fill with illegal instructions
+.rept 0x80 - 0x20
+    handler
+.endr
 
-.balign 4096
+    // 0x80 - software exceptions
+.rept 0x80
+    handler
+.endr
 
 END_FUNCTION(sparc_vectab)
 
@@ -90,6 +95,7 @@ FUNCTION(sparc_shared_handler)
     call    sparc_exception
     nop
 
+    // TODO: return from exception
 0:  b 0b; nop
 
 

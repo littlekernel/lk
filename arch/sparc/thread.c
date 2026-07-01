@@ -12,6 +12,8 @@
 #include <stdlib.h>
 #include <kernel/thread.h>
 
+#define LOCAL_TRACE 1
+
 struct thread *_current_thread;
 
 static void initial_thread_func(void) __NO_RETURN;
@@ -31,11 +33,17 @@ void arch_thread_initialize(thread_t *t) {
     /* zero out the thread context */
     memset(&t->arch.cs_frame, 0, sizeof(t->arch.cs_frame));
 
-    t->arch.cs_frame.sp = (vaddr_t)t->stack + t->stack_size - 96;
-    t->arch.cs_frame.pc = (vaddr_t)&initial_thread_func;
+    uint32_t stack_top = ROUNDDOWN((vaddr_t)t->stack + t->stack_size, 8) - 96;
+    t->arch.cs_frame.sp = stack_top;
+    // - 8 because the retl in the context switch routine will add 8 to the pc before jumping to it
+    t->arch.cs_frame.pc = (vaddr_t)&initial_thread_func - 8;
+
+    // clear the top of the stack
+    memset((void *)stack_top, 0, 96);
 }
 
 void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
+    LTRACEF("o %p, n %p\n", oldthread, newthread);
     sparc_context_switch(&oldthread->arch.cs_frame, &newthread->arch.cs_frame);
 }
 
