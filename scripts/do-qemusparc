@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+set -e
+set -x
+
+"$DIR"/make-parallel ss20
+exec qemu-system-sparc -machine SS-20 -kernel build-ss20/lk.bin --nographic "$@"

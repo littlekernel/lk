@@ -1,3 +1,10 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+//
 #include <lk/reg.h>
 #include <lk/err.h>
 #include <kernel/thread.h>
@@ -7,54 +14,17 @@
 #include <platform/timer.h>
 #include <sys/types.h>
 
+#include "platform_p.h"
 
-// TOTAL HACK: just happens to be where the SCC is mapped on openbios on ss20.
-static volatile uint8_t * const control = (volatile uint8_t *)0xffdcf004;
-static volatile uint8_t * const data = (volatile uint8_t *)0xffdcf006;
-
-static inline uint8_t scc_read(volatile uint8_t *addr) {
-    return *addr;
-}
-
-static inline void scc_write(volatile uint8_t *addr, uint8_t val) {
-   *addr = val;
-}
-
-void platform_dputc(char c) {
-
-    if (c == '\n') {
-        while ((scc_read(control) & 0x04) == 0) {
-            // spin
-        }
-        scc_write(data, '\r');
-    }
-
-    while ((scc_read(control) & 0x04) == 0) {
-        // spin
-    }
-    scc_write(data, c);
-}
-
-int platform_dgetc(char *c, bool wait) {
-    if (wait) {
-        while ((scc_read(control) & 0x01) == 0) {
-            // spin
-        }
-        *c = scc_read(data);
-        return 0;
-    } else {
-        if ((scc_read(control) & 0x01) != 0) {
-            *c = scc_read(data);
-            return 0;
-        }
-        return -1;
-    }
-}
 
 void platform_early_init(void) {
+    sun4m_intc_early_init();
+    sun4m_timer_early_init();
 }
 
 void platform_init(void) {
+    sun4m_intc_init();
+    sun4m_timer_init();
 }
 
 /* timer stubs */
