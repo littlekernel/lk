@@ -1,9 +1,37 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+//
 #include <lk/trace.h>
 #include <lk/debug.h>
 #include <arch.h>
 #include <platform.h>
+#include <arch/sparc.h>
+#include <arch/interrupts.h>
+
+static void sparc_early_init_percpu(void) {
+    // set the trap base register to point to our vector table
+    extern void sparc_vectab(void);
+    __asm__ volatile("wr %0, 0, %%tbr\n"
+         "nop\n"
+         "nop\n"
+         "nop" :: "r"(sparc_vectab));
+
+    // make sure external interrupts are fully masked off
+    arch_disable_ints();
+
+    // now that the trap base register is set, enable traps on the cpu
+    sparc_write_psr(sparc_read_psr() | SPARC_PSR_ET);
+}
+
 
 void arch_early_init(void) {
+    sparc_early_init_percpu();
+
+
 }
 
 void arch_init(void) {

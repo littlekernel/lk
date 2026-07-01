@@ -6,6 +6,8 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/asm.S \
 	$(LOCAL_DIR)/arch.c \
+	$(LOCAL_DIR)/exceptions.S \
+	$(LOCAL_DIR)/exceptions_c.c \
 	$(LOCAL_DIR)/thread.c
 
 GLOBAL_DEFINES += \
@@ -21,7 +23,7 @@ TOOLCHAIN_PREFIX := $(ARCH_sparc_TOOLCHAIN_PREFIX)
 endif
 endif
 
-ARCH_COMPILEFLAGS += -m32 -mcpu=v8
+ARCH_COMPILEFLAGS += -m32 -mcpu=v8 -mno-faster-structs
 ARCH_OPTFLAGS ?= -O2
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
