@@ -32,6 +32,7 @@
 #include <printf.h>
 #include <string.h>
 #include <target.h>
+#include <stdalign.h>
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #endif
@@ -148,7 +149,7 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
     unsigned int flags = 0;
 
     if (!t) {
-        t = malloc(sizeof(thread_t));
+        t = memalign(alignof(thread_t), sizeof(thread_t));
         if (!t)
             return NULL;
         flags |= THREAD_FLAG_FREE_STRUCT;
