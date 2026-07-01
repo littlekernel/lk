@@ -8,6 +8,7 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <stddef.h>
 
 __BEGIN_CDECLS
 
@@ -18,7 +19,6 @@ void *cmpct_memalign(size_t size, size_t alignment);
 
 void cmpct_init(void);
 void cmpct_dump(void);
-void cmpct_test(void);
 void cmpct_trim(void);
 
 __END_CDECLS

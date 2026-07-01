@@ -8,11 +8,11 @@
 
 #include <lib/page_alloc.h>
 
-#include <lk/debug.h>
 #include <assert.h>
-#include <string.h>
-#include <lk/trace.h>
 #include <lk/console_cmd.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <string.h>
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
 #else
@@ -62,7 +62,7 @@ int page_get_arenas(struct page_range *ranges, int number_of_ranges) {
     return 1;
 #else
     return novm_get_arenas(ranges, number_of_ranges);
-#endif  // WITH_KERNEL_VM
+#endif // WITH_KERNEL_VM
 }
 
 void *page_first_alloc(size_t *size_return) {

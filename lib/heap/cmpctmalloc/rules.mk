@@ -5,8 +5,7 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/cmpctmalloc.c
 
-# cmpct_test_trim() uses some floating point
-# TODO: move tests to another file to avoid this
-MODULE_OPTIONS := float
+# enable tests to be build as a submodule
+MODULE_OPTIONS += test
 
 include make/module.mk
