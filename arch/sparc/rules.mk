@@ -5,10 +5,12 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/start.S \
 	$(LOCAL_DIR)/asm.S \
-	$(LOCAL_DIR)/arch.c \
+	$(LOCAL_DIR)/arch.cpp \
 	$(LOCAL_DIR)/exceptions.S \
-	$(LOCAL_DIR)/exceptions_c.c \
-	$(LOCAL_DIR)/thread.c
+	$(LOCAL_DIR)/exceptions_c.cpp \
+	$(LOCAL_DIR)/thread.cpp
+
+MODULE_DEPS += lib/libcpp
 
 GLOBAL_DEFINES += \
 	SMP_MAX_CPUS=1 \

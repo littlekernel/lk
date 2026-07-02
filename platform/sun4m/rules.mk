@@ -4,10 +4,12 @@ MODULE := $(LOCAL_DIR)
 
 ARCH := sparc
 
-MODULE_SRCS += $(LOCAL_DIR)/debug.c
-MODULE_SRCS += $(LOCAL_DIR)/intc.c
-MODULE_SRCS += $(LOCAL_DIR)/platform.c
-MODULE_SRCS += $(LOCAL_DIR)/timer.c
+MODULE_SRCS += $(LOCAL_DIR)/debug.cpp
+MODULE_SRCS += $(LOCAL_DIR)/intc.cpp
+MODULE_SRCS += $(LOCAL_DIR)/platform.cpp
+MODULE_SRCS += $(LOCAL_DIR)/timer.cpp
+
+MODULE_DEPS += lib/libcpp
 
 MEMBASE ?= 0x00000000
 MEMSIZE ?= 0x04000000 # 64MB

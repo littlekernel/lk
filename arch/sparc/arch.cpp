@@ -12,9 +12,10 @@
 #include <arch/sparc.h>
 #include <arch/interrupts.h>
 
+extern "C" void sparc_vectab(void);
+
 static void sparc_early_init_percpu(void) {
     // set the trap base register to point to our vector table
-    extern void sparc_vectab(void);
     __asm__ volatile("wr %0, 0, %%tbr\n"
          "nop\n"
          "nop\n"
