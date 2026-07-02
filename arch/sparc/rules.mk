@@ -2,13 +2,12 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_SRCS += \
-	$(LOCAL_DIR)/start.S \
-	$(LOCAL_DIR)/asm.S \
-	$(LOCAL_DIR)/arch.cpp \
-	$(LOCAL_DIR)/exceptions.S \
-	$(LOCAL_DIR)/exceptions_c.cpp \
-	$(LOCAL_DIR)/thread.cpp
+MODULE_SRCS += $(LOCAL_DIR)/arch.cpp
+MODULE_SRCS += $(LOCAL_DIR)/asm.S
+MODULE_SRCS += $(LOCAL_DIR)/exceptions.S
+MODULE_SRCS += $(LOCAL_DIR)/exceptions.cpp
+MODULE_SRCS += $(LOCAL_DIR)/start.S
+MODULE_SRCS += $(LOCAL_DIR)/thread.cpp
 
 MODULE_DEPS += lib/libcpp
 
@@ -25,7 +24,7 @@ TOOLCHAIN_PREFIX := $(ARCH_sparc_TOOLCHAIN_PREFIX)
 endif
 endif
 
-ARCH_COMPILEFLAGS += -m32 -mcpu=v8 -mno-faster-structs
+ARCH_COMPILEFLAGS += -m32 -mcpu=v8
 ARCH_OPTFLAGS ?= -O2
 
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
