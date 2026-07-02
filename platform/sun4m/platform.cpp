@@ -26,23 +26,3 @@ void platform_init(void) {
     sun4m_intc_init();
     sun4m_timer_init();
 }
-
-/* timer stubs */
-status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
-    return NO_ERROR;
-}
-
-status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg, lk_time_t interval) {
-    return NO_ERROR;
-}
-
-void platform_stop_timer(void) {
-}
-
-lk_time_t current_time(void) {
-    return 0;
-}
-
-lk_bigtime_t current_time_hires(void) {
-    return 0;
-}

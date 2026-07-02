@@ -17,33 +17,32 @@ enum {
 
 // Real physical 36-bit address,
 // can access via ASI 0x2f (0x20 + 0xf which is the top 4 bits).
-#define SCC_BASE (0x0000000ff1100000ULL)
+constexpr uint64_t SCC_BASE = 0xf'f110'0000ULL;
 
 void platform_dputc(char c) {
-
     if (c == '\n') {
-        while ((read_control_space_8(SCC_BASE, CONTROL_REG) & 0x04) == 0) {
+        while ((sparc_read_physical_8(SCC_BASE + CONTROL_REG) & 0x04) == 0) {
             // spin
         }
-        write_control_space_8(SCC_BASE, DATA_REG, '\r');
+        sparc_write_physical_8(SCC_BASE + DATA_REG, '\r');
     }
 
-    while ((read_control_space_8(SCC_BASE, CONTROL_REG) & 0x04) == 0) {
+    while ((sparc_read_physical_8(SCC_BASE + CONTROL_REG) & 0x04) == 0) {
         // spin
     }
-    write_control_space_8(SCC_BASE, DATA_REG, c);
+    sparc_write_physical_8(SCC_BASE + DATA_REG, c);
 }
 
 int platform_dgetc(char *c, bool wait) {
     if (wait) {
-        while ((read_control_space_8(SCC_BASE, CONTROL_REG) & 0x01) == 0) {
+        while ((sparc_read_physical_8(SCC_BASE + CONTROL_REG) & 0x01) == 0) {
             // spin
         }
-        *c = read_control_space_8(SCC_BASE, DATA_REG);
+        *c = sparc_read_physical_8(SCC_BASE + DATA_REG);
         return 0;
     } else {
-        if ((read_control_space_8(SCC_BASE, CONTROL_REG) & 0x01) != 0) {
-            *c = read_control_space_8(SCC_BASE, DATA_REG);
+        if ((sparc_read_physical_8(SCC_BASE + CONTROL_REG) & 0x01) != 0) {
+            *c = sparc_read_physical_8(SCC_BASE + DATA_REG);
             return 0;
         }
         return -1;

@@ -74,13 +74,29 @@ FUNCTION(sparc_vectab)
 END_FUNCTION(sparc_vectab)
 
 FUNCTION(sparc_shared_handler)
+    // at this point
+    //  l0 - PSR
+    //  l1 - PC
+    //  l2 - nPC
+
     // read the trap number into l7
     rd      %tbr, %l7
     srl     %l7, 4, %l7
     and     %l7, 0xff, %l7
 
     // create a stack frame for us
-    sub     %fp, 96, %sp
+    sub     %fp, 64 + 48, %sp
+
+    // save PSR, PC, nPC, and Y on the stack
+    rd      %y, %l3
+    std     %l0, [%sp + 64 + 0]
+    std     %l2, [%sp + 64 + 8]
+
+    // save all of the g registers on the stack
+    std     %g0, [%sp + 64 + 16]
+    std     %g2, [%sp + 64 + 24]
+    std     %g4, [%sp + 64 + 32]
+    std     %g6, [%sp + 64 + 40]
 
     // reenable traps, set PIL to 15 to mask all external exceptions
     or      %l0, (SPARC_PSR_ET | SPARC_PSR_PIL_MASK), %l4
@@ -95,11 +111,37 @@ FUNCTION(sparc_shared_handler)
     call    sparc_exception
     nop
 
-    // TODO: return from exception
-0:  b 0b; nop
+    // pop the g registers off the stack
+    ldd     [%sp + 64 + 16], %g0
+    ldd     [%sp + 64 + 24], %g2
+    ldd     [%sp + 64 + 32], %g4
+    ldd     [%sp + 64 + 40], %g6
 
+    // pop PSR, PC, nPC, and Y off the stack
+    ldd     [%sp + 64 + 0], %l0
+    ldd     [%sp + 64 + 8], %l2
+    wr      %l3, %y
 
+    // restore PSR
+    wr      %l0, %0, %psr
+    nop; nop; nop
+
+    // see if we'e about to window underflow in the rett, which is catastrophic
+    rd      %wim, %l3
+    add     %10, 1, %15     // PSR + 1
+    and     %l5, 0x1f, %l4  // PSR.CWD
+    btst    %l4, %l3
+    beq     restore_window_and_ret
     nop
+
+    // nope, regular return
+    jmp     %l1
+    rett    %l2
+
+restore_window_and_ret:
+0: b 0b; nop
+
+
 END_FUNCTION(sparc_shared_handler)
 
 FUNCTION(sparc_overflow)

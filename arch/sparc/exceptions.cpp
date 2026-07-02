@@ -11,6 +11,7 @@
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <platform/interrupts.h>
+#include <kernel/thread.h>
 
 #define LOCAL_TRACE 1
 
@@ -22,15 +23,17 @@ void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr
 extern "C" void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr) {
     LTRACEF("exc %#x at PC %#x, nPC %#x, PSR %#x\n", exception, pc, npc, psr);
 
+    handler_return ret = INT_NO_RESCHEDULE;
     switch (exception) {
         case 0x11 ... 0x1f: // IRQs 1-15
-            platform_irq(exception - 0x10);
+            ret = platform_irq(exception - 0x10);
             break;
         default:
             // unhandled exception
             panic("unhandled exception");
     }
 
-    // TODO: handle preemption
-    PANIC_UNIMPLEMENTED;
+    if (ret == INT_RESCHEDULE) {
+        thread_preempt();
+    }
 }
