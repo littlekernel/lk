@@ -153,7 +153,7 @@ static int echo_worker(void *socket) {
     }
 
     for (;;) {
-        ssize_t ret = tcp_read(s, buf, sizeof(buf));
+        ssize_t ret = tcp_read(s, buf, ECHO_BUFSIZE);
         if (ret <= 0)
             break;
 
