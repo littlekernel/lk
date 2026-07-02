@@ -53,7 +53,7 @@ void sun4m_intc_init(void) {
 
 }
 
-enum handler_return platform_irq(uint32_t irq) {
+extern "C" enum handler_return platform_irq(uint32_t irq) {
     LTRACEF("IRQ %u\n", irq);
     //intc_dump();
 

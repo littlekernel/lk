@@ -14,12 +14,12 @@
 
 #define LOCAL_TRACE 1
 
-extern enum handler_return platform_irq(uint32_t irq);
-
-// called from ASM
+extern "C" {
+enum handler_return platform_irq(uint32_t irq);
 void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr);
+}
 
-void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr) {
+extern "C" void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr) {
     LTRACEF("exc %#x at PC %#x, nPC %#x, PSR %#x\n", exception, pc, npc, psr);
 
     switch (exception) {

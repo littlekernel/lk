@@ -7,6 +7,8 @@
 //
 #include <stdint.h>
 
+#include <lk/compiler.h>
+
 void sun4m_intc_early_init(void);
 void sun4m_intc_init(void);
 void sun4m_timer_early_init(void);

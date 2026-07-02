@@ -14,7 +14,9 @@
 
 #define LOCAL_TRACE 1
 
+extern "C" {
 struct thread *_current_thread;
+}
 
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void) {

@@ -10,6 +10,8 @@
 #include <arch/ops.h>
 #include <lk/compiler.h>
 
+__BEGIN_CDECLS
+
 extern struct thread *_current_thread;
 
 static inline struct thread *arch_get_current_thread(void) {
@@ -25,6 +27,8 @@ static inline ulong arch_cycle_count(void) { return 0; }
 static inline uint arch_curr_cpu_num(void) {
     return 0;
 }
+
+__END_CDECLS
 
 #define mb()        CF
 #define wmb()       CF
