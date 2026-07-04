@@ -81,11 +81,8 @@ FUNCTION(sparc_shared_handler)
     //  l1 - PC
     //  l2 - nPC
     //  l3 - WIM
-
-    // read the trap number into l7
-    rd      %tbr, %l7
-    srl     %l7, 4, %l7
-    and     %l7, 0xff, %l7
+    // we have been rotated one window -1, which may or may not be the
+    // 'firewall' window that the WIM would have marked as out of bounds.
 
     // create a stack frame for us.
     // the exception already rotated the window, but we didn't
@@ -97,15 +94,11 @@ FUNCTION(sparc_shared_handler)
     set    1, %l5
     sll    %l5, %l4, %l4
     cmp    %l4, %l3
-    bne    1f
+    bne    .Lclean_window
     nop
 
-    // roll the wim down one
-    srl     %l3, 1, %l4 // wim >> 1
-    sll     %l3, 7, %l5 // wim << 7
-    or      %l4, %l5, %l6 // combine to get next wim
-    and     %l6, 0xff, %l3
-    wr      %l3, %wim
+    // yes we are, we need to save the window below us and mark it as the new firewall
+    save
 
     // deal with it
     // save the window on the stack in the slot of the frame that we just rotated to
@@ -118,7 +111,25 @@ FUNCTION(sparc_shared_handler)
     std     %i4, [%sp + 48]
     std     %i6, [%sp + 56]
 
-1:
+    // compute the new wim that would mark the window we just saved as the new firewall
+    rd      %psr, %l0
+    and     %l0, SPARC_PSR_CWP_MASK, %l0
+    mov     1, %l1
+    sll     %l1, %l0, %l1
+    wr      %l1, 0, %wim
+    nop; nop; nop  // XXX do we need this?
+
+    // rotate to the original trap window
+    restore
+
+    // now the firewall has been pushed one window down to the one we just saved.
+
+.Lclean_window:
+    // read the trap number into l7
+    rd      %tbr, %l7
+    srl     %l7, 4, %l7
+    and     %l7, 0xff, %l7
+
     // save Y and FSR on the stack
     rd      %y, %l4
     # rd      %fsr, %l5
@@ -146,13 +157,26 @@ FUNCTION(sparc_shared_handler)
     ldd     [%sp + 96 + 8], %g0
     ldd     [%sp + 96 + 16], %g2
     ldd     [%sp + 96 + 24], %g4
-    //ldd     [%sp + 96 + 32], %g6 // XXX
+    ldd     [%sp + 96 + 32], %g6
 
     // pop y and FSR off the stack
     ldd     [%sp + 96 + 0], %l4
     wr      %l4, %y
     # wr      %l5, %fsr
 
+    // see if we'e about to window underflow in the rett instruction, which is catastrophic
+    rd      %wim, %l3       // read a new wim, since we may have context switched and moved it
+    rd      %psr, %l4       // read current PSR
+    and     %l4, SPARC_PSR_CWP_MASK, %l4 // extract CWP
+    add     %l4, 1, %l5     // CWP + 1
+    and     %l5, 7, %l5  // PSR.CWD % 8 (assuming 8 windows)
+    set     1, %l6
+    sll     %l6, %l5, %l6   // (1 << (PSR.CWD + 1))
+    cmp     %l6, %l3
+    beq     .Lrestore_window_and_ret
+    nop
+
+.Lout_restore_psr:
     // restore PSR which should disable traps and restore the PIL to what it was before the exception
     // the saved PSR may have the wrong CWD if we had context switched
     rd      %psr, %l4
@@ -162,27 +186,20 @@ FUNCTION(sparc_shared_handler)
     wr      %l7, %psr
     nop; nop; nop
 
-    // see if we'e about to window underflow in the rett instruction, which is catastrophic
-    rd      %wim, %l3
-    add     %l4, 1, %l5     // PSR + 1
-    and     %l5, SPARC_PSR_CWP_MASK, %l5  // PSR.CWD
-    set     1, %l6
-    sll     %l6, %l5, %l6   // (1 << (PSR.CWD + 1))
-    cmp     %l6, %l3
-    beq     restore_window_and_ret
-    nop
-
 # 0: b 0b; nop
 
     // nope, regular return
     jmp     %l1
     rett    %l2
 
-restore_window_and_ret:
-0: b 0b; nop
+.Lrestore_window_and_ret:
+
+# 0: b 0b; nop
+
 
     // start by zeroing out WIM so we can rotate the window to the one we need to restore
     wr      0, %wim
+    nop; nop; nop
 
     restore
 
@@ -206,10 +223,11 @@ restore_window_and_ret:
     and     %l6, 0xff, %l6
 
     wr      %l6, %wim
+    nop; nop; nop
 
-    // return from exception
-    jmp     %l1
-    rett    %l2
+    // branch to the common exit path to restore PSR
+    b       .Lout_restore_psr
+    nop
 
 
 END_FUNCTION(sparc_shared_handler)
@@ -304,9 +322,19 @@ FUNCTION(sparc_underflow)
     // write it into wim
     wr      %l6, %wim
 
+    // we dont need to restore the PSR here because we haven't touched any condition bits
+    // and we should be on the same window we were when we started.
+
     // return from exception
     jmp     %l1
     rett    %l2
 
 0:  b 0b; nop
 END_FUNCTION(sparc_underflow)
+
+.bss
+.align 8
+.global dummy_window_dump
+dummy_window_dump:
+.skip 96
+

@@ -59,23 +59,24 @@ extern "C" void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, u
             break;
         case SPARC_TRAP_ILLEGAL_INSTRUCTION:
             dprintf(INFO, "illegal instruction at PC %#x\n", pc);
-            break;
+            goto unhandled;
         case SPARC_TRAP_FP_DISABLED:
             dprintf(INFO, "fp disabled at PC %#x\n", pc);
-            break;
+            goto unhandled;
         case SPARC_TRAP_MEM_ADDRESS_NOT_ALIGNED: {
             uint32_t fault_addr = sparc_read_sfar();
             dprintf(INFO, "memory address not aligned at PC %#x at address %#x\n", pc, fault_addr);
-            break;
+            goto unhandled;
         }
         case SPARC_TRAP_DATA_ACCESS_EXCEPTION: {
             uint32_t fault_addr = sparc_read_sfar();
             dprintf(INFO, "data access exception at PC %#x at address %#x\n", pc, fault_addr);
-            break;
         }
+            goto unhandled;
         case SPARC_TRAP_IRQ_1 ... SPARC_TRAP_IRQ_15: // IRQs 1-15
             ret = platform_irq(exception - (SPARC_TRAP_IRQ_1 - 1)); // normalized as if IRQ0 existed
             break;
+unhandled:
         default:
             // unhandled exception
             panic("unhandled exception");

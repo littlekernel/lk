@@ -60,7 +60,7 @@ handler_return sun4m_timer_irq();
 // read/write physical memory with ASI-based address space selection
 inline uint8_t sparc_read_physical_8(uint64_t addr) {
     // Select ASI prefix (0x20-0x2f) based on top 4 bits of 36-bit address
-    uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
+    const uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
     uint8_t val;
 
     ASI_SWITCH_READ("lduba")
@@ -70,14 +70,14 @@ inline uint8_t sparc_read_physical_8(uint64_t addr) {
 
 inline void sparc_write_physical_8(uint64_t addr, uint8_t val) {
     // Select ASI prefix (0x20-0x2f) based on top 4 bits of 36-bit address
-    uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
+    const uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
 
     ASI_SWITCH_WRITE("stba")
 }
 
 inline uint32_t sparc_read_physical_32(uint64_t addr) {
     // Select ASI prefix (0x20-0x2f) based on top 4 bits of 36-bit address
-    uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
+    const uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
     uint32_t val;
 
     ASI_SWITCH_READ("lda")
@@ -87,7 +87,7 @@ inline uint32_t sparc_read_physical_32(uint64_t addr) {
 
 inline void sparc_write_physical_32(uint64_t addr, uint32_t val) {
     // Select ASI prefix (0x20-0x2f) based on top 4 bits of 36-bit address
-    uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
+    const uint8_t asi = 0x20 + ((addr >> 32) & 0xf);
 
     ASI_SWITCH_WRITE("sta")
 }

@@ -11,61 +11,69 @@
     struct sparc_context_switch_frame *oldcs,
     struct sparc_context_switch_frame *newcs); */
 FUNCTION(sparc_context_switch)
-    // state at the start of the function:
+    // leaf function, operating directly in arch_context_switch's window.
     // o0 = oldcs
     // o1 = newcs
-    // o6 = %sp old thread stack pointer
-    // o7 = %return address to the caller - 8
-    // i0-i7 are owned by the caller
-    // l0-l7 are owned by the caller
-    // g1-g4 are scratch registers
-    save    %sp, -96, %sp; // create a new stack frame
-
-    // current state: CWP-1
-    // i0 = oldcs
-    // i1 = newcs
-    // i6 = %sp old thread stack pointer
-    // i7 = %return address to the caller - 8
-    // o6 = old thread stack pointer -96
-    // g1-g4 are scratch registers
-    // l0-l7 are owned by us
-    // o0-o7 are owned by us
+    // o6 = %sp (old thread stack pointer)
+    // o7 = return address to arch_context_switch's caller
 
     // save the context we came from into the oldcs frame
-    st      %i6, [%i0 + 0]; // save the old frame pointer
-    st      %i7, [%i0 + 4]; // save from pc
+    st      %o6, [%o0 + 0] // save the old stack
+    st      %o7, [%o0 + 4] // save from pc
 
     // force the overflow handler to spill out 6 frames (NWINDOWS - 2)
-    set     0, %g1
-0:
-    save    %sp, 0, %sp
-    add     %g1, 1, %g1
-    cmp     %g1, 6
-    bl      0b
-    nop
-
-# 0: b 0b; nop
-
-0:
-    // now unwind back to the original frame
-    sub     %g1, 1, %g1
+    // this pushes the older windows to the old thread's stack
+    save
+    save
+    save
+    save
+    save
+    save
     restore
-    cmp     %g1, 0
-    bne      0b
-    nop
+    restore
+    restore
+    restore
+    restore
+    restore
 
-    // now we're on the original frame, and it's guaranteed
-    // that no other frames are active
-    ld      [%i1 + 0], %i6; // restore frame pointer %fp (i6)
-    ld      [%i1 + 4], %i7; // restore return address %i7
+    // manually save arch_context_switch's l and i registers to its stack frame
+    // doing this avoids a costly underflow trap when the old thread resumes later
+    std     %l0, [%o6 + 0]
+    std     %l2, [%o6 + 8]
+    std     %l4, [%o6 + 16]
+    std     %l6, [%o6 + 24]
+    std     %i0, [%o6 + 32]
+    std     %i2, [%o6 + 40]
+    std     %i4, [%o6 + 48]
+    std     %i6, [%o6 + 56]
 
-    // go back to the callers frame
-    restore // should trigger an underflow exception
+    // switch to the new thread
+    ld      [%o1 + 0], %o6 // restore new thread's stack pointer
+    ld      [%o1 + 4], %o7 // restore new thread's pc
 
-    // the i registers we set above before are now o register
+    // manually restore the new thread's arch_context_switch l and i registers
+    ldd     [%o6 + 0], %l0
+    ldd     [%o6 + 8], %l2
+    ldd     [%o6 + 16], %l4
+    ldd     [%o6 + 24], %l6
+    ldd     [%o6 + 32], %i0
+    ldd     [%o6 + 40], %i2
+    ldd     [%o6 + 48], %i4
+    ldd     [%o6 + 56], %i6
 
-# 0: b 0b; nop
+    // invalidate all other windows so that the new thread is forced
+    // to reload its older frames from the stack on every restore.
+    // We do this by setting the firewall to the window we are returning to (CWP + 1)
+    rd      %psr, %g1
+    and     %g1, 0x1f, %g1
+    add     %g1, 1, %g1
+    and     %g1, 7, %g1
+    mov     1, %g2
+    sll     %g2, %g1, %g2
+    wr      %g2, 0, %wim
+    nop; nop; nop
 
-    retl    // jumps to o7+8
+    // go back to the caller's frame
+    retl
     nop
 END_FUNCTION(sparc_context_switch)

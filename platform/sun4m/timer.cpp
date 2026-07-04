@@ -25,10 +25,12 @@ namespace {
 // each cpu offset is 0x1000, only handle UP for now
 constexpr uint64_t TIMER_PERCPU_PHYS = 0xff1300000ULL;
 
-// free running timer, running in 500nS increments, so 2MHz
-constexpr uint32_t TIMER_FREQ = 2000000;
+// free running timer, running in 500nS increments
+constexpr uint32_t TIMER_FREQ = 2 * 1000 * 1000;
 constexpr lk_time_t TIMER_PERIOD = 10;
 constexpr uint32_t TIMER_TICKS_PER_PERIOD = TIMER_FREQ / (1000 / TIMER_PERIOD); // 10mS period
+constexpr uint32_t NS_PER_US = 1000;
+constexpr uint32_t NS_PER_MS = 1000 * 1000;
 
 uint32_t timer_ticks = 0;
 platform_timer_callback timer_callback = nullptr;
@@ -41,15 +43,17 @@ enum {
     TIMER_USER_START_STOP_REG = 0xc,
 };
 
-// read the current counter register
+// read the current counter register, units of nS
 uint32_t read_timer_counter() {
+    // read the current counter register, check if the wrap bit is set, and return the current tick count
+    // with the wrap adjusted.
     uint32_t cnt = sparc_read_physical_32(TIMER_PERCPU_PHYS + TIMER_COUNTER_REG);
     bool wrap = false;
     if (cnt & 0x80000000) {
-        // counter has wrapped, read the limit register to clear the wrap
+        // counter has wrapped
         wrap = true;
     }
-    cnt = (cnt >> 8);
+    cnt &= ~0x80000000; // clear the wrap bit
     if (wrap) {
         // add one more interval to the ticks, since the counter has wrapped
         cnt += TIMER_TICKS_PER_PERIOD;
@@ -61,7 +65,7 @@ uint32_t read_timer_counter() {
 
 void sun4m_timer_early_init(void) {
     // set the timer limit to 10mS, and start the timer
-    sparc_write_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG, TIMER_FREQ / 100);
+    sparc_write_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG, TIMER_TICKS_PER_PERIOD << 9);
 
     // clear the counter
 #if 0
@@ -82,8 +86,14 @@ handler_return sun4m_timer_irq() {
 
     // read the current limit register and check if the wrap bit is set,
     // if so, increment the tick count and call our callback if one is registered.
-    uint32_t limit = sparc_read_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG);
-    if (limit & 0x80000000) {
+    uint32_t counter = sparc_read_physical_32(TIMER_PERCPU_PHYS + TIMER_COUNTER_REG);
+    //printf("limit: counter 0x%x\n", counter);
+    if (counter & 0x80000000) {
+        // printf("tick %u\n", timer_ticks);
+
+        // read the limit register to clear the wrap bit
+        sparc_read_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG);
+
         timer_ticks++;
         if (timer_callback) {
             if (timer_callback(timer_callback_arg, current_time()) == INT_RESCHEDULE) {
@@ -101,7 +111,7 @@ status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg,
 
 status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg,
                                      lk_time_t interval) {
-    // we are currently hard coded to to a 10S period.
+    // we are currently hard coded to to a 10ms period.
     ASSERT(interval == TIMER_PERIOD);
     TRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
@@ -115,16 +125,16 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
 void platform_stop_timer(void) {}
 
 lk_time_t current_time(void) {
-    lk_time_t time = timer_ticks * TIMER_TICKS_PER_PERIOD;
+    lk_time_t time = timer_ticks * TIMER_PERIOD;
     uint32_t counter = read_timer_counter();
-    time += counter / 200; // 500nS increments
+    time += counter / NS_PER_MS; // 500nS increments
     return time;
 }
 
 lk_bigtime_t current_time_hires(void) {
-    lk_time_t time = timer_ticks * TIMER_TICKS_PER_PERIOD * 1000;
+    lk_time_t time = timer_ticks * TIMER_PERIOD * 1000;
 
     uint32_t counter = read_timer_counter();
-    time += counter * 2;
+    time += counter / NS_PER_US; // 500nS increments
     return time;
 }
