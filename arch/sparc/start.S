@@ -38,6 +38,7 @@ FUNCTION(_start)
     // clear BSS
     set     __bss_start, %g1
     set     __bss_end, %g2
+
 .Lclear_bss:
     cmp     %g1, %g2
     bge,a   .Lcall_main

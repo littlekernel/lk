@@ -876,6 +876,8 @@ void thread_become_idle(void) {
     mp_set_curr_cpu_active(true);
     mp_set_cpu_idle(arch_curr_cpu_num());
 
+    // __asm__ volatile("0: b 0b; nop"); /* make sure we don't return from this function */
+
     /* enable interrupts and start the scheduler */
     arch_enable_ints();
     thread_yield();

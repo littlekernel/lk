@@ -106,6 +106,8 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     TRACEF("callback %p, arg %p, interval %u\n", callback, arg, interval);
 
     // remember the callback
+    timer_callback = callback;
+    timer_callback_arg = arg;
 
     return NO_ERROR;
 }
