@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+
+# Section 1: Verify that the project argument is provided
+if [ "$#" -lt 1 ]; then
+    echo "usage: $0 <project> [COCCI=...] [M=...] [MODE=...] [J=jobs] [V=1] [S=severity]"
+    exit 1
+fi
+
+PROJ=$1
+shift
+
+# Default values
+COCCI=""
+M=""
+MODE="report"
+VERBOSE=0
+SEVERITY=""
+JOBS=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+
+# Section 2: Parse optional configuration arguments (COCCI, M, MODE, V, S)
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        COCCI=*)
+            COCCI="${1#COCCI=}"
+            ;;
+        M=*)
+            M="${1#M=}"
+            ;;
+        MODE=*)
+            MODE="${1#MODE=}"
+            ;;
+        V=*|VERBOSE=*)
+            VERBOSE="${1#*=}"
+            ;;
+        S=*|SEVERITY=*)
+            SEVERITY="${1#*=}"
+            ;;
+        J=*|JOBS=*)
+            JOBS="${1#*=}"
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            echo "usage: $0 <project> [COCCI=...] [M=...] [MODE=...] [J=jobs] [V=1] [S=severity]"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+PROJ_DIR=build-${PROJ}
+
+# Section 3: Check if the project build directory and metadata files exist
+if [ ! -d "$PROJ_DIR" ]; then
+    echo "Project build directory $PROJ_DIR does not exist. Please run make first."
+    exit 1
+fi
+
+if [ ! -f "${PROJ_DIR}/srcfiles.txt" ] || [ ! -f "${PROJ_DIR}/include_paths.txt" ]; then
+    echo "Metadata files missing. Please ensure project is built."
+    exit 1
+fi
+
+# Section 4: Verify that spatch (Coccinelle) is installed
+if ! command -v spatch >/dev/null 2>&1; then
+    echo "Error: 'spatch' (Coccinelle) is not installed or not found in PATH." >&2
+    echo "Please install Coccinelle (e.g., 'sudo apt install coccinelle' or from source)." >&2
+    exit 1
+fi
+
+# Section 5: Resolve COCCI parameter to a list of target .cocci files
+COCCI_DIR="scripts/coccinelle"
+COCCI_FILES=""
+
+if [ -z "$COCCI" ]; then
+    COCCI_FILES=$(find "$COCCI_DIR" -name "*.cocci" -type f | sort)
+else
+    if [ -d "$COCCI_DIR/$COCCI" ]; then
+        COCCI_FILES=$(find "$COCCI_DIR/$COCCI" -name "*.cocci" -type f | sort)
+    elif [ -d "$COCCI" ]; then
+        COCCI_FILES=$(find "$COCCI" -name "*.cocci" -type f | sort)
+    elif [ -f "$COCCI" ]; then
+        COCCI_FILES="$COCCI"
+    elif [ -f "$COCCI_DIR/$COCCI" ]; then
+         COCCI_FILES="$COCCI_DIR/$COCCI"
+    elif [ -f "$COCCI_DIR/$COCCI.cocci" ]; then
+         COCCI_FILES="$COCCI_DIR/$COCCI.cocci"
+    else
+        # Shortcut search (no slash)
+        case "$COCCI" in
+            */*)
+                echo "Coccinelle script/dir '$COCCI' not found"
+                exit 1
+                ;;
+            *)
+                SEARCH_RESULT=$(find "$COCCI_DIR" \( -name "$COCCI" -o -name "$COCCI.cocci" \) -type f)
+                if [ -z "$SEARCH_RESULT" ]; then
+                    echo "Coccinelle script '$COCCI' not found in $COCCI_DIR"
+                    exit 1
+                fi
+                NUM_FOUND=$(echo "$SEARCH_RESULT" | wc -l)
+                if [ "$NUM_FOUND" -eq 1 ]; then
+                    COCCI_FILES="$SEARCH_RESULT"
+                else
+                    echo "Multiple cocci files found for '$COCCI':"
+                    echo "$SEARCH_RESULT"
+                    COCCI_FILES=$(echo "$SEARCH_RESULT" | head -n 1)
+                    echo "Picking first: $COCCI_FILES"
+                fi
+                ;;
+        esac
+    fi
+fi
+
+if [ -z "$COCCI_FILES" ]; then
+    echo "No Coccinelle scripts found to run."
+    exit 1
+fi
+
+# Section 6: Convert include paths from build metadata into an array of -I flags for spatch
+INCLUDES=()
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    INCLUDES+=(-I "$line")
+done < "${PROJ_DIR}/include_paths.txt"
+
+# Section 7: Filter C source files from build metadata into an array and apply directory filter (M)
+C_SRCS=()
+M_NO_SLASH="${M%/}"
+while IFS= read -r line; do
+    case "$line" in
+        *.c)
+            if [ -f "$line" ]; then
+                if [ -n "$M" ]; then
+                    case "$line" in
+                        "$M_NO_SLASH"/*|"$M_NO_SLASH")
+                            C_SRCS+=("$line")
+                            ;;
+                    esac
+                else
+                    C_SRCS+=("$line")
+                fi
+            fi
+            ;;
+    esac
+done < "${PROJ_DIR}/srcfiles.txt"
+
+if [ ${#C_SRCS[@]} -eq 0 ]; then
+    echo "No C source files found to check."
+    exit 0
+fi
+
+# Section 8: Set up global spatch execution flags (quiet, includes, diff suppression)
+SPATCH_FLAGS=""
+if [ -f "${PROJ_DIR}/config.h" ]; then
+    SPATCH_FLAGS="--include ${PROJ_DIR}/config.h"
+fi
+
+SPATCH_FLAGS="$SPATCH_FLAGS --all-includes"
+
+# Set parallel jobs (default to all CPUs)
+if [ -n "$JOBS" ] && [ "$JOBS" -gt 1 ] 2>/dev/null; then
+    SPATCH_FLAGS="$SPATCH_FLAGS --jobs $JOBS"
+fi
+
+# Add quiet flags if not verbose
+if [ "$VERBOSE" -ne 1 ]; then
+    SPATCH_FLAGS="$SPATCH_FLAGS --very-quiet"
+fi
+
+# Add no-show-diff for report/org modes
+if [ "$MODE" = "report" ] || [ "$MODE" = "org" ]; then
+    SPATCH_FLAGS="$SPATCH_FLAGS --no-show-diff"
+fi
+
+filter_output() {
+    if [ -n "$SEVERITY" ]; then
+        grep -F -i -- "$SEVERITY" || true
+    else
+        cat
+    fi
+}
+
+# Section 9: Print execution banner summarizing the run configuration
+if [ "$VERBOSE" -ne 1 ]; then
+    NUM_FILES=$(echo "$COCCI_FILES" | wc -l)
+    echo "=================================================="
+    echo " Running Coccinelle (coccicheck)"
+    echo " Target Project   : $PROJ"
+    echo " Target Directory : ${M:-Whole Project}"
+    echo " Cocci Script     : ${COCCI:-All} ($NUM_FILES files)"
+    echo " Analysis Mode    : $MODE"
+    echo " Concurrency      : $JOBS jobs"
+    echo " Severity Filter  : ${SEVERITY:-All}"
+    echo "=================================================="
+fi
+
+# Section 10: Loop through and execute each Coccinelle script, formatting the output
+set -o pipefail
+for f in $COCCI_FILES; do
+    display_f="${f#$COCCI_DIR/}"
+    
+    FILE_SPATCH_FLAGS="$SPATCH_FLAGS"
+    if grep -q "^virtual" "$f"; then
+        FILE_SPATCH_FLAGS="$FILE_SPATCH_FLAGS -D $MODE"
+    fi
+    
+    if [ "$VERBOSE" -eq 1 ]; then
+        echo "spatch --sp-file $f $FILE_SPATCH_FLAGS ${INCLUDES[*]} [${#C_SRCS[@]} C sources...]"
+        spatch --sp-file "$f" $FILE_SPATCH_FLAGS "${INCLUDES[@]}" "${C_SRCS[@]}" || exit 1
+    else
+        OUTPUT=$(spatch --sp-file "$f" $FILE_SPATCH_FLAGS "${INCLUDES[@]}" "${C_SRCS[@]}" 2>&1 | filter_output | sed "s|^|[$display_f] |")
+        STATUS=$?
+        if [ -n "$OUTPUT" ]; then
+            echo "$OUTPUT"
+        fi
+        if [ $STATUS -ne 0 ]; then
+            exit $STATUS
+        fi
+    fi
+done
+
+if [ "$VERBOSE" -ne 1 ]; then
+    echo "=================================================="
+    echo " Coccinelle analysis complete."
+    echo "=================================================="
+fi
