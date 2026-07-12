@@ -430,55 +430,46 @@ END_FUNCTION(arm64_enable_mmu)
  */
 LOCAL_FUNCTION(trampoline_vbar)
 .p2align 11
+
+.macro VBAR_HANG
+    wfe
+    b       .-4
+.endm
+
 .org 0x00
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x80
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x100
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x180
-    wfe
-    b       .-4
+    VBAR_HANG
     /* exception vector for synchronous exceptions from current EL -> current EL */
 .org 0x200
     adr_global tmp, .Lmmu_on_pc
     br      tmp
 .org 0x280
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x300
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x380
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x400
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x480
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x500
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x580
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x600
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x680
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x700
-    wfe
-    b       .-4
+    VBAR_HANG
 .org 0x780
-    wfe
-    b       .-4
+    VBAR_HANG
 END_FUNCTION(trampoline_vbar)
 #endif
 
