@@ -12,7 +12,7 @@ MODULE_SRCS += $(LOCAL_DIR)/timer.cpp
 MODULE_DEPS += lib/libcpp
 
 MEMBASE ?= 0x00000000
-MEMSIZE ?= 0x04000000 # 64MB
+MEMSIZE ?= 0x02000000 # 32MB
 KERNEL_LOAD_OFFSET := 0x4000 # seems to be where we're loaded
 
 include make/module.mk
