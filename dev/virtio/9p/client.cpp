@@ -78,13 +78,17 @@ static status_t p9_req_prepare(struct p9_req *req,
 {
     struct virtio_9p_dev *p9dev = containerof(req, struct virtio_9p_dev, req);
     status_t ret = NO_ERROR;
+    auto cleanup = lk::make_auto_call([req] {
+        pdu_fini(&req->tc);
+        pdu_fini(&req->rc);
+    });
 
     if ((ret = pdu_init(&req->tc, p9dev->msize)) != NO_ERROR) {
-        goto err;
+        return ret;
     }
 
     if ((ret = pdu_init(&req->rc, p9dev->msize)) != NO_ERROR) {
-        goto err;
+        return ret;
     }
 
     pdu_reset(&req->tc);
@@ -95,23 +99,17 @@ static status_t p9_req_prepare(struct p9_req *req,
 
     // fill 9p header
     if (pdu_writed(&req->tc, 0) != NO_ERROR) {
-        ret = ERR_IO;
-        goto err;
+        return ERR_IO;
     }
     if (pdu_writeb(&req->tc, tmsg->msg_type) != NO_ERROR) {
-        ret = ERR_IO;
-        goto err;
+        return ERR_IO;
     }
     if (pdu_writew(&req->tc, tmsg->tag) != NO_ERROR) {
-        ret = ERR_IO;
-        goto err;
+        return ERR_IO;
     }
 
+    cleanup.cancel();
     return NO_ERROR;
-err:
-    pdu_fini(&req->tc);
-    pdu_fini(&req->rc);
-    return ret;
 }
 
 static void p9_req_release(struct p9_req *req)
@@ -224,6 +222,7 @@ status_t virtio_9p_rpc(struct virtio_device *dev, const virtio_9p_msg_t *tmsg,
     if (ret != NO_ERROR) {
         return ret;
     }
+    auto cleanup = lk::make_auto_call([req] { p9_req_release(req); });
 
     // setup the T-message by its msg-type
     switch (tmsg->msg_type) {
@@ -269,24 +268,23 @@ status_t virtio_9p_rpc(struct virtio_device *dev, const virtio_9p_msg_t *tmsg,
         default:
             LTRACEF("9p T-message type not supported: %u\n", tmsg->msg_type);
             ret = ERR_NOT_SUPPORTED;
-            goto err;
+            return ret;
     }
 
     if (ret != NO_ERROR) {
         LTRACEF("9p T-message (code: %u) failed: %d\n", tmsg->msg_type, ret);
-        goto err;
+        return ret;
     }
 
     if ((ret = p9_req_finalize(req)) != NO_ERROR) {
-        goto err;
+        return ret;
     }
 
     virtio_9p_req_send(p9dev, req);
 
     // wait for server's response
     if (event_wait_timeout(&req->io_event, VIRTIO_9P_RPC_TIMEOUT) != NO_ERROR) {
-        ret = ERR_TIMED_OUT;
-        goto err;
+        return ERR_TIMED_OUT;
     }
 
     // read the message header from the returned request
@@ -339,11 +337,9 @@ status_t virtio_9p_rpc(struct virtio_device *dev, const virtio_9p_msg_t *tmsg,
         default:
             LTRACEF("9p R-message type not supported: %u\n", tmsg->msg_type);
             ret = ERR_NOT_SUPPORTED;
-            goto err;
+            return ret;
     }
 
-err:
-    p9_req_release(req);
     return ret;
 }
 
