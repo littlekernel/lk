@@ -1,13 +1,24 @@
 /*
-  This is a version (aka dlmalloc) of malloc/free/realloc written by
-  Doug Lea and released to the public domain, as explained at
-  http://creativecommons.org/publicdomain/zero/1.0/ Send questions,
-  comments, complaints, performance data, etc to dl@cs.oswego.edu
+Copyright 2023 Doug Lea
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 * Version 2.8.6 Wed Aug 29 06:57:58 2012  Doug Lea
-   Note: There may be an updated version of this malloc obtainable at
-           ftp://gee.cs.oswego.edu/pub/misc/malloc.c
-         Check before installing!
+  Re-licensed 25 Sep 2023 with MIT-0 replacing obsolete CC0
+  See https://opensource.org/license/mit-0/
 
 * Quickstart
 

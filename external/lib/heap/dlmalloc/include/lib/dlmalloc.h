@@ -1,7 +1,24 @@
 /*
-  Default header file for malloc-2.8.x, written by Doug Lea
-  and released to the public domain, as explained at
-  http://creativecommons.org/publicdomain/zero/1.0/ 
+Copyright 2023 Doug Lea
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+  Default header file for malloc-2.8.x
+  Re-licensed 25 Sep 2023 with MIT-0 replacing obsolete CC0
+  See https://opensource.org/license/mit-0/
  
   This header is for ANSI C/C++ only.  You can set any of
   the following #defines before including:
