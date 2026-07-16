@@ -200,7 +200,7 @@ status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     virtio_net_hdr *hdr = (virtio_net_hdr *)pktbuf_append(p, sizeof(virtio_net_hdr) - 2);
     memset(hdr, 0, p->dlen);
 
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&ndev->lock);
+    AutoSpinLock lock_guard(&ndev->lock);
 
     vring_desc *desc = {};
 
@@ -210,8 +210,7 @@ status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
         desc = vdev->virtio_alloc_desc_chain(RING_TX, 2, &i);
     }
     if (!desc) {
-        spin_unlock_irqrestore(&ndev->lock, state);
-
+        lock_guard.release();
         TRACEF("out of virtio tx descriptors, tx_pending_count %u\n", ndev->tx_pending_count);
         pktbuf_free(p, true);
 
@@ -245,8 +244,6 @@ status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
 
     /* kick it off */
     vdev->bus()->virtio_kick(RING_TX);
-
-    spin_unlock_irqrestore(&ndev->lock, state);
 
     return NO_ERROR;
 }
@@ -288,7 +285,7 @@ status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick) {
 
     p->dlen = sizeof(virtio_net_hdr) - 2 + VIRTIO_NET_MSS;
 
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&ndev->lock);
+    AutoSpinLock lock_guard(&ndev->lock);
 
     /* allocate a chain of descriptors for our transfer */
     uint16_t i;
@@ -312,8 +309,6 @@ status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick) {
     if (do_kick) {
         vdev->bus()->virtio_kick(RING_RX);
     }
-
-    spin_unlock_irqrestore(&ndev->lock, state);
 
     return NO_ERROR;
 }
@@ -397,11 +392,11 @@ int virtio_net_rx_worker(void *arg) {
 
         /* pull some packets from the received queue */
         for (;;) {
-            arch_interrupt_saved_state_t state = spin_lock_irqsave(&ndev->lock);
-
-            pktbuf_t *p = list_remove_head_type(&ndev->completed_rx_queue, pktbuf_t, list);
-
-            spin_unlock_irqrestore(&ndev->lock, state);
+            pktbuf_t *p;
+            {
+                AutoSpinLock lock_guard(&ndev->lock);
+                p = list_remove_head_type(&ndev->completed_rx_queue, pktbuf_t, list);
+            }
 
             if (!p)
                 break; /* nothing left in the queue, go back to waiting */

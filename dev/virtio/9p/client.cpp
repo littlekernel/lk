@@ -25,6 +25,7 @@
 #include <dev/virtio/virtio-device.h>
 #include <dev/virtio/9p.h>
 #include <kernel/event.h>
+#include <kernel/spinlock.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
@@ -168,7 +169,7 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
     struct vring_desc *desc;
     uint16_t idx;
 
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&p9dev->lock);
+    AutoSpinLock lock_guard(&p9dev->lock);
 
     desc = dev->virtio_alloc_desc_chain(VIRTIO_9P_RING_IDX, 2, &idx);
 
@@ -197,8 +198,6 @@ static void virtio_9p_req_send(struct virtio_9p_dev *p9dev,
 
     /* kick it off */
     dev->bus()->virtio_kick(VIRTIO_9P_RING_IDX);
-
-    spin_unlock_irqrestore(&p9dev->lock, state);
 }
 
 status_t virtio_9p_rpc(struct virtio_device *dev, const virtio_9p_msg_t *tmsg,
