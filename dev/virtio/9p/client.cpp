@@ -217,12 +217,12 @@ status_t virtio_9p_rpc(struct virtio_device *dev, const virtio_9p_msg_t *tmsg,
     // level lock for restricting only one rpc can be executed at a time. One
     // day if we can support multiple outstanding requests, we should move the
     // lock into the request allocation phase.
-    mutex_acquire(&p9dev->req_lock);
+    AutoLock req_lock_guard(&p9dev->req_lock);
 
     // prepare the message header
     ret = p9_req_prepare(req, tmsg);
     if (ret != NO_ERROR) {
-        goto req_unlock;
+        return ret;
     }
 
     // setup the T-message by its msg-type
@@ -344,10 +344,6 @@ status_t virtio_9p_rpc(struct virtio_device *dev, const virtio_9p_msg_t *tmsg,
 
 err:
     p9_req_release(req);
-
-req_unlock:
-    mutex_release(&p9dev->req_lock);
-
     return ret;
 }
 

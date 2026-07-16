@@ -122,7 +122,7 @@ status_t get_display_info(virtio_gpu_dev *gdev) {
     DEBUG_ASSERT(gdev);
 
     /* grab a lock to keep this single message at a time */
-    mutex_acquire(&gdev->lock);
+    AutoLock lock_guard(&gdev->lock);
 
     /* construct the get display info message */
     struct virtio_gpu_ctrl_hdr req;
@@ -134,13 +134,11 @@ status_t get_display_info(virtio_gpu_dev *gdev) {
     err = send_command_response(gdev, &req, sizeof(req), (void **)&info, sizeof(*info));
     DEBUG_ASSERT(err == NO_ERROR);
     if (err < NO_ERROR) {
-        mutex_release(&gdev->lock);
         return ERR_NOT_FOUND;
     }
 
     /* we got response */
     if (gdev->dev->ring_swap32(info->hdr.type) != VIRTIO_GPU_RESP_OK_DISPLAY_INFO) {
-        mutex_release(&gdev->lock);
         return ERR_NOT_FOUND;
     }
 
@@ -166,9 +164,6 @@ status_t get_display_info(virtio_gpu_dev *gdev) {
         }
     }
 
-    /* release the lock */
-    mutex_release(&gdev->lock);
-
     return NO_ERROR;
 }
 
@@ -181,7 +176,7 @@ status_t allocate_2d_resource(virtio_gpu_dev *gdev, uint32_t *resource_id, uint3
     DEBUG_ASSERT(resource_id);
 
     /* grab a lock to keep this single message at a time */
-    mutex_acquire(&gdev->lock);
+    AutoLock lock_guard(&gdev->lock);
 
     /* construct the request */
     virtio_gpu_resource_create_2d req;
@@ -203,9 +198,6 @@ status_t allocate_2d_resource(virtio_gpu_dev *gdev, uint32_t *resource_id, uint3
     LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
     err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
-    /* release the lock */
-    mutex_release(&gdev->lock);
-
     return err;
 }
 
@@ -218,7 +210,7 @@ status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void *ptr, s
     DEBUG_ASSERT(ptr);
 
     /* grab a lock to keep this single message at a time */
-    mutex_acquire(&gdev->lock);
+    AutoLock lock_guard(&gdev->lock);
 
     /* construct the request */
     struct {
@@ -249,9 +241,6 @@ status_t attach_backing(virtio_gpu_dev *gdev, uint32_t resource_id, void *ptr, s
     LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
     err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
-    /* release the lock */
-    mutex_release(&gdev->lock);
-
     return err;
 }
 
@@ -261,7 +250,7 @@ status_t set_scanout(virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t resourc
     LTRACEF("gdev %p, scanout_id %u, resource_id %u, width %u, height %u\n", gdev, scanout_id, resource_id, width, height);
 
     /* grab a lock to keep this single message at a time */
-    mutex_acquire(&gdev->lock);
+    AutoLock lock_guard(&gdev->lock);
 
     /* construct the request */
     virtio_gpu_set_scanout req;
@@ -283,9 +272,6 @@ status_t set_scanout(virtio_gpu_dev *gdev, uint32_t scanout_id, uint32_t resourc
     LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
     err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
-    /* release the lock */
-    mutex_release(&gdev->lock);
-
     return err;
 }
 
@@ -295,7 +281,7 @@ status_t flush_resource(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t wid
     LTRACEF("gdev %p, resource_id %u, width %u, height %u\n", gdev, resource_id, width, height);
 
     /* grab a lock to keep this single message at a time */
-    mutex_acquire(&gdev->lock);
+    AutoLock lock_guard(&gdev->lock);
 
     /* construct the request */
     virtio_gpu_resource_flush req;
@@ -316,9 +302,6 @@ status_t flush_resource(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_t wid
     LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
     err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
 
-    /* release the lock */
-    mutex_release(&gdev->lock);
-
     return err;
 }
 
@@ -328,7 +311,7 @@ status_t transfer_to_host_2d(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_
     LTRACEF("gdev %p, resource_id %u, width %u, height %u\n", gdev, resource_id, width, height);
 
     /* grab a lock to keep this single message at a time */
-    mutex_acquire(&gdev->lock);
+    AutoLock lock_guard(&gdev->lock);
 
     /* construct the request */
     virtio_gpu_transfer_to_host_2d req;
@@ -349,9 +332,6 @@ status_t transfer_to_host_2d(virtio_gpu_dev *gdev, uint32_t resource_id, uint32_
     /* see if we got a valid response */
     LTRACEF("response type 0x%x\n", gdev->dev->ring_swap32(res->type));
     err = (gdev->dev->ring_swap32(res->type) == VIRTIO_GPU_RESP_OK_NODATA) ? NO_ERROR : ERR_NO_MEMORY;
-
-    /* release the lock */
-    mutex_release(&gdev->lock);
 
     return err;
 }
