@@ -146,6 +146,13 @@ static void heap_free_delayed_list(void) {
 }
 
 void heap_init(void) {
+#if WITH_LIB_HEAP_MINIHEAP
+    dprintf(INFO, "heap init: using miniheap\n");
+#elif WITH_LIB_HEAP_CMPCTMALLOC
+    dprintf(INFO, "heap init: using cmpctmalloc\n");
+#elif WITH_LIB_HEAP_DLMALLOC
+    dprintf(INFO, "heap init: using dlmalloc\n");
+#endif
     HEAP_INIT();
 }
 
