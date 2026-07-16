@@ -294,6 +294,7 @@ FUNCTION(sparc_underflow)
 
     // start by zeroing out WIM so we can rotate the window to the one we need to restore
     wr      %g0, 0, %wim
+    nop; nop; nop
 
     // rotate the window so we can see the one we need to restore
     restore
@@ -321,6 +322,7 @@ FUNCTION(sparc_underflow)
 
     // write it into wim
     wr      %l6, %wim
+    nop; nop; nop
 
     // we dont need to restore the PSR here because we haven't touched any condition bits
     // and we should be on the same window we were when we started.

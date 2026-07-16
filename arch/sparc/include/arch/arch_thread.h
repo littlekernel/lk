@@ -15,7 +15,9 @@ __BEGIN_CDECLS
 struct sparc_context_switch_frame {
     uint32_t sp;
     uint32_t pc;
-};
+    uint32_t l[8];
+    uint32_t i[8];
+} __ALIGNED(8);
 
 struct arch_thread {
     struct sparc_context_switch_frame cs_frame;
