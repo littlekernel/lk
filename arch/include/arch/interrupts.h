@@ -29,8 +29,34 @@ static inline void arch_interrupt_restore(struct arch_interrupt_saved_state old_
 
 __END_CDECLS
 
-#endif // !ASSEMBLY
-
 /* include the arch specific implementations */
 #include <arch/arch_interrupts.h>
+
+#ifdef __cplusplus
+
+#include <lk/cpp.h>
+
+// RAII wrapper that saves interrupt state on construction and restores on destruction.
+class AutoInterruptSave {
+  public:
+    AutoInterruptSave() : old_state_(arch_interrupt_save()) {}
+    ~AutoInterruptSave() { release(); }
+
+    void release() {
+        if (likely(active_)) {
+            arch_interrupt_restore(old_state_);
+            active_ = false;
+        }
+    }
+
+    DISALLOW_COPY_ASSIGN_AND_MOVE(AutoInterruptSave);
+
+  private:
+    arch_interrupt_saved_state_t old_state_;
+    bool active_ = true;
+};
+
+#endif // __cplusplus
+
+#endif // !ASSEMBLY
 
