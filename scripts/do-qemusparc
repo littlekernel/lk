@@ -5,5 +5,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 set -e
 set -x
 
-"$DIR"/make-parallel ss20
-exec qemu-system-sparc -m 32 -machine SS-20 -kernel build-ss20/lk.bin --nographic "$@"
+"$DIR"/make-parallel ss20-test
+exec qemu-system-sparc -m 32 -machine SS-20 -kernel build-ss20-test/lk.bin --nographic "$@"
