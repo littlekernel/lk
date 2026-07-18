@@ -4,11 +4,12 @@ MODULE := $(LOCAL_DIR)
 
 ARCH := sparc
 
-MODULE_SRCS += $(LOCAL_DIR)/debug.cpp
 MODULE_SRCS += $(LOCAL_DIR)/intc.cpp
 MODULE_SRCS += $(LOCAL_DIR)/platform.cpp
+MODULE_SRCS += $(LOCAL_DIR)/scc.cpp
 MODULE_SRCS += $(LOCAL_DIR)/timer.cpp
 
+MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/libcpp
 
 GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1

@@ -5,8 +5,8 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 //
-#include <assert.h>
 #include <arch/interrupts.h>
+#include <assert.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
@@ -49,12 +49,14 @@ void *timer_callback_arg = nullptr;
 
 // timer registers
 enum {
-    // limit register, write to this to set the timer period (bits 30-9), read to clear the limit bit
+    // limit register, write to this to set the timer period (bits 30-9), read to clear the limit
+    // bit
     // (bit 31)
     TIMER_LIMIT_REG = 0,
     // counter register, read to get the current counter value (bits 30-0), bit 31 is the wrap bit
     TIMER_COUNTER_REG = 4,
-    // limit register, write to this to set the timer period (bits 30-9), read does not clear limit bit
+    // limit register, write to this to set the timer period (bits 30-9), read does not clear limit
+    // bit
     TIMER_LIMIT_NO_RESET_REG = 8,
     // user start/stop register, write 1 to bit 0 to start the timer, write 1 to bit 1 to stop the
     // timer, only if configured as user
@@ -92,24 +94,9 @@ uint32_t interval_ms_to_timer_limit(lk_time_t interval) {
 
 } // anonymous namespace
 
-void sun4m_timer_early_init(void) {
-    // Start with the per-cpu timer in free-run mode and arm it when requested.
-    sparc_write_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG, 0);
-    sparc_read_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG);
-
-    // Program the global timer as a free-running source used by current_time().
-    // No interrupt is routed for it; readers clear the latched wrap condition.
-    sparc_write_physical_32(TIMER_GLOBAL_PHYS + TIMER_LIMIT_NO_RESET_REG,
-                            TIMER_GLOBAL_FREE_RUNNING_LIMIT);
-    global_timer_wrap_ticks = 0;
-    sparc_read_physical_32(TIMER_GLOBAL_PHYS + TIMER_LIMIT_REG);
-}
-
-void sun4m_timer_init(void) {
-    // nothing to do here
-}
-
-handler_return sun4m_timer_irq() {
+// implicitly wired up to the interrupt controller in platform_irq() in intc.cpp
+// this does not come in as a global interrupt, since it's per cpu.
+handler_return sun4m_timer_irq(void *) {
     handler_return ret = INT_NO_RESCHEDULE;
 
     // read the current limit register and check if the wrap bit is set,
@@ -135,6 +122,26 @@ handler_return sun4m_timer_irq() {
         }
     }
     return ret;
+}
+
+void sun4m_timer_early_init(void) {
+    // Start with the per-cpu timer in free-run mode and arm it when requested.
+    sparc_write_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG, 0);
+    sparc_read_physical_32(TIMER_PERCPU_PHYS + TIMER_LIMIT_REG);
+
+    // Program the global timer as a free-running source used by current_time().
+    // No interrupt is routed for it; readers clear the latched wrap condition.
+    sparc_write_physical_32(TIMER_GLOBAL_PHYS + TIMER_LIMIT_NO_RESET_REG,
+                            TIMER_GLOBAL_FREE_RUNNING_LIMIT);
+    global_timer_wrap_ticks = 0;
+    sparc_read_physical_32(TIMER_GLOBAL_PHYS + TIMER_LIMIT_REG);
+
+    // we dont care about the global timer interrupt, we'll let it wrap around on its own
+    mask_interrupt(SUN4M_TIMER_GLOBAL_IRQ);
+}
+
+void sun4m_timer_init(void) {
+    // nothing to do here
 }
 
 status_t platform_set_oneshot_timer(platform_timer_callback callback, void *arg,
