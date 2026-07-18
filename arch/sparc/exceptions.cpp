@@ -15,6 +15,11 @@
 
 #define LOCAL_TRACE 0
 
+extern "C" {
+
+enum handler_return platform_irq(uint32_t irq);
+}
+
 /*
  * SPARC v8 Trap Types:
  *
@@ -37,7 +42,9 @@
  * 0x28           | cp_exception                 | Coprocessor exception
  * 0x80 - 0xff    | software_trap                | Software traps (e.g., system calls)
  */
-__NO_INLINE uint32_t sparc_read_sfar() {
+namespace {
+
+uint32_t sparc_read_sfar() {
     uint32_t val = 0;
     __asm__ volatile("lda [ %1 ] 0x4, %0" : "=r"(val) : "r"(0x400) : "memory");
 
@@ -136,11 +143,9 @@ extern "C" void sparc_dump_registers(uint32_t pc, uint32_t npc, uint32_t psr) {
     printf("  i4-i7: %08x %08x %08x %08x\n", r5[12], r5[13], r5[14], r5[15]);
 }
 
-extern "C" {
-enum handler_return platform_irq(uint32_t irq);
-void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr);
-}
+} // namespace
 
+extern "C" void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr);
 extern "C" void sparc_exception(uint32_t exception, uint32_t pc, uint32_t npc, uint32_t psr) {
     LTRACEF("exc %#x at PC %#x, nPC %#x, PSR %#x\n", exception, pc, npc, psr);
 

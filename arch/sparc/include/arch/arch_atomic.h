@@ -17,8 +17,9 @@ static inline int atomic_add(volatile int *ptr, int val) {
     arch_disable_ints();
     temp = *ptr;
     *ptr = temp + val;
-    if (!state)
+    if (!state) {
         arch_enable_ints();
+    }
     return temp;
 }
 
@@ -28,8 +29,9 @@ static inline int atomic_and(volatile int *ptr, int val) {
     arch_disable_ints();
     temp = *ptr;
     *ptr = temp & val;
-    if (!state)
+    if (!state) {
         arch_enable_ints();
+    }
     return temp;
 }
 
@@ -39,8 +41,9 @@ static inline int atomic_or(volatile int *ptr, int val) {
     arch_disable_ints();
     temp = *ptr;
     *ptr = temp | val;
-    if (!state)
+    if (!state) {
         arch_enable_ints();
+    }
     return temp;
 }
 
@@ -50,8 +53,9 @@ static inline int atomic_swap(volatile int *ptr, int val) {
     arch_disable_ints();
     temp = *ptr;
     *ptr = val;
-    if (!state)
+    if (!state) {
         arch_enable_ints();
+    }
     return temp;
 }
 
@@ -63,8 +67,9 @@ static inline int atomic_cmpxchg(volatile int *ptr, int oldval, int newval) {
     if (temp == oldval) {
         *ptr = newval;
     }
-    if (!state)
+    if (!state) {
         arch_enable_ints();
+    }
     return temp;
 }
 

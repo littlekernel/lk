@@ -10,10 +10,10 @@
 #ifndef ASSEMBLY
 
 #include <arch/ops.h>
+#include <arch/sparc.h>
+#include <lk/compiler.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <lk/compiler.h>
-#include <arch/sparc.h>
 
 __BEGIN_CDECLS
 
@@ -26,7 +26,7 @@ static inline void arch_enable_ints(void) {
 
 static inline void arch_disable_ints(void) {
     uint32_t psr = sparc_read_psr();
-    psr |= SPARC_PSR_PIL_MASK;  // Set PIL to 15 (disable all maskable interrupts)
+    psr |= SPARC_PSR_PIL_MASK; // Set PIL to 15 (disable all maskable interrupts)
     sparc_write_psr(psr);
     CF;
 }

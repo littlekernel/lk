@@ -22,7 +22,9 @@ static inline void arch_set_current_thread(struct thread *t) {
     _current_thread = t;
 }
 
-static inline ulong arch_cycle_count(void) { return 0; }
+static inline ulong arch_cycle_count(void) {
+    return 0;
+}
 
 static inline uint arch_curr_cpu_num(void) {
     return 0;
@@ -30,9 +32,9 @@ static inline uint arch_curr_cpu_num(void) {
 
 __END_CDECLS
 
-#define mb()        CF
-#define wmb()       CF
-#define rmb()       CF
-#define smp_mb()    CF
-#define smp_wmb()   CF
-#define smp_rmb()   CF
+#define mb()      CF
+#define wmb()     CF
+#define rmb()     CF
+#define smp_mb()  CF
+#define smp_wmb() CF
+#define smp_rmb() CF

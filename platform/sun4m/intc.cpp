@@ -176,6 +176,13 @@ extern "C" enum handler_return platform_irq(uint32_t irq) {
     pending &= ~mask;
 
     LTRACEF_LEVEL(2, "pending post mask: 0x%x\n", pending);
+
+    // in an SMP system, only one of the cpus should have gotten external interrupts
+    if (unlikely(pending && arch_curr_cpu_num() != 0)) {
+        panic("platform_irq: unexpected irq PIL %u, pending %#x on cpu %u\n", irq, pending,
+              arch_curr_cpu_num());
+    }
+
     handler_return ret = INT_NO_RESCHEDULE;
     while (pending != 0) {
         uint32_t vector = static_cast<uint32_t>(__builtin_ctz(pending));

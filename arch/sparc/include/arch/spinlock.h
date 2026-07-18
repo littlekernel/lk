@@ -1,4 +1,3 @@
-#pragma once
 //
 // Copyright (c) 2026 Travis Geiselbrecht
 //
@@ -6,7 +5,7 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 //
-
+#pragma once
 
 #include <arch/ops.h>
 #include <stdbool.h>

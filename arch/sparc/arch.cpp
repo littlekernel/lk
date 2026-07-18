@@ -5,21 +5,23 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 //
-#include <lk/trace.h>
-#include <lk/debug.h>
 #include <arch.h>
-#include <platform.h>
-#include <arch/sparc.h>
 #include <arch/interrupts.h>
+#include <arch/sparc.h>
+#include <lk/debug.h>
+#include <lk/trace.h>
+#include <platform.h>
 
-extern "C" void sparc_vectab(void);
+extern "C" void sparc_vectab();
 
-static void sparc_early_init_percpu(void) {
+namespace {
+
+void sparc_early_init_percpu() {
     // set the trap base register to point to our vector table
     __asm__ volatile("wr %0, 0, %%tbr\n"
-         "nop\n"
-         "nop\n"
-         "nop" :: "r"(sparc_vectab));
+                     "nop\n"
+                     "nop\n"
+                     "nop" ::"r"(sparc_vectab));
 
     // make sure external interrupts are fully masked off
     arch_disable_ints();
@@ -28,17 +30,15 @@ static void sparc_early_init_percpu(void) {
     sparc_write_psr(sparc_read_psr() | SPARC_PSR_ET);
 }
 
+} // namespace
 
-void arch_early_init(void) {
+void arch_early_init() {
     sparc_early_init_percpu();
-
-
 }
 
-void arch_init(void) {
-}
+void arch_init() {}
 
-void arch_idle(void) {
+void arch_idle() {
 #if 0
     /* In SPARC, entering idle state can be done by setting a power-saving register
      * or executing a specific instruction if supported. For now, just nop. */

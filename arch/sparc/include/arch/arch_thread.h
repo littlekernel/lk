@@ -7,8 +7,8 @@
 //
 #pragma once
 
-#include <sys/types.h>
 #include <lk/compiler.h>
+#include <sys/types.h>
 
 __BEGIN_CDECLS
 
@@ -23,6 +23,7 @@ struct arch_thread {
     struct sparc_context_switch_frame cs_frame;
 };
 
-void sparc_context_switch(struct sparc_context_switch_frame *oldcs, struct sparc_context_switch_frame *newcs);
+void sparc_context_switch(struct sparc_context_switch_frame *oldcs,
+                          struct sparc_context_switch_frame *newcs);
 
 __END_CDECLS

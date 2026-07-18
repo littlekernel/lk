@@ -5,21 +5,23 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT
 //
+#include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <sys/types.h>
-#include <string.h>
 #include <stdlib.h>
-#include <kernel/thread.h>
+#include <string.h>
+#include <sys/types.h>
 
-#define LOCAL_TRACE 1
+#define LOCAL_TRACE 0
 
 extern "C" {
 struct thread *_current_thread;
 }
 
-static void initial_thread_func(void) __NO_RETURN;
-static void initial_thread_func(void) {
+namespace {
+
+__NO_RETURN
+void initial_thread_func() {
     thread_t *ct = get_current_thread();
 
     /* release the thread lock that was implicitly held across the reschedule */
@@ -30,6 +32,8 @@ static void initial_thread_func(void) {
 
     thread_exit(ret);
 }
+
+} // namespace
 
 void arch_thread_initialize(thread_t *t) {
     /* zero out the thread context */
@@ -46,7 +50,6 @@ void arch_thread_initialize(thread_t *t) {
     t->arch.cs_frame.sp = stack_top;
     // - 8 because the retl in the context switch routine will add 8 to the pc before jumping to it
     t->arch.cs_frame.pc = (vaddr_t)&initial_thread_func - 8;
-
 
     TRACEF("thread %p: sp %#x, pc %#x\n", t, t->arch.cs_frame.sp, t->arch.cs_frame.pc);
 }
