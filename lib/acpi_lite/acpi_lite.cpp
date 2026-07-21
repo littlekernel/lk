@@ -245,11 +245,15 @@ static paddr_t acpi_get_table_pa_at_index(size_t index) {
         return 0;
     }
 
+    // the array of table addresses (uint32 for RSDT, uint64 for XSDT) sits
+    // immediately after the header
+    const uint8_t *entries = reinterpret_cast<const uint8_t *>(acpi.sdt) + sizeof(*acpi.sdt);
+
     paddr_t pa;
     if (acpi.xsdt) {
-        pa = acpi.sdt->addr64[index];
+        pa = reinterpret_cast<const uint64_t *>(entries)[index];
     } else {
-        pa = acpi.sdt->addr32[index];
+        pa = reinterpret_cast<const uint32_t *>(entries)[index];
     }
     LTRACEF("index %zu, pa %#lx\n", index, pa);
 

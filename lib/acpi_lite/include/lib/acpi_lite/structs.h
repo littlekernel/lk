@@ -59,11 +59,11 @@ static_assert(sizeof(struct acpi_sdt_header) == 36, "");
 struct acpi_rsdt_xsdt {
   struct acpi_sdt_header header;
 
-  // array of uint32s or uint64 addresses are placed immediately afterwards
-  __extension__ union {
-    uint32_t addr32[0];
-    uint64_t addr64[0];
-  };
+  // an array of uint32 (RSDT) or uint64 (XSDT) table addresses is placed
+  // immediately afterwards. Not declared as a flexible/zero-length array
+  // member here since a zero-length-array union is sized differently by
+  // clang in C vs C++ (-Wextern-c-compat); callers compute the array
+  // pointer themselves from a pointer just past this struct.
 } __PACKED;
 static_assert(sizeof(struct acpi_rsdt_xsdt) == 36, "");
 
