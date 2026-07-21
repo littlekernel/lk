@@ -216,14 +216,56 @@ else
 
 # default to no ccache
 CCACHE ?=
-CC ?= $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
-LD ?= $(TOOLCHAIN_PREFIX)ld
-OBJDUMP ?= $(TOOLCHAIN_PREFIX)objdump
-OBJCOPY ?= $(TOOLCHAIN_PREFIX)objcopy
-CPPFILT ?= $(TOOLCHAIN_PREFIX)c++filt
-SIZE ?= $(TOOLCHAIN_PREFIX)size
-NM ?= $(TOOLCHAIN_PREFIX)nm
-STRIP ?= $(TOOLCHAIN_PREFIX)strip
+
+TOOLCHAIN ?= gcc
+
+ifeq ($(TOOLCHAIN),clang)
+    CLANG_BINDIR ?= $(firstword $(wildcard /usr/lib/llvm-*/bin))
+    CLANG_PATH := $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/clang),$(shell which clang 2>/dev/null))
+    CLANG_CC := $(if $(CLANG_PATH),$(CLANG_PATH),clang)
+    CLANG_TARGET ?= $(CLANG_ARCH_TRIPLE)
+    CC ?= $(CCACHE) $(CLANG_CC) --target=$(CLANG_TARGET)
+
+    # DWARF 4 for compatibility with GNU binutils
+    GLOBAL_COMPILEFLAGS += -gdwarf-4
+
+    LLD_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/ld.lld)) $(shell which ld.lld 2>/dev/null))
+    ifeq ($(LD),ld.lld)
+        ifeq ($(LLD_PATH),)
+            $(error ld.lld linker requested but not found. Please install lld package or set CLANG_BINDIR)
+        endif
+        override LD := $(LLD_PATH)
+    else
+        LD ?= $(if $(LLD_PATH),$(LLD_PATH),$(TOOLCHAIN_PREFIX)ld)
+    endif
+
+    OBJDUMP_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-objdump)) $(shell which llvm-objdump 2>/dev/null))
+    OBJDUMP ?= $(if $(OBJDUMP_PATH),$(OBJDUMP_PATH),$(TOOLCHAIN_PREFIX)objdump)
+
+    OBJCOPY_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-objcopy)) $(shell which llvm-objcopy 2>/dev/null))
+    OBJCOPY ?= $(if $(OBJCOPY_PATH),$(OBJCOPY_PATH),$(TOOLCHAIN_PREFIX)objcopy)
+
+    CPPFILT_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-cxxfilt)) $(shell which llvm-cxxfilt 2>/dev/null))
+    CPPFILT ?= $(if $(CPPFILT_PATH),$(CPPFILT_PATH),$(TOOLCHAIN_PREFIX)c++filt)
+
+    SIZE_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-size)) $(shell which llvm-size 2>/dev/null))
+    SIZE ?= $(if $(SIZE_PATH),$(SIZE_PATH),$(TOOLCHAIN_PREFIX)size)
+
+    NM_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-nm)) $(shell which llvm-nm 2>/dev/null))
+    NM ?= $(if $(NM_PATH),$(NM_PATH),$(TOOLCHAIN_PREFIX)nm)
+
+    STRIP_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-strip)) $(shell which llvm-strip 2>/dev/null))
+    STRIP ?= $(if $(STRIP_PATH),$(STRIP_PATH),$(TOOLCHAIN_PREFIX)strip)
+else
+    CC ?= $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
+    LD ?= $(TOOLCHAIN_PREFIX)ld
+    OBJDUMP ?= $(TOOLCHAIN_PREFIX)objdump
+    OBJCOPY ?= $(TOOLCHAIN_PREFIX)objcopy
+    CPPFILT ?= $(TOOLCHAIN_PREFIX)c++filt
+    SIZE ?= $(TOOLCHAIN_PREFIX)size
+    NM ?= $(TOOLCHAIN_PREFIX)nm
+    STRIP ?= $(TOOLCHAIN_PREFIX)strip
+endif
 
 # Detect whether we are using ld.lld. If we don't detect ld.lld, we assume
 # it's ld.bfd. This check can be refined in the future if we need to handle
@@ -342,6 +384,8 @@ GLOBAL_DEFINES += ARCH_CPPFLAGS=\"$(subst $(SPACE),_,$(ARCH_CPPFLAGS))\"
 GLOBAL_DEFINES += ARCH_ASMFLAGS=\"$(subst $(SPACE),_,$(ARCH_ASMFLAGS))\"
 GLOBAL_DEFINES += ARCH_LDFLAGS=\"$(subst $(SPACE),_,$(ARCH_LDFLAGS))\"
 GLOBAL_DEFINES += TOOLCHAIN_PREFIX=\"$(subst $(SPACE),_,$(TOOLCHAIN_PREFIX))\"
+GLOBAL_DEFINES += TOOLCHAIN=\"$(subst $(SPACE),_,$(TOOLCHAIN))\"
+GLOBAL_DEFINES += LD=\"$(subst $(SPACE),_,$(LD))\"
 GLOBAL_DEFINES += LIBGCC=\"$(subst $(SPACE),_,$(LIBGCC))\"
 
 ifneq ($(OBJS),)

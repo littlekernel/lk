@@ -251,7 +251,11 @@ THUMBCFLAGS := -mthumb -D__thumb__
 ifneq ($(SUBARCH),arm-m)
 # Only enable thumb interworking switch if we're compiling in a mixed
 # arm/thumb environment. Also possible this switch is not needed anymore.
+ifeq ($(TOOLCHAIN),clang)
+THUMBINTERWORK :=
+else
 THUMBINTERWORK := -mthumb-interwork
+endif
 endif
 endif
 
@@ -348,6 +352,8 @@ ARCH_OPTFLAGS ?= -Os
 WITH_LINKER_GC ?= 1
 endif
 
+CLANG_ARCH_TRIPLE ?= arm-none-eabi
+
 # try to find toolchain
 include $(LOCAL_DIR)/toolchain.mk
 TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
@@ -362,7 +368,11 @@ GLOBAL_COMPILEFLAGS += $(THUMBINTERWORK)
 ARCH_LDFLAGS += -z max-page-size=4096
 
 # find the direct path to libgcc.a for our particular multilib variant
+LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
+LIBGCC ?= $(shell $(LIBGCC_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name 2>/dev/null)
+ifeq ($(LIBGCC),)
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
+endif
 #$(info LIBGCC = $(LIBGCC))
 #$(info LIBGCC COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS))
 

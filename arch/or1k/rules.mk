@@ -16,6 +16,10 @@ GLOBAL_DEFINES += \
 	SMP_MAX_CPUS=1
 
 # set the default toolchain to or1k elf and set a #define
+ifeq ($(TOOLCHAIN),clang)
+$(error or1k architecture does not support Clang toolchain)
+endif
+
 ifndef TOOLCHAIN_PREFIX
 ifndef ARCH_or1k_TOOLCHAIN_PREFIX
 TOOLCHAIN_PREFIX := or1k-elf-
@@ -31,7 +35,8 @@ ARCH_OPTFLAGS ?= -O2
 
 ARCH_LDFLAGS += -relax
 
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
+LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
+LIBGCC := $(shell $(LIBGCC_CC) -print-libgcc-file-name 2>/dev/null || $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
 $(info LIBGCC = $(LIBGCC))
 
 KERNEL_BASE ?= $(MEMBASE)

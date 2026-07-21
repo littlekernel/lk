@@ -1,6 +1,14 @@
 ifndef ARCH_arm_TOOLCHAIN_INCLUDED
 ARCH_arm_TOOLCHAIN_INCLUDED := 1
 
+ifeq ($(TOOLCHAIN),clang)
+CLANG_CC := $(if $(CLANG_BINDIR),$(CLANG_BINDIR)/)clang
+FOUNDTOOL=$(shell which $(CLANG_CC) 2>/dev/null)
+ifndef ARCH_arm_TOOLCHAIN_PREFIX
+ARCH_arm_TOOLCHAIN_PREFIX := arm-eabi-
+endif
+else
+
 # try to find the toolchain
 ifndef ARCH_arm_TOOLCHAIN_PREFIX
 
@@ -45,6 +53,7 @@ endif # arm-linux-gnueabi-
 else
 FOUNDTOOL=$(shell which $(ARCH_arm_TOOLCHAIN_PREFIX)gcc)
 endif # ARCH_arm_TOOLCHAIN_PREFIX
+endif # TOOLCHAIN == clang
 
 ifeq ($(FOUNDTOOL),)
 $(warning cannot find toolchain in path, assuming arm-eabi- prefix)

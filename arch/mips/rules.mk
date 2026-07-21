@@ -49,7 +49,17 @@ ifeq ($(MIPS_CPU),microaptiv-uc)
 ARCH_COMPILEFLAGS += -march=m14k
 endif
 
+ifeq ($(LITTLE_ENDIAN),0)
+CLANG_ARCH_TRIPLE ?= mips-elf
+else
+CLANG_ARCH_TRIPLE ?= mipsel-elf
+endif
+
+LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
+LIBGCC ?= $(shell $(LIBGCC_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name 2>/dev/null)
+ifeq ($(LIBGCC),)
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
+endif
 $(info LIBGCC = $(LIBGCC))
 
 cc-option = $(shell if test -z "`$(1) $(2) -S -o /dev/null -xc /dev/null 2>&1`"; \

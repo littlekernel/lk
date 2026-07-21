@@ -42,3 +42,37 @@ int __aeabi_atexit(void *arg, void (*func)(void *), void *d) {
     return __cxa_atexit(func, arg, d);
 }
 
+#if defined(__arm__)
+#include <string.h>
+
+__attribute__((weak)) void __aeabi_memcpy(void *dest, const void *src, size_t n) {
+    memcpy(dest, src, n);
+}
+__attribute__((weak)) void __aeabi_memcpy4(void *dest, const void *src, size_t n) {
+    memcpy(dest, src, n);
+}
+__attribute__((weak)) void __aeabi_memcpy8(void *dest, const void *src, size_t n) {
+    memcpy(dest, src, n);
+}
+
+__attribute__((weak)) void __aeabi_memclr(void *dest, size_t n) {
+    memset(dest, 0, n);
+}
+__attribute__((weak)) void __aeabi_memclr4(void *dest, size_t n) {
+    memset(dest, 0, n);
+}
+__attribute__((weak)) void __aeabi_memclr8(void *dest, size_t n) {
+    memset(dest, 0, n);
+}
+
+__attribute__((weak)) void __aeabi_memset(void *dest, size_t n, int c) {
+    memset(dest, c, n);
+}
+__attribute__((weak)) void __aeabi_memset4(void *dest, size_t n, int c) {
+    memset(dest, c, n);
+}
+__attribute__((weak)) void __aeabi_memset8(void *dest, size_t n, int c) {
+    memset(dest, c, n);
+}
+#endif
+

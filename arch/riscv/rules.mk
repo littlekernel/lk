@@ -185,15 +185,11 @@ endif
 
 # test to see if -misa-spec=2.2 is a valid switch.
 # misa-spec is added to make sure the compiler picks up the zicsr extension by default.
-# If CC is being overridden by the user, use that instead of the toolchain gcc.
-ifdef CC
-MISA_SPEC := $(shell $(CC) $(ARCH_COMPILEFLAGS) -misa-spec=2.2 -E - < /dev/null > /dev/null 2>&1 && echo supported)
-else
+ifneq ($(TOOLCHAIN),clang)
 MISA_SPEC := $(shell $(TOOLCHAIN_PREFIX)gcc $(ARCH_COMPILEFLAGS) -misa-spec=2.2 -E - < /dev/null > /dev/null 2>&1 && echo supported)
-endif
-$(info MISA_SPEC = $(MISA_SPEC))
 ifeq ($(MISA_SPEC),supported)
 ARCH_COMPILEFLAGS += -misa-spec=2.2
+endif
 endif
 
 # embedded switch sets the default compile optimization and passes
@@ -207,7 +203,13 @@ ARCH_OPTFLAGS ?= -O2
 WITH_LINKER_GC ?= 0
 endif
 
+CLANG_ARCH_TRIPLE ?= riscv$(SUBARCH)-unknown-elf
+
+LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
+LIBGCC ?= $(shell $(LIBGCC_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name 2>/dev/null)
+ifeq ($(LIBGCC),)
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name)
+endif
 $(info LIBGCC = $(LIBGCC))
 
 # potentially generated files that should be cleaned out with clean make rule

@@ -149,7 +149,17 @@ ARCH_OPTFLAGS ?= -O2
 GLOBAL_DEFINES += X86_LEGACY=0
 endif
 
+ifeq ($(SUBARCH),x86-64)
+CLANG_ARCH_TRIPLE ?= x86_64-elf
+else
+CLANG_ARCH_TRIPLE ?= i386-elf
+endif
+
+LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
+LIBGCC ?= $(shell $(LIBGCC_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name 2>/dev/null)
+ifeq ($(LIBGCC),)
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
+endif
 LINKER_SCRIPT += $(SUBARCH_BUILDDIR)/kernel.ld
 
 # potentially generated files that should be cleaned out with clean make rule

@@ -1,6 +1,14 @@
 ifndef ARCH_arm64_TOOLCHAIN_INCLUDED
 ARCH_arm64_TOOLCHAIN_INCLUDED := 1
 
+ifeq ($(TOOLCHAIN),clang)
+CLANG_CC := $(if $(CLANG_BINDIR),$(CLANG_BINDIR)/)clang
+FOUNDTOOL=$(shell which $(CLANG_CC) 2>/dev/null)
+ifndef ARCH_arm64_TOOLCHAIN_PREFIX
+ARCH_arm64_TOOLCHAIN_PREFIX := aarch64-elf-
+endif
+else
+
 # if TOOLCHAIN_PREFIX is not empty, try to use it first
 ifneq ($(TOOLCHAIN_PREFIX),)
 ARCH_arm64_TOOLCHAIN_PREFIX := $(TOOLCHAIN_PREFIX)
@@ -19,4 +27,7 @@ ARCH_arm64_TOOLCHAIN_PREFIX := aarch64-elf-
 endif
 endif
 endif
+
+endif # TOOLCHAIN == clang
 endif
+
