@@ -1,21 +1,20 @@
-/* Copyright (c) 2008 Travis Geiselbrecht
+/* Copyright (c) 2008-2026 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
 
-/* some cruft we have to define when using the linux toolchain */
+#if defined(__arm__)
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 #include <unwind.h>
 
 #pragma GCC diagnostic ignored "-Wmissing-prototypes"
 
-void *__dso_handle;
-
 #if defined(__ARM_EABI_UNWINDER__) && __ARM_EABI_UNWINDER__
-
-/* Our toolchain has eabi functionality built in, but they're not really used.
- * so we stub them out here. */
 _Unwind_Reason_Code __aeabi_unwind_cpp_pr0(_Unwind_State state, _Unwind_Control_Block *ucbp, _Unwind_Context *context) {
     return _URC_FAILURE;
 }
@@ -27,23 +26,10 @@ _Unwind_Reason_Code __aeabi_unwind_cpp_pr1(_Unwind_State state, _Unwind_Control_
 _Unwind_Reason_Code __aeabi_unwind_cpp_pr2(_Unwind_State state, _Unwind_Control_Block *ucbp, _Unwind_Context *context) {
     return _URC_FAILURE;
 }
-
 #endif
 
-/* needed by some piece of EABI */
-void raise(void) {
-}
-
-int __cxa_atexit(void (*destructor)(void *), void *arg, void *dso_handle) {
-    return 0;
-}
-
-int __aeabi_atexit(void *arg, void (*func)(void *), void *d) {
-    return __cxa_atexit(func, arg, d);
-}
-
-#if defined(__arm__)
-#include <string.h>
+extern uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem);
+extern int64_t __divmoddi4(int64_t num, int64_t den, int64_t *rem);
 
 __attribute__((weak)) void __aeabi_memcpy(void *dest, const void *src, size_t n) {
     memcpy(dest, src, n);
@@ -74,5 +60,42 @@ __attribute__((weak)) void __aeabi_memset4(void *dest, size_t n, int c) {
 __attribute__((weak)) void __aeabi_memset8(void *dest, size_t n, int c) {
     memset(dest, c, n);
 }
-#endif
 
+#include <lk/compiler.h>
+
+/*
+ * ARM EABI divmod routines (__aeabi_uldivmod and __aeabi_ldivmod) return the
+ * 64-bit quotient in (r0, r1) AND the 64-bit remainder in (r2, r3) simultaneously.
+ * Standard C calling conventions cannot return 128 bits across 4 registers without
+ * allocating a hidden struct return pointer in r0 (corrupting input arguments).
+ * Therefore, these functions are implemented as __NAKED assembly stubs that forward
+ * to __udivmoddi4 / __divmoddi4 and copy the remainder into (r2, r3) before returning.
+ */
+__WEAK __NAKED void __aeabi_uldivmod(void) {
+    __asm__ volatile(
+        "push {r4, lr}\n"
+        "sub sp, sp, #12\n"
+        "mov r4, sp\n"
+        "push {r4}\n"
+        "bl __udivmoddi4\n"
+        "add sp, sp, #4\n"
+        "pop {r2, r3}\n"
+        "add sp, sp, #4\n"
+        "pop {r4, pc}\n"
+    );
+}
+
+__WEAK __NAKED void __aeabi_ldivmod(void) {
+    __asm__ volatile(
+        "push {r4, lr}\n"
+        "sub sp, sp, #12\n"
+        "mov r4, sp\n"
+        "push {r4}\n"
+        "bl __divmoddi4\n"
+        "add sp, sp, #4\n"
+        "pop {r2, r3}\n"
+        "add sp, sp, #4\n"
+        "pop {r4, pc}\n"
+    );
+}
+#endif

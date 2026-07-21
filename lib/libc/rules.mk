@@ -12,6 +12,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/atoi.c \
 	$(LOCAL_DIR)/bsearch.c \
 	$(LOCAL_DIR)/ctype.c \
+	$(LOCAL_DIR)/compiler_rt.c \
 	$(LOCAL_DIR)/eabi.c \
 	$(LOCAL_DIR)/errno.c \
 	$(LOCAL_DIR)/printf.c \
