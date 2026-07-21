@@ -2,14 +2,17 @@
 
 FAILED=""
 
-set -o pipefail
-
 print_failed() {
-    if [ "$FAILED" != "" ]; then
+    FAILED="$(echo $FAILED)"
+    if [ -n "$FAILED" ]; then
         echo
-        echo some projects have failed to build:
-        echo "$FAILED"
+        echo "The following projects failed to build:"
+        for f in $FAILED; do
+            echo "  - $f"
+        done
         exit 1
+    else
+        exit 0
     fi
 }
 
@@ -26,7 +29,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 function HELP {
     echo "help:"
     echo "-a <arch> : build for <arch> (default: all)"
+    echo "-c        : also build with Clang"
+    echo "-l        : also build with Clang + LLD"
     echo "-e        : build with WERROR=1"
+    echo "-j <jobs> : parallel jobs for make"
     echo "-r        : also build DEBUG=0"
     echo "-u        : also build with UBSAN=1"
     echo "-q        : hide output of build"
@@ -40,13 +46,19 @@ RELEASE=0
 WERROR=0
 QUIET=0
 UBSAN=0
+CLANG=0
+CLANG_LLD=0
 ARCH="all"
+JOBS=""
 
-while getopts a:ehrqu FLAG; do
+while getopts a:cej:lrqu FLAG; do
     case $FLAG in
         a) ARCH="$OPTARG";;
+        c) CLANG=1;;
         e) WERROR=1;;
         h) HELP;;
+        j) JOBS="-j$OPTARG";;
+        l) CLANG_LLD=1;;
         r) RELEASE=1;;
         q) QUIET=1;;
         u) UBSAN=1;;
@@ -58,6 +70,20 @@ done
 
 shift $((OPTIND-1))
 
+if (( CLANG || CLANG_LLD )); then
+    if [ -z "$CLANG_BINDIR" ]; then
+        for d in /usr/lib/llvm-*/bin; do
+            if [ -x "$d/clang" ]; then
+                export CLANG_BINDIR="$d"
+                export PATH="$d:$PATH"
+                break
+            fi
+        done
+    elif [ -d "$CLANG_BINDIR" ]; then
+        export PATH="$CLANG_BINDIR:$PATH"
+    fi
+fi
+
 echo > buildall.log
 function log()
 {
@@ -65,6 +91,7 @@ function log()
         "$@" >> buildall.log 2>&1
     else
         "$@" 2>&1 | tee -a buildall.log
+        return ${PIPESTATUS[0]}
     fi
 }
 
@@ -96,25 +123,65 @@ if (( WERROR )); then
     WERROR_MSG="with WERROR"
 fi
 
-# first build all of the regular debug builds
-export BUILDDIR_SUFFIX=
-if (( UBSAN )); then
-    export BUILDDIR_SUFFIX=-ubsan
+TOOLCHAINS=("gcc")
+if (( CLANG )); then
+    TOOLCHAINS+=("clang")
 fi
-for p in $PROJECTS; do
-    echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
-    WERROR=$WERROR UBSAN=$UBSAN DEBUG=2 PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+if (( CLANG_LLD )); then
+    TOOLCHAINS+=("clang-lld")
+fi
+
+# first build all of the regular debug builds
+for tc in "${TOOLCHAINS[@]}"; do
+    TC_ARGS=()
+    TC_SUFFIX=""
+    if [ "$tc" == "clang" ]; then
+        TC_ARGS=("TOOLCHAIN=clang")
+        TC_SUFFIX="-clang"
+    elif [ "$tc" == "clang-lld" ]; then
+        TC_ARGS=("TOOLCHAIN=clang" "LD=ld.lld")
+        TC_SUFFIX="-clang-lld"
+    else
+        TC_ARGS=("TOOLCHAIN=gcc")
+        TC_SUFFIX=""
+    fi
+
+    export BUILDDIR_SUFFIX="${TC_SUFFIX}"
+    if (( UBSAN )); then
+        export BUILDDIR_SUFFIX="${TC_SUFFIX}-ubsan"
+    fi
+
+    for p in $PROJECTS; do
+        echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
+        log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=2 PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+    done
 done
 
 # now build all of the release builds
-export BUILDDIR_SUFFIX=-release
-if (( UBSAN )); then
-    export BUILDDIR_SUFFIX=-ubsan-release
-fi
 if (( RELEASE )); then
-for p in $PROJECTS; do
-    echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
-    WERROR=$WERROR UBSAN=$UBSAN DEBUG=0 PROJECT=$p log nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+for tc in "${TOOLCHAINS[@]}"; do
+    TC_ARGS=()
+    TC_SUFFIX=""
+    if [ "$tc" == "clang" ]; then
+        TC_ARGS=("TOOLCHAIN=clang")
+        TC_SUFFIX="-clang"
+    elif [ "$tc" == "clang-lld" ]; then
+        TC_ARGS=("TOOLCHAIN=clang" "LD=ld.lld")
+        TC_SUFFIX="-clang-lld"
+    else
+        TC_ARGS=("TOOLCHAIN=gcc")
+        TC_SUFFIX=""
+    fi
+
+    export BUILDDIR_SUFFIX="${TC_SUFFIX}-release"
+    if (( UBSAN )); then
+        export BUILDDIR_SUFFIX="${TC_SUFFIX}-ubsan-release"
+    fi
+
+    for p in $PROJECTS; do
+        echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
+        log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=0 PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+    done
 done
 fi
 

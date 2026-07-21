@@ -8,7 +8,7 @@ MAKE=make
 case `uname` in
 Linux)
     N=`cat /proc/cpuinfo | grep processor | wc -l`
-    PARALLEL=-j`expr $N + $N`
+    PARALLEL=${JOBS:--j`expr $N + $N`}
     ;;
 Darwin)
     PARALLEL=-j`sysctl -n hw.ncpu`
