@@ -60,7 +60,7 @@ struct acpi_rsdt_xsdt {
   struct acpi_sdt_header header;
 
   // array of uint32s or uint64 addresses are placed immediately afterwards
-  union {
+  __extension__ union {
     uint32_t addr32[0];
     uint64_t addr64[0];
   };

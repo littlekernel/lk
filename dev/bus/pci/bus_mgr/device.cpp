@@ -442,7 +442,7 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
     LTRACEF("table offset %#zx, bar %u\n", table_map.offset, table_map.bar);
     LTRACEF("pba offset %#zx, bar %u\n", pba_map.offset, pba_map.bar);
 
-    auto map_it = [this, &err](mapping &map, void **ptr, bool readonly) -> status_t {
+    auto map_it = [this](mapping &map, void **ptr, bool readonly) -> status_t {
         const auto &bar = bars_[map.bar];
 #if WITH_KERNEL_VM
         if (!bar.valid || bar.io) {
@@ -454,12 +454,12 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
         size_t length = ROUNDUP(map.length + map.offset - base, PAGE_SIZE);
         base += bar.addr;
 
-        err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci msix var", length, ptr, 0,
+        status_t map_err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci msix var", length, ptr, 0,
                                  base, /* vmm_flags */ 0,
                                  ARCH_MMU_FLAG_UNCACHED_DEVICE | (readonly ? ARCH_MMU_FLAG_PERM_RO : 0));
-        if (err != NO_ERROR) {
+        if (map_err != NO_ERROR) {
             printf("error mapping msi-x bar\n");
-            return err;
+            return map_err;
         }
         LTRACEF("msi-x bar mapped at %p\n", *ptr);
 #else

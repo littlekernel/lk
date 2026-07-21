@@ -55,10 +55,18 @@ extern const union __nan_un {
 #define FP_ILOGBNAN INT_MAX /* Android-changed */
 
 #ifdef __MATH_BUILTIN_CONSTANTS
+#ifndef HUGE_VALF
 #define HUGE_VALF   __builtin_huge_valf()
+#endif
+#ifndef HUGE_VALL
 #define HUGE_VALL   __builtin_huge_vall()
+#endif
+#ifndef INFINITY
 #define INFINITY    __builtin_inff()
+#endif
+#ifndef NAN
 #define NAN     __builtin_nanf("")
+#endif
 #else
 #define HUGE_VALF   (float)HUGE_VAL
 #define HUGE_VALL   (long double)HUGE_VAL
