@@ -73,6 +73,12 @@ make qemu-virt-arm64-test LK_HEAP_IMPLEMENTATION=cmpctmalloc
 # Debug builds (default DEBUG=2, set to 0 for release)
 make qemu-virt-arm64-test DEBUG=0
 
+# Build with Clang compiler
+make qemu-virt-arm64-test TOOLCHAIN=clang
+
+# Build with Clang compiler and LLVM LLD linker
+make qemu-virt-arm64-test TOOLCHAIN=clang LD=ld.lld
+
 # Clean specific project.
 # Add a 'clean' target to the end of the command line.
 # Either select the project name or use the PROJECT variable.
@@ -83,6 +89,8 @@ make spotless
 
 # Build all projects (for CI/verification)
 scripts/buildall -q -e -r  # quiet, warnings-as-errors, release builds
+scripts/buildall -c -q     # build all with Clang
+scripts/buildall -l -q     # build all with Clang + LLD
 
 Output will be written to buildall.log. To run the build with full output during the build, omit the -q flag.
 ```

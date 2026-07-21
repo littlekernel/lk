@@ -40,6 +40,10 @@ ls project/*
 
 ```bash
 make qemu-virt-riscv64-test
+
+# Or build using Clang / Clang+LLD
+make qemu-virt-riscv64-test TOOLCHAIN=clang
+make qemu-virt-riscv64-test TOOLCHAIN=clang LD=ld.lld
 ```
 
 6. Test the kernel with Qemu using the provided script
