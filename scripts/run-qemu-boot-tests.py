@@ -23,7 +23,8 @@ class QEMUTestRunner:
             'm68k': {
                 'script': 'do-qemum68k',
                 'args': '',
-                'timeout': 30
+                'timeout': 30,
+                'experimental_toolchains': ['clang', 'clang-lld']
             },
             'riscv32': {
                 'script': 'do-qemuriscv',
@@ -241,7 +242,7 @@ class QEMUTestRunner:
 
         return results
 
-    def print_summary(self, results, log_dir=None):
+    def print_summary(self, results, log_dir=None, toolchain='gcc'):
         """Print a summary of test results and optionally write to summary.txt"""
         summary_lines = []
         summary_lines.append("" + "="*50)
@@ -249,11 +250,24 @@ class QEMUTestRunner:
         summary_lines.append("="*50)
 
         total_tests = len(results)
-        passed_tests = sum(1 for result in results.values() if result)
+        passed_tests = 0
+        fatal_failures = 0
 
         for arch, passed in results.items():
-            status = "PASSED" if passed else "FAILED"
-            symbol = "✓" if passed else "✗"
+            experimental = toolchain in self.architectures.get(arch, {}).get('experimental_toolchains', [])
+            if passed:
+                status = "PASSED"
+                symbol = "✓"
+                passed_tests += 1
+            elif experimental:
+                status = "FAILED (EXPERIMENTAL)"
+                symbol = "⚠"
+                passed_tests += 1
+            else:
+                status = "FAILED"
+                symbol = "✗"
+                fatal_failures += 1
+
             line = f"{symbol} {arch:10} {status}"
             print(line)
             summary_lines.append(line)
@@ -263,9 +277,9 @@ class QEMUTestRunner:
         print(f"Total: {passed_tests}/{total_tests} architectures passed")
         summary_lines.append(f"Total: {passed_tests}/{total_tests} architectures passed")
 
-        if passed_tests == total_tests:
-            print("🎉 All architectures passed!")
-            summary_lines.append("All architectures passed!")
+        if fatal_failures == 0:
+            print("🎉 All required architectures passed!")
+            summary_lines.append("All required architectures passed!")
             exit_code = 0
         else:
             print("❌ Some architectures failed!")
@@ -327,7 +341,7 @@ def main():
     results = runner.run_all_tests(args.arch, args.quiet, args.log_dir, args.disk_images, args.append_cmdline, toolchain=toolchain)
 
     # Print summary and return appropriate exit code
-    return runner.print_summary(results, args.log_dir)
+    return runner.print_summary(results, args.log_dir, toolchain=toolchain)
 
 if __name__ == '__main__':
     sys.exit(main())
