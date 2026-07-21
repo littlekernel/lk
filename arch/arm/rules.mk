@@ -276,6 +276,7 @@ MODULE_SRCS += \
 
 MODULE_FLOAT_SRCS += \
 	$(LOCAL_DIR)/arm/exceptions.S \
+	$(LOCAL_DIR)/arm/fpu.S \
 	$(LOCAL_DIR)/arm/fpu.c \
 
 MODULE_ARM_OVERRIDE_SRCS := \

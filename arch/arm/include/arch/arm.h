@@ -253,6 +253,11 @@ GEN_CP14_REG_FUNCS(dbgauthstatus, 0, c7, c14, 6);
 GEN_CP14_REG_FUNCS(dbgdevid, 0, c7, c2, 7);
 
 /* fpu */
+/* raw fpexc accessors implemented in fpu.S: some assemblers refuse the named
+ * vmrs/vmsr fpexc form as inline asm without extra ".fpu" directive fudging,
+ * which a real .S translation unit sidesteps cleanly. */
+uint32_t arm_fpu_read_fpexc(void);
+void arm_fpu_write_fpexc(uint32_t val);
 void arm_fpu_set_enable(bool enable);
 #if ARM_WITH_VFP
 void arm_fpu_undefined_instruction(struct arm_iframe *frame);

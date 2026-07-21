@@ -21,27 +21,9 @@ static inline bool is_16regs(void) {
     return (mvfr0 & 0xf) == 1;
 }
 
-static inline uint32_t read_fpexc(void) {
-    uint32_t val;
-#ifdef __clang__
-    __asm__ volatile(".fpu vfp\n vmrs %0, fpexc" : "=r" (val));
-#else
-    __asm__ volatile("vmrs %0, fpexc" : "=r" (val));
-#endif
-    return val;
-}
-
-static inline void write_fpexc(uint32_t val) {
-#ifdef __clang__
-    __asm__ volatile(".fpu vfp\n vmsr fpexc, %0" :: "r" (val));
-#else
-    __asm__ volatile("vmsr fpexc, %0" :: "r" (val));
-#endif
-}
-
 void arm_fpu_set_enable(bool enable) {
     /* set enable bit in fpexc */
-    write_fpexc(enable ? (1<<30) : 0);
+    arm_fpu_write_fpexc(enable ? (1<<30) : 0);
 }
 
 #if ARM_WITH_VFP
@@ -79,7 +61,7 @@ void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread) {
         if (oldthread->arch.fpused) {
             /* save the old state */
             uint32_t fpexc;
-            fpexc = read_fpexc();
+            fpexc = arm_fpu_read_fpexc();
 
             oldthread->arch.fpexc = fpexc;
 
@@ -110,7 +92,7 @@ void arm_fpu_thread_swap(struct thread *oldthread, struct thread *newthread) {
                 __asm__ volatile("vldm   %0, { d16-d31 }" :: "r" (&newthread->arch.fpregs[16]) : "memory");
             }
 #endif
-            write_fpexc(newthread->arch.fpexc);
+            arm_fpu_write_fpexc(newthread->arch.fpexc);
         } else {
             arm_fpu_set_enable(false);
         }
