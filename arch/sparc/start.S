@@ -10,9 +10,15 @@
 
 .section ".text.boot"
 FUNCTION(_start)
+    // Save entry %o0-%o3 to %g3-%g6
+    mov     %o0, %g3
+    mov     %o1, %g4
+    mov     %o2, %g5
+    mov     %o3, %g6
+
     // set the top of the stack
-    // XXX do we need to -96 and zero this?
     set     default_stack_top, %sp
+    sub     %sp, 96, %sp
 
     // clear our frame pointer to establish an end frame
     set     0, %fp
@@ -49,6 +55,12 @@ FUNCTION(_start)
     nop
 
 .Lcall_main:
+    // Restore entry output registers so they are passed to lk_main
+    mov     %g3, %o0
+    mov     %g4, %o1
+    mov     %g5, %o2
+    mov     %g6, %o3
+
     call    lk_main
     nop
 
@@ -63,3 +75,4 @@ END_FUNCTION(_start)
 LOCAL_DATA(default_stack)
     .skip 8192
 LOCAL_DATA(default_stack_top)
+

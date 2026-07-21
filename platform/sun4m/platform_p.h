@@ -6,6 +6,7 @@
 // https://opensource.org/licenses/MIT
 //
 #include <stdint.h>
+#include <sys/types.h>
 
 #include <lk/compiler.h>
 #include <platform/interrupts.h>
@@ -188,3 +189,10 @@ inline void sparc_write_physical_32(uint64_t addr, uint32_t val) {
 
     ASI_SWITCH_WRITE("sta")
 }
+
+// api for dealing with openprom device tree
+
+void platform_prom_init(void *romvec);
+status_t platform_prom_initialize_arena(void *romvec, uintptr_t *out_base, size_t *out_size);
+int platform_prom_get_root_node(void);
+int platform_prom_find_node_by_name(const char *name);
