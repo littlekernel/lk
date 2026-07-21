@@ -44,6 +44,9 @@ make qemu-virt-riscv64-test
 # Or build using Clang / Clang+LLD
 make qemu-virt-riscv64-test TOOLCHAIN=clang
 make qemu-virt-riscv64-test TOOLCHAIN=clang LD=ld.lld
+
+# Or build using Clang with link-time optimization (thin or full)
+make qemu-virt-riscv64-test TOOLCHAIN=clang LTO_MODE=thin
 ```
 
 6. Test the kernel with Qemu using the provided script

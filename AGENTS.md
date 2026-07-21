@@ -79,6 +79,10 @@ make qemu-virt-arm64-test TOOLCHAIN=clang
 # Build with Clang compiler and LLVM LLD linker
 make qemu-virt-arm64-test TOOLCHAIN=clang LD=ld.lld
 
+# Build with Clang + LTO (thin or full; requires ld.lld, which is picked by default)
+make qemu-virt-arm64-test TOOLCHAIN=clang LTO_MODE=thin
+make qemu-virt-arm64-test TOOLCHAIN=clang LTO_MODE=full
+
 # Clean specific project.
 # Add a 'clean' target to the end of the command line.
 # Either select the project name or use the PROJECT variable.

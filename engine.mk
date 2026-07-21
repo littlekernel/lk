@@ -276,6 +276,21 @@ $(info LINKER_TYPE=$(LINKER_TYPE))
 COMPILER_TYPE := $(shell $(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
 $(info COMPILER_TYPE=$(COMPILER_TYPE))
 
+# Optional link-time optimization: off, thin, or full.
+# thin is Clang/lld-only (ThinLTO); GCC has no equivalent mode yet.
+LTO_MODE ?= off
+GLOBAL_LTO_COMPILEFLAGS :=
+ifneq ($(LTO_MODE),off)
+ifeq ($(COMPILER_TYPE),clang)
+ifneq ($(LINKER_TYPE),lld)
+$(error LTO_MODE=$(LTO_MODE) with TOOLCHAIN=clang requires ld.lld, which has native LTO support; got LD=$(LD))
+endif
+GLOBAL_LTO_COMPILEFLAGS += -flto=$(LTO_MODE)
+else
+$(error LTO_MODE=$(LTO_MODE) is not yet supported for COMPILER_TYPE=$(COMPILER_TYPE))
+endif
+endif
+
 # Now that CC is defined we can check if warning flags are supported and add
 # them to GLOBAL_COMPILEFLAGS if they are.
 ifeq ($(call is_warning_flag_supported,-Wnonnull-compare),yes)
@@ -383,6 +398,8 @@ GLOBAL_DEFINES += ARCH_CFLAGS=\"$(subst $(SPACE),_,$(ARCH_CFLAGS))\"
 GLOBAL_DEFINES += ARCH_CPPFLAGS=\"$(subst $(SPACE),_,$(ARCH_CPPFLAGS))\"
 GLOBAL_DEFINES += ARCH_ASMFLAGS=\"$(subst $(SPACE),_,$(ARCH_ASMFLAGS))\"
 GLOBAL_DEFINES += ARCH_LDFLAGS=\"$(subst $(SPACE),_,$(ARCH_LDFLAGS))\"
+GLOBAL_DEFINES += LTO_MODE=\"$(LTO_MODE)\"
+GLOBAL_DEFINES += GLOBAL_LTO_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LTO_COMPILEFLAGS))\"
 GLOBAL_DEFINES += TOOLCHAIN_PREFIX=\"$(subst $(SPACE),_,$(TOOLCHAIN_PREFIX))\"
 GLOBAL_DEFINES += TOOLCHAIN=\"$(subst $(SPACE),_,$(TOOLCHAIN))\"
 GLOBAL_DEFINES += LD=\"$(subst $(SPACE),_,$(LD))\"

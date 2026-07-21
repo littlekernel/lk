@@ -144,6 +144,13 @@ include make/compile.mk
 # MODULE_OBJS is passed back from compile.mk
 #$(info MODULE_OBJS = $(MODULE_OBJS))
 
+# track all of the source files compiled
+ALLSRCS += $(MODULE_SRCS)
+
+# track all the objects built
+ALLOBJS += $(MODULE_OBJS)
+
+ifeq ($(LTO_MODE),off)
 # build a ld -r style combined object
 MODULE_OBJECT := $(call TOBUILDDIR,$(MODULE_SRCDIR).mod.o)
 $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
@@ -151,17 +158,16 @@ $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
 	$(info linking $@)
 	$(NOECHO)$(LD) $(GLOBAL_MODULE_LDFLAGS) -r $^ -o $@
 
-# track all of the source files compiled
-ALLSRCS += $(MODULE_SRCS)
-
-# track all the objects built
-ALLOBJS += $(MODULE_OBJS)
-
 # track the module object for make clean
 GENERATED += $(MODULE_OBJECT)
 
 # make the rest of the build depend on our output
 ALLMODULE_OBJS := $(ALLMODULE_OBJS) $(MODULE_OBJECT)
+else
+# ld -r on LTO bitcode objects corrupts them, so for LTO builds skip the
+# per-module combine step and link each TU's object directly into the final image.
+ALLMODULE_OBJS := $(ALLMODULE_OBJS) $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
+endif
 
 else # ifneq ($(MODULE_ALL_SRCS),)
 #$(info MODULE $(MODULE) has no source files, skipping)

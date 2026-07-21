@@ -25,7 +25,9 @@ $(OUTELF).hex: $(OUTELF)
 
 $(OUTELF): $(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LINKER_SCRIPT) $(EXTRA_LINKER_SCRIPTS)
 	$(info linking $@)
+ifeq ($(LTO_MODE),off)
 	$(NOECHO)$(SIZE) -t --common $(sort $(ALLMODULE_OBJS)) $(EXTRA_OBJS)
+endif
 	$(NOECHO)$(LD) $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -d -T $(LINKER_SCRIPT) \
 		$(addprefix -T,$(EXTRA_LINKER_SCRIPTS)) \
 		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) -Map=$(OUTELF).map -o $@
