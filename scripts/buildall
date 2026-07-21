@@ -70,6 +70,15 @@ done
 
 shift $((OPTIND-1))
 
+# Automatically add any fetched toolchains under toolchain/*/bin to PATH
+if [ -d "$DIR/../toolchain" ]; then
+    for tcdir in "$DIR/../toolchain"/*/bin; do
+        if [ -d "$tcdir" ]; then
+            export PATH="$tcdir:$PATH"
+        fi
+    done
+fi
+
 if (( CLANG || CLANG_LLD )); then
     if [ -z "$CLANG_BINDIR" ]; then
         for d in /usr/lib/llvm-*/bin; do
