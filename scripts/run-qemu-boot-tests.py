@@ -47,14 +47,28 @@ class QEMUTestRunner:
             }
         }
 
-    def run_qemu_test(self, arch, arch_config, quiet=False, log_dir=None, disk_images=None, append_cmdline=None):
+    def run_qemu_test(self, arch, arch_config, quiet=False, log_dir=None, disk_images=None, append_cmdline=None, toolchain='gcc'):
         """Run QEMU for the specified architecture and monitor for test completion"""
-        print(f"\nRunning QEMU test for {arch}...")
+        tc_label = f" ({toolchain})" if toolchain != 'gcc' else ""
+        print(f"\nRunning QEMU test for {arch}{tc_label}...")
 
         script_path = self.lk_root / 'scripts' / arch_config['script']
         if not script_path.exists():
             print(f"Script {script_path} not found")
             return False
+
+        # Create environment with toolchain settings
+        env = {**os.environ, 'LK_ROOT': str(self.lk_root)}
+        if toolchain in ('clang', 'clang-lld'):
+            env['TOOLCHAIN'] = 'clang'
+            if toolchain == 'clang-lld':
+                env['LD'] = 'ld.lld'
+            if 'CLANG_BINDIR' not in env:
+                import glob
+                bindirs = glob.glob('/usr/lib/llvm-*/bin')
+                if bindirs and os.path.exists(os.path.join(bindirs[0], 'clang')):
+                    env['CLANG_BINDIR'] = bindirs[0]
+                    env['PATH'] = f"{bindirs[0]}:{env.get('PATH', '')}"
 
         # Create the QEMU commandline
         qemu_cmdline = [str(script_path)]
@@ -79,7 +93,7 @@ class QEMUTestRunner:
                 text=True,
                 bufsize=1,
                 universal_newlines=True,
-                env={**os.environ, 'LK_ROOT': str(self.lk_root)},
+                env=env,
             )
 
             stdout = process.stdout
@@ -189,7 +203,8 @@ class QEMUTestRunner:
             # If requested, write captured output to a log file
             if log_dir:
                 try:
-                    log_path = Path(log_dir) / f"{arch}.log"
+                    suffix = f"-{toolchain}" if toolchain != 'gcc' else ""
+                    log_path = Path(log_dir) / f"{arch}{suffix}.log"
                     log_path.parent.mkdir(parents=True, exist_ok=True)
                     with open(log_path, 'w', encoding='utf-8') as f:
                         f.write("\n".join(output_lines))
@@ -207,7 +222,7 @@ class QEMUTestRunner:
             sys.stdout.flush()
             return False
 
-    def run_all_tests(self, selected_archs=None, quiet=False, log_dir=None, disk_images=None, append_cmdline=None):
+    def run_all_tests(self, selected_archs=None, quiet=False, log_dir=None, disk_images=None, append_cmdline=None, toolchain='gcc'):
         """Run tests for all or selected architectures"""
         if selected_archs is None:
             selected_archs = list(self.architectures.keys())
@@ -222,7 +237,7 @@ class QEMUTestRunner:
             arch_config = self.architectures[arch]
 
             # Run the test
-            results[arch] = self.run_qemu_test(arch, arch_config, quiet, log_dir, disk_images, append_cmdline)
+            results[arch] = self.run_qemu_test(arch, arch_config, quiet, log_dir, disk_images, append_cmdline, toolchain)
 
         return results
 
@@ -285,8 +300,20 @@ def main():
                        help='Command line to append via the QEMU wrapper (can be specified multiple times)')
     parser.add_argument('--disk', '-d', dest='disk_images', action='append', metavar='IMAGE',
                        help='Disk image to pass to QEMU via -d (can be specified multiple times)')
+    parser.add_argument('--clang', '-c', action='store_true',
+                       help='Build and run tests using Clang toolchain')
+    parser.add_argument('--clang-lld', '-l', action='store_true',
+                       help='Build and run tests using Clang toolchain with LLD linker')
+    parser.add_argument('--toolchain', choices=['gcc', 'clang', 'clang-lld'], default=None,
+                       help='Specify toolchain to use (gcc, clang, or clang-lld)')
 
     args = parser.parse_args()
+
+    toolchain = 'gcc'
+    if args.clang_lld or args.toolchain == 'clang-lld':
+        toolchain = 'clang-lld'
+    elif args.clang or args.toolchain == 'clang':
+        toolchain = 'clang'
 
     # Change to LK root directory
     lk_root = os.path.abspath(args.lk_root)
@@ -297,7 +324,7 @@ def main():
     runner = QEMUTestRunner(lk_root)
 
     # Run tests
-    results = runner.run_all_tests(args.arch, args.quiet, args.log_dir, args.disk_images, args.append_cmdline)
+    results = runner.run_all_tests(args.arch, args.quiet, args.log_dir, args.disk_images, args.append_cmdline, toolchain=toolchain)
 
     # Print summary and return appropriate exit code
     return runner.print_summary(results, args.log_dir)
