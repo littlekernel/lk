@@ -237,9 +237,17 @@ static void arm_basic_setup(void) {
     arm_write_cpacr(val);
 
     /* set enable bit in fpexc */
-    __asm__ volatile("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
+#ifdef __clang__
+    __asm__ volatile(".fpu vfp\n vmrs %0, fpexc" : "=r" (val));
+#else
+    __asm__ volatile("vmrs %0, fpexc" : "=r" (val));
+#endif
     val |= (1<<30);
-    __asm__ volatile("mcr  p10, 7, %0, c8, c0, 0" :: "r" (val));
+#ifdef __clang__
+    __asm__ volatile(".fpu vfp\n vmsr fpexc, %0" :: "r" (val));
+#else
+    __asm__ volatile("vmsr fpexc, %0" :: "r" (val));
+#endif
 
     /* make sure the fpu starts off disabled */
     arm_fpu_set_enable(false);

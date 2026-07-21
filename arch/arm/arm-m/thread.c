@@ -136,8 +136,11 @@ __NAKED void _pendsv(void) {
         RESTORE_REGS_PC
         :: "i" (pendsv_swap_sp)
     );
+#ifndef __clang__
     __UNREACHABLE;
+#endif
 }
+
 
 /*
  * The raw context switch routine. Called by the scheduler when it decides to switch.

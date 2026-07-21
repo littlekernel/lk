@@ -17,7 +17,7 @@ void arm_cm_spin_cycles(uint32_t cycles) {
          * 4 instructions, plus the call into and return from the function.
          * Then, add 3 then >> 2 to round up to the number of loop iterations.
          */
-        "subs r1, %[cycles], #5\n"
+        "subs r1, r0, #5\n"
         "asrs r1, r1, #2\n"
         "ble .Ldone\n"
 
@@ -40,9 +40,6 @@ void arm_cm_spin_cycles(uint32_t cycles) {
 
         ".Ldone:\n"
         "bx lr\n"
-        :                       /* no output */
-        : [cycles] "r" (cycles) /* input is cycles */
-        : "r1"                  /* r1 gets clobbered */
     );
 }
 
@@ -54,7 +51,7 @@ void arm_cm_spin_cycles(uint32_t cycles) {
          * 4 instructions, plus the call into and return from the function.
          * Then, add 3 then >> 2 to round up to the number of loop iterations.
          */
-        "sub r1, %[cycles], #5\n"
+        "sub r1, r0, #5\n"
         "asr r1, r1, #2\n"
         "cmp r1, #0\n"
         "ble .Ldone\n"
@@ -78,9 +75,6 @@ void arm_cm_spin_cycles(uint32_t cycles) {
 
         ".Ldone:\n"
         "bx lr\n"
-        :                       /* no output */
-        : [cycles] "r" (cycles) /* input is cycles */
-        : "r1"                  /* r1 gets clobbered */
     );
 }
 #endif

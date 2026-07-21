@@ -23,14 +23,20 @@ static inline bool is_16regs(void) {
 
 static inline uint32_t read_fpexc(void) {
     uint32_t val;
-    /* use legacy encoding of vmsr reg, fpexc */
-    __asm__ volatile("mrc  p10, 7, %0, c8, c0, 0" : "=r" (val));
+#ifdef __clang__
+    __asm__ volatile(".fpu vfp\n vmrs %0, fpexc" : "=r" (val));
+#else
+    __asm__ volatile("vmrs %0, fpexc" : "=r" (val));
+#endif
     return val;
 }
 
 static inline void write_fpexc(uint32_t val) {
-    /* use legacy encoding of vmrs fpexc, reg */
-    __asm__ volatile("mcr  p10, 7, %0, c8, c0, 0" :: "r" (val));
+#ifdef __clang__
+    __asm__ volatile(".fpu vfp\n vmsr fpexc, %0" :: "r" (val));
+#else
+    __asm__ volatile("vmsr fpexc, %0" :: "r" (val));
+#endif
 }
 
 void arm_fpu_set_enable(bool enable) {

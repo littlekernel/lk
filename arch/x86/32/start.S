@@ -76,7 +76,7 @@ real_start:
       ljmp to be able to use relative labels */
     pushl $CODE_SELECTOR     /*Pushing our code segment */
     pushl $PHYS(.Lfarjump)   /*and jump address */
-    retf    /*This instruction will jump to codesel:farjump */
+    lretl   /*This instruction will jump to codesel:farjump */
 
 .Lfarjump:
 
