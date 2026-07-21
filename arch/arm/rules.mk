@@ -369,9 +369,9 @@ ARCH_LDFLAGS += -z max-page-size=4096
 
 # find the direct path to libgcc.a for our particular multilib variant
 LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
-LIBGCC ?= $(shell $(LIBGCC_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name 2>/dev/null)
-ifeq ($(LIBGCC),)
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS) -print-libgcc-file-name)
+LIBGCC ?= $(shell $(LIBGCC_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) $(THUMBCFLAGS) -print-libgcc-file-name 2>/dev/null)
+ifeq ($(wildcard $(LIBGCC)),)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) $(THUMBCFLAGS) -print-libgcc-file-name 2>/dev/null)
 endif
 #$(info LIBGCC = $(LIBGCC))
 #$(info LIBGCC COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(THUMBCFLAGS))
