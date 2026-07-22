@@ -8,6 +8,7 @@
 #include <arch.h>
 #include <arch/interrupts.h>
 #include <arch/sparc.h>
+#include <arch/sparc/mmu.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <platform.h>
@@ -34,9 +35,13 @@ void sparc_early_init_percpu() {
 
 void arch_early_init() {
     sparc_early_init_percpu();
+    arch_mmu_early_init();
 }
 
-void arch_init() {}
+void arch_init() {
+    arch_mmu_init();
+}
+
 
 void arch_idle() {
 #if 0

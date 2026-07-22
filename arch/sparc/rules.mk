@@ -8,6 +8,7 @@ MODULE_SRCS += $(LOCAL_DIR)/exceptions.S
 MODULE_SRCS += $(LOCAL_DIR)/exceptions.cpp
 MODULE_SRCS += $(LOCAL_DIR)/start.S
 MODULE_SRCS += $(LOCAL_DIR)/thread.cpp
+MODULE_SRCS += $(LOCAL_DIR)/mmu.cpp
 
 MODULE_OPTIONS := extra_warnings
 
