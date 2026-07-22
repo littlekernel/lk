@@ -199,7 +199,6 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
     LTRACEF("aspace %p, base %#lx, size %#zx, flags %#x\n", aspace, base, size, flags);
 
     DEBUG_ASSERT(aspace);
-    DEBUG_ASSERT(aspace->magic != RISCV_ASPACE_MAGIC);
 
     // validate that the base + size is sane and doesn't wrap
     DEBUG_ASSERT(size > PAGE_SIZE);
