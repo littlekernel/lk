@@ -213,7 +213,10 @@ else
     ARGS+=("-nographic")
 fi
 
-ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
+if (( ! DO_UNLEASHED && ! DO_EMBEDDED )); then
+    # sifive_u and sifive_e don't expose a virtio bus in QEMU
+    ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
+fi
 
 MAKE_VARS=""
 
