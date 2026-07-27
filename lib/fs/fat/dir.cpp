@@ -480,7 +480,11 @@ status_t fat_find_next_entry(fat_fs *fat, file_block_iterator &dbi, uint32_t &of
             LTRACEF("found filename '%s'\n", *out_filename);
 
             // fill out the passed in dir entry and exit
-            uint16_t target_cluster = fat_read16(ent, 0x1a);
+            uint32_t target_cluster = fat_read16(ent, 0x1a);
+            if (fat->info().fat_bits == 32) {
+                target_cluster |= (uint32_t)fat_read16(ent, 0x14) << 16;
+                target_cluster &= 0x0fffffff;
+            }
             entry->length = fat_read32(ent, 0x1c);
             entry->attributes = (fat_attribute)ent[0x0B];
             entry->start_cluster = target_cluster;
@@ -658,7 +662,11 @@ status_t fat_find_short_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_
             }
 
             if (!memcmp(ent, short_name, 11)) {
-                uint16_t target_cluster = fat_read16(ent, 0x1a);
+                uint32_t target_cluster = fat_read16(ent, 0x1a);
+                if (fat->info().fat_bits == 32) {
+                    target_cluster |= (uint32_t)fat_read16(ent, 0x14) << 16;
+                    target_cluster &= 0x0fffffff;
+                }
                 entry->length = fat_read32(ent, 0x1c);
                 entry->attributes = (fat_attribute)ent[0x0B];
                 entry->start_cluster = target_cluster;
