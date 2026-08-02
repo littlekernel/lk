@@ -318,13 +318,13 @@ struct multiboot2_tag_framebuffer {
 /* ACPI old RSDP tag */
 struct multiboot2_tag_old_acpi {
     struct multiboot2_tag tag;
-    uint8_t rsdp[0];  /* variable size RSDP table */
+    uint8_t rsdp[];  /* variable size RSDP table */
 };
 
 /* ACPI new RSDP tag */
 struct multiboot2_tag_new_acpi {
     struct multiboot2_tag tag;
-    uint8_t rsdp[0];  /* variable size RSDP table */
+    uint8_t rsdp[];  /* variable size RSDP table */
 };
 
 #endif // ASSEMBLY

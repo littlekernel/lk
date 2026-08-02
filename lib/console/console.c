@@ -606,7 +606,7 @@ static status_t command_loop(console_t *con, int (*get_line)(const char **, void
     const char *continuebuffer;
     char *outbuf = NULL;
 
-    args = (console_cmd_args *) malloc (MAX_NUM_ARGS * sizeof(console_cmd_args));
+    args = malloc (MAX_NUM_ARGS * sizeof(console_cmd_args));
     if (unlikely(args == NULL)) {
         goto no_mem_error;
     }
@@ -668,10 +668,10 @@ static status_t command_loop(console_t *con, int (*get_line)(const char **, void
         con->abort_script = false;
         if (strcmp(args[argc - 1].str, "&") == 0) { // background execution
             background_cmd_args *bg_args =
-                (background_cmd_args *)malloc(sizeof(background_cmd_args));
+                malloc(sizeof(background_cmd_args));
             bg_args->command = command;
             bg_args->argc = argc - 1;
-            bg_args->args = (console_cmd_args *)malloc(argc * sizeof(console_cmd_args));
+            bg_args->args = malloc(argc * sizeof(console_cmd_args));
             for (int i = 0; i < argc; i++) {
                 memcpy(&bg_args->args[i], &args[i], sizeof(console_cmd_args));
                 bg_args->args[i].str = strdup(args[i].str);
@@ -844,7 +844,7 @@ static int cmd_help_impl(uint8_t availability_mask) {
     if ((availability_mask & CMD_AVAIL_PANIC) == 0) {
         size_t num_cmds = end - start;
         size_t size_bytes = num_cmds * sizeof(console_cmd_block);
-        sorted = (console_cmd_block *) malloc(size_bytes);
+        sorted = malloc(size_bytes);
         if (sorted) {
             memcpy(sorted, start, size_bytes);
             qsort(sorted, num_cmds, sizeof(console_cmd_block), compare_cmds);

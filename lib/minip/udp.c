@@ -82,7 +82,7 @@ status_t udp_open(ipv4_addr_t host, uint16_t sport, uint16_t dport, udp_socket_t
         return -EINVAL;
     }
 
-    socket = (udp_socket_t *) calloc(1, sizeof(udp_socket_t));
+    socket = calloc(1, sizeof(udp_socket_t));
     if (!socket) {
         return -ENOMEM;
     }
@@ -118,7 +118,7 @@ status_t udp_open_raw(ipv4_addr_t host, uint16_t sport, uint16_t dport, netif_t 
         return -EINVAL;
     }
 
-    socket = (udp_socket_t *) calloc(1, sizeof(udp_socket_t));
+    socket = calloc(1, sizeof(udp_socket_t));
     if (!socket) {
         return -ENOMEM;
     }

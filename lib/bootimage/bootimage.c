@@ -157,8 +157,7 @@ status_t bootimage_open(const void *ptr, size_t len, bootimage_t **bi) {
 }
 
 status_t bootimage_close(bootimage_t *bi) {
-    if (bi)
-        free(bi);
+    free(bi);
 
     return NO_ERROR;
 }

@@ -39,7 +39,7 @@ static bool test_malloc_basic(void) {
         65536,
 #endif
     };
-    for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
+    for (size_t i = 0; i < countof(sizes); i++) {
         void *p = malloc(sizes[i]);
         ASSERT_NONNULL(p, "malloc returned NULL");
         free(p);
@@ -189,8 +189,8 @@ static bool test_simultaneous_allocs(void) {
                                     4096,
 #endif
                                     17 };
-    const int N = (int)(sizeof(sizes) / sizeof(sizes[0]));
-    void *ptrs[sizeof(sizes) / sizeof(sizes[0])];
+    const int N = (int) countof(sizes);
+    void *ptrs[countof(sizes)];
 
     for (int i = 0; i < N; i++) {
         ptrs[i] = malloc(sizes[i]);
@@ -286,7 +286,7 @@ static bool test_malloc_alignment(void) {
     static const size_t sizes[] = {
         1, 2, 3, 4, 7, 8, 9, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 255, 256, 1023, 1024,
     };
-    for (size_t i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
+    for (size_t i = 0; i < countof(sizes); i++) {
         void *p = malloc(sizes[i]);
         ASSERT_NONNULL(p, "malloc returned NULL");
         EXPECT_EQ(0u, (uintptr_t)p % min_align, "malloc alignment violated");
@@ -457,7 +457,7 @@ static bool test_realloc_multiple_steps(void) {
     size_t sizes[] = { 32, 128, 64, 512, 1024, 256, 16, 2048 };
     uint8_t *p = NULL;
 
-    for (size_t step = 0; step < sizeof(sizes) / sizeof(sizes[0]); step++) {
+    for (size_t step = 0; step < countof(sizes); step++) {
         size_t new_size = sizes[step];
         size_t prev_size = (step == 0) ? 0 : sizes[step - 1];
         size_t min_size = (new_size < prev_size) ? new_size : prev_size;

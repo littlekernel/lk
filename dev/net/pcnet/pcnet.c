@@ -175,8 +175,8 @@ static status_t pcnet_init_device(struct pcnet_state *state, pci_location_t loc)
     state->td = memalign(16, state->td_count * DESC_SIZE);
     state->rd = memalign(16, state->rd_count * DESC_SIZE);
 
-    state->rx_buffers = (pktbuf_t **)calloc(state->rd_count, sizeof(pktbuf_t *));
-    state->tx_buffers = (pktbuf_t **)calloc(state->td_count, sizeof(pktbuf_t *));
+    state->rx_buffers = calloc(state->rd_count, sizeof(pktbuf_t *));
+    state->tx_buffers = calloc(state->td_count, sizeof(pktbuf_t *));
 
     state->tx_pending = 0;
 

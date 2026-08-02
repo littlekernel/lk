@@ -82,7 +82,7 @@ static struct list_node write_port_list;
 static port_buf_t *make_buf(bool big) {
     uint pk_count = big ? PORT_BUFF_SIZE_BIG : PORT_BUFF_SIZE;
     uint size = sizeof(port_buf_t) + ((pk_count - 1) * sizeof(port_packet_t));
-    port_buf_t *buf = (port_buf_t *) malloc(size);
+    port_buf_t *buf = malloc(size);
     if (!buf)
         return NULL;
     buf->log2 = log2_uint(pk_count);
@@ -256,8 +256,7 @@ status_t port_open(const char *name, void *ctx, port_t *port) {
     }
     THREAD_UNLOCK(state);
 
-    if (buf)
-        free(buf);
+    free(buf);
 
     if (rc == NO_ERROR) {
         *port = (void *)rp;

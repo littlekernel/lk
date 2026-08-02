@@ -20,10 +20,10 @@ static bool basic(void) {
 
     cbuf_initialize(&cbuf, 16);
 
-    EXPECT_EQ(15UL, cbuf_space_avail(&cbuf), "");;
+    EXPECT_EQ(15UL, cbuf_space_avail(&cbuf), "");
     EXPECT_FALSE(cbuf_is_full(&cbuf), "");
 
-    EXPECT_EQ(8UL, cbuf_write(&cbuf, "abcdefgh", 8, false), "");;
+    EXPECT_EQ(8UL, cbuf_write(&cbuf, "abcdefgh", 8, false), "");
 
     EXPECT_EQ(7UL, cbuf_space_avail(&cbuf), "");
     EXPECT_FALSE(cbuf_is_full(&cbuf), "");

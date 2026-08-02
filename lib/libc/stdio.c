@@ -37,7 +37,7 @@ FILE __stdio_FILEs[3] = {
 
 FILE *fopen(const char *filename, const char *mode) {
 #if defined(WITH_LIB_FS)
-    FILE *stream = (FILE *) malloc(sizeof(FILE));
+    FILE *stream = malloc(sizeof(FILE));
     if (stream == NULL) {
         return NULL;
     }

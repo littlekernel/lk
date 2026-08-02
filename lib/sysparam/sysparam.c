@@ -40,7 +40,7 @@ struct sysparam_phys {
     //uint8_t data[data];
     // 0 padding to next multiple of 4
 
-    uint8_t namedata[0];
+    uint8_t namedata[];
 };
 
 /* a copy we keep in memory */

@@ -174,7 +174,7 @@ static int alloc_io_buffer(uint64_t block_size, uint8_t **out_buf, uint64_t *out
     }
 
     const size_t alloc_size = (size_t)(capacity_blocks * block_size);
-    uint8_t *const buf = (uint8_t *)malloc(alloc_size);
+    uint8_t *const buf = malloc(alloc_size);
     if (buf == NULL) {
         dt_backend_perror("malloc");
         return -1;
@@ -752,7 +752,7 @@ static int cmd_disktest(int argc, const console_cmd_args *argv) {
         return 2;
     }
 
-    if (argc > (int)(sizeof(args) / sizeof(args[0]))) {
+    if (argc > (int) countof(args)) {
         printf("too many args\n");
         return 2;
     }
