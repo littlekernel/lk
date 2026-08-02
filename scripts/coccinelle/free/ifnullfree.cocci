@@ -5,35 +5,36 @@ virtual patch
 virtual context
 virtual report
 
-// [Context/Patch Mode] Pattern Matcher: Find redundant NULL checks
-@r depends on context || patch@
+// [Pattern Matcher] Find redundant NULL checks
+@r@
 expression x;
 position p;
+@@
+
+if (x)@p
+    free(x);
+
+// [Patch Mode] Action: Remove the redundant 'if' check
+@depends on patch@
+expression x;
+position r.p;
+@@
+
+- if (x)@p
+    free(x);
+
+// [Context Mode] Pattern Matcher: Highlight redundant NULL check
+@depends on context@
+expression x;
+position r.p;
 @@
 
 * if (x)@p
-      free(x);
-
-// [Patch Mode] Action: Remove the redundant 'if' check
-@depends on patch && r@
-expression x;
-@@
-
-- if (x)
-      free(x);
-
-// [Report Mode] Pattern Matcher: Find redundant NULL checks
-@r2 depends on report@
-expression x;
-position p;
-@@
-
- if (x)@p
-      free(x);
+    free(x);
 
 // [Report Mode] Output Formatter: Print warning to console
 @script:python depends on report@
-p << r2.p;
+p << r.p;
 @@
 
 msg = "WARNING: redundant NULL check before free"
