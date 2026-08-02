@@ -22,6 +22,7 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/vga_console.c \
     $(LOCAL_DIR)/debug.c \
     $(LOCAL_DIR)/fb_console.c \
+    $(LOCAL_DIR)/hpet.c \
     $(LOCAL_DIR)/interrupts.c \
     $(LOCAL_DIR)/keyboard.c \
     $(LOCAL_DIR)/mp.c \

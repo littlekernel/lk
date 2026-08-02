@@ -20,6 +20,7 @@
 #include <lk/trace.h>
 #include <platform.h>
 #include <platform/pc.h>
+#include <platform/pc/hpet.h>
 #include <platform/pc/timer.h>
 #include <platform/timer.h>
 #include <sys/types.h>
@@ -30,7 +31,6 @@
 
 // Deals with all of the various clock sources and event timers on the PC platform.
 // TODO:
-//   HPET
 //   cpuid leaves that describe clock rates
 
 static enum clock_source {
@@ -66,6 +66,8 @@ lk_time_t current_time(void) {
             return pit_current_time();
         case CLOCK_SOURCE_TSC:
             return u32_mul_u64_fp32_64(__builtin_ia32_rdtsc(), tsc_to_timebase);
+        case CLOCK_SOURCE_HPET:
+            return hpet_current_time();
         default:
             return 0;
     }
@@ -77,6 +79,8 @@ lk_bigtime_t current_time_hires(void) {
             return pit_current_time_hires();
         case CLOCK_SOURCE_TSC:
             return u64_mul_u64_fp32_64(__builtin_ia32_rdtsc(), tsc_to_timebase_hires);
+        case CLOCK_SOURCE_HPET:
+            return hpet_current_time_hires();
         default:
             return 0;
     }
@@ -93,7 +97,11 @@ void platform_init_timer(void) {
     clock_source = CLOCK_SOURCE_PIT;
 
 #if !X86_LEGACY
-    // XXX update note about what invariant TSC means
+    // An invariant TSC ticks at a fixed rate regardless of CPU frequency scaling,
+    // throttling, or C-state changes, and stays in sync across all cores/packages.
+    // That makes it usable as a cheap, stable time base; without it the TSC drifts
+    // relative to wall-clock time as the CPU's performance state changes, so we have
+    // to fall back to another clock source instead.
     bool use_invariant_tsc = x86_feature_test(X86_FEATURE_INVAR_TSC);
     LTRACEF("invariant TSC %d\n", use_invariant_tsc);
 
@@ -106,8 +114,6 @@ void platform_init_timer(void) {
 
         printf("pv_clock: Clocksource is %sstable\n", (pv_clock_stable ? "" : "not "));
     }
-
-    // XXX test for HPET and use it over PIT if present
 
     if (use_invariant_tsc) {
         // We're going to try to use the TSC as a time base, obtain the TSC frequency.
@@ -141,6 +147,10 @@ void platform_init_timer(void) {
                 fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &timebase_to_tsc, 9));
 
         clock_source = CLOCK_SOURCE_TSC;
+    } else if (hpet_init() == NO_ERROR) {
+        // No invariant TSC to use as a time base, prefer the HPET's free-running
+        // counter over the interrupt-driven PIT if one is present.
+        clock_source = CLOCK_SOURCE_HPET;
     }
 out:
 
