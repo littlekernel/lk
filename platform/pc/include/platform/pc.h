@@ -12,7 +12,6 @@
 #include <sys/types.h>
 
 #include <platform/pc/iomap.h>
-#include <platform/pc/memmap.h>
 
 /* NOTE: keep arch/x86/crt0.S in sync with these definitions */
 
