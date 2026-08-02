@@ -79,7 +79,6 @@ u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b) {
     uint64_t res_0;
     uint64_t res_l32;
     uint32_t res_l32_32;
-    uint64_t ret;
 
     res_0 = mul_u32_u32(a, b.l0, 0, 0);
     tmp = mul_u32_u32(a, b.l32, 0, -32);
@@ -88,9 +87,7 @@ u64_mul_u32_fp32_64(uint32_t a, struct fp_32_64 b) {
     res_l32 += mul_u32_u32(a, b.l64, 0, -64) >> 32; /* Improve rounding accuracy */
     res_0 += res_l32 >> 32;
     res_l32_32 = res_l32;
-    ret = res_0 + (res_l32_32 >> 31); /* Round to nearest integer */
-
-    return ret;
+    return res_0 + (res_l32_32 >> 31); /* Round to nearest integer */
 }
 
 static inline uint32_t
@@ -98,7 +95,6 @@ u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     uint32_t a_r32 = a >> 32;
     uint32_t a_0 = a;
     uint64_t res_l32;
-    uint32_t ret;
 
     /* mul_u32_u32(a_r32, b.l0, 32, 0) does not affect result */
     res_l32 = mul_u32_u32(a_0, b.l0, 0, 0) << 32;
@@ -106,9 +102,7 @@ u32_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     res_l32 += mul_u32_u32(a_0, b.l32, 0, -32);
     res_l32 += mul_u32_u32(a_r32, b.l64, 32, -64);
     res_l32 += mul_u32_u32(a_0, b.l64, 0, -64) >> 32;  /* Improve rounding accuracy */
-    ret = (res_l32 >> 32) + ((uint32_t)res_l32 >> 31); /* Round to nearest integer */
-
-    return ret;
+    return (res_l32 >> 32) + ((uint32_t)res_l32 >> 31); /* Round to nearest integer */
 }
 
 static inline uint64_t
@@ -119,7 +113,6 @@ u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     uint64_t res_l32;
     uint32_t res_l32_32;
     uint64_t tmp;
-    uint64_t ret;
 
     tmp = mul_u32_u32(a_r32, b.l0, 32, 0);
     res_0 = tmp << 32;
@@ -137,9 +130,7 @@ u64_mul_u64_fp32_64(uint64_t a, struct fp_32_64 b) {
     res_l32 += tmp >> 32;
     res_0 += res_l32 >> 32;
     res_l32_32 = res_l32;
-    ret = res_0 + (res_l32_32 >> 31); /* Round to nearest integer */
-
-    return ret;
+    return res_0 + (res_l32_32 >> 31); /* Round to nearest integer */
 }
 
 /*

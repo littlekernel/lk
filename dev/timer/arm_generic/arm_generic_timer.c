@@ -136,10 +136,7 @@ static uint32_t read_cntfrq(void) {
 }
 
 static uint32_t read_cntp_ctl(void) {
-    uint32_t cntp_ctl;
-
-    cntp_ctl = READ_TIMER_REG32(TIMER_REG_CTL);
-    return cntp_ctl;
+    return READ_TIMER_REG32(TIMER_REG_CTL);
 }
 
 static void write_cntp_ctl(uint32_t cntp_ctl) {
