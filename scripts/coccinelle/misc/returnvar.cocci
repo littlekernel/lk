@@ -1,13 +1,17 @@
 // Coccinelle script to simplify "T ret; ret = e; return ret;" into "return e;"
 // when the local variable exists solely to carry the return value.
+//
+// The assignment and the return must be immediately adjacent: anything sitting
+// between them (e.g. a barrier like DSB) executes relative to the side effects
+// of evaluating e, so skipping over it would silently reorder that statement
+// to happen before e is evaluated instead of after. Only the declaration may
+// have unrelated statements between it and the assignment, since dropping an
+// inert declaration can never reorder anything.
 
 virtual patch
 virtual context
 virtual report
 
-// [Pattern Matcher] Find a single-use local variable assigned once and returned
-// on the same straight-line path (no intervening goto/label to avoid crossing
-// into unrelated control-flow branches).
 @r@
 identifier ret, L;
 type T;
@@ -19,8 +23,6 @@ position p1, p2;
   ... when != ret
       when != goto L;
   ret = e;
-  ... when != ret
-      when != goto L;
   return@p2 ret;
 
 // [Patch Mode] Action: Drop the local variable and return the expression directly
@@ -35,8 +37,6 @@ position r.p1, r.p2;
   ... when != ret
       when != goto L;
 - ret = e;
-  ... when != ret
-      when != goto L;
 - return@p2 ret;
 + return e;
 
@@ -52,8 +52,6 @@ position r.p1, r.p2;
   ... when != ret
       when != goto L;
 * ret = e;
-  ... when != ret
-      when != goto L;
 * return@p2 ret;
 
 // [Report Mode] Output Formatter: Print warning to console
