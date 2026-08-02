@@ -4,6 +4,7 @@
 *~
 .cache
 .cache
+.claude
 .clangd
 .mypy_cache
 .rsync-filter
