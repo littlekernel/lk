@@ -68,9 +68,10 @@ typedef struct io_handle_hooks {
  * the wrong destination, which is worse to debug than interleaving.
  *
  * NOTE: none of this can be compiled out when WITH_THREAD_STDOUT is off. The
- * trigger is any two handles carrying this flag, which any module may create.
- * When only one such handle exists the switch simply never fires, at a cost of
- * one pointer per thread and one well predicted compare per write.
+ * trigger is any two handles carrying this flag, which any module may create --
+ * lib/io/test does exactly that on targets where WITH_THREAD_STDOUT is 0. When
+ * only one such handle exists the switch simply never fires, at a cost of one
+ * pointer per thread and one well predicted compare per write.
  *
  * Contexts that cannot own the buffer (interrupt handlers, and anything holding
  * a spinlock -- see io_linebuffer_owner() in io.c) bypass it and write straight

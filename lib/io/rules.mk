@@ -18,4 +18,6 @@ MODULE_SRCS += \
    $(LOCAL_DIR)/console.c \
    $(LOCAL_DIR)/io.c \
 
+MODULE_OPTIONS := test
+
 include make/module.mk
