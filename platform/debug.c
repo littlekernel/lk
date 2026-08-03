@@ -21,3 +21,18 @@ __WEAK void platform_pputc(char c) {
 __WEAK int platform_pgetc(char *c, bool wait) {
     return platform_dgetc(c, wait);
 }
+
+/* Default batched output routines. Platforms that can push more than one
+ * character at a time into their debug port may override these.
+ */
+__WEAK void platform_dputs(const char *str, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        platform_dputc(str[i]);
+    }
+}
+
+__WEAK void platform_pputs(const char *str, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        platform_pputc(str[i]);
+    }
+}
