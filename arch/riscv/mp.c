@@ -193,7 +193,7 @@ void riscv_boot_secondaries(void) {
             // Pause a little bit here to give the secondary an opportunity to start. Not strictly
             // needed but helps the boot output flow without much of a boot penalty. Remove
             // if it's a problem.
-            thread_sleep(50);
+            thread_sleep(10);
         }
     }
 #endif
