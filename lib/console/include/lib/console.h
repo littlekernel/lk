@@ -8,6 +8,7 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <stdio.h>
 
 __BEGIN_CDECLS
 
@@ -25,6 +26,16 @@ typedef struct console console_t;
 /* TODO: actually implement the history option. Currently always implements history according
  * to the build variable CONSOLE_ENABLE_HISTORY. */
 console_t *console_create(bool with_history);
+
+/* Create a console bound to a particular pair of streams instead of the kernel
+ * console, which is what lets more than one console run at a time (a shell over
+ * the network, say). Passing NULL for either selects the kernel console.
+ *
+ * NOTE: requires WITH_THREAD_STDOUT for commands, which print with plain
+ * printf, to follow the binding. Without it only the console's own prompt and
+ * line editing are redirected.
+ */
+console_t *console_create_etc(bool with_history, FILE *in, FILE *out);
 
 /* Run the main console loop. Will set the current console TLS pointer as a side effect */
 void console_start(console_t *con);

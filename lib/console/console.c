@@ -56,6 +56,13 @@ typedef struct console {
     int lastresult;
     bool abort_script;
 
+    /* Where this console reads and writes. NULL means the kernel console, which
+     * is what console_create() gives you. Other bindings (a network session,
+     * say) let several consoles run at once; see console_create_etc().
+     */
+    FILE *in;
+    FILE *out;
+
     /* debug buffer */
     char *debug_buffer;
 
@@ -69,6 +76,15 @@ typedef struct console {
     size_t history_next; // = 0;
 #endif // CONSOLE_ENABLE_HISTORY
 } console_t;
+
+/* Where this console's own reads and writes go. */
+static inline FILE *console_in(console_t *con) {
+    return con->in ? con->in : stdin;
+}
+
+static inline FILE *console_out(console_t *con) {
+    return con->out ? con->out : stdout;
+}
 
 #if CONSOLE_ENABLE_HISTORY
 /* command history routines */
@@ -271,6 +287,8 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
 #endif
 
     char *buffer = con->debug_buffer;
+    FILE *in = console_in(con);
+    FILE *out = console_out(con);
 
     for (;;) {
         /* Push out the prompt and any echoed characters before we block waiting
@@ -278,12 +296,17 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
          * the interactive output here ends in a newline, so without this the
          * prompt and echo would not appear until the user hit return.
          */
-        fflush(stdout);
+        fflush(out);
 
         /* loop until we get a char */
         int c;
-        if ((c = getchar()) < 0)
-            continue;
+        if ((c = fgetc(in)) == EOF) {
+            /* End of input: the underlying handle is gone (a network session
+             * hung up, say). Returning an error unwinds command_loop, which
+             * ends this console rather than spinning here forever.
+             */
+            return ERR_CHANNEL_CLOSED;
+        }
 
 //      TRACEF("c = 0x%hhx\n", c);
 
@@ -292,14 +315,14 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                 case '\r':
                 case '\n':
                     if (con->echo)
-                        putchar('\n');
+                        fputc('\n', out);
                     goto done;
 
                 case 0x7f: // backspace or delete
                 case 0x8:
                     if (pos > 0) {
                         pos--;
-                        fputs("\b \b", stdout); // wipe out a character
+                        fputs("\b \b", out); // wipe out a character
                     }
                     break;
 
@@ -311,9 +334,9 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                     if (pos < (LINE_LEN - 1)) {
                         buffer[pos++] = c;
                         if (con->echo)
-                            putchar(c);
+                            fputc(c, out);
                     } else {
-                        fputs("\nerror: line too long\n", stdout);
+                        fputs("\nerror: line too long\n", out);
                         pos = 0;
                         goto done;
                     }
@@ -332,9 +355,9 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                     if (pos < (LINE_LEN - 1)) {
                         buffer[pos++] = ' ';
                         if (con->echo)
-                            putchar(' ');
+                            fputc(' ', out);
                     } else {
-                        fputs("\nerror: line too long\n", stdout);
+                        fputs("\nerror: line too long\n", out);
                         pos = 0;
                         goto done;
                     }
@@ -343,7 +366,7 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                     if (pos > 0) {
                         pos--;
                         if (con->echo) {
-                            fputs("\b \b", stdout); // wipe out a character
+                            fputs("\b \b", out); // wipe out a character
                         }
                     }
                     break;
@@ -354,7 +377,7 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                     while (pos > 0) {
                         pos--;
                         if (con->echo) {
-                            fputs("\b \b", stdout); // wipe out a character
+                            fputs("\b \b", out); // wipe out a character
                         }
                     }
 
@@ -364,7 +387,7 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
                         strlcpy(buffer, next_history(con, &history_cursor), LINE_LEN);
                     pos = strlen(buffer);
                     if (con->echo)
-                        fputs(buffer, stdout);
+                        fputs(buffer, out);
                     break;
 #endif
                 default:
@@ -375,7 +398,7 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
 
         /* end of line. */
         if (pos == (LINE_LEN - 1)) {
-            fputs("\nerror: line too long\n", stdout);
+            fputs("\nerror: line too long\n", out);
             pos = 0;
             goto done;
         }
@@ -641,17 +664,26 @@ static status_t command_loop(console_t *con, int (*get_line)(const char **, void
         goto no_mem_error;
     }
 
+    status_t err = NO_ERROR;
+
     exit = false;
     continuebuffer = NULL;
     while (!exit) {
         // read a new line if it hadn't been split previously and passed back from tokenize_command
         if (continuebuffer == NULL) {
             if (showprompt)
-                fputs("] ", stdout);
+                fputs("] ", console_out(con));
 
             int len = get_line(&buffer, get_line_cookie);
-            if (len < 0)
+            if (len < 0) {
+                // ERR_CHANNEL_CLOSED means the stream we're reading is gone for
+                // good (a network session hung up, say), so pass it up and let
+                // the caller tear the console down. Anything else is an
+                // ordinary end of input, such as a script running out of lines.
+                if (len == ERR_CHANNEL_CLOSED)
+                    err = ERR_CHANNEL_CLOSED;
                 break;
+            }
             if (len == 0)
                 continue;
         } else {
@@ -665,7 +697,7 @@ static status_t command_loop(console_t *con, int (*get_line)(const char **, void
                                     args, MAX_NUM_ARGS);
         if (argc < 0) {
             if (showprompt)
-                printf("syntax error\n");
+                fprintf(console_out(con), "syntax error\n");
             continue;
         } else if (argc == 0) {
             continue;
@@ -682,7 +714,7 @@ static status_t command_loop(console_t *con, int (*get_line)(const char **, void
         const console_cmd *command = match_command(args[0].str, CMD_AVAIL_NORMAL);
         if (!command) {
             if (showprompt)
-                printf("command not found\n");
+                fprintf(console_out(con), "command not found\n");
             continue;
         }
 
@@ -735,7 +767,7 @@ static status_t command_loop(console_t *con, int (*get_line)(const char **, void
 
     free(outbuf);
     free(args);
-    return NO_ERROR;
+    return err;
 
 no_mem_error:
     free(outbuf);
@@ -753,6 +785,10 @@ void console_abort_script(console_t *con) {
 }
 
 console_t *console_create(bool with_history) {
+    return console_create_etc(with_history, NULL, NULL);
+}
+
+console_t *console_create_etc(bool with_history, FILE *in, FILE *out) {
     console_t *con = calloc(1, sizeof(console_t));
     if (!con) {
         dprintf(INFO, "error allocating console object\n");
@@ -762,6 +798,8 @@ console_t *console_create(bool with_history) {
     // initialize
     mutex_init(&con->lock);
     con->echo = true;
+    con->in = in;
+    con->out = out;
     con->debug_buffer = malloc(LINE_LEN);
     if (!con->debug_buffer) {
         free(con);
@@ -776,8 +814,21 @@ void console_start(console_t *con) {
 
     console_set_current(con);
 
+    /* Bind this thread's stdio to the console's, so that commands (and threads
+     * they spawn) can keep using plain printf and land in the right place.
+     */
+#if WITH_THREAD_STDOUT
+    FILE *old_stdout = set_thread_stdout(con->out);
+    FILE *old_stdin = set_thread_stdin(con->in);
+#endif
+
     while (command_loop(con, &read_debug_line, con, true, false) == NO_ERROR)
         ;
+
+#if WITH_THREAD_STDOUT
+    set_thread_stdin(old_stdin);
+    set_thread_stdout(old_stdout);
+#endif
 
     console_set_current(NULL);
 
