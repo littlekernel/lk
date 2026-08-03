@@ -5,6 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <arch/ops.h>
 #include <kernel/thread.h>
 #include <lib/cbuf.h>
 #include <lk/reg.h>
@@ -128,10 +129,49 @@ int uart_getc(char *c, bool wait) {
 #endif
 }
 
+/* Push a run of characters out via CMD_WRITE_BUFFER instead of one MMIO
+ * register write per character. transfer_buf is also used by the rx side
+ * (uart_irq_handler, platform_pgetc), so the fill-and-issue sequence has to
+ * run with local interrupts disabled to keep an rx DMA from landing on top of
+ * the tx data before CMD_WRITE_BUFFER is issued.
+ */
+static void uart_write_buf(const char *str, size_t len) {
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
+
+    size_t used = 0;
+    for (size_t i = 0; i < len; i++) {
+        char c = str[i];
+        if (c == '\n') {
+            if (used == sizeof(transfer_buf)) {
+                write_reg(REG_DATA_LEN, used);
+                write_reg(REG_CMD, CMD_WRITE_BUFFER);
+                used = 0;
+            }
+            transfer_buf[used++] = '\r';
+        }
+        if (used == sizeof(transfer_buf)) {
+            write_reg(REG_DATA_LEN, used);
+            write_reg(REG_CMD, CMD_WRITE_BUFFER);
+            used = 0;
+        }
+        transfer_buf[used++] = c;
+    }
+    if (used > 0) {
+        write_reg(REG_DATA_LEN, used);
+        write_reg(REG_CMD, CMD_WRITE_BUFFER);
+    }
+
+    arch_interrupt_restore(state);
+}
+
 void platform_dputc(char c) {
     if (c == '\n')
         uart_putc('\r');
     uart_putc(c);
+}
+
+void platform_dputs(const char *str, size_t len) {
+    uart_write_buf(str, len);
 }
 
 int platform_dgetc(char *c, bool wait) {
@@ -143,6 +183,10 @@ int platform_dgetc(char *c, bool wait) {
 /* panic-time getc/putc */
 void platform_pputc(char c) {
     return uart_putc(c);
+}
+
+void platform_pputs(const char *str, size_t len) {
+    uart_write_buf(str, len);
 }
 
 int platform_pgetc(char *c, bool wait) {
