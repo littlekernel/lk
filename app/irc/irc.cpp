@@ -340,12 +340,14 @@ int console_thread_worker(void *arg) {
                 if (pos > 0) {
                     pos--;
                     fputs("\b \b", stdout); // wipe out a character
+                    fflush(stdout);
                 }
                 break;
 
             default:
                 line[pos++] = (char)c;
                 putchar(c);
+                fflush(stdout);
                 break;
         }
     }
