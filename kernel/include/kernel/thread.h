@@ -52,6 +52,10 @@ enum thread_tls_list {
 #ifdef WITH_LIB_LKUSER
     TLS_ENTRY_LKUSER,
 #endif
+#if WITH_THREAD_STDOUT
+    TLS_ENTRY_STDOUT, // FILE* this thread's output is bound to, NULL for console
+    TLS_ENTRY_STDIN,  // FILE* this thread's input is bound to, NULL for console
+#endif
     TLS_ENTRY_ERRNO,
     MAX_TLS_ENTRY
 };

@@ -48,7 +48,11 @@ static inline void hexdump8(const void *ptr, size_t len) {
     hexdump8_ex(ptr, len, (uint64_t)((addr_t)ptr));
 }
 
-#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { printf(x); } } while (0)
+/* Kernel diagnostic output. Goes to the console rather than the calling
+ * thread's stdout, so that kernel messages don't follow a shell thread into a
+ * redirected session (see console_printf() in stdio.h).
+ */
+#define dprintf(level, x...) do { if ((level) <= LK_DEBUGLEVEL) { console_printf(x); } } while (0)
 
 /* systemwide halts */
 void panic(const char *fmt, ...) __PRINTFLIKE(1, 2) __NO_RETURN;

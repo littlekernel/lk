@@ -25,8 +25,11 @@
 
 // Default output function is the printf
 static _printf_engine_output_func out_func = _fprintf_output_func;
-// Buffer the argument to be sent to the output function
-static void *out_func_arg = stdout;
+// Buffer the argument to be sent to the output function.
+// NULL means "resolve stdout at call time", which is both what a static
+// initializer cannot express (stdout may be a function call) and the behavior
+// we want, so that test output follows the calling thread's stdout binding.
+static void *out_func_arg = NULL;
 
 /**
  * \brief Function called to dump results
@@ -37,7 +40,7 @@ void unittest_printf (const char *format, ...) {
     va_list ap;
     va_start (ap, format);
 
-    _printf_engine(out_func, out_func_arg, format, ap);
+    _printf_engine(out_func, out_func_arg ? out_func_arg : (void *)stdout, format, ap);
 
     va_end(ap);
 }

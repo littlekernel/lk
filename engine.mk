@@ -363,8 +363,14 @@ include top/rules.mk
 include make/recurse.mk
 
 # Console output knobs. Resolved here, after modules have been recursed, so that
-# a module can ask for a feature it needs regardless of the order modules
-# happen to be included in.
+# a module can ask for a feature it needs (app/telnetd sets WITH_THREAD_STDOUT)
+# regardless of the order modules happen to be included in.
+
+# Should stdin/stdout resolve through a per thread binding rather than always
+# being the console? Costs two TLS slots per thread and an out of line call per
+# printf, and does nothing unless something rebinds them, so it defaults off.
+WITH_THREAD_STDOUT ?= 0
+GLOBAL_DEFINES += WITH_THREAD_STDOUT=$(WITH_THREAD_STDOUT)
 
 # Size of the per thread console line buffer used by lib/io to assemble whole
 # lines. Changes the layout of thread_t, so it has to be global. If left unset,

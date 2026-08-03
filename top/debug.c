@@ -22,11 +22,11 @@
 void panic(const char *fmt, ...) {
     console_set_panic_mode(true);
 
-    printf("panic (caller %p): ", __GET_CALLER());
+    console_printf("panic (caller %p): ", __GET_CALLER());
 
     va_list ap;
     va_start(ap, fmt);
-    vprintf(fmt, ap);
+    console_vprintf(fmt, ap);
     va_end(ap);
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
@@ -36,10 +36,10 @@ void assert_fail_msg(const char* file, int line, const char* expression, const c
     console_set_panic_mode(true);
 
     // Print the user message.
-    printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
+    console_printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
     va_list ap;
     va_start(ap, fmt);
-    vprintf(fmt, ap);
+    console_vprintf(fmt, ap);
     va_end(ap);
 
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
@@ -48,7 +48,7 @@ void assert_fail_msg(const char* file, int line, const char* expression, const c
 void assert_fail(const char* file, int line, const char* expression) {
     console_set_panic_mode(true);
 
-    printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
+    console_printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 

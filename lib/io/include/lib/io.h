@@ -55,11 +55,22 @@ typedef struct io_handle_hooks {
  * Because the buffer is per thread and the destination is not, each thread
  * tags its pending bytes with the handle they are headed for
  * (linebuffer_owner), and a write to a *different* handle flushes what's
- * pending first -- otherwise a partial line held for one handle would have the
- * next handle's output appended to it and the whole spliced line delivered to
- * whichever of the two happened to complete it. When only one line buffered
- * handle exists the switch never fires, at a cost of one pointer per thread
- * and one well predicted compare per write.
+ * pending first. That case is ordinary rather than exotic: with
+ * WITH_THREAD_STDOUT a shell thread's printf goes to its session while
+ * dprintf/TRACEF deliberately go to the console, so
+ *
+ *     printf("checking foo: ");   // partial line, no newline yet
+ *     err = do_thing();           // callee LTRACEFs -> console
+ *
+ * would otherwise append the trace text to "checking foo: " in the same buffer
+ * and deliver the whole spliced line to whichever handle happened to complete
+ * it. The session would silently never see its own output -- output landing at
+ * the wrong destination, which is worse to debug than interleaving.
+ *
+ * NOTE: none of this can be compiled out when WITH_THREAD_STDOUT is off. The
+ * trigger is any two handles carrying this flag, which any module may create.
+ * When only one such handle exists the switch simply never fires, at a cost of
+ * one pointer per thread and one well predicted compare per write.
  *
  * Contexts that cannot own the buffer (interrupt handlers, and anything holding
  * a spinlock -- see io_linebuffer_owner() in io.c) bypass it and write straight

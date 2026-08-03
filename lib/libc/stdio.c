@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <platform/debug.h>
+#if WITH_THREAD_STDOUT
+#include <kernel/thread.h>
+#endif
 
 #if defined(WITH_LIB_FS)
 #define STDIO_FIELDS .use_fs = false,
@@ -34,6 +37,75 @@ FILE __stdio_FILEs[3] = {
     DEFINE_STDIO_DESC(2), /* stderr */
 };
 #undef DEFINE_STDIO_DESC
+
+#if WITH_THREAD_STDOUT
+
+/* May the calling context use the current thread's stdio binding?
+ *
+ * Interrupt handlers run on whatever thread they interrupted, so honoring that
+ * thread's binding would send kernel output into, for example, a shell's
+ * network session -- from interrupt context, where writing to a socket is not
+ * even legal. arch_ints_disabled() is the portable superset of "in an interrupt
+ * handler or holding a spinlock", and neither should follow a redirect.
+ */
+static inline FILE *thread_stdio_binding(uint entry) {
+    if (unlikely(arch_ints_disabled())) {
+        return NULL;
+    }
+
+    thread_t *t = get_current_thread();
+    if (unlikely(!t || t->magic != THREAD_MAGIC)) {
+        /* too early in boot to have a thread, or a bad thread pointer */
+        return NULL;
+    }
+
+    return (FILE *)t->tls[entry];
+}
+
+FILE *__stdout(void) {
+    FILE *fp = thread_stdio_binding(TLS_ENTRY_STDOUT);
+    return likely(!fp) ? console_stdout : fp;
+}
+
+FILE *__stdin(void) {
+    FILE *fp = thread_stdio_binding(TLS_ENTRY_STDIN);
+    return likely(!fp) ? console_stdin : fp;
+}
+
+FILE *set_thread_stdout(FILE *fp) {
+    /* Push out anything the outgoing binding has buffered before switching
+     * away. Note this is two separate buffers: whatever the bound FILE itself
+     * buffers, and this thread's console line buffer, which only ever holds
+     * console output (from dprintf and friends) and so is not reachable through
+     * stdout while a redirect is in effect.
+     */
+    fflush(stdout);
+    console_flush_linebuffer();
+
+    FILE *old = (FILE *)tls_set(TLS_ENTRY_STDOUT, (uintptr_t)fp);
+    return old;
+}
+
+FILE *set_thread_stdin(FILE *fp) {
+    return (FILE *)tls_set(TLS_ENTRY_STDIN, (uintptr_t)fp);
+}
+
+#if !DISABLE_DEBUG_OUTPUT
+int console_vprintf(const char *fmt, va_list ap) {
+    return vfprintf(console_stdout, fmt, ap);
+}
+
+int console_printf(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int err = console_vprintf(fmt, ap);
+    va_end(ap);
+
+    return err;
+}
+#endif // !DISABLE_DEBUG_OUTPUT
+
+#endif // WITH_THREAD_STDOUT
 
 FILE *fopen(const char *filename, const char *mode) {
 #if defined(WITH_LIB_FS)

@@ -38,9 +38,40 @@ typedef struct FILE {
 
 extern FILE __stdio_FILEs[];
 
-#define stdin  (&__stdio_FILEs[0])
-#define stdout (&__stdio_FILEs[1])
-#define stderr (&__stdio_FILEs[2])
+/* The console's own stdin/stdout/stderr. These never follow any per thread
+ * redirection, so kernel diagnostics can always find the real console.
+ */
+#define console_stdin  (&__stdio_FILEs[0])
+#define console_stdout (&__stdio_FILEs[1])
+#define console_stderr (&__stdio_FILEs[2])
+
+#if WITH_THREAD_STDOUT
+
+/* With per thread stdout enabled, stdin/stdout resolve through the calling
+ * thread's binding (see set_thread_stdout()), falling back to the console for
+ * threads that haven't bound anything, and for any output from interrupt or
+ * spinlock context.
+ */
+FILE *__stdout(void);
+FILE *__stdin(void);
+
+#define stdin  (__stdin())
+#define stdout (__stdout())
+#define stderr (__stdout())
+
+/* Bind the calling thread's stdout/stdin. Passing NULL restores the console.
+ * Returns the previous binding. Threads created afterwards inherit it.
+ */
+FILE *set_thread_stdout(FILE *fp);
+FILE *set_thread_stdin(FILE *fp);
+
+#else // !WITH_THREAD_STDOUT
+
+#define stdin  console_stdin
+#define stdout console_stdout
+#define stderr console_stderr
+
+#endif // WITH_THREAD_STDOUT
 
 #define EOF (-1)
 
@@ -81,6 +112,25 @@ static inline int vprintf(const char *fmt, va_list ap) { return 0; }
 
 int fprintf(FILE *fp, const char *fmt, ...) __PRINTFLIKE(2, 3);
 int vfprintf(FILE *fp, const char *fmt, va_list ap);
+
+/* Print to the kernel console, bypassing any per thread stdout redirection.
+ * The kernel's diagnostic macros (dprintf, TRACEF, LTRACEF) and the panic path
+ * use these, so that kernel output stays on the console rather than following
+ * a shell thread into, say, a network session that may go away.
+ */
+#if WITH_THREAD_STDOUT
+#if !DISABLE_DEBUG_OUTPUT
+int console_printf(const char *fmt, ...) __PRINTFLIKE(1, 2);
+int console_vprintf(const char *fmt, va_list ap);
+#else
+static inline int __PRINTFLIKE(1, 2) console_printf(const char *fmt, ...) { return 0; }
+static inline int console_vprintf(const char *fmt, va_list ap) { return 0; }
+#endif
+#else
+/* without per thread stdout there is nothing to bypass */
+#define console_printf(x...) printf(x)
+#define console_vprintf(fmt, ap) vprintf(fmt, ap)
+#endif
 
 int sprintf(char *str, const char *fmt, ...) __PRINTFLIKE(2, 3);
 int snprintf(char *str, size_t len, const char *fmt, ...) __PRINTFLIKE(3, 4);
