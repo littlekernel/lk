@@ -157,6 +157,20 @@ void console_flush_linebuffer(void);
 #define CONSOLE_SERIALIZE_OUTPUT 1
 #endif
 
+/* Size of the asynchronous console output ring, or 0 to write synchronously.
+ *
+ * With a ring, the print lock is only held long enough to memcpy into it, and a
+ * dedicated thread does the slow work (uart, framebuffer console) with
+ * interrupts enabled. That buys back the interrupts-off window that
+ * CONSOLE_SERIALIZE_OUTPUT costs, in exchange for this much memory plus a
+ * thread, so it is opt in per project rather than on by default.
+ *
+ * Must be a power of two.
+ */
+#ifndef CONSOLE_RING_SIZE
+#define CONSOLE_RING_SIZE 0
+#endif
+
 #ifndef CONSOLE_HAS_INPUT_BUFFER
 #define CONSOLE_HAS_INPUT_BUFFER 0
 #endif

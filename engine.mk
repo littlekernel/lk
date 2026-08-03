@@ -386,6 +386,13 @@ endif
 CONSOLE_SERIALIZE_OUTPUT ?= 1
 GLOBAL_DEFINES += CONSOLE_SERIALIZE_OUTPUT=$(CONSOLE_SERIALIZE_OUTPUT)
 
+# Size of the asynchronous console output ring, or 0 for synchronous writes.
+# With a ring the print lock is only held for a memcpy and a dedicated thread
+# does the slow uart work with interrupts on. Costs the ring plus a thread, so
+# it is opt in. Must be a power of two.
+CONSOLE_RING_SIZE ?= 0
+GLOBAL_DEFINES += CONSOLE_RING_SIZE=$(CONSOLE_RING_SIZE)
+
 # add some automatic configuration defines
 GLOBAL_DEFINES += \
 	PROJECT_$(PROJECT)=1 \
