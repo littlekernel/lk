@@ -3,5 +3,6 @@
 MODULES += \
     lib/minip \
     app/inetsrv \
-    app/irc
+    app/irc \
+    app/telnetd
 
