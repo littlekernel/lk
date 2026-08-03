@@ -362,6 +362,24 @@ include top/rules.mk
 # modules in the ALLMODULES list
 include make/recurse.mk
 
+# Console output knobs. Resolved here, after modules have been recursed, so that
+# a module can ask for a feature it needs regardless of the order modules
+# happen to be included in.
+
+# Size of the per thread console line buffer used by lib/io to assemble whole
+# lines. Changes the layout of thread_t, so it has to be global. If left unset,
+# kernel/thread.h defaults it based on whether this is an SMP build.
+ifneq ($(THREAD_LINEBUFFER_SIZE),)
+GLOBAL_DEFINES += THREAD_LINEBUFFER_SIZE=$(THREAD_LINEBUFFER_SIZE)
+endif
+
+# Serialize console output with a spinlock so a write emerges atomically with
+# respect to other cpus and to interrupt handlers. Costs an interrupts-off
+# window for the duration of the write; set to 0 to get the historical
+# unserialized behavior back on latency sensitive targets.
+CONSOLE_SERIALIZE_OUTPUT ?= 1
+GLOBAL_DEFINES += CONSOLE_SERIALIZE_OUTPUT=$(CONSOLE_SERIALIZE_OUTPUT)
+
 # add some automatic configuration defines
 GLOBAL_DEFINES += \
 	PROJECT_$(PROJECT)=1 \

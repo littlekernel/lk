@@ -23,6 +23,7 @@
 #include <kernel/mp.h>
 #include <kernel/timer.h>
 #include <lib/heap.h>
+#include <lib/io.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/list.h>
@@ -390,6 +391,11 @@ void thread_exit(int retcode) {
     DEBUG_ASSERT(!thread_is_idle(current_thread));
 
 //  dprintf("thread_exit: current %p\n", current_thread);
+
+    /* push out any partial line we've accumulated, before the thread struct
+     * (and with it the line buffer) potentially goes away
+     */
+    console_flush_linebuffer();
 
     THREAD_LOCK(state);
     (void)state; /* silence unused variable warning */

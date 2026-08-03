@@ -156,6 +156,15 @@ size_t fwrite(const void *ptr, size_t size, size_t count, FILE *stream) {
 }
 
 int fflush(FILE *stream) {
+#if defined(WITH_LIB_FS)
+    if (stream->use_fs) {
+        // TODO: push a filesystem flush through here once lib/fs has one
+        return 0;
+    }
+#endif // WITH_LIB_FS
+    if (io_flush(stream->io) < 0) {
+        return EOF;
+    }
     return 0;
 }
 

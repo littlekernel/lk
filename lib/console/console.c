@@ -273,6 +273,13 @@ static int read_debug_line(const char **outbuffer, void *cookie) {
     char *buffer = con->debug_buffer;
 
     for (;;) {
+        /* Push out the prompt and any echoed characters before we block waiting
+         * for input. Console output is assembled a line at a time, and none of
+         * the interactive output here ends in a newline, so without this the
+         * prompt and echo would not appear until the user hit return.
+         */
+        fflush(stdout);
+
         /* loop until we get a char */
         int c;
         if ((c = getchar()) < 0)
@@ -756,6 +763,10 @@ console_t *console_create(bool with_history) {
     mutex_init(&con->lock);
     con->echo = true;
     con->debug_buffer = malloc(LINE_LEN);
+    if (!con->debug_buffer) {
+        free(con);
+        return NULL;
+    }
 
     return con;
 }

@@ -10,6 +10,10 @@ MODULE_DEPS := \
 MODULE_DEFINES += \
 	CONSOLE_OUTPUT_TO_PLATFORM_PUTC=$(CONSOLE_OUTPUT_TO_PLATFORM_PUTC)
 
+# NOTE: CONSOLE_SERIALIZE_OUTPUT is resolved globally in engine.mk rather than
+# here, because it describes behavior other modules can observe and so must not
+# be module scoped.
+
 MODULE_SRCS += \
    $(LOCAL_DIR)/console.c \
    $(LOCAL_DIR)/io.c \

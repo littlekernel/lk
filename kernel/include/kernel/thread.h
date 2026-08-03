@@ -73,6 +73,24 @@ struct thread_specific_stats {
 };
 #endif
 
+// Size of the per-thread console line buffer. lib/io assembles console output
+// into it and hands the sink a whole line at a time, so that output from
+// different cpus cannot interleave in the middle of a line.
+//
+// Costs this many bytes in every thread struct, so it defaults off on non-SMP
+// targets, where there is no other cpu to interleave with and interrupt context
+// bypasses the buffer anyway.
+//
+// NOTE: this must be set globally (GLOBAL_DEFINES), never per module, since it
+// changes the size and layout of thread_t.
+#ifndef THREAD_LINEBUFFER_SIZE
+#if WITH_SMP
+#define THREAD_LINEBUFFER_SIZE 256
+#else
+#define THREAD_LINEBUFFER_SIZE 0
+#endif
+#endif
+
 typedef struct thread {
     uint32_t magic;
     struct list_node thread_list_node;
@@ -112,6 +130,15 @@ typedef struct thread {
 
     // thread local storage
     uintptr_t tls[MAX_TLS_ENTRY];
+
+#if THREAD_LINEBUFFER_SIZE > 0
+    // Storage for console output line assembly. Entirely owned and driven by
+    // lib/io; see IO_HANDLE_FLAG_LINE_BUFFERED in lib/io.h for what these mean
+    // and why they live per thread.
+    size_t linebuffer_pos;
+    struct io_handle *linebuffer_owner;
+    char linebuffer[THREAD_LINEBUFFER_SIZE];
+#endif
 
     char name[32];
 
