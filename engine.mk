@@ -276,6 +276,23 @@ $(info LINKER_TYPE=$(LINKER_TYPE))
 COMPILER_TYPE := $(shell $(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
 $(info COMPILER_TYPE=$(COMPILER_TYPE))
 
+# Find libgcc.a (or equivalent) for this compiler/multilib combination.
+# This must happen here, now that CC/TOOLCHAIN are fully resolved above --
+# under TOOLCHAIN=clang this lets Clang report its own runtime library for
+# targets where it has one; otherwise fall back to querying a matching
+# cross GCC. (arch/*/rules.mk, included earlier, sets ARCH_COMPILEFLAGS and
+# friends used below to select the right multilib variant.)
+LIBGCC ?= $(shell $(CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) $(THUMBCFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name 2>/dev/null)
+ifeq ($(wildcard $(LIBGCC)),)
+LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) $(THUMBCFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name 2>/dev/null)
+endif
+# Freeze the result: without this, LIBGCC (set via ?=, a recursively-expanded
+# variable) would re-run the shell command above on every later reference,
+# against whatever GLOBAL_COMPILEFLAGS/ARCH_COMPILEFLAGS happen to look like
+# at that point (more warning/ABI flags are appended below), which is both
+# wasteful and fragile.
+LIBGCC := $(strip $(LIBGCC))
+
 # Optional link-time optimization: off, thin, or full.
 # thin is Clang/lld-only (ThinLTO); GCC has no equivalent mode yet.
 LTO_MODE ?= off

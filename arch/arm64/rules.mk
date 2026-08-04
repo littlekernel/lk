@@ -108,12 +108,6 @@ ARCH_COMPILEFLAGS_FLOAT :=
 
 ARCH_LDFLAGS += -z max-page-size=$(ARM64_PAGE_SIZE)
 
-LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
-LIBGCC ?= $(shell $(LIBGCC_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name 2>/dev/null)
-ifeq ($(wildcard $(LIBGCC)),)
-LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name 2>/dev/null)
-endif
-
 # make sure some bits were set up
 MEMVARS_SET := 0
 ifneq ($(MEMBASE),)

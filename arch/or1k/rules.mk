@@ -35,10 +35,6 @@ ARCH_OPTFLAGS ?= -O2
 
 ARCH_LDFLAGS += -relax
 
-LIBGCC_CC := $(if $(CC),$(CC),$(TOOLCHAIN_PREFIX)gcc)
-LIBGCC := $(shell $(LIBGCC_CC) -print-libgcc-file-name 2>/dev/null || $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) -print-libgcc-file-name)
-$(info LIBGCC = $(LIBGCC))
-
 KERNEL_BASE ?= $(MEMBASE)
 KERNEL_LOAD_OFFSET ?= 0
 
