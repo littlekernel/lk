@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#if !defined(MEMSIZE) || MEMSIZE >= (128 * 1024)
+#if MEMSIZE >= (128 * 1024)
 #define HEAP_TEST_LARGE_ALLOCATIONS     1
 #define HEAP_TEST_MEMALIGN_MAX_ALIGN    4096
 #define HEAP_TEST_MEMALIGN_SIZE         64

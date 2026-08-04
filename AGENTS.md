@@ -327,6 +327,14 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 - Goes into `$(BUILDDIR)/config.h` (auto-generated, auto-included)
 - Example: `GLOBAL_DEFINES += WITH_SMP=1 SMP_MAX_CPUS=8`
 - Common defines: `MEMBASE`, `MEMSIZE`, `KERNEL_BASE`, `IS_64BIT`, `WITH_KERNEL_VM`
+- `LK_EMBEDDED` — boolean (0/1), always defined. Set `:= 1` (not `?=`) in the
+  platform/target rules.mk layer that decides `MEMSIZE`, when every build variant has
+  RAM well under ~1MB. Distinct from `ARCH_ARM_EMBEDDED`/`ARCH_RISCV_EMBEDDED`, which
+  reflect ISA/codegen choices (arch-scoped), not RAM budget — never derive one from
+  the other. Usage: bare `#if LK_EMBEDDED` / `#if !LK_EMBEDDED`, no `defined()`
+  needed. For thresholds finer than the binary tier, `MEMSIZE` is universally defined
+  (including x86, as a documented non-authoritative placeholder) and can be compared
+  numerically — see `lib/heap/test/heap_tests.c` for the pattern.
 
 ## Common Workflows
 

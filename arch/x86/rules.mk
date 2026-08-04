@@ -40,9 +40,18 @@ endif
 
 SUBARCH_BUILDDIR := $(call TOBUILDDIR,$(SUBARCH_DIR))
 
+# x86 has no static memory size (RAM is discovered at runtime via multiboot/e820).
+# This is a nominal placeholder solely so MEMSIZE is universally defined for
+# preprocessor use (see app/tests/benchmarks.c, lib/heap/test/heap_tests.c) - it is
+# NOT used by the linker (the x86 linker scripts have no %MEMSIZE% token) and must
+# not be read as authoritative. Keep it well above 1MB or x86 test builds silently
+# flip to the small-buffer branch in benchmarks.c.
+MEMSIZE ?= 0x08000000 # 128MB nominal placeholder, not authoritative
+
 GLOBAL_DEFINES += \
 	ARCH_$(SUBARCH)=1 \
 	MEMBASE=$(MEMBASE) \
+	MEMSIZE=$(MEMSIZE) \
 	KERNEL_BASE=$(KERNEL_BASE) \
 	KERNEL_LOAD_OFFSET=$(KERNEL_LOAD_OFFSET) \
 	KERNEL_ASPACE_BASE=$(KERNEL_ASPACE_BASE) \

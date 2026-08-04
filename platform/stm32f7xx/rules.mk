@@ -30,6 +30,8 @@ ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F7xx chip $(STM32_CHIP))
 endif
 
+LK_EMBEDDED := 1
+
 LK_HEAP_IMPLEMENTATION ?= miniheap
 
 GLOBAL_DEFINES += \

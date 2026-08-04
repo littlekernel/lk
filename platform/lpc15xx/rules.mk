@@ -19,6 +19,8 @@ ifeq ($(MEMSIZE),)
 $(error need to define MEMSIZE)
 endif
 
+LK_EMBEDDED := 1
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c \
 	$(LOCAL_DIR)/debug.c \

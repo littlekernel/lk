@@ -29,6 +29,8 @@ ifeq ($(MEMSIZE),)
 $(error need to define MEMSIZE)
 endif
 
+LK_EMBEDDED := 1
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/gpio.c \

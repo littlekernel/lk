@@ -22,12 +22,12 @@
 #include <sys/types.h>
 
 // quickly guess how big of a buffer we can try to allocate
-#if !defined(MEMSIZE) || MEMSIZE > (1024 * 1024)
-static const size_t BUFSIZE = (size_t)1024 * 1024;
-static const uint ITER = 1024;
-#else
+#if LK_EMBEDDED
 static const size_t BUFSIZE = (4 * 1024);
 static const uint ITER = 1024 * 32;
+#else
+static const size_t BUFSIZE = (size_t)1024 * 1024;
+static const uint ITER = 1024;
 #endif
 // Have to use a define to work around gcc 7.x bug where it thinks
 // BUFSIZE is not constant.

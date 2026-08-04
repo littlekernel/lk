@@ -29,6 +29,8 @@ MODULE_SRCS += $(LOCAL_DIR)/stage2.S
 MEMBASE ?= 0x400
 MEMSIZE ?= 0x7c800 # Target 512KB chip ram for now
 
+LK_EMBEDDED := 1
+
 # Optional useful defines
 GLOBAL_DEFINES += PLATFORM_SUPPORTS_PANIC_SHELL=1
 GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=1  # unless you add a real timer

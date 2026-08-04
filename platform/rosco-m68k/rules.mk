@@ -19,6 +19,8 @@ MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MEMBASE ?= 0x00002000 # 8k. Just off the end of firmware reserved areas
 MEMSIZE ?= 0x00100000 # 1MB
 
+LK_EMBEDDED := 1
+
 # relocate ourself from the load address (0x40000)
 GLOBAL_DEFINES += ARCH_DO_RELOCATION=1
 

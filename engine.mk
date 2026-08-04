@@ -182,6 +182,10 @@ DENY_MODULES :=
 # Build modules with unit tests enabled
 WITH_TESTS ?= false
 
+# Set to 1 by platform/target rules.mk for targets with RAM well under ~1MB, so
+# memory-hungry code (tests, etc) can size itself down or compile itself out.
+LK_EMBEDDED ?= 0
+
 # try to include the project file
 -include project/$(PROJECT).mk
 ifndef TARGET
@@ -372,6 +376,7 @@ GLOBAL_DEFINES += \
 	PLATFORM=\"$(PLATFORM)\" \
 	ARCH_$(ARCH)=1 \
 	ARCH=\"$(ARCH)\" \
+	LK_EMBEDDED=$(LK_EMBEDDED) \
 	$(addsuffix =1,$(addprefix WITH_,$(ALLMODULES)))
 
 # debug build?

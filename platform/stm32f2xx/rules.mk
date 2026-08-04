@@ -30,6 +30,8 @@ ifeq ($(FOUND_CHIP),)
 $(error unknown STM32F2xx chip $(STM32_CHIP))
 endif
 
+LK_EMBEDDED := 1
+
 GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 

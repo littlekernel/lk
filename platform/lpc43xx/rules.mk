@@ -9,6 +9,8 @@ MEMSIZE ?= 40960
 ARCH := arm
 ARM_CPU := cortex-m4
 
+LK_EMBEDDED := 1
+
 GLOBAL_DEFINES += \
 	MEMSIZE=$(MEMSIZE)
 
