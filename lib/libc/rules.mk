@@ -23,6 +23,20 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/strtol.c \
 	$(LOCAL_DIR)/strtoll.c \
 
+# Software fallbacks for 64-bit divide/mod and ARM EABI helper routines that
+# libgcc normally provides. Only build them when no usable libgcc was found
+# for this toolchain/multilib combination -- linking them unconditionally
+# would let their weak definitions satisfy the reference before the linker
+# ever reaches libgcc.a on the link line, silently replacing libgcc's
+# optimized routines with a much slower fallback. See LIBGCC resolution in
+# engine.mk.
+ifeq ($(wildcard $(LIBGCC)),)
+MODULE_SRCS += $(LOCAL_DIR)/compiler_rt_divmod.c
+ifeq ($(ARCH),arm)
+MODULE_SRCS += $(LOCAL_DIR)/eabi_libgcc_fallback.c
+endif
+endif
+
 MODULE_FLOAT_SRCS += \
 	$(LOCAL_DIR)/printf_float.c \
 	$(LOCAL_DIR)/atof.c \
