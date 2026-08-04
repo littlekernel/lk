@@ -18,7 +18,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain-ver: [14, 15, 16, 17, 18, 19, 20]
+        # Spot-check the version range rather than every consecutive release:
+        # 14 is the floor we claim to support, 18 is Ubuntu 24.04's own
+        # default clang, 20 is the newest available here.
+        toolchain-ver: [14, 18, 20]
         debug: [2, 0]
         project:
           # Clang toolchains do not ship a libgcc, but lib/libc carries a
@@ -92,6 +95,56 @@ jobs:
         ./scripts/uefi_unittest.exp
     - name: unittest
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
+      shell: bash
+      run: |
+        ./scripts/unittest.exp
+
+  # Separate from the build matrix above: LTO only needs spot-checking (one
+  # project, one toolchain version), not the full cross product. Kept as its
+  # own job rather than an `include:` entry in the build matrix, since an
+  # include entry that shares toolchain-ver/debug/project with an existing
+  # combination merges into that job instead of adding a new one -- two such
+  # entries (thin and full) would just clobber each other.
+  lto:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        lto: [thin, full]
+    env:
+      PROJECT: qemu-virt-arm64-test
+      TOOLCHAIN_VER: 20
+      DEBUG: 0
+      TOOLCHAIN: clang
+      LD: ld.lld
+      LTO_MODE: ${{ matrix.lto }}
+    steps:
+    - name: checkout
+      uses: actions/checkout@v6
+
+    - name: compute toolchain
+      shell: bash
+      run: |
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get update
+        sudo apt-get install -y clang-${{ env.TOOLCHAIN_VER }} lld-${{ env.TOOLCHAIN_VER }}
+        echo "CLANG_BINDIR=/usr/lib/llvm-${{ env.TOOLCHAIN_VER }}/bin" >> $GITHUB_ENV
+
+    - name: build
+      shell: bash
+      run: |
+        make -j $(nproc)
+
+    - name: qemu
+      shell: bash
+      run: |
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm expect
+
+    - name: uefi unittest
+      shell: bash
+      run: |
+        ./scripts/uefi_unittest.exp
+
+    - name: unittest
       shell: bash
       run: |
         ./scripts/unittest.exp
