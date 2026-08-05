@@ -15,8 +15,10 @@
 
 #include <kernel/port.h>
 
+#include <kernel/event.h>
 #include <kernel/init.h>
 #include <kernel/preempt.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -24,6 +26,30 @@
 #include <lk/pow2.h>
 #include <malloc.h>
 #include <string.h>
+
+// Ports have their own lock. It covers every field of every port object -- the
+// named write port list, group membership, the magics, and the circular buffers
+// -- and nothing else.
+//
+// Readers must not block holding it. This used to work with the thread lock
+// only because that lock is handed off across a context switch, so the incoming
+// thread drops it; a private lock has no such escape and a reader that blocked
+// while holding it would wedge every writer. So blocking is done on an event_t
+// with the port lock dropped, and the read is retried on wakeup. An event's
+// signaled state is sticky, which is what closes the window between dropping
+// the lock and blocking.
+//
+// Waking is done with the port lock *held*, so that a concurrent port_close()
+// cannot free the object out from under a signaler that has already sampled the
+// pointer. That makes the lock order port_lock -> wait queue, which is
+// consistent: nothing ever takes the port lock while holding a wait queue lock.
+// Waking under the lock does require preemption to be disabled around the
+// region, since an inline reschedule would switch away still holding a lock
+// nobody else is going to release.
+static spin_lock_t port_lock = SPIN_LOCK_INITIAL_VALUE;
+
+#define PORT_LOCK(state) arch_interrupt_saved_state_t state = spin_lock_irqsave(&port_lock)
+#define PORT_UNLOCK(state) spin_unlock_irqrestore(&port_lock, state)
 
 // write ports can be in two states, open and closed, which have a
 // different magic number.
@@ -59,7 +85,7 @@ typedef struct {
 
 typedef struct {
     int magic;
-    wait_queue_t wait;
+    event_t event;
     struct list_node rp_list;
 } port_group_t;
 
@@ -69,7 +95,7 @@ typedef struct {
     struct list_node g_node;
     port_buf_t *buf;
     void *ctx;
-    wait_queue_t wait;
+    event_t event;
     write_port_t *wport;
     port_group_t *gport;
 } read_port_t;
@@ -115,6 +141,15 @@ static status_t buf_read(port_buf_t *buf, port_result_t *pr) {
     return NO_ERROR;
 }
 
+// Wake every thread blocked on an event, rather than the single thread
+// event_signal() releases for an autounsignal event. The last call finds nobody
+// waiting and leaves the event signaled, so a reader that arrives afterwards
+// also gets to run and observe whatever changed.
+static void event_signal_all(event_t *ev) {
+    while (event_signal(ev) > 0)
+        ;
+}
+
 // must be called before any use of ports.
 void port_init(void) {
     list_initialize(&write_port_list);
@@ -142,14 +177,14 @@ status_t port_create(const char *name, port_mode_t mode, port_t *port) {
 
     // lookup for existing port, return that if found.
     write_port_t *wp = NULL;
-    THREAD_LOCK(state1);
+    PORT_LOCK(state1);
     list_for_every_entry(&write_port_list, wp, write_port_t, node) {
         if (strcmp(wp->name, name) == 0) {
             // can't return closed or partial ports.
             if (wp->magic == WRITEPORT_MAGIC_X ||
                 wp->magic == PORTHOLD_MAGIC)
                 wp = NULL;
-            THREAD_UNLOCK(state1);
+            PORT_UNLOCK(state1);
             if (wp) {
                 *port = (void *) wp;
                 return ERR_ALREADY_EXISTS;
@@ -159,14 +194,14 @@ status_t port_create(const char *name, port_mode_t mode, port_t *port) {
         }
     }
     list_add_tail(&write_port_list, &stack_wp.node);
-    THREAD_UNLOCK(state1);
+    PORT_UNLOCK(state1);
 
     // not found, create the write port and the circular buffer.
     wp = calloc(1, sizeof(write_port_t));
     if (!wp) {
-        THREAD_LOCK(state2);
+        PORT_LOCK(state2);
         list_delete(&stack_wp.node);
-        THREAD_UNLOCK(state2);
+        PORT_UNLOCK(state2);
         return ERR_NO_MEMORY;
     }
 
@@ -178,19 +213,19 @@ status_t port_create(const char *name, port_mode_t mode, port_t *port) {
     wp->buf = make_buf(mode & PORT_MODE_BIG_BUFFER);
     if (!wp->buf) {
         free(wp);
-        THREAD_LOCK(state2);
+        PORT_LOCK(state2);
         list_delete(&stack_wp.node);
-        THREAD_UNLOCK(state2);
+        PORT_UNLOCK(state2);
         return ERR_NO_MEMORY;
     }
 
     // Avoid a name collision by swapping the temporary placeholder out of the
     // list for the actual port.
-    THREAD_LOCK(state2);
+    PORT_LOCK(state2);
     // Let's reserve a stack allocated entry then swap it for the allocated one.
     list_add_tail(&write_port_list, &wp->node);
     list_delete(&stack_wp.node);
-    THREAD_UNLOCK(state2);
+    PORT_UNLOCK(state2);
 
     *port = (void *)wp;
     return NO_ERROR;
@@ -206,7 +241,7 @@ status_t port_open(const char *name, void *ctx, port_t *port) {
         return ERR_NO_MEMORY;
 
     rp->magic = READPORT_MAGIC;
-    wait_queue_init(&rp->wait);
+    event_init(&rp->event, false, EVENT_FLAG_AUTOUNSIGNAL);
     rp->ctx = ctx;
 
     // |buf| might not be needed, but we always allocate outside the lock.
@@ -221,7 +256,7 @@ status_t port_open(const char *name, void *ctx, port_t *port) {
     // find the named write port and associate it with read port.
     status_t rc = ERR_NOT_FOUND;
 
-    THREAD_LOCK(state);
+    PORT_LOCK(state);
     write_port_t *wp = NULL;
     list_for_every_entry(&write_port_list, wp, write_port_t, node) {
         if (strcmp(wp->name, name) == 0 &&
@@ -253,7 +288,7 @@ status_t port_open(const char *name, void *ctx, port_t *port) {
             break;
         }
     }
-    THREAD_UNLOCK(state);
+    PORT_UNLOCK(state);
 
     free(buf);
 
@@ -282,12 +317,12 @@ status_t port_group(port_t *ports, size_t count, port_t *group) {
         return ERR_NO_MEMORY;
 
     pg->magic = PORTGROUP_MAGIC;
-    wait_queue_init(&pg->wait);
+    event_init(&pg->event, false, EVENT_FLAG_AUTOUNSIGNAL);
     list_initialize(&pg->rp_list);
 
     status_t rc = NO_ERROR;
 
-    THREAD_LOCK(state);
+    PORT_LOCK(state);
     for (size_t ix = 0; ix != count; ix++) {
         read_port_t *rp = (read_port_t *)ports[ix];
         if ((rp->magic != READPORT_MAGIC) || rp->gport) {
@@ -303,7 +338,7 @@ status_t port_group(port_t *ports, size_t count, port_t *group) {
         rp->gport = pg;
         list_add_tail(&pg->rp_list, &rp->g_node);
     }
-    THREAD_UNLOCK(state);
+    PORT_UNLOCK(state);
 
     if (rc == NO_ERROR) {
         *group = (port_t *)pg;
@@ -327,7 +362,10 @@ status_t port_group_add(port_t group, port_t port) {
         return ERR_BAD_HANDLE;
 
     status_t rc = NO_ERROR;
-    THREAD_LOCK(state);
+
+    // the signal below happens under the port lock, so preemption has to be off
+    preempt_disable();
+    PORT_LOCK(state);
 
     if (list_length(&pg->rp_list) == MAX_PORT_GROUP_COUNT) {
         rc = ERR_TOO_BIG;
@@ -338,11 +376,12 @@ status_t port_group_add(port_t group, port_t port) {
         // If the new read port being added has messages available, try to wake
         // any readers that might be present.
         if (!buf_is_empty(rp->buf)) {
-            wait_queue_wake_one(&pg->wait, NO_ERROR);
+            event_signal(&pg->event);
         }
     }
 
-    THREAD_UNLOCK(state);
+    PORT_UNLOCK(state);
+    preempt_enable();
 
     return rc;
 }
@@ -360,7 +399,7 @@ status_t port_group_remove(port_t group, port_t port) {
     if (rp->magic != READPORT_MAGIC || rp->gport != pg)
         return ERR_BAD_HANDLE;
 
-    THREAD_LOCK(state);
+    PORT_LOCK(state);
 
     bool found = false;
     read_port_t *current_rp;
@@ -371,7 +410,7 @@ status_t port_group_remove(port_t group, port_t port) {
     }
 
     if (!found) {
-        THREAD_UNLOCK(state);
+        PORT_UNLOCK(state);
         return ERR_BAD_HANDLE;
     }
 
@@ -382,7 +421,7 @@ status_t port_group_remove(port_t group, port_t port) {
     // port_group_add() would refuse to ever add this port to a group again.
     rp->gport = NULL;
 
-    THREAD_UNLOCK(state);
+    PORT_UNLOCK(state);
 
     return NO_ERROR;
 }
@@ -393,13 +432,13 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
 
     write_port_t *wp = (write_port_t *)port;
 
-    /* A single write can wake a thread on every attached read port. Batch them:
-     * with preemption disabled each wakeup only records that a reschedule is
-     * owed, and it is taken once below, after the lock is dropped. (It has to
-     * be after THREAD_UNLOCK -- rescheduling retakes the thread lock, and the
-     * spinlock is not recursive.)
+    /* A single write can wake a thread on every attached read port, and the
+     * signalling is done under the port lock. Preemption must be off for the
+     * whole region: an inline reschedule would switch away holding the port
+     * lock, which -- unlike the thread lock -- nobody else is going to release.
+     * It also batches the wakeups into a single reschedule at the end.
      *
-     * The reschedule is a thread_yield() rather than letting preempt_enable()
+     * That reschedule is a thread_yield() rather than letting preempt_enable()
      * do it, because ports deliberately hand the cpu to the reader: a preempt
      * puts the writer back at the head of the run queue, ahead of the reader it
      * just woke, so the reader would not run until this thread's quantum ran
@@ -407,10 +446,10 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
      */
     preempt_disable();
 
-    THREAD_LOCK(state);
+    PORT_LOCK(state);
     if (wp->magic != WRITEPORT_MAGIC_W) {
         // wrong port type.
-        THREAD_UNLOCK(state);
+        PORT_UNLOCK(state);
         (void)preempt_enable_no_resched();
         return ERR_BAD_HANDLE;
     }
@@ -431,17 +470,19 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
                 continue;
             }
 
+            // Prefer to wake a reader blocked on the group; only fall back to
+            // the port's own event if the group had nobody waiting.
             int awaken = 0;
             if (rp->gport) {
-                awaken = wait_queue_wake_one(&rp->gport->wait, NO_ERROR);
+                awaken = event_signal(&rp->gport->event);
             }
             if (!awaken) {
-                wait_queue_wake_one(&rp->wait, NO_ERROR);
+                event_signal(&rp->event);
             }
         }
     }
 
-    THREAD_UNLOCK(state);
+    PORT_UNLOCK(state);
 
     if (preempt_enable_no_resched()) {
         thread_yield();
@@ -450,57 +491,95 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
     return status;
 }
 
-static inline status_t read_no_lock(read_port_t *rp, lk_time_t timeout, port_result_t *result) {
+// Try to take one packet from a read port. Must be called with the port lock
+// held and preemption disabled; returns ERR_NO_MSG if the port is empty.
+static status_t try_read(read_port_t *rp, port_result_t *result) {
     status_t status = buf_read(rp->buf, result);
     result->ctx = rp->ctx;
 
-    if (status != ERR_NO_MSG)
+    if (status != NO_ERROR)
         return status;
 
-    // early return allows compiler to elide the rest for the group read case.
-    if (!timeout)
-        return ERR_TIMED_OUT;
+    // The event carries a single wakeup token no matter how many packets are
+    // queued, so if there is more left, hand a token to the next reader. Without
+    // this a second reader can sit blocked with data sitting in the buffer.
+    if (!buf_is_empty(rp->buf)) {
+        if (rp->gport) {
+            event_signal(&rp->gport->event);
+        }
+        event_signal(&rp->event);
+    }
 
-    status_t wr = wait_queue_block(&rp->wait, timeout);
-    if (wr != NO_ERROR)
-        return wr;
-    // recursive tail call is usually optimized away with a goto.
-    return read_no_lock(rp, timeout, result);
+    return NO_ERROR;
 }
 
 status_t port_read(port_t port, lk_time_t timeout, port_result_t *result) {
     if (!port || !result)
         return ERR_INVALID_ARGS;
 
-    status_t rc = ERR_GENERIC;
     read_port_t *rp = (read_port_t *)port;
 
-    THREAD_LOCK(state);
-    if (rp->magic == READPORT_MAGIC) {
-        // dealing with a single port.
-        rc = read_no_lock(rp, timeout, result);
-    } else if (rp->magic == PORTGROUP_MAGIC) {
-        // dealing with a port group.
-        port_group_t *pg = (port_group_t *)port;
-        do {
-            // read each port with no timeout.
-            // todo: this order is fixed, probably a bad thing.
-            list_for_every_entry(&pg->rp_list, rp, read_port_t, g_node) {
-                rc = read_no_lock(rp, 0, result);
-                if (rc != ERR_TIMED_OUT)
-                    goto read_exit;
-            }
-            // no data, block on the group waitqueue.
-            rc = wait_queue_block(&pg->wait, timeout);
-        } while (rc == NO_ERROR);
-    } else {
-        // wrong port type.
-        rc = ERR_BAD_HANDLE;
-    }
+    for (;;) {
+        status_t rc;
+        event_t *ev;
 
-read_exit:
-    THREAD_UNLOCK(state);
-    return rc;
+        preempt_disable();
+        PORT_LOCK(state);
+
+        if (rp->magic == READPORT_MAGIC) {
+            // dealing with a single port.
+            rc = try_read(rp, result);
+            // a destroyed write port cancels its readers, but only once they
+            // have drained whatever was already buffered.
+            if (rc == ERR_NO_MSG && !rp->wport) {
+                rc = ERR_CANCELLED;
+            }
+            ev = &rp->event;
+        } else if (rp->magic == PORTGROUP_MAGIC) {
+            // dealing with a port group. read each member in turn.
+            // todo: this order is fixed, probably a bad thing.
+            port_group_t *pg = (port_group_t *)port;
+            bool cancelled = false;
+            read_port_t *crp;
+
+            rc = ERR_NO_MSG;
+            list_for_every_entry(&pg->rp_list, crp, read_port_t, g_node) {
+                rc = try_read(crp, result);
+                if (rc != ERR_NO_MSG)
+                    break;
+                if (!crp->wport)
+                    cancelled = true;
+            }
+            if (rc == ERR_NO_MSG && cancelled) {
+                rc = ERR_CANCELLED;
+            }
+            ev = &pg->event;
+        } else {
+            // wrong port type.
+            rc = ERR_BAD_HANDLE;
+            ev = NULL;
+        }
+
+        PORT_UNLOCK(state);
+        preempt_enable();
+
+        if (rc != ERR_NO_MSG)
+            return rc;
+        if (!timeout)
+            return ERR_TIMED_OUT;
+
+        // Nothing to read. Block outside the port lock -- the event's signaled
+        // state is sticky, so a write that lands between the unlock above and
+        // the wait below is not lost, it just makes the wait return at once and
+        // the read is retried.
+        //
+        // Note the caller's full timeout is used on every pass, so a stream of
+        // spurious wakeups can extend the total wait. That matches what the
+        // wait_queue version did.
+        status_t wr = event_wait_timeout(ev, timeout);
+        if (wr != NO_ERROR)
+            return wr;
+    }
 }
 
 status_t port_destroy(port_t port) {
@@ -510,18 +589,15 @@ status_t port_destroy(port_t port) {
     write_port_t *wp = (write_port_t *) port;
     port_buf_t *buf = NULL;
 
-    /* The wakes below happen in the middle of walking wp->rp_list. They must not
-     * reschedule inline: a context switch hands the thread lock to the incoming
-     * thread, and a woken reader is then free to port_close() the read port we
-     * are standing on, leaving the iterator pointing at freed memory. Defer the
-     * reschedule until after the walk and the unlock.
+    /* The wakes below happen under the port lock and in the middle of walking
+     * wp->rp_list, so preemption has to be off across the whole region.
      */
     preempt_disable();
 
-    THREAD_LOCK(state);
+    PORT_LOCK(state);
     if (wp->magic != WRITEPORT_MAGIC_X) {
         // wrong port type.
-        THREAD_UNLOCK(state);
+        PORT_UNLOCK(state);
         preempt_enable();
         return ERR_BAD_HANDLE;
     }
@@ -535,18 +611,18 @@ status_t port_destroy(port_t port) {
         // for each reader:
         read_port_t *rp;
         list_for_every_entry(&wp->rp_list, rp, read_port_t, w_node) {
-            // wake the read and group ports.
-            wait_queue_wake_all(&rp->wait, ERR_CANCELLED);
-            if (rp->gport) {
-                wait_queue_wake_all(&rp->gport->wait, ERR_CANCELLED);
-            }
-            // remove self from reader ports.
+            // Detach the reader first, then wake it. A reader that finds its
+            // write port gone and nothing left to read returns ERR_CANCELLED.
             rp->wport = NULL;
+            event_signal_all(&rp->event);
+            if (rp->gport) {
+                event_signal_all(&rp->gport->event);
+            }
         }
     }
 
     wp->magic = 0;
-    THREAD_UNLOCK(state);
+    PORT_UNLOCK(state);
 
     preempt_enable();
 
@@ -562,7 +638,11 @@ status_t port_close(port_t port) {
     read_port_t *rp = (read_port_t *) port;
     port_buf_t *buf = NULL;
 
-    THREAD_LOCK(state);
+    /* event_destroy() wakes waiters from under the port lock, so preemption has
+     * to be off for the same reason as everywhere else in this file. */
+    preempt_disable();
+
+    PORT_LOCK(state);
     if (rp->magic == READPORT_MAGIC) {
         // dealing with a read port.
         if (rp->wport) {
@@ -580,14 +660,14 @@ status_t port_close(port_t port) {
             list_delete(&rp->g_node);
         }
         // wake up waiters, the return code is ERR_OBJECT_DESTROYED.
-        wait_queue_destroy(&rp->wait);
+        event_destroy(&rp->event);
         rp->magic = 0;
 
     } else if (rp->magic == PORTGROUP_MAGIC) {
         // dealing with a port group.
         port_group_t *pg = (port_group_t *) port;
         // wake up waiters.
-        wait_queue_destroy(&pg->wait);
+        event_destroy(&pg->event);
         // remove self from reader ports.
         rp = NULL;
         list_for_every_entry(&pg->rp_list, rp, read_port_t, g_node) {
@@ -600,15 +680,18 @@ status_t port_close(port_t port) {
         write_port_t *wp = (write_port_t *) port;
         // mark it as closed. Now it can be read but not written to.
         wp->magic = WRITEPORT_MAGIC_X;
-        THREAD_UNLOCK(state);
+        PORT_UNLOCK(state);
+        preempt_enable();
         return NO_ERROR;
 
     } else {
-        THREAD_UNLOCK(state);
+        PORT_UNLOCK(state);
+        preempt_enable();
         return ERR_BAD_HANDLE;
     }
 
-    THREAD_UNLOCK(state);
+    PORT_UNLOCK(state);
+    preempt_enable();
 
     free(buf);
     free(port);
