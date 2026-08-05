@@ -11,6 +11,7 @@
 #include <lk/trace.h>
 #include <assert.h>
 #include <kernel/thread.h>
+#include <kernel/preempt.h>
 #include <target.h>
 
 #define LOCAL_TRACE 0
@@ -148,11 +149,13 @@ void m68k_irq(m68k_iframe_t *frame) {
 
     target_set_debug_led(1, true);
 
+    preempt_disable();
     enum handler_return ret = m68k_platform_irq(code);
+    bool need = preempt_enable_no_resched();
 
     target_set_debug_led(1, false);
 
-    if (ret == INT_RESCHEDULE) {
+    if (ret == INT_RESCHEDULE || need) {
         thread_preempt();
     }
 }

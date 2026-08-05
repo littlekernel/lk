@@ -112,8 +112,16 @@ add sp, sp, #32
 .macro irq_exception
     regsave_short
     msr daifclr, #1 /* reenable fiqs once elr and spsr have been saved */
+    bl  preempt_disable
     mov x0, sp
     bl  platform_irq
+    /* Stash platform_irq's handler_return across the call below, which returns
+     * its own value in x0. Reschedule if either asks for it. x19-x28 are not
+     * saved by regsave_short, so round-trip through the stack instead. */
+    str x0, [sp, #-16]!
+    bl  preempt_enable_no_resched
+    ldr x1, [sp], #16
+    orr x0, x0, x1
     cbz x0, .Lirq_exception_no_preempt\@
     bl  thread_preempt
 .Lirq_exception_no_preempt\@:

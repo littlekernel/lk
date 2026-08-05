@@ -8,6 +8,7 @@
  */
 #include <arch/fpu.h>
 #include <arch/x86.h>
+#include <kernel/preempt.h>
 #include <kernel/thread.h>
 #include <lk/backtrace.h>
 #include <lk/debug.h>
@@ -201,7 +202,12 @@ void x86_exception_handler(x86_iframe_t *frame) {
 
         /* pass the rest of the irq vectors to the platform */
         case 0x20 ... 255:
+            preempt_disable();
             ret = platform_irq(frame);
+            if (preempt_enable_no_resched()) {
+                ret = INT_RESCHEDULE;
+            }
+            break;
     }
 
     if (ret != INT_NO_RESCHEDULE) {

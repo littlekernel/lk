@@ -83,6 +83,8 @@ typedef struct thread {
     enum thread_state state;
     int remaining_quantum;
     unsigned int flags;
+    int preempt_disable_count;
+    bool pending_reschedule;
 #if WITH_SMP
     int curr_cpu;
     int pinned_cpu; // only run on pinned_cpu if >= 0
