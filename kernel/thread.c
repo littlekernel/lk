@@ -378,6 +378,13 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
 status_t thread_detach(thread_t *t) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
 
+    /* The wake below must not reschedule inline. A context switch inside the
+     * locked region hands the thread lock to the incoming thread, so a woken
+     * joiner would be free to run thread_join() to completion and free |t|
+     * before we get back to inspect it. Defer the reschedule past the unlock.
+     */
+    preempt_disable();
+
     THREAD_LOCK(state);
 
     /* if another thread is blocked inside thread_join() on this thread,
@@ -388,10 +395,12 @@ status_t thread_detach(thread_t *t) {
     if (t->state == THREAD_DEATH) {
         t->flags &= ~THREAD_FLAG_DETACHED; /* makes sure thread_join continues */
         THREAD_UNLOCK(state);
+        preempt_enable();
         return thread_join(t, NULL, 0);
     } else {
         t->flags |= THREAD_FLAG_DETACHED;
         THREAD_UNLOCK(state);
+        preempt_enable();
         return NO_ERROR;
     }
 }
@@ -439,8 +448,15 @@ void thread_exit(int retcode) {
             heap_delayed_free(current_thread);
         }
     } else {
-        /* signal if anyone is waiting */
+        /* Signal if anyone is waiting. This must not reschedule from inside the
+         * wake: doing so marks the current thread READY and puts it back on the
+         * run queue to be resumed later, undoing the THREAD_DEATH set above. We
+         * are about to reschedule explicitly and never come back, so drop the
+         * pending reschedule on the floor rather than acting on it.
+         */
+        preempt_disable();
         wait_queue_wake_all(&current_thread->retcode_wait_queue, 0);
+        (void)preempt_enable_no_resched();
     }
 
     /* reschedule */

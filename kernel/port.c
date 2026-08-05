@@ -395,9 +395,15 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
 
     /* A single write can wake a thread on every attached read port. Batch them:
      * with preemption disabled each wakeup only records that a reschedule is
-     * owed, and the preempt_enable() below takes it once, after the lock is
-     * dropped. (It must come after THREAD_UNLOCK -- preempt_enable() can call
-     * thread_preempt(), which retakes the thread lock.)
+     * owed, and it is taken once below, after the lock is dropped. (It has to
+     * be after THREAD_UNLOCK -- rescheduling retakes the thread lock, and the
+     * spinlock is not recursive.)
+     *
+     * The reschedule is a thread_yield() rather than letting preempt_enable()
+     * do it, because ports deliberately hand the cpu to the reader: a preempt
+     * puts the writer back at the head of the run queue, ahead of the reader it
+     * just woke, so the reader would not run until this thread's quantum ran
+     * out. Yielding puts the writer at the tail instead.
      */
     preempt_disable();
 
@@ -405,7 +411,7 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
     if (wp->magic != WRITEPORT_MAGIC_W) {
         // wrong port type.
         THREAD_UNLOCK(state);
-        preempt_enable();
+        (void)preempt_enable_no_resched();
         return ERR_BAD_HANDLE;
     }
 
@@ -437,7 +443,9 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
 
     THREAD_UNLOCK(state);
 
-    preempt_enable();
+    if (preempt_enable_no_resched()) {
+        thread_yield();
+    }
 
     return status;
 }
@@ -502,10 +510,19 @@ status_t port_destroy(port_t port) {
     write_port_t *wp = (write_port_t *) port;
     port_buf_t *buf = NULL;
 
+    /* The wakes below happen in the middle of walking wp->rp_list. They must not
+     * reschedule inline: a context switch hands the thread lock to the incoming
+     * thread, and a woken reader is then free to port_close() the read port we
+     * are standing on, leaving the iterator pointing at freed memory. Defer the
+     * reschedule until after the walk and the unlock.
+     */
+    preempt_disable();
+
     THREAD_LOCK(state);
     if (wp->magic != WRITEPORT_MAGIC_X) {
         // wrong port type.
         THREAD_UNLOCK(state);
+        preempt_enable();
         return ERR_BAD_HANDLE;
     }
     // remove self from global named ports list.
@@ -530,6 +547,8 @@ status_t port_destroy(port_t port) {
 
     wp->magic = 0;
     THREAD_UNLOCK(state);
+
+    preempt_enable();
 
     free(buf);
     free(wp);
