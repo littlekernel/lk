@@ -16,6 +16,7 @@
 #include <kernel/port.h>
 
 #include <kernel/init.h>
+#include <kernel/preempt.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -36,8 +37,6 @@
 
 #define PORT_BUFF_SIZE      8
 #define PORT_BUFF_SIZE_BIG 64
-
-#define RESCHEDULE_POLICY 1
 
 #define MAX_PORT_GROUP_COUNT 256
 
@@ -393,15 +392,24 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
         return ERR_INVALID_ARGS;
 
     write_port_t *wp = (write_port_t *)port;
+
+    /* A single write can wake a thread on every attached read port. Batch them:
+     * with preemption disabled each wakeup only records that a reschedule is
+     * owed, and the preempt_enable() below takes it once, after the lock is
+     * dropped. (It must come after THREAD_UNLOCK -- preempt_enable() can call
+     * thread_preempt(), which retakes the thread lock.)
+     */
+    preempt_disable();
+
     THREAD_LOCK(state);
     if (wp->magic != WRITEPORT_MAGIC_W) {
         // wrong port type.
         THREAD_UNLOCK(state);
+        preempt_enable();
         return ERR_BAD_HANDLE;
     }
 
     status_t status = NO_ERROR;
-    int awake_count = 0;
 
     if (wp->buf) {
         // there are no read ports, just write to the buffer.
@@ -422,19 +430,14 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
                 awaken = wait_queue_wake_one(&rp->gport->wait, false, NO_ERROR);
             }
             if (!awaken) {
-                awaken = wait_queue_wake_one(&rp->wait, false, NO_ERROR);
+                wait_queue_wake_one(&rp->wait, false, NO_ERROR);
             }
-
-            awake_count += awaken;
         }
     }
 
     THREAD_UNLOCK(state);
 
-#if RESCHEDULE_POLICY
-    if (awake_count)
-        thread_yield();
-#endif
+    preempt_enable();
 
     return status;
 }

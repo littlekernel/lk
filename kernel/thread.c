@@ -1236,22 +1236,23 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
         t->wait_queue_block_ret = wait_queue_error;
         t->blocking_wait_queue = NULL;
 
-        if (preempt_set_pending_if_disabled()) {
-            // If preemption was disabled, we can't reschedule now.
-            reschedule = false;
-        }
+        /* If preemption is disabled -- by an interrupt handler, or by a caller
+         * batching a run of wakeups -- just record that a reschedule is owed and
+         * let whoever reenables preemption take it. Otherwise switch now.
+         */
+        const bool resched_now = !preempt_set_pending_if_disabled();
 
-        /* if we're instructed to reschedule, stick the current thread on the head
+        /* if we're rescheduling, stick the current thread on the head
          * of the run queue first, so that the newly awakened thread gets a chance to run
          * before the current one, but the current one doesn't get unnecessarily punished.
          */
-        if (reschedule) {
+        if (resched_now) {
             current_thread->state = THREAD_READY;
             insert_in_run_queue_head(current_thread);
         }
         insert_in_run_queue_head(t);
         wakeup_cpu_for_thread(t);
-        if (reschedule) {
+        if (resched_now) {
             thread_resched();
         }
         ret = 1;
@@ -1296,14 +1297,15 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
         return 0;
     }
 
-    if (preempt_set_pending_if_disabled()) {
-        // If preemption was disabled, we can't reschedule now.
-        reschedule = false;
-    }
-    if (reschedule) {
-        /* if we're instructed to reschedule, stick the current thread on the head
-         * of the run queue first, so that the newly awakened threads get a chance to run
-         * before the current one, but the current one doesn't get unnecessarilly punished.
+    /* If preemption is disabled -- by an interrupt handler, or by a caller
+     * batching a run of wakeups -- just record that a reschedule is owed and
+     * let whoever reenables preemption take it. Otherwise switch now.
+     */
+    const bool resched_now = !preempt_set_pending_if_disabled();
+    if (resched_now) {
+        /* stick the current thread on the head of the run queue first, so that the
+         * newly awakened threads get a chance to run before the current one, but the
+         * current one doesn't get unnecessarilly punished.
          */
         current_thread->state = THREAD_READY;
         insert_in_run_queue_head(current_thread);
@@ -1331,7 +1333,7 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
 
     if (ret > 0) {
         mp_reschedule(cpu_mask, 0);
-        if (reschedule) {
+        if (resched_now) {
             thread_resched();
         }
     }
