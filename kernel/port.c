@@ -448,9 +448,10 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
 
     PORT_LOCK(state);
     if (wp->magic != WRITEPORT_MAGIC_W) {
-        // wrong port type.
+        // wrong port type. nothing was woken here, so take any reschedule an
+        // interrupt left owed rather than dropping it.
         PORT_UNLOCK(state);
-        (void)preempt_enable_no_resched();
+        preempt_enable();
         return ERR_BAD_HANDLE;
     }
 
@@ -576,6 +577,13 @@ status_t port_read(port_t port, lk_time_t timeout, port_result_t *result) {
         // Note the caller's full timeout is used on every pass, so a stream of
         // spurious wakeups can extend the total wait. That matches what the
         // wait_queue version did.
+        //
+        // |ev| is used after the lock is dropped, so another thread closing this
+        // port right here would free it underneath us. Ports are not refcounted
+        // and never have been -- closing a port another thread is reading has
+        // always been the caller's problem -- but note that the window is real
+        // now, where holding the thread lock across the block used to close it.
+        // Refcounting the objects is the fix if that ever needs to be robust.
         status_t wr = event_wait_timeout(ev, timeout);
         if (wr != NO_ERROR)
             return wr;
