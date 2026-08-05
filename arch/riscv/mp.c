@@ -58,8 +58,10 @@ status_t arch_mp_send_ipi(mp_cpu_mask_t target, mp_ipi_t ipi) {
             // record a pending hart to notify
             hart_mask |= (1ul << h);
 
-            // set the ipi_data based on the incoming ipi
-            atomic_or(&ipi_data[h], (1u << ipi));
+            // set the ipi_data based on the incoming ipi.
+            // NOTE: indexed by cpu number, not hart id, since that is how the
+            // receiving side (riscv_software_exception) reads it.
+            atomic_or(&ipi_data[c], (1u << ipi));
         }
     }
 
