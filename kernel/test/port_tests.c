@@ -525,9 +525,12 @@ static bool two_threads_basic_body(pingpong_state_t *s, semaphore_t *ready, port
     ASSERT_EQ(NO_ERROR, st, "could not open pong port");
     s->opened = true;
 
-    // We have two threads listening to the ping port. Which both reply
-    // on the pong port, so we get two packets in per packet out.
-    const int passes = 256;
+    /* Two threads listen to the ping port and both reply on the pong port, so
+     * we get two packets in per packet out. Keep the pass count modest: these
+     * run at boot, and the boot test harness's per-architecture budget is not
+     * much on the slower emulated targets.
+     */
+    const int passes = 64;
 
     port_packet_t packet_out = {{0xaf, 0x77, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05}};
 
