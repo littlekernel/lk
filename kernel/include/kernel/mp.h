@@ -5,6 +5,7 @@
 // https://opensource.org/licenses/MIT
 #pragma once
 
+#include <arch/atomic.h>
 #include <kernel/thread.h>
 #include <lk/compiler.h>
 #include <stdbool.h>
@@ -47,15 +48,30 @@ void mp_set_curr_cpu_active(bool active);
 enum handler_return mp_mbx_reschedule_irq(void);
 
 // Global mp state to track what the cpus are up to.
+//
+// All three masks are self-synchronizing: they are updated with atomic
+// read-modify-write operations and read with plain relaxed loads. No outside
+// lock is required, and in particular they are deliberately not covered by the
+// thread lock -- each bit is only ever set or cleared by the cpu it describes,
+// so there is no read-modify-write race to protect against, and every reader is
+// sampling a value that can go stale the instant it is read anyway.
 struct mp_state {
     volatile mp_cpu_mask_t active_cpus;
-
-    // only safely accessible with thread lock held
-    mp_cpu_mask_t idle_cpus;
-    mp_cpu_mask_t realtime_cpus;
+    volatile mp_cpu_mask_t idle_cpus;
+    volatile mp_cpu_mask_t realtime_cpus;
 };
 
 extern struct mp_state mp;
+
+// Helpers for the set/clear-a-bit pattern below. mp_cpu_mask_t is 32 bits wide,
+// which matches the int-based atomic ops on every architecture LK supports.
+static inline void mp_mask_set(volatile mp_cpu_mask_t *mask, uint cpu) {
+    atomic_or((volatile int *)mask, (int)(1U << cpu));
+}
+
+static inline void mp_mask_clear(volatile mp_cpu_mask_t *mask, uint cpu) {
+    atomic_and((volatile int *)mask, (int)~(1U << cpu));
+}
 
 // Active cpus are currently running any sort of thread, including idle threads.
 static inline bool mp_is_cpu_active(uint cpu) {
@@ -67,13 +83,12 @@ static inline bool mp_is_cpu_idle(uint cpu) {
     return mp.idle_cpus & (1UL << cpu);
 }
 
-// Must be called with the thread lock held.
 static inline void mp_set_cpu_idle(uint cpu) {
-    mp.idle_cpus |= 1UL << cpu;
+    mp_mask_set(&mp.idle_cpus, cpu);
 }
 
 static inline void mp_set_cpu_busy(uint cpu) {
-    mp.idle_cpus &= ~(1UL << cpu);
+    mp_mask_clear(&mp.idle_cpus, cpu);
 }
 
 static inline mp_cpu_mask_t mp_get_idle_mask(void) {
@@ -82,11 +97,11 @@ static inline mp_cpu_mask_t mp_get_idle_mask(void) {
 
 // Realtime cpus are currently running realtime threads.
 static inline void mp_set_cpu_realtime(uint cpu) {
-    mp.realtime_cpus |= 1UL << cpu;
+    mp_mask_set(&mp.realtime_cpus, cpu);
 }
 
 static inline void mp_set_cpu_non_realtime(uint cpu) {
-    mp.realtime_cpus &= ~(1UL << cpu);
+    mp_mask_clear(&mp.realtime_cpus, cpu);
 }
 
 static inline mp_cpu_mask_t mp_get_realtime_mask(void) {

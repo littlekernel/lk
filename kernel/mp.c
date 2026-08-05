@@ -46,7 +46,12 @@ void mp_reschedule(mp_cpu_mask_t target, uint flags) {
 }
 
 void mp_set_curr_cpu_active(bool active) {
-    atomic_or((volatile int *)&mp.active_cpus, 1U << arch_curr_cpu_num());
+    uint cpu = arch_curr_cpu_num();
+    if (active) {
+        mp_mask_set(&mp.active_cpus, cpu);
+    } else {
+        mp_mask_clear(&mp.active_cpus, cpu);
+    }
 }
 
 enum handler_return mp_mbx_reschedule_irq(void) {
