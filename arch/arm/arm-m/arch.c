@@ -10,6 +10,7 @@
 #include <arch/arm/cm.h>
 #include <arch/ops.h>
 #include <kernel/debug.h>
+#include <kernel/preempt.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <platform.h>
@@ -129,11 +130,20 @@ void arm_cm_irq_entry(void) {
     THREAD_STATS_INC(interrupts);
     KEVLOG_IRQ_ENTER(__get_IPSR());
 
+    /* Defer any reschedule caused by a wakeup inside the handler until irq exit. */
+    preempt_disable();
+
     target_set_debug_led(1, true);
 }
 
 void arm_cm_irq_exit(bool reschedule) {
     target_set_debug_led(1, false);
+
+    /* Reenable preemption. If a wakeup inside the handler deferred a reschedule,
+     * take it now in addition to whatever the handler itself asked for. */
+    if (preempt_enable_no_resched()) {
+        reschedule = true;
+    }
 
     if (reschedule) {
         thread_preempt();

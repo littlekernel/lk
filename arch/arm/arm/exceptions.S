@@ -209,7 +209,14 @@ FUNCTION(arm_irq)
     mov     r1, #1
     str     r1, [r2]
 
-    // TODO: add preempt_disable/enable around this
+    /* Defer any reschedule caused by a wakeup inside the handler until irq exit.
+     * r0 holds the iframe pointer that platform_irq needs and preempt_disable()
+     * is free to clobber r0-r3, so save it across the call. r4-r11 are not saved
+     * in the iframe, so a callee-saved register is not available here; the
+     * register pair keeps sp 8 byte aligned. */
+    push    { r0, r1 }
+    bl      preempt_disable
+    pop     { r0, r1 }
 
     /* call into higher level code */
     bl  platform_irq
@@ -219,8 +226,15 @@ FUNCTION(arm_irq)
     mov     r2, #0
     str     r2, [r1]
 
-    /* reschedule if the handler returns nonzero */
-    cmp     r0, #0
+    /* Reenable preemption. preempt_enable_no_resched() returns its own value in
+     * r0, so stash platform_irq's handler_return across the call and reschedule
+     * if either of them asks for it. */
+    push    { r0, r1 }
+    bl      preempt_enable_no_resched
+    pop     { r1, r2 }
+    orrs    r0, r0, r1
+
+    /* reschedule if the handler returned nonzero or a wakeup was deferred */
     blne    thread_preempt
 
     restore

@@ -55,6 +55,7 @@ static inline uint32_t cpe0_wait_irq(void) {
 
 void ti_cc_rfc_cpe_1_irq(void) {
     arm_cm_irq_entry();
+    arm_cm_irq_exit(false);
 }
 
 void ti_cc_rfc_cmd_ack_irq(void) {
