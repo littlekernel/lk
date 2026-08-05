@@ -184,7 +184,7 @@ static enum handler_return virtio_9p_irq_driver_callback(
     spin_unlock(&p9dev->lock);
 
     /* wake up the rpc */
-    event_signal(&req->io_event, false);
+    event_signal(&req->io_event);
 
     return INT_RESCHEDULE;
 }

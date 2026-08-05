@@ -39,7 +39,7 @@ status_t dpc_queue(dpc_callback cb, void *arg, uint flags) {
     dpc->arg = arg;
     enter_critical_section();
     list_add_tail(&dpc_list, &dpc->node);
-    event_signal(&dpc_event, (flags & DPC_FLAG_NORESCHED) ? false : true);
+    event_signal(&dpc_event);
     exit_critical_section();
 
     return NO_ERROR;

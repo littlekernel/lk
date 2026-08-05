@@ -102,7 +102,7 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
         // The buffer is not empty, make sure the event is signalled.
         // Skip recheduling here because we're inside our spinlock, but track
         // if we had woken up a thread.
-        woken = event_signal(&cbuf->event, false);
+        woken = event_signal(&cbuf->event);
     }
 
     spin_unlock_irqrestore(&cbuf->lock, state);
@@ -253,7 +253,7 @@ size_t cbuf_write_char(cbuf_t *cbuf, char c, bool canreschedule) {
         cbuf->head = INC_POINTER(cbuf, cbuf->head, 1);
         ret = 1;
 
-        woken = event_signal(&cbuf->event, canreschedule);
+        woken = event_signal(&cbuf->event);
     }
 
     spin_unlock_irqrestore(&cbuf->lock, state);

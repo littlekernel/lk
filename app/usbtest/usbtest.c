@@ -45,7 +45,7 @@ static status_t rx_callback(ep_t endpoint, struct usbc_transfer *transfer) {
     LTRACEF("ep %u, transfer %p\n", endpoint, transfer);
 
     rxqueued = false;
-    event_signal(&testevent, false);
+    event_signal(&testevent);
 
     return NO_ERROR;
 }
@@ -70,7 +70,7 @@ static status_t tx_callback(ep_t endpoint, struct usbc_transfer *transfer) {
     LTRACEF("ep %u, transfer %p\n", endpoint, transfer);
 
     txqueued = false;
-    event_signal(&testevent, false);
+    event_signal(&testevent);
 
     return NO_ERROR;
 }

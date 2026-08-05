@@ -342,7 +342,7 @@ uacpi_bool uacpi_kernel_wait_for_event(uacpi_handle handle, uacpi_u16 timeout) {
 void uacpi_kernel_signal_event(uacpi_handle handle) {
     semaphore_t *sem = (semaphore_t *)handle;
     if (sem) {
-        sem_post(sem, false);
+        sem_post(sem);
     }
 }
 

@@ -32,7 +32,7 @@ static event_t cpe0_evt = EVENT_INITIAL_VALUE(cpe0_evt, 0, EVENT_FLAG_AUTOUNSIGN
 
 void ti_cc_rfc_cpe_0_irq(void) {
     arm_cm_irq_entry();
-    event_signal(&cpe0_evt, false);
+    event_signal(&cpe0_evt);
 
     // disable IRQ until thread handles and re-enables them in response to event
     NVIC_DisableIRQ(rfc_cpe_0_IRQn);
@@ -61,7 +61,7 @@ void ti_cc_rfc_cpe_1_irq(void) {
 void ti_cc_rfc_cmd_ack_irq(void) {
     arm_cm_irq_entry();
     HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
-    event_signal(&ack_evt, false);
+    event_signal(&ack_evt);
     // reschedule if we woke a thread (indicated by !signaled)
     arm_cm_irq_exit(!ack_evt.signaled);
 }

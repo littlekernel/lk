@@ -18,8 +18,9 @@
 __BEGIN_CDECLS
 
 // Rules for Events:
-// - Events may be signaled from interrupt context *but* the reschedule
-//   parameter must be false in that case.
+// - Events may be signaled from interrupt context. Any resulting reschedule is
+//   deferred to interrupt exit automatically; the caller does not need to know
+//   which context it is in.
 // - Events may not be waited upon from interrupt context.
 // - Events without FLAG_AUTOUNSIGNAL:
 //   - Wake up any waiting threads when signaled.
@@ -74,10 +75,11 @@ void event_destroy(event_t *);
 status_t event_wait_timeout(event_t *, lk_time_t);
 
 // Signal the event, waking up any threads waiting on it.
-// If reschedule is true, it will reschedule the thread that was waiting.
-// May be called during interrupt context, but in that case reschedule must be false.
+// A woken thread is scheduled immediately unless preemption is disabled -- by an
+// interrupt handler, or by a caller batching a run of wakeups -- in which case
+// the reschedule is taken when preemption is reenabled.
 // Returns the number of threads woken up (0 if none, or event already signaled).
-int event_signal(event_t *, bool reschedule);
+int event_signal(event_t *);
 
 // Unsignal the event, clearing its signaled state.
 status_t event_unsignal(event_t *);

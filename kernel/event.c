@@ -59,7 +59,7 @@ void event_destroy(event_t *e) {
     e->magic = 0;
     __atomic_store_n(&e->signaled, 0, __ATOMIC_RELAXED);
     e->flags = 0;
-    wait_queue_destroy(&e->wait, true);
+    wait_queue_destroy(&e->wait);
 
     THREAD_UNLOCK(state);
 }
@@ -111,17 +111,12 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
  * event_unsignal() is called.
  *
  * @param e           Event object
- * @param reschedule  If true, waiting thread(s) are executed immediately,
- *                    and the current thread resumes only after the
- *                    waiting threads have been satisfied. If false,
- *                    waiting threads are placed at the end of the run
- *                    queue.
  *
  * @return  Returns the number of threads woken up. Zero if no threads
  *          were waiting or the event was already signaled. Negative values
  *          indicate errors (though none currently possible).
  */
-int event_signal(event_t *e, bool reschedule) {
+int event_signal(event_t *e) {
     int ret = 0;
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
@@ -130,7 +125,7 @@ int event_signal(event_t *e, bool reschedule) {
     if (!__atomic_load_n(&e->signaled, __ATOMIC_RELAXED)) {
         if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
             /* try to release one thread and leave unsignaled if successful */
-            ret = wait_queue_wake_one(&e->wait, reschedule, NO_ERROR);
+            ret = wait_queue_wake_one(&e->wait, NO_ERROR);
             if (ret <= 0) {
                 /*
                  * if we didn't actually find a thread to wake up, go to
@@ -142,7 +137,7 @@ int event_signal(event_t *e, bool reschedule) {
         } else {
             /* release all threads and remain signaled */
             __atomic_store_n(&e->signaled, 1, __ATOMIC_RELEASE);
-            ret = wait_queue_wake_all(&e->wait, reschedule, NO_ERROR);
+            ret = wait_queue_wake_all(&e->wait, NO_ERROR);
         }
     }
 

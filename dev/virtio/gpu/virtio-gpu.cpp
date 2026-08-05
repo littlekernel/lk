@@ -397,7 +397,7 @@ status_t virtio_gpu_start(virtio_device *dev) {
     thread_detach_and_resume(t);
 
     /* kick it once */
-    event_signal(&gdev->flush_event, true);
+    event_signal(&gdev->flush_event);
 
     LTRACE_EXIT;
 
@@ -496,7 +496,7 @@ enum handler_return virtio_gpu_irq_driver_callback(virtio_device *dev, uint ring
     }
 
     /* signal our event */
-    event_signal(&gdev->io_event, false);
+    event_signal(&gdev->io_event);
 
     return INT_RESCHEDULE;
 }
@@ -537,7 +537,7 @@ int virtio_gpu_flush_thread(void *arg) {
 }
 
 void virtio_gpu_gfx_flush(uint starty, uint endy) {
-    event_signal(&the_gdev->flush_event, !arch_ints_disabled());
+    event_signal(&the_gdev->flush_event);
 }
 
 } // namespace

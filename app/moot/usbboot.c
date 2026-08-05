@@ -294,12 +294,12 @@ static status_t usb_register_cb(
 }
 
 static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
-    event_signal(&txevt, false);
+    event_signal(&txevt);
     return 0;
 }
 
 static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
-    event_signal(&rxevt, false);
+    event_signal(&rxevt);
     return 0;
 }
 

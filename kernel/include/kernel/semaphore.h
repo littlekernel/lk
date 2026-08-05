@@ -53,8 +53,9 @@ void sem_destroy(semaphore_t *);
 // Posts to a semaphore, incrementing its count.
 // If the count was negative, it wakes one waiting thread.
 // Returns the number of threads woken up.
-// If resched is true, it will also trigger a reschedule if a thread was woken.
-int sem_post(semaphore_t *, bool resched);
+// A woken thread is scheduled immediately unless preemption is disabled, in which
+// case the reschedule is taken when preemption is reenabled.
+int sem_post(semaphore_t *);
 
 
 // Waits on a semaphore, decrementing its count. The current thread will block

@@ -447,7 +447,7 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
             /* save this socket and wake anyone up that is waiting to accept */
             s->accepted = accept_socket;
-            sem_post(&s->accept_sem, true);
+            sem_post(&s->accept_sem);
 
             /* set up a mss option for sending back */
             tcp_mss_option_t mss_option;
@@ -520,7 +520,7 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
             send_ack(s);
 
-            event_signal(&s->connect_event, true);
+            event_signal(&s->connect_event);
 
             break;
 
@@ -548,7 +548,7 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 s->state = STATE_CLOSE_WAIT;
 
                 /* wake up any read waiters */
-                event_signal(&s->rx_event, true);
+                event_signal(&s->rx_event);
             }
             break;
 
@@ -654,7 +654,7 @@ static void handle_data(tcp_socket_t *s, const void *data, size_t len, uint32_t 
         s->rx_win_low += copy_len;
 
         cbuf_write(&s->rx_buffer, (uint8_t *)data + offset, copy_len, false);
-        event_signal(&s->rx_event, true);
+        event_signal(&s->rx_event);
 
         /* keep a counter if they've been sending a full mss */
         if (copy_len >= s->mss) {
@@ -821,7 +821,7 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
         }
 
         /* we have opened the transmit buffer */
-        event_signal(&s->tx_event, true);
+        event_signal(&s->tx_event);
 
         /* send any pending data that can now fit in the window */
         tcp_write_pending_data(s);
@@ -949,9 +949,9 @@ static void tcp_wakeup_waiters(tcp_socket_t *s) {
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
     // wake up any waiters
-    event_signal(&s->rx_event, true);
-    event_signal(&s->tx_event, true);
-    event_signal(&s->connect_event, true);
+    event_signal(&s->rx_event);
+    event_signal(&s->tx_event);
+    event_signal(&s->connect_event);
 }
 
 static void tcp_remote_close(tcp_socket_t *s) {

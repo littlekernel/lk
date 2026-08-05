@@ -48,7 +48,7 @@ static int context_switch_tester(void *arg) {
     printf("took %u cycles to yield %d times, %u per yield, %u per yield per thread\n",
            total_count, iter, total_count / iter, total_count / iter / thread_count);
 
-    event_signal(&context_switch_done_event, true);
+    event_signal(&context_switch_done_event);
 
     return 0;
 }
@@ -59,7 +59,7 @@ static void context_switch_test(void) {
 
     thread_detach_and_resume(thread_create("context switch idle", &context_switch_tester, (void *)1, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_sleep(100);
-    event_signal(&context_switch_event, true);
+    event_signal(&context_switch_event);
     event_wait(&context_switch_done_event);
     thread_sleep(100);
 
@@ -68,7 +68,7 @@ static void context_switch_test(void) {
     thread_detach_and_resume(thread_create("context switch 2a", &context_switch_tester, (void *)2, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_detach_and_resume(thread_create("context switch 2b", &context_switch_tester, (void *)2, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_sleep(100);
-    event_signal(&context_switch_event, true);
+    event_signal(&context_switch_event);
     event_wait(&context_switch_done_event);
     thread_sleep(100);
 
@@ -79,7 +79,7 @@ static void context_switch_test(void) {
     thread_detach_and_resume(thread_create("context switch 4c", &context_switch_tester, (void *)4, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_detach_and_resume(thread_create("context switch 4d", &context_switch_tester, (void *)4, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
     thread_sleep(100);
-    event_signal(&context_switch_event, true);
+    event_signal(&context_switch_event);
     event_wait(&context_switch_done_event);
     thread_sleep(100);
 }

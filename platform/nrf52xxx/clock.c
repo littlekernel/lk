@@ -28,10 +28,10 @@ void nrf52_POWER_CLOCK_IRQ(void) {
 void nrf52_clock_handler(nrfx_clock_evt_type_t event) {
     switch (event) {
         case NRFX_CLOCK_EVT_HFCLK_STARTED :
-            event_signal(&hf_clk_evt, false);
+            event_signal(&hf_clk_evt);
             break;
         case NRFX_CLOCK_EVT_LFCLK_STARTED :
-            event_signal(&lf_clk_evt, false);
+            event_signal(&lf_clk_evt);
             break;
         default:
             break;

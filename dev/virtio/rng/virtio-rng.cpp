@@ -44,7 +44,7 @@ enum handler_return virtio_rng_irq(virtio_device *dev, uint ring_index, const vr
         rng.last_rx_len = e->len;
         rng.dev->virtio_free_desc(RNG_QUEUE_INDEX, e->id);
 
-        if (event_signal(&rng.irq_wait, false) > 0) {
+        if (event_signal(&rng.irq_wait) > 0) {
             return INT_RESCHEDULE;
         }
     }

@@ -58,7 +58,7 @@ bool net_timer_set(net_timer_t *t, net_timer_callback_t cb, void *callback_args,
 
     mutex_release(&net_timer_lock);
 
-    event_signal(&net_timer_event, true);
+    event_signal(&net_timer_event);
 
     return newly_queued;
 }

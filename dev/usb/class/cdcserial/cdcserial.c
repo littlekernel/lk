@@ -220,13 +220,13 @@ void cdcserial_create_channel(cdcserial_channel_t *chan, int data_ep_addr, int c
 
 static status_t usb_xmit_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
     cdcserial_channel_t *chan = t->extra;
-    event_signal(&chan->txevt, false);
+    event_signal(&chan->txevt);
     return 0;
 }
 
 static status_t usb_recv_cplt_cb(ep_t endpoint, usbc_transfer_t *t) {
     cdcserial_channel_t *chan = t->extra;
-    event_signal(&chan->rxevt, false);
+    event_signal(&chan->rxevt);
     return 0;
 }
 

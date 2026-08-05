@@ -49,7 +49,7 @@ void sys_sem_set_invalid(sys_sem_t *sem)
 
 void sys_sem_signal(sys_sem_t * sem)
 {
-    sem_post(sem, true);
+    sem_post(sem);
 }
 
 u32_t sys_arch_sem_wait(sys_sem_t * sem, u32_t timeout)
@@ -96,7 +96,7 @@ void sys_mbox_post(sys_mbox_t * mbox, void *msg)
     mbox->head = (mbox->head + 1) % mbox->size;
 
     mutex_release(&mbox->lock);
-    sem_post(&mbox->full, true);
+    sem_post(&mbox->full);
 }
 
 u32_t sys_arch_mbox_tryfetch(sys_mbox_t * mbox, void **msg)
@@ -117,7 +117,7 @@ u32_t sys_arch_mbox_tryfetch(sys_mbox_t * mbox, void **msg)
     mbox->tail = (mbox->tail + 1) % mbox->size;
 
     mutex_release(&mbox->lock);
-    sem_post(&mbox->empty, true);
+    sem_post(&mbox->empty);
 
     //LTRACE_EXIT;
     return 0;
@@ -142,7 +142,7 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
     mbox->tail = (mbox->tail + 1) % mbox->size;
 
     mutex_release(&mbox->lock);
-    sem_post(&mbox->empty, true);
+    sem_post(&mbox->empty);
 
     //LTRACE_EXIT;
     return current_time() - start;
@@ -162,7 +162,7 @@ err_t sys_mbox_trypost(sys_mbox_t * mbox, void *msg)
     mbox->head = (mbox->head + 1) % mbox->size;
 
     mutex_release(&mbox->lock);
-    sem_post(&mbox->full, true);
+    sem_post(&mbox->full);
 
     return ERR_OK;
 }

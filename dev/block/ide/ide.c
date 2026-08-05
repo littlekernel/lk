@@ -418,7 +418,7 @@ static enum handler_return ide_irq_handler(void *arg) {
     val = ide_read_reg8(dev, IDE_REG_STATUS);
 
     if ((val & IDE_DRV_ERR) == 0) {
-        event_signal(&state->completion, false);
+        event_signal(&state->completion);
 
         return INT_RESCHEDULE;
     } else {

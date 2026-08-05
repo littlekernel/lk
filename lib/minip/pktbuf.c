@@ -74,7 +74,7 @@ static void free_pool_object(pktbuf_pool_object_t *entry, bool reschedule) {
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
     pool_free(&pktbuf_pool, entry);
     spin_unlock_irqrestore(&lock, state);
-    sem_post(&pktbuf_sem, reschedule);
+    sem_post(&pktbuf_sem);
 }
 
 /* Callback used internally to place a pktbuf_pool_object back in the pool after

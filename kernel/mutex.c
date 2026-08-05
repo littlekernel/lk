@@ -60,7 +60,7 @@ void mutex_destroy(mutex_t *m) {
     THREAD_LOCK(state);
     m->magic = 0;
     m->count = 0;
-    wait_queue_destroy(&m->wait, true);
+    wait_queue_destroy(&m->wait);
     THREAD_UNLOCK(state);
 }
 
@@ -132,7 +132,7 @@ status_t mutex_release(mutex_t *m) {
 
     if (unlikely(--m->count >= 1)) {
         /* release a thread */
-        wait_queue_wake_one(&m->wait, true, NO_ERROR);
+        wait_queue_wake_one(&m->wait, NO_ERROR);
     }
 
     THREAD_UNLOCK(state);

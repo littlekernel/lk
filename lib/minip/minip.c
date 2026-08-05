@@ -96,7 +96,7 @@ void minip_set_gateway(const ipv4_addr_t addr) {
 
 void minip_set_configured(void) {
     minip_configured = true;
-    event_signal(&minip_configured_event, true);
+    event_signal(&minip_configured_event);
 }
 
 bool minip_is_configured(void) {

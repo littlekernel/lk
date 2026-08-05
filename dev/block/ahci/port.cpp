@@ -431,7 +431,7 @@ handler_return ahci_port::irq_handler() {
             }
 
             // Signal the sync completion event
-            sync_waiters_woken += event_signal(&cmd_complete_event_[cmd_slot], false);
+            sync_waiters_woken += event_signal(&cmd_complete_event_[cmd_slot]);
 
             // move to the next pending slot (if any)
             cmd_complete_bitmap &= ~(1U << cmd_slot);

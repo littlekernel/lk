@@ -44,7 +44,7 @@ void wait_queue_init(wait_queue_t *wait);
 // Release all the threads on this wait queue with a return code of ERR_OBJECT_DESTROYED.
 // the caller must assure that no other threads are operating on the wait queue during or
 // after the call.
-void wait_queue_destroy(wait_queue_t *, bool reschedule);
+void wait_queue_destroy(wait_queue_t *);
 
 // Block on a wait queue.
 // Return status is whatever the caller of wait_queue_wake_*() specifies.
@@ -53,13 +53,15 @@ void wait_queue_destroy(wait_queue_t *, bool reschedule);
 status_t wait_queue_block(wait_queue_t *, lk_time_t timeout);
 
 // Release one or more threads from the wait queue.
-// reschedule = should the system reschedule if any is released.
 // wait_queue_error = what wait_queue_block() should return for the blocking thread.
 // Returns the number of threads released from the wait queue.
 //
-// May be called at interrupt context, but reschedule *must* be false in that case.
-int wait_queue_wake_one(wait_queue_t *, bool reschedule, status_t wait_queue_error);
-int wait_queue_wake_all(wait_queue_t *, bool reschedule, status_t wait_queue_error);
+// A released thread is scheduled immediately unless preemption is disabled -- by an
+// interrupt handler, or by a caller batching a run of wakeups -- in which case the
+// reschedule is taken when preemption is reenabled. These may therefore be called
+// from interrupt context without the caller having to know that it is.
+int wait_queue_wake_one(wait_queue_t *, status_t wait_queue_error);
+int wait_queue_wake_all(wait_queue_t *, status_t wait_queue_error);
 
 // Remove the thread from whatever wait queue it's in.
 // Return an error if the thread is not currently blocked (or is the current thread).

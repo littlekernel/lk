@@ -113,7 +113,7 @@ gpio_keypad_timer_func(struct timer *timer, time_t now, void *arg) {
     }
 
     if (/*!kp->use_irq*/ 1 || kp->some_keys_pressed) {
-        event_signal(&kp->full_scan, false);
+        event_signal(&kp->full_scan);
         timer_set_oneshot(timer, kpinfo->poll_time,
                           gpio_keypad_timer_func, NULL);
         goto done;

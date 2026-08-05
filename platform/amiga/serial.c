@@ -53,7 +53,7 @@ static uint16_t read_reg(unsigned int reg) {
 // ACK and wake thread/event
 static enum handler_return uart_irq_tx_handler(void *arg) {
     clear_interrupt(INTERRUPT_TBE);
-    event_signal(&tx_ev, false);
+    event_signal(&tx_ev);
     return INT_NO_RESCHEDULE;
 }
 
@@ -173,13 +173,13 @@ void uart_putc(char c) {
     if (!tx_active) {
         tx_active = true;
         unmask_interrupt(INTERRUPT_TBE);
-        event_signal(&tx_ev, false);
+        event_signal(&tx_ev);
     }
 
     // Handle buffer being full, write when we can
     while (written == 0) {
         spin_unlock(&tx_lock);
-        event_signal(&tx_ev, false);
+        event_signal(&tx_ev);
         spin_lock(&tx_lock);
         written = cbuf_write_char(&tx_buf, c, false);
     }

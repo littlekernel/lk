@@ -392,7 +392,7 @@ static bool two_threads_race_body(race_state_t *rs, port_t w_port) {
     int count = 0;
     while (true) {
         LTRACEF_LEVEL(1, "Go!\n");
-        event_signal(&race_evt, false);
+        event_signal(&race_evt);
         port_result_t pr0, pr1;
         LTRACEF_LEVEL(1, "Collecting status from thread 0 . . .\n");
         st = port_read(rs->r_port[0], WORKER_WAIT_TIMEOUT_MS, &pr0);
@@ -458,7 +458,7 @@ static bool two_threads_race(void) {
         }
     }
 
-    event_signal(&race_evt, true);
+    event_signal(&race_evt);
     st = port_write(w_port, &kQuit, 1);
     EXPECT_GE(st, 0, "could not write control port");
 
@@ -665,7 +665,7 @@ static int group_watcher_thread(void *arg) {
 
             if (ctx_count == 2) {
                 // both test packets seen; the parent may now send QUIT
-                event_signal(&group_basic_sync_evt, true);
+                event_signal(&group_basic_sync_evt);
             }
         }
 
@@ -927,7 +927,7 @@ static int receive_thread(void *arg) {
     if (st < 0)
         return __LINE__;
 
-    event_signal(&group_waiting_sync_evt, true);
+    event_signal(&group_waiting_sync_evt);
 
     return 0;
 }

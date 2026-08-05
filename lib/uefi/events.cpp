@@ -119,7 +119,7 @@ EfiStatus signal_event(EfiEvent e) {
     printf("Event %p already signaled\n", event);
     return EFI_STATUS_SUCCESS;
   }
-  event_signal(&event->ev, !arch_ints_disabled());
+  event_signal(&event->ev);
   if ((event->type & EFI_EVENT_TYPE_NOTIFY_SIGNAL) && event->notify_fn != nullptr) {
     // If this event is signaled on a different thread,  defer
     // calling callbacks until the next check_event call. As UEFI apps

@@ -27,11 +27,11 @@ void sem_init(semaphore_t *sem, int initial_count) {
 void sem_destroy(semaphore_t *sem) {
     THREAD_LOCK(state);
     sem->count = 0;
-    wait_queue_destroy(&sem->wait, true);
+    wait_queue_destroy(&sem->wait);
     THREAD_UNLOCK(state);
 }
 
-int sem_post(semaphore_t *sem, bool resched) {
+int sem_post(semaphore_t *sem) {
     int ret = 0;
 
     THREAD_LOCK(state);
@@ -41,7 +41,7 @@ int sem_post(semaphore_t *sem, bool resched) {
      * it's safe to just increase the count available with no downsides
      */
     if (unlikely(++sem->count <= 0))
-        ret = wait_queue_wake_one(&sem->wait, resched, NO_ERROR);
+        ret = wait_queue_wake_one(&sem->wait, NO_ERROR);
 
     THREAD_UNLOCK(state);
 

@@ -270,7 +270,7 @@ typedef struct {
 static void async_callback(void *cookie, bdev_t *dev, ssize_t status) {
     async_cookie_t *async_cookie = (async_cookie_t *)cookie;
     async_cookie->result = status;
-    event_signal(&async_cookie->event, false);
+    event_signal(&async_cookie->event);
 }
 
 static bool async_read_write(void) {
@@ -558,7 +558,7 @@ typedef struct {
 static void sub_async_cb(void *cookie, bdev_t *dev, ssize_t status) {
     sub_async_cookie_t *c = (sub_async_cookie_t *)cookie;
     c->result = status;
-    event_signal(&c->event, false);
+    event_signal(&c->event);
 }
 
 static bool subdev_async(void) {

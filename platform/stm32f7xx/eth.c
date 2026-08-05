@@ -212,7 +212,7 @@ void stm32_ETH_IRQ(void) {
   * @retval None
   */
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth) {
-    event_signal(&eth.rx_event, false);
+    event_signal(&eth.rx_event);
 }
 
 static status_t eth_send(const void *buf, size_t len) {

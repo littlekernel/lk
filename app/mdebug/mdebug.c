@@ -57,12 +57,12 @@ static void mdebug_notify(udc_gadget_t *gadget, unsigned event) {
 static void rx_complete(udc_request_t *req, unsigned actual, int status) {
     rxactual = actual;
     rxstatus = status;
-    event_signal(&rxevt, 0);
+    event_signal(&rxevt);
 }
 
 static void tx_complete(udc_request_t *req, unsigned actual, int status) {
     txstatus = status;
-    event_signal(&txevt, 0);
+    event_signal(&txevt);
 }
 
 #if TX_AHEAD
@@ -74,7 +74,7 @@ void usb_xmit(void *data, unsigned len) {
     txstatus = 1;
     if (udc_request_queue(txept, txreq)) {
         printf("txqf\n");
-        event_signal(&txevt, 0);
+        event_signal(&txevt);
     }
 }
 #else

@@ -767,12 +767,12 @@ static void setup_dma(DMA_Stream_TypeDef *stream, uint32_t peripheral_address,
 
 /* IRQ Context */
 void DMA_RxCpltCallback(void) {
-    event_signal(&rx_event, false);
+    event_signal(&rx_event);
 }
 
 /* IRQ Context */
 void DMA_TxCpltCallback(void) {
-    event_signal(&tx_event, false);
+    event_signal(&tx_event);
 }
 
 /* IRQ Context */
@@ -892,12 +892,12 @@ void stm32_DMA2_Stream7_IRQ(void) {
 
 /* IRQ Context */
 void HAL_QSPI_CmdCpltCallback(QSPI_HandleTypeDef *hqspi) {
-    event_signal(&cmd_event, false);
+    event_signal(&cmd_event);
 }
 
 /* IRQ Context */
 void HAL_QSPI_StatusMatchCallback(QSPI_HandleTypeDef *hqspi) {
-    event_signal(&st_event, false);
+    event_signal(&st_event);
 }
 
 /* IRQ Context */

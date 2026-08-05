@@ -272,7 +272,7 @@ handler_return e1000::irq_handler() {
                                 rx_pending_pkt_->flags |= PKTBUF_FLAG_EOF;
                                 list_add_tail(&rx_queue_, &rx_pending_pkt_->list);
                                 rx_pending_pkt_ = nullptr;
-                                event_signal(&rx_event_, false);
+                                event_signal(&rx_event_);
                                 ret = INT_RESCHEDULE;
                             }
                         } else {
@@ -287,7 +287,7 @@ handler_return e1000::irq_handler() {
                         if (eop) {
                             pkt->flags |= PKTBUF_FLAG_EOF;
                             list_add_tail(&rx_queue_, &pkt->list);
-                            event_signal(&rx_event_, false);
+                            event_signal(&rx_event_);
                             ret = INT_RESCHEDULE;
                             consumed_pkt = true;
                         } else {

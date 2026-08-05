@@ -338,7 +338,7 @@ status_t port_group_add(port_t group, port_t port) {
         // If the new read port being added has messages available, try to wake
         // any readers that might be present.
         if (!buf_is_empty(rp->buf)) {
-            wait_queue_wake_one(&pg->wait, false, NO_ERROR);
+            wait_queue_wake_one(&pg->wait, NO_ERROR);
         }
     }
 
@@ -427,10 +427,10 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
 
             int awaken = 0;
             if (rp->gport) {
-                awaken = wait_queue_wake_one(&rp->gport->wait, false, NO_ERROR);
+                awaken = wait_queue_wake_one(&rp->gport->wait, NO_ERROR);
             }
             if (!awaken) {
-                wait_queue_wake_one(&rp->wait, false, NO_ERROR);
+                wait_queue_wake_one(&rp->wait, NO_ERROR);
             }
         }
     }
@@ -519,9 +519,9 @@ status_t port_destroy(port_t port) {
         read_port_t *rp;
         list_for_every_entry(&wp->rp_list, rp, read_port_t, w_node) {
             // wake the read and group ports.
-            wait_queue_wake_all(&rp->wait, false, ERR_CANCELLED);
+            wait_queue_wake_all(&rp->wait, ERR_CANCELLED);
             if (rp->gport) {
-                wait_queue_wake_all(&rp->gport->wait, false, ERR_CANCELLED);
+                wait_queue_wake_all(&rp->gport->wait, ERR_CANCELLED);
             }
             // remove self from reader ports.
             rp->wport = NULL;
@@ -561,14 +561,14 @@ status_t port_close(port_t port) {
             list_delete(&rp->g_node);
         }
         // wake up waiters, the return code is ERR_OBJECT_DESTROYED.
-        wait_queue_destroy(&rp->wait, true);
+        wait_queue_destroy(&rp->wait);
         rp->magic = 0;
 
     } else if (rp->magic == PORTGROUP_MAGIC) {
         // dealing with a port group.
         port_group_t *pg = (port_group_t *) port;
         // wake up waiters.
-        wait_queue_destroy(&pg->wait, true);
+        wait_queue_destroy(&pg->wait);
         // remove self from reader ports.
         rp = NULL;
         list_for_every_entry(&pg->rp_list, rp, read_port_t, g_node) {

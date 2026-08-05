@@ -164,7 +164,7 @@ static semaphore_t sem;
 
 static int semaphore_producer(void *unused) {
     for (int x = 0; x < SEM_TOTAL_ITS; x++) {
-        sem_post(&sem, true);
+        sem_post(&sem);
     }
     return 0;
 }
@@ -282,7 +282,7 @@ static bool test_event_broadcast(void) {
         thread_resume(threads[i]);
     }
 
-    event_signal(&e, true);
+    event_signal(&e);
 
     for (uint i = 0; i < countof(threads); i++) {
         int retcode = -1;
@@ -320,7 +320,7 @@ static bool test_event_autounsignal(void) {
     /* let every waiter reach the event before signalling it */
     thread_sleep(100);
 
-    event_signal(&e, true);
+    event_signal(&e);
 
     /* give a wrongly woken second thread a chance to show up */
     thread_sleep(100);

@@ -207,7 +207,7 @@ static enum handler_return gem_int_handler(void *arg) {
 
         // Received an RX complete
         if (intr_status & INTR_RX_COMPLETE) {
-            event_signal(&gem.rx_pending, false);
+            event_signal(&gem.rx_pending);
 
             gem.regs->rx_status |= INTR_RX_COMPLETE;
 

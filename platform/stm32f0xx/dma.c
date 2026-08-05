@@ -48,7 +48,7 @@ void dma_irq(void) {
 
         // TODO(konkers): Report error.
         if (ch_sr & (DMA_ISR_TCIF1 | DMA_ISR_TEIF1)) {
-            event_signal(&dma_events[i], false);
+            event_signal(&dma_events[i]);
             resched = true;
         }
     }

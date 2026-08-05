@@ -245,7 +245,7 @@ static void stm32_i2c_irq(stm32_i2c_dev_t *i2c) {
 out:
     i2c->regs->ICR = isr;
     if (stm32_i2c_is_terminal_state(i2c->state)) {
-        event_signal(&i2c->txn_complete, false);
+        event_signal(&i2c->txn_complete);
         arm_cm_irq_exit(true);
     } else {
         arm_cm_irq_exit(false);

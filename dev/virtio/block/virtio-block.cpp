@@ -527,7 +527,7 @@ status_t virtio_block_do_txn(virtio_device *dev, void *buf,
 void sync_completion_cb(void *cookie, struct bdev *dev, ssize_t bytes) {
     DEBUG_ASSERT(cookie);
     event_t *event = (event_t *)cookie;
-    event_signal(event, false);
+    event_signal(event);
 }
 
 ssize_t virtio_block_read_write(virtio_device *dev, void *buf,

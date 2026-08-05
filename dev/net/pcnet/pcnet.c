@@ -324,7 +324,7 @@ static enum handler_return pcnet_irq_handler(void *arg) {
 
     mask_interrupt(state->irq);
 
-    event_signal(&state->event, false);
+    event_signal(&state->event);
 
     return INT_RESCHEDULE;
 }
@@ -350,7 +350,7 @@ static int pcnet_thread(void *arg) {
             free(state->ib);
             state->ib = NULL;
 
-            event_signal(&state->initialized, true);
+            event_signal(&state->initialized);
         }
 
         if (csr0 & CSR0_ERR) {

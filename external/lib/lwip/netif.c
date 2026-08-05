@@ -62,7 +62,7 @@ static void local_netif_status(struct netif *netif)
 				ip4_addr4_16(&netif->gw));
 
 		if (atomic_add(&netif_up_count, 1) >= 0)
-			event_signal(&netif_up_event, true);
+			event_signal(&netif_up_event);
 	} else {
 		if (atomic_add(&netif_up_count, -1) == 1)
 			event_unsignal(&netif_up_event);

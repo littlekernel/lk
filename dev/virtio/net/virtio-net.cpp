@@ -374,7 +374,7 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
 
     /* if rx ring, signal our event */
     if (ring == 0) {
-        event_signal(&ndev->rx_event, false);
+        event_signal(&ndev->rx_event);
     }
 
     return INT_RESCHEDULE;

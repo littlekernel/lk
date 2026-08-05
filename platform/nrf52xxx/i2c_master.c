@@ -85,7 +85,7 @@ static inline twim_dev_t *get_nrfx_twim(int bus) {
 void i2c_twim_evt_handler(nrfx_twim_evt_t const *p_event,void *p_context) {
     twim_dev_t *twim = (twim_dev_t *)p_context;
     twim->result = p_event->type;
-    event_signal(&twim->evt, false);
+    event_signal(&twim->evt);
 }
 
 void i2c_init_early(void) {}

@@ -382,7 +382,7 @@ status_t thread_detach(thread_t *t) {
 
     /* if another thread is blocked inside thread_join() on this thread,
      * wake them up with a specific return code */
-    wait_queue_wake_all(&t->retcode_wait_queue, false, ERR_THREAD_DETACHED);
+    wait_queue_wake_all(&t->retcode_wait_queue, ERR_THREAD_DETACHED);
 
     /* if it's already dead, then just do what join would have and exit */
     if (t->state == THREAD_DEATH) {
@@ -440,7 +440,7 @@ void thread_exit(int retcode) {
         }
     } else {
         /* signal if anyone is waiting */
-        wait_queue_wake_all(&current_thread->retcode_wait_queue, false, 0);
+        wait_queue_wake_all(&current_thread->retcode_wait_queue, 0);
     }
 
     /* reschedule */
@@ -731,10 +731,8 @@ void thread_block(void) {
  * it at the head of the run queue.
  *
  * @param t         Thread to unblock
- * @param resched   If true, reschedule after unblocking
  */
-// TODO: remove bool resched once preempt_disable() is in place
-void thread_unblock(thread_t *t, bool resched) {
+void thread_unblock(thread_t *t) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(t->state == THREAD_BLOCKED);
     DEBUG_ASSERT(spin_lock_held(&thread_lock));
@@ -1211,14 +1209,12 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
  * run queue.
  *
  * @param wait  The wait queue to wake
- * @param reschedule  If true, the newly-woken thread will run immediately.
  * @param wait_queue_error  The return value which the new thread will receive
  * from wait_queue_block().
  *
  * @return  The number of threads woken (zero or one)
  */
-// TODO: remove bool reschedule once preempt_disable() is in place
-int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue_error) {
+int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
     thread_t *t;
     int ret = 0;
 
@@ -1269,14 +1265,12 @@ int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t wait_queue
  * run queue.
  *
  * @param wait  The wait queue to wake
- * @param reschedule  If true, the newly-woken threads will run immediately.
  * @param wait_queue_error  The return value which the new thread will receive
  * from wait_queue_block().
  *
  * @return  The number of threads woken (zero or one)
  */
-// TODO: remove bool reschedule once preempt_disable() is in place
-int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue_error) {
+int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
     thread_t *t;
     int ret = 0;
     uint32_t cpu_mask = 0;
@@ -1346,13 +1340,12 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t wait_queue
  *
  * If any threads were waiting on this queue, they are all woken.
  */
-// TODO: remove bool reschedule once preempt_disable() is in place
-void wait_queue_destroy(wait_queue_t *wait, bool reschedule) {
+void wait_queue_destroy(wait_queue_t *wait) {
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
-    wait_queue_wake_all(wait, reschedule, ERR_OBJECT_DESTROYED);
+    wait_queue_wake_all(wait, ERR_OBJECT_DESTROYED);
     wait->magic = 0;
 }
 
