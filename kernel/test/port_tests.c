@@ -15,6 +15,7 @@
 
 #include <kernel/event.h>
 #include <kernel/port.h>
+#include <kernel/semaphore.h>
 #include <kernel/thread.h>
 
 #include <platform.h>
@@ -144,6 +145,8 @@ static bool single_thread_basic(void) {
 }
 
 static int ping_pong_thread(void *arg) {
+    semaphore_t *ready = (semaphore_t *)arg;
+
     port_t r_port;
     status_t st = port_open("ping_port", NULL, &r_port);
     if (st < 0) {
@@ -177,6 +180,14 @@ static int ping_pong_thread(void *arg) {
         port_close(r_port);
         return __LINE__;
     }
+
+    /* Both ends are hooked up now, so let the master start writing. It must not
+     * write before *every* worker has opened the ping port: a write with no
+     * readers attached lands in the write port's own buffer, and port_open()
+     * hands that buffer to the first reader only, so a late worker would never
+     * see it.
+     */
+    sem_post(ready);
 
     port_result_t pr;
 
@@ -497,16 +508,20 @@ typedef struct {
  * are alive, so a failed ASSERT simply returns through here back into the
  * caller, which always destroys the ping port to unblock the workers and
  * joins them. */
-static bool two_threads_basic_body(pingpong_state_t *s, port_t w_port) {
+static bool two_threads_basic_body(pingpong_state_t *s, semaphore_t *ready, port_t w_port) {
     BEGIN_TEST;
 
-    // wait for the pong port to be created, the two threads race to do it.
-    status_t st = ERR_NOT_FOUND;
-    for (int tries = 0; tries < 500 && st == ERR_NOT_FOUND; ++tries) {
-        st = port_open("pong_port", NULL, &s->r_port);
-        if (st == ERR_NOT_FOUND)
-            thread_sleep(10);
+    /* Wait until both workers have attached to the ping port and one of them
+     * has created the pong port. Waiting for the pong port to merely exist is
+     * not enough -- a worker creates it after opening the ping port, so the
+     * other worker may not have attached yet, and any ping written in that
+     * window is only ever delivered to the worker that got there first.
+     * Bounded so a dead worker fails the test instead of wedging the run. */
+    for (int i = 0; i < 2; ++i) {
+        ASSERT_EQ(NO_ERROR, sem_timedwait(ready, 10000), "worker startup");
     }
+
+    status_t st = port_open("pong_port", NULL, &s->r_port);
     ASSERT_EQ(NO_ERROR, st, "could not open pong port");
     s->opened = true;
 
@@ -553,10 +568,13 @@ static bool two_threads_basic(void) {
     status_t st = port_create("ping_port", PORT_MODE_BROADCAST, &w_port);
     ASSERT_GE(st, 0, "could not create port");
 
+    semaphore_t ready;
+    sem_init(&ready, 0);
+
     thread_t *t1 = thread_create(
-                       "worker1", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+                       "worker1", &ping_pong_thread, &ready, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     thread_t *t2 = thread_create(
-                       "worker2", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+                       "worker2", &ping_pong_thread, &ready, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     EXPECT_NONNULL(t1, "could not create worker 1");
     EXPECT_NONNULL(t2, "could not create worker 2");
     if (t1)
@@ -565,7 +583,7 @@ static bool two_threads_basic(void) {
         thread_resume(t2);
 
     pingpong_state_t s = {};
-    bool body_ok = (t1 && t2) ? two_threads_basic_body(&s, w_port) : false;
+    bool body_ok = (t1 && t2) ? two_threads_basic_body(&s, &ready, w_port) : false;
 
     /* The shutdown below runs even when the body failed partway: the workers
      * sit blocked reading the ping port until its write side is destroyed,
@@ -594,6 +612,8 @@ static bool two_threads_basic(void) {
         thread_join(t2, &retcode, INFINITE_TIME);
         EXPECT_EQ(0, retcode, "worker2 exited with an error line number");
     }
+
+    sem_destroy(&ready);
 
     EXPECT_TRUE(body_ok, "ping pong sequence failed");
 
