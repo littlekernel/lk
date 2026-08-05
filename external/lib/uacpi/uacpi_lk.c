@@ -349,11 +349,7 @@ void uacpi_kernel_signal_event(uacpi_handle handle) {
 void uacpi_kernel_reset_event(uacpi_handle handle) {
     semaphore_t *sem = (semaphore_t *)handle;
     if (sem) {
-        THREAD_LOCK(state);
-        if (sem->count > 0) {
-            sem->count = 0;
-        }
-        spin_unlock_irqrestore(&thread_lock, state);
+        sem_reset(sem);
     }
 }
 

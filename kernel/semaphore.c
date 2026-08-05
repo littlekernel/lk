@@ -77,6 +77,21 @@ status_t sem_trywait(semaphore_t *sem) {
     return ret;
 }
 
+int sem_reset(semaphore_t *sem) {
+    int discarded = 0;
+
+    THREAD_LOCK(state);
+
+    if (sem->count > 0) {
+        discarded = sem->count;
+        sem->count = 0;
+    }
+
+    THREAD_UNLOCK(state);
+
+    return discarded;
+}
+
 status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout) {
     status_t ret = NO_ERROR;
     THREAD_LOCK(state);

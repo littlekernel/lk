@@ -69,6 +69,12 @@ status_t sem_wait(semaphore_t *);
 // or NO_ERROR if the semaphore was acquired.
 status_t sem_trywait(semaphore_t *);
 
+// Discards any posts that have not yet been consumed, returning the number
+// discarded. Does nothing and returns zero if threads are currently blocked on
+// the semaphore -- a negative count means there are waiters, and dropping it to
+// zero would strand them. Intended for semaphores used as resettable events.
+int sem_reset(semaphore_t *);
+
 // Waits on a semaphore with a timeout. If the semaphore count is not greater than zero,
 // the current thread will block until the semaphore is posted or the timeout expires.
 // Returns NO_ERROR if the semaphore was acquired, ERR_TIMED_OUT if the timeout expired,
