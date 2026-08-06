@@ -53,12 +53,32 @@ struct list_node thread_list;
 /* master thread spinlock */
 spin_lock_t thread_lock = SPIN_LOCK_INITIAL_VALUE;
 
-/* the run queue */
-static struct list_node run_queue[NUM_PRIORITIES];
-static uint32_t run_queue_bitmap;
+/* Per-cpu scheduler state.
+ *
+ * Each cpu has its own run queue and only ever pulls work off of its own. Which
+ * cpu a thread lands on is decided once, at the point it becomes runnable, by
+ * find_target_cpu(); nothing rebalances it afterwards and no cpu steals from
+ * another. That makes initial placement the whole scheduling policy, so a bug
+ * there is a thread that never runs rather than a thread that runs late.
+ *
+ * This is all still covered by the global thread_lock. Splitting the queues
+ * buys affinity and stops threads bouncing between cpus; splitting the lock is
+ * a separate change.
+ */
+struct percpu_sched {
+    struct list_node run_queue[NUM_PRIORITIES];
+    uint32_t run_queue_bitmap;
+    uint runnable_count;
+#if PLATFORM_HAS_DYNAMIC_TIMER
+    /* preemption timer */
+    timer_t preempt_timer;
+#endif
+} __CPU_ALIGN;
+
+static struct percpu_sched percpu_sched[SMP_MAX_CPUS];
 
 /* make sure the bitmap is large enough to cover our number of priorities */
-STATIC_ASSERT(NUM_PRIORITIES <= sizeof(run_queue_bitmap) * 8);
+STATIC_ASSERT(NUM_PRIORITIES <= sizeof(uint32_t) * 8);
 
 /* the idle thread(s) (statically allocated) */
 #if WITH_SMP
@@ -73,39 +93,43 @@ static thread_t _idle_thread;
 static void thread_resched(void);
 static void idle_thread_routine(void) __NO_RETURN;
 
-#if PLATFORM_HAS_DYNAMIC_TIMER
-/* preemption timer */
-static timer_t preempt_timer[SMP_MAX_CPUS];
-#endif
-
 /* run queue manipulation */
-static void insert_in_run_queue_head(thread_t *t) {
+static void run_queue_insert_checks(uint cpu, thread_t *t) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(t->state == THREAD_READY);
     DEBUG_ASSERT(!list_in_list(&t->queue_node));
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(spin_lock_held(&thread_lock));
-
-    list_add_head(&run_queue[t->priority], &t->queue_node);
-    run_queue_bitmap |= (1 << t->priority);
+    DEBUG_ASSERT(cpu < SMP_MAX_CPUS);
+    /* pinning is enforced here, at insert time, so that the cpu pulling threads
+     * off of its own queue never has to filter */
+    DEBUG_ASSERT(thread_pinned_cpu(t) < 0 || thread_pinned_cpu(t) == (int)cpu);
 }
 
-static void insert_in_run_queue_tail(thread_t *t) {
-    DEBUG_ASSERT(t->magic == THREAD_MAGIC);
-    DEBUG_ASSERT(t->state == THREAD_READY);
-    DEBUG_ASSERT(!list_in_list(&t->queue_node));
-    DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+static void insert_in_run_queue_head(uint cpu, thread_t *t) {
+    run_queue_insert_checks(cpu, t);
 
-    list_add_tail(&run_queue[t->priority], &t->queue_node);
-    run_queue_bitmap |= (1 << t->priority);
+    struct percpu_sched *s = &percpu_sched[cpu];
+    list_add_head(&s->run_queue[t->priority], &t->queue_node);
+    s->run_queue_bitmap |= (1 << t->priority);
+    s->runnable_count++;
+}
+
+static void insert_in_run_queue_tail(uint cpu, thread_t *t) {
+    run_queue_insert_checks(cpu, t);
+
+    struct percpu_sched *s = &percpu_sched[cpu];
+    list_add_tail(&s->run_queue[t->priority], &t->queue_node);
+    s->run_queue_bitmap |= (1 << t->priority);
+    s->runnable_count++;
 }
 
 /* Pick the cpu a newly runnable thread should be steered at.
  *
  * The policy is deliberately dumb: prefer the cpu the thread last ran on if it
- * is idle, else any idle cpu, else the cpu it last ran on, else the local cpu.
- * There is no load balancing and nothing rebalances a thread after the fact.
+ * is idle, else any idle cpu, else the cpu it last ran on, else the shortest
+ * run queue. There is no load balancing and nothing rebalances a thread after
+ * the fact, so this decision is the whole of the scheduling policy.
  *
  * Only cpus that have come up are candidates. A cpu that has not yet marked
  * itself active cannot be signalled at all -- mp_reschedule() masks it out of
@@ -153,28 +177,51 @@ static uint find_target_cpu(thread_t *t) {
     if (last_cpu >= 0 && (candidates & (1U << last_cpu))) {
         return (uint)last_cpu;
     }
+
+    /* everything is busy: pick the shortest run queue, breaking ties towards
+     * the local cpu, whose cache we are already warm in */
+    uint best = local_cpu;
+    uint best_count = UINT32_MAX;
     if (candidates & (1U << local_cpu)) {
-        return local_cpu;
+        best_count = percpu_sched[local_cpu].runnable_count;
     }
-    return (uint)__builtin_ctz(candidates);
+    for (mp_cpu_mask_t m = candidates; m != 0; m &= m - 1) {
+        const uint c = (uint)__builtin_ctz(m);
+        if (percpu_sched[c].runnable_count < best_count) {
+            best_count = percpu_sched[c].runnable_count;
+            best = c;
+        }
+    }
+    return best;
 #else
     return 0;
 #endif
 }
 
-/* Steer a newly runnable thread at a cpu and make sure that cpu notices it.
- * Returns the target, so a caller waking several threads can batch the ipis.
+/* Steer a newly runnable thread at a cpu and put it on that cpu's run queue.
+ * Returns the target so the caller can poke it -- separately, so that a caller
+ * waking a run of threads can batch the ipis into one call.
+ */
+static uint insert_in_run_queue_target(thread_t *t) {
+    const uint target = find_target_cpu(t);
+    insert_in_run_queue_head(target, t);
+    return target;
+}
+
+/* Make the cpu a thread was just steered at notice it.
  *
  * MP_RESCHEDULE_FLAG_REALTIME is deliberate: find_target_cpu() already avoids
  * cpus running realtime threads whenever it has a choice, so by the time we get
  * here the target is either not realtime or is the only cpu this thread can run
- * on. Letting mp_reschedule() filter it out at that point would just drop the
- * wakeup on the floor. mp_reschedule() masks out the local cpu itself.
+ * on. Letting mp_reschedule() filter it out at that point would drop the wakeup
+ * on the floor, and with per-cpu run queues nobody else will pick the thread up.
+ *
+ * mp_reschedule() masks out the local cpu itself; a thread steered at the local
+ * cpu is picked up by the caller's own reschedule, or by the pending-preempt
+ * flag if preemption is disabled.
  */
-static uint wakeup_cpu_for_thread(thread_t *t) {
-    const uint target = find_target_cpu(t);
-    mp_reschedule(1U << target, MP_RESCHEDULE_FLAG_REALTIME);
-    return target;
+static void wakeup_cpus_for_threads(mp_cpu_mask_t targets) {
+    mp_reschedule(targets, MP_RESCHEDULE_FLAG_REALTIME);
 }
 
 static void init_thread_struct(thread_t *t, const char *name) {
@@ -315,7 +362,7 @@ status_t thread_set_real_time(thread_t *t) {
 #if PLATFORM_HAS_DYNAMIC_TIMER
     if (t == get_current_thread()) {
         /* if we're currently running, cancel the preemption timer. */
-        timer_cancel(&preempt_timer[arch_curr_cpu_num()]);
+        timer_cancel(&percpu_sched[arch_curr_cpu_num()].preempt_timer);
     }
 #endif
     t->flags |= THREAD_FLAG_REAL_TIME;
@@ -361,15 +408,15 @@ status_t thread_resume(thread_t *t) {
     }
 
     t->state = THREAD_READY;
-    insert_in_run_queue_head(t);
+    const uint target = insert_in_run_queue_target(t);
     bool local_resched = false;
     if (!ints_disabled) { /* HACK, don't resched into bootstrap thread before idle thread is set up */
         local_resched = true;
     }
 
-    // Send an IPI to wake up the target CPU(s) if needed. This must happen with
+    // Send an IPI to wake up the target CPU if needed. This must happen with
     // the lock still held: arch_mp_send_ipi() asserts interrupts are disabled.
-    wakeup_cpu_for_thread(t);
+    wakeup_cpus_for_threads(1U << target);
 
     THREAD_UNLOCK(state);
 
@@ -377,6 +424,15 @@ status_t thread_resume(thread_t *t) {
         if (!preempt_set_pending_if_disabled()) {
             thread_preempt();
         }
+    } else if (target == arch_curr_cpu_num()) {
+        /* Interrupts were already disabled, so either this is very early boot,
+         * where there is nothing to switch to yet and preemption is enabled, or
+         * we are inside an interrupt handler, where the irq glue has preemption
+         * disabled and will take the reschedule on the way out. Either way the
+         * ipi above went nowhere -- mp_reschedule() masks out the local cpu --
+         * and with per-cpu run queues no other cpu will pick this thread up.
+         */
+        preempt_set_pending_if_disabled();
     }
 
     return NO_ERROR;
@@ -539,31 +595,31 @@ static void idle_thread_routine(void) {
     }
 }
 
-static thread_t *get_top_thread(int cpu) {
-    thread_t *newthread;
-    uint32_t local_run_queue_bitmap = run_queue_bitmap;
+static thread_t *get_top_thread(uint cpu) {
+    struct percpu_sched *s = &percpu_sched[cpu];
 
-    while (local_run_queue_bitmap) {
-        /* find the first (remaining) queue with a thread in it */
-        uint next_queue = sizeof(run_queue_bitmap) * 8 - 1 - __builtin_clz(local_run_queue_bitmap);
+    if (s->run_queue_bitmap) {
+        /* find the highest priority queue with a thread in it. everything on
+         * this cpu's queues is runnable here -- pinning was enforced at insert
+         * time -- so there is no filtering to do, just take the head. */
+        const uint next_queue = sizeof(s->run_queue_bitmap) * 8 - 1 -
+                                __builtin_clz(s->run_queue_bitmap);
 
-        list_for_every_entry(&run_queue[next_queue], newthread, thread_t, queue_node) {
-#if WITH_SMP
-            if (newthread->pinned_cpu < 0 || newthread->pinned_cpu == cpu)
-#endif
-            {
-                list_delete(&newthread->queue_node);
+        thread_t *newthread = list_remove_head_type(&s->run_queue[next_queue], thread_t, queue_node);
+        DEBUG_ASSERT(newthread);
+        /* a stranded thread is otherwise invisible until something else times
+         * out, so catch a bad find_target_cpu() decision right here */
+        DEBUG_ASSERT(thread_pinned_cpu(newthread) < 0 ||
+                     thread_pinned_cpu(newthread) == (int)cpu);
 
-                if (list_is_empty(&run_queue[next_queue])) {
-                    run_queue_bitmap &= ~(1 << next_queue);
-                }
-
-                return newthread;
-            }
+        if (list_is_empty(&s->run_queue[next_queue])) {
+            s->run_queue_bitmap &= ~(1 << next_queue);
         }
+        s->runnable_count--;
 
-        local_run_queue_bitmap &= ~(1 << next_queue);
+        return newthread;
     }
+
     /* no threads to run, select the idle thread for this cpu */
     return idle_thread(cpu);
 }
@@ -656,7 +712,7 @@ void thread_resched(void) {
             dprintf(ALWAYS, "arch_context_switch: stop preempt, cpu %d, old %p (%s), new %p (%s)\n",
                     cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
-            timer_cancel(&preempt_timer[cpu]);
+            timer_cancel(&percpu_sched[cpu].preempt_timer);
         }
     } else if (thread_is_real_time_or_idle(oldthread)) {
         /* if we're switching from a real time (or idle thread) to a regular one,
@@ -665,7 +721,7 @@ void thread_resched(void) {
         dprintf(ALWAYS, "arch_context_switch: start preempt, cpu %d, old %p (%s), new %p (%s)\n",
                 cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
-        timer_set_periodic(&preempt_timer[cpu], 10, thread_timer_tick, NULL);
+        timer_set_periodic(&percpu_sched[cpu].preempt_timer, 10, thread_timer_tick, NULL);
     }
 #endif
 
@@ -738,7 +794,7 @@ void thread_yield(void) {
     /* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
     current_thread->state = THREAD_READY;
     current_thread->remaining_quantum = 0;
-    insert_in_run_queue_tail(current_thread);
+    insert_in_run_queue_tail(arch_curr_cpu_num(), current_thread);
     thread_resched();
 
     THREAD_UNLOCK(state);
@@ -776,9 +832,9 @@ void thread_preempt(void) {
     current_thread->state = THREAD_READY;
     if (likely(!thread_is_idle(current_thread))) { /* idle thread doesn't go in the run queue */
         if (current_thread->remaining_quantum > 0) {
-            insert_in_run_queue_head(current_thread);
+            insert_in_run_queue_head(arch_curr_cpu_num(), current_thread);
         } else {
-            insert_in_run_queue_tail(current_thread); /* if we're out of quantum, go to the tail of the queue */
+            insert_in_run_queue_tail(arch_curr_cpu_num(), current_thread); /* if we're out of quantum, go to the tail of the queue */
         }
     }
     thread_resched();
@@ -823,8 +879,7 @@ void thread_unblock(thread_t *t) {
     DEBUG_ASSERT(!thread_is_idle(t));
 
     t->state = THREAD_READY;
-    insert_in_run_queue_head(t);
-    wakeup_cpu_for_thread(t);
+    wakeup_cpus_for_threads(1U << insert_in_run_queue_target(t));
 
     //if (resched) {
         if (!preempt_set_pending_if_disabled()) {
@@ -858,9 +913,18 @@ static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, v
     THREAD_LOCK(state);
 
     t->state = THREAD_READY;
-    insert_in_run_queue_head(t);
+    const uint target = insert_in_run_queue_target(t);
+    /* the ipi goes out under the lock: arch_mp_send_ipi() asserts interrupts
+     * are disabled */
+    wakeup_cpus_for_threads(1U << target);
 
     THREAD_UNLOCK(state);
+
+    if (target != arch_curr_cpu_num()) {
+        /* the sleeper went to another cpu, which the ipi above has poked.
+         * rescheduling here would not find it. */
+        return INT_NO_RESCHEDULE;
+    }
 
     if (preempt_set_pending_if_disabled()) {
         return INT_NO_RESCHEDULE;
@@ -906,9 +970,12 @@ void thread_init_early(void) {
 
     DEBUG_ASSERT(arch_curr_cpu_num() == 0);
 
-    /* initialize the run queues */
-    for (i = 0; i < NUM_PRIORITIES; i++) {
-        list_initialize(&run_queue[i]);
+    /* initialize every cpu's run queues, not just this one's: secondary cpus
+     * come up long after threads start being steered at them */
+    for (uint c = 0; c < SMP_MAX_CPUS; c++) {
+        for (i = 0; i < NUM_PRIORITIES; i++) {
+            list_initialize(&percpu_sched[c].run_queue[i]);
+        }
     }
 
     /* initialize the thread list */
@@ -937,7 +1004,7 @@ void thread_init_early(void) {
 void thread_init(void) {
 #if PLATFORM_HAS_DYNAMIC_TIMER
     for (uint i = 0; i < SMP_MAX_CPUS; i++) {
-        timer_initialize(&preempt_timer[i]);
+        timer_initialize(&percpu_sched[i].preempt_timer);
     }
 #endif
 }
@@ -969,7 +1036,7 @@ void thread_set_priority(int priority) {
     current_thread->priority = priority;
 
     current_thread->state = THREAD_READY;
-    insert_in_run_queue_head(current_thread);
+    insert_in_run_queue_head(arch_curr_cpu_num(), current_thread);
     thread_resched();
 
     THREAD_UNLOCK(state);
@@ -1328,10 +1395,9 @@ int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
          */
         if (resched_now) {
             current_thread->state = THREAD_READY;
-            insert_in_run_queue_head(current_thread);
+            insert_in_run_queue_head(arch_curr_cpu_num(), current_thread);
         }
-        insert_in_run_queue_head(t);
-        wakeup_cpu_for_thread(t);
+        wakeup_cpus_for_threads(1U << insert_in_run_queue_target(t));
         if (resched_now) {
             thread_resched();
         }
@@ -1386,7 +1452,7 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
          * current one doesn't get unnecessarilly punished.
          */
         current_thread->state = THREAD_READY;
-        insert_in_run_queue_head(current_thread);
+        insert_in_run_queue_head(arch_curr_cpu_num(), current_thread);
     }
 
     /* pop all the threads off the wait queue into the run queue */
@@ -1398,15 +1464,14 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
         t->blocking_wait_queue = NULL;
         /* accumulate the targets and send one batch of ipis at the end rather
          * than one per thread woken */
-        cpu_mask |= (1U << find_target_cpu(t));
-        insert_in_run_queue_head(t);
+        cpu_mask |= (1U << insert_in_run_queue_target(t));
         ret++;
     }
 
     DEBUG_ASSERT(wait->count == 0);
 
     if (ret > 0) {
-        mp_reschedule(cpu_mask, MP_RESCHEDULE_FLAG_REALTIME);
+        wakeup_cpus_for_threads(cpu_mask);
         if (resched_now) {
             thread_resched();
         }
@@ -1459,8 +1524,7 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error) 
     t->blocking_wait_queue = NULL;
     t->state = THREAD_READY;
     t->wait_queue_block_ret = wait_queue_error;
-    insert_in_run_queue_head(t);
-    wakeup_cpu_for_thread(t);
+    wakeup_cpus_for_threads(1U << insert_in_run_queue_target(t));
 
     return NO_ERROR;
 }
