@@ -126,6 +126,25 @@ static void insert_in_run_queue_tail(uint cpu, thread_t *t) {
     thread_set_last_cpu(t, (int)cpu);
 }
 
+/* Confirm a thread really is queued on the cpu the caller thinks it is.
+ *
+ * list_in_list() cannot tell one list from another, so it happily passes a
+ * thread queued on some other cpu. That matters because list_delete() would
+ * then still unlink it correctly -- the node knows its own list -- while the
+ * bookkeeping around it decremented the wrong cpu's runnable_count and cleared
+ * the wrong run queue bitmap bit. Silent cross-cpu corruption, so check for
+ * real rather than approximately.
+ */
+static bool thread_is_queued_on(uint cpu, thread_t *t) {
+    struct list_node *node;
+    list_for_every(&percpu_sched[cpu].run_queue[t->priority], node) {
+        if (node == &t->queue_node) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* Take a runnable thread back off of the run queue it is sitting on. Only used
  * to move a thread between cpus; the scheduler itself pops via get_top_thread().
  */
@@ -135,6 +154,8 @@ static void run_queue_remove(uint cpu, thread_t *t) {
     DEBUG_ASSERT(cpu < SMP_MAX_CPUS);
     DEBUG_ASSERT(t->state == THREAD_READY);
     DEBUG_ASSERT(list_in_list(&t->queue_node));
+    /* the caller derives `cpu` from last_cpu; this is what makes that safe */
+    DEBUG_ASSERT(thread_is_queued_on(cpu, t));
 
     struct percpu_sched *s = &percpu_sched[cpu];
     list_delete(&t->queue_node);

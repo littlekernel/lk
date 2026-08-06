@@ -5,6 +5,7 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/clock_tests.c \
 	$(LOCAL_DIR)/port_tests.c \
+	$(LOCAL_DIR)/sched_tests.c \
 	$(LOCAL_DIR)/thread_tests.c \
 
 MODULE_DEPS += \
