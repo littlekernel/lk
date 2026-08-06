@@ -165,12 +165,32 @@ static void run_queue_remove(uint cpu, thread_t *t) {
     s->runnable_count--;
 }
 
+/* Pick the cpu with the shortest run queue out of `mask`, breaking ties towards
+ * the local cpu, whose cache we are already warm in. `mask` is never empty.
+ */
+static uint least_loaded_cpu(mp_cpu_mask_t mask, uint local_cpu) {
+    uint best = local_cpu;
+    uint best_count = UINT32_MAX;
+
+    if (mask & (1U << local_cpu)) {
+        best_count = percpu_sched[local_cpu].runnable_count;
+    }
+    for (mp_cpu_mask_t m = mask; m != 0; m &= m - 1) {
+        const uint c = (uint)__builtin_ctz(m);
+        if (percpu_sched[c].runnable_count < best_count) {
+            best_count = percpu_sched[c].runnable_count;
+            best = c;
+        }
+    }
+    return best;
+}
+
 /* Pick the cpu a newly runnable thread should be steered at.
  *
  * The policy is deliberately dumb: prefer the cpu the thread last ran on if it
- * is idle, else any idle cpu, else the cpu it last ran on, else the shortest
- * run queue. There is no load balancing and nothing rebalances a thread after
- * the fact, so this decision is the whole of the scheduling policy.
+ * is genuinely free, else the least loaded idle cpu, else the least loaded cpu.
+ * There is no load balancing and nothing rebalances a thread after the fact, so
+ * this decision is the whole of the scheduling policy.
  *
  * Only cpus that have come up are candidates. A cpu that has not yet marked
  * itself active cannot be signalled at all -- mp_reschedule() masks it out of
@@ -200,40 +220,27 @@ static uint find_target_cpu(thread_t *t) {
         candidates &= ~mp_get_realtime_mask();
     }
 
+    /* An idle cpu is only *free* if nothing is queued on it yet.
+     *
+     * mp.idle_cpus does not clear until the target cpu actually context
+     * switches, which needs the ipi delivered and taken -- a long time. So
+     * within a burst of wakeups every cpu we just handed work to still looks
+     * idle, and picking by idleness alone piles the whole burst onto whichever
+     * cpu the mask happens to name first. runnable_count is updated at enqueue,
+     * so it sees that work immediately and the choice self-corrects: hand a cpu
+     * one thread and the next pick moves on.
+     */
     const mp_cpu_mask_t idle = candidates & mp_get_idle_mask();
     const int last_cpu = thread_last_cpu(t);
 
-    /* warm and free is the best of both */
-    if (last_cpu >= 0 && (idle & (1U << last_cpu))) {
-        return (uint)last_cpu;
-    }
-    if (idle != 0) {
-        /* if we're the idle cpu ourselves, keep the work here */
-        if (idle & (1U << local_cpu)) {
-            return local_cpu;
-        }
-        return (uint)__builtin_ctz(idle);
-    }
-    /* nothing idle, so fall back to affinity */
-    if (last_cpu >= 0 && (candidates & (1U << last_cpu))) {
+    /* warm and genuinely free is the best of both */
+    if (last_cpu >= 0 && (idle & (1U << last_cpu)) &&
+        percpu_sched[last_cpu].runnable_count == 0) {
         return (uint)last_cpu;
     }
 
-    /* everything is busy: pick the shortest run queue, breaking ties towards
-     * the local cpu, whose cache we are already warm in */
-    uint best = local_cpu;
-    uint best_count = UINT32_MAX;
-    if (candidates & (1U << local_cpu)) {
-        best_count = percpu_sched[local_cpu].runnable_count;
-    }
-    for (mp_cpu_mask_t m = candidates; m != 0; m &= m - 1) {
-        const uint c = (uint)__builtin_ctz(m);
-        if (percpu_sched[c].runnable_count < best_count) {
-            best_count = percpu_sched[c].runnable_count;
-            best = c;
-        }
-    }
-    return best;
+    /* an idle cpu if there is one, otherwise spread over everybody */
+    return least_loaded_cpu(idle != 0 ? idle : candidates, local_cpu);
 #else
     return 0;
 #endif
