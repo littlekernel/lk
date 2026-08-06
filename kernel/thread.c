@@ -113,6 +113,7 @@ static void insert_in_run_queue_head(uint cpu, thread_t *t) {
     list_add_head(&s->run_queue[t->priority], &t->queue_node);
     s->run_queue_bitmap |= (1 << t->priority);
     s->runnable_count++;
+    thread_set_last_cpu(t, (int)cpu);
 }
 
 static void insert_in_run_queue_tail(uint cpu, thread_t *t) {
@@ -122,6 +123,25 @@ static void insert_in_run_queue_tail(uint cpu, thread_t *t) {
     list_add_tail(&s->run_queue[t->priority], &t->queue_node);
     s->run_queue_bitmap |= (1 << t->priority);
     s->runnable_count++;
+    thread_set_last_cpu(t, (int)cpu);
+}
+
+/* Take a runnable thread back off of the run queue it is sitting on. Only used
+ * to move a thread between cpus; the scheduler itself pops via get_top_thread().
+ */
+static void run_queue_remove(uint cpu, thread_t *t) {
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(cpu < SMP_MAX_CPUS);
+    DEBUG_ASSERT(t->state == THREAD_READY);
+    DEBUG_ASSERT(list_in_list(&t->queue_node));
+
+    struct percpu_sched *s = &percpu_sched[cpu];
+    list_delete(&t->queue_node);
+    if (list_is_empty(&s->run_queue[t->priority])) {
+        s->run_queue_bitmap &= ~(1 << t->priority);
+    }
+    s->runnable_count--;
 }
 
 /* Pick the cpu a newly runnable thread should be steered at.
@@ -227,7 +247,7 @@ static void wakeup_cpus_for_threads(mp_cpu_mask_t targets) {
 static void init_thread_struct(thread_t *t, const char *name) {
     memset(t, 0, sizeof(thread_t));
     t->magic = THREAD_MAGIC;
-    thread_set_pinned_cpu(t, -1);
+    thread_init_pinned_cpu(t, -1);
     thread_set_last_cpu(t, -1);
     strlcpy(t->name, name, sizeof(t->name));
 }
@@ -370,6 +390,41 @@ status_t thread_set_real_time(thread_t *t) {
 
     return NO_ERROR;
 }
+
+#if WITH_SMP
+/**
+ * @brief  Pin a thread to a cpu, or -1 to unpin it
+ *
+ * A thread that is already runnable and sitting on the wrong cpu's run queue is
+ * moved to the right one and that cpu is poked. A blocked or suspended thread
+ * just records the pin; find_target_cpu() honors it when the thread next wakes.
+ */
+void thread_set_pinned_cpu(thread_t *t, int cpu) {
+    DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+    DEBUG_ASSERT(cpu >= -1 && cpu < (int)SMP_MAX_CPUS);
+
+    THREAD_LOCK(state);
+
+    t->pinned_cpu = cpu;
+
+    if (t->state == THREAD_READY) {
+        /* the thread is queued on a cpu that may no longer be allowed to run
+         * it. nothing filters at pop time any more, so move it now. */
+        const uint queued_cpu = (uint)thread_last_cpu(t);
+        if (cpu >= 0 && (uint)cpu != queued_cpu) {
+            run_queue_remove(queued_cpu, t);
+            wakeup_cpus_for_threads(1U << insert_in_run_queue_target(t));
+        }
+    } else if (t->state == THREAD_RUNNING) {
+        /* Moving a running thread means asking the cpu running it to reschedule
+         * and give it up, which nothing needs. Pinning it where it already runs
+         * is the only supported case -- and the only one anything does. */
+        DEBUG_ASSERT(cpu < 0 || cpu == thread_curr_cpu(t));
+    }
+
+    THREAD_UNLOCK(state);
+}
+#endif
 
 static bool thread_is_realtime(thread_t *t) {
     return (t->flags & THREAD_FLAG_REAL_TIME) && t->priority > DEFAULT_PRIORITY;
@@ -990,7 +1045,7 @@ void thread_init_early(void) {
     t->state = THREAD_RUNNING;
     t->flags = THREAD_FLAG_DETACHED;
     thread_set_curr_cpu(t, 0);
-    thread_set_pinned_cpu(t, 0);
+    thread_init_pinned_cpu(t, 0);
     wait_queue_init(&t->retcode_wait_queue);
     list_add_head(&thread_list, &t->thread_list_node);
     set_current_thread(t);
@@ -1102,7 +1157,7 @@ void thread_create_secondary_cpu_idle_thread(uint cpu) {
     t->state = THREAD_RUNNING;
     t->flags = THREAD_FLAG_DETACHED | THREAD_FLAG_IDLE;
     thread_set_curr_cpu(t, cpu);
-    thread_set_pinned_cpu(t, cpu);
+    thread_init_pinned_cpu(t, cpu);
     wait_queue_init(&t->retcode_wait_queue);
 
     THREAD_LOCK(state);

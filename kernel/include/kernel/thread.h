@@ -220,6 +220,8 @@ static inline int thread_curr_cpu(const thread_t *t) {
 #endif
 }
 
+// The cpu this thread most recently ran on, or was queued on if it is currently
+// runnable and waiting for a cpu. -1 if it has never been either.
 static inline int thread_last_cpu(const thread_t *t) {
 #if WITH_SMP
     return t->last_cpu;
@@ -248,11 +250,26 @@ static inline void thread_set_last_cpu(thread_t *t, int cpu) {
 #endif
 }
 
-static inline void thread_set_pinned_cpu(thread_t *t, int cpu) {
+// Set the pin on a thread that is still being constructed and is not yet
+// visible to the scheduler. There is nothing to migrate and, on the early boot
+// paths, no lock to take.
+static inline void thread_init_pinned_cpu(thread_t *t, int cpu) {
 #if WITH_SMP
     t->pinned_cpu = cpu;
 #endif
 }
+
+#if WITH_SMP
+// Pin a thread to a cpu, or -1 to unpin it. Takes the thread lock, and moves
+// the thread if it is already sitting on the wrong cpu's run queue.
+//
+// A thread that is currently running can only be pinned to the cpu it is
+// already running on: moving it requires that cpu to reschedule and give it up,
+// which nothing needs yet.
+void thread_set_pinned_cpu(thread_t *t, int cpu);
+#else
+static inline void thread_set_pinned_cpu(thread_t *t, int cpu) {}
+#endif
 
 // thread local storage
 static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry) {
