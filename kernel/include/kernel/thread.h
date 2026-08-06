@@ -87,6 +87,7 @@ typedef struct thread {
     bool pending_reschedule;
 #if WITH_SMP
     int curr_cpu;
+    int last_cpu;   // last cpu this thread ran on, -1 if it has never run
     int pinned_cpu; // only run on pinned_cpu if >= 0
 #endif
 #if WITH_KERNEL_VM
@@ -219,6 +220,14 @@ static inline int thread_curr_cpu(const thread_t *t) {
 #endif
 }
 
+static inline int thread_last_cpu(const thread_t *t) {
+#if WITH_SMP
+    return t->last_cpu;
+#else
+    return 0;
+#endif
+}
+
 static inline int thread_pinned_cpu(const thread_t *t) {
 #if WITH_SMP
     return t->pinned_cpu;
@@ -230,6 +239,12 @@ static inline int thread_pinned_cpu(const thread_t *t) {
 static inline void thread_set_curr_cpu(thread_t *t, int cpu) {
 #if WITH_SMP
     t->curr_cpu = cpu;
+#endif
+}
+
+static inline void thread_set_last_cpu(thread_t *t, int cpu) {
+#if WITH_SMP
+    t->last_cpu = cpu;
 #endif
 }
 

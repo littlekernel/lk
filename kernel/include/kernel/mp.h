@@ -78,6 +78,10 @@ static inline bool mp_is_cpu_active(uint cpu) {
     return mp.active_cpus & (1UL << cpu);
 }
 
+static inline mp_cpu_mask_t mp_get_active_mask(void) {
+    return mp.active_cpus;
+}
+
 // Idle cpus are currently running the idle thread.
 static inline bool mp_is_cpu_idle(uint cpu) {
     return mp.idle_cpus & (1UL << cpu);
@@ -116,6 +120,8 @@ static inline enum handler_return mp_mbx_reschedule_irq(void) { return INT_NO_RE
 // only one cpu exists in UP and if you're calling these functions, it's active...
 static inline int mp_is_cpu_active(uint cpu) { return 1; }
 static inline int mp_is_cpu_idle(uint cpu) { return (get_current_thread()->flags & THREAD_FLAG_IDLE) != 0; }
+
+static inline mp_cpu_mask_t mp_get_active_mask(void) { return 1; }
 
 static inline void mp_set_cpu_idle(uint cpu) {}
 static inline void mp_set_cpu_busy(uint cpu) {}

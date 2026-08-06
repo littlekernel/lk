@@ -101,21 +101,87 @@ static void insert_in_run_queue_tail(thread_t *t) {
     run_queue_bitmap |= (1 << t->priority);
 }
 
-static void wakeup_cpu_for_thread(thread_t *t) {
-    /* Wake up the core to which this thread is pinned
-     * or wake up all if thread is unpinned */
-    int pinned_cpu = thread_pinned_cpu(t);
-    if (pinned_cpu < 0) {
-        mp_reschedule(MP_CPU_ALL_BUT_LOCAL, 0);
-    } else {
-        mp_reschedule(1U << pinned_cpu, 0);
+/* Pick the cpu a newly runnable thread should be steered at.
+ *
+ * The policy is deliberately dumb: prefer the cpu the thread last ran on if it
+ * is idle, else any idle cpu, else the cpu it last ran on, else the local cpu.
+ * There is no load balancing and nothing rebalances a thread after the fact.
+ *
+ * Only cpus that have come up are candidates. A cpu that has not yet marked
+ * itself active cannot be signalled at all -- mp_reschedule() masks it out of
+ * the target set, and mp_mbx_reschedule_irq() would ignore the ipi even if one
+ * arrived -- so steering a thread at one would strand it. This is not a
+ * theoretical window: an SMP build booted with fewer cpus than SMP_MAX_CPUS
+ * leaves those bits clear forever.
+ *
+ * Cpus running realtime threads are avoided when there is any alternative.
+ */
+static uint find_target_cpu(thread_t *t) {
+#if WITH_SMP
+    const uint local_cpu = arch_curr_cpu_num();
+
+    const int pinned_cpu = thread_pinned_cpu(t);
+    if (pinned_cpu >= 0) {
+        /* no choice to make, and the caller is obligated to deliver the ipi */
+        return (uint)pinned_cpu;
     }
+
+    mp_cpu_mask_t candidates = mp_get_active_mask();
+    if (unlikely(candidates == 0)) {
+        /* early boot: no cpu has finished coming up yet, including this one */
+        return local_cpu;
+    }
+    if ((candidates & ~mp_get_realtime_mask()) != 0) {
+        candidates &= ~mp_get_realtime_mask();
+    }
+
+    const mp_cpu_mask_t idle = candidates & mp_get_idle_mask();
+    const int last_cpu = thread_last_cpu(t);
+
+    /* warm and free is the best of both */
+    if (last_cpu >= 0 && (idle & (1U << last_cpu))) {
+        return (uint)last_cpu;
+    }
+    if (idle != 0) {
+        /* if we're the idle cpu ourselves, keep the work here */
+        if (idle & (1U << local_cpu)) {
+            return local_cpu;
+        }
+        return (uint)__builtin_ctz(idle);
+    }
+    /* nothing idle, so fall back to affinity */
+    if (last_cpu >= 0 && (candidates & (1U << last_cpu))) {
+        return (uint)last_cpu;
+    }
+    if (candidates & (1U << local_cpu)) {
+        return local_cpu;
+    }
+    return (uint)__builtin_ctz(candidates);
+#else
+    return 0;
+#endif
+}
+
+/* Steer a newly runnable thread at a cpu and make sure that cpu notices it.
+ * Returns the target, so a caller waking several threads can batch the ipis.
+ *
+ * MP_RESCHEDULE_FLAG_REALTIME is deliberate: find_target_cpu() already avoids
+ * cpus running realtime threads whenever it has a choice, so by the time we get
+ * here the target is either not realtime or is the only cpu this thread can run
+ * on. Letting mp_reschedule() filter it out at that point would just drop the
+ * wakeup on the floor. mp_reschedule() masks out the local cpu itself.
+ */
+static uint wakeup_cpu_for_thread(thread_t *t) {
+    const uint target = find_target_cpu(t);
+    mp_reschedule(1U << target, MP_RESCHEDULE_FLAG_REALTIME);
+    return target;
 }
 
 static void init_thread_struct(thread_t *t, const char *name) {
     memset(t, 0, sizeof(thread_t));
     t->magic = THREAD_MAGIC;
     thread_set_pinned_cpu(t, -1);
+    thread_set_last_cpu(t, -1);
     strlcpy(t->name, name, sizeof(t->name));
 }
 
@@ -542,9 +608,11 @@ void thread_resched(void) {
         newthread->remaining_quantum = 5; // XXX make this smarter
     }
 
-    /* mark the cpu ownership of the threads */
+    /* mark the cpu ownership of the threads. last_cpu outlives curr_cpu and is
+     * what find_target_cpu() uses to keep a thread near where it last ran. */
     thread_set_curr_cpu(oldthread, -1);
     thread_set_curr_cpu(newthread, cpu);
+    thread_set_last_cpu(newthread, cpu);
 
 #if WITH_SMP
     if (thread_is_idle(newthread)) {
@@ -1328,13 +1396,9 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
         t->state = THREAD_READY;
         t->wait_queue_block_ret = wait_queue_error;
         t->blocking_wait_queue = NULL;
-        int pinned_cpu = thread_pinned_cpu(t);
-        if (pinned_cpu < 0) {
-            /* assumes MP_CPU_ALL_BUT_LOCAL is defined as all bits on */
-            cpu_mask = MP_CPU_ALL_BUT_LOCAL;
-        } else {
-            cpu_mask |= (1U << pinned_cpu);
-        }
+        /* accumulate the targets and send one batch of ipis at the end rather
+         * than one per thread woken */
+        cpu_mask |= (1U << find_target_cpu(t));
         insert_in_run_queue_head(t);
         ret++;
     }
@@ -1342,7 +1406,7 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
     DEBUG_ASSERT(wait->count == 0);
 
     if (ret > 0) {
-        mp_reschedule(cpu_mask, 0);
+        mp_reschedule(cpu_mask, MP_RESCHEDULE_FLAG_REALTIME);
         if (resched_now) {
             thread_resched();
         }
