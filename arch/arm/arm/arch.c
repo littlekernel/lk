@@ -121,8 +121,10 @@ void arch_init(void) {
      */
     dprintf(SPEW, "releasing %d secondary cpu%c\n", secondaries_to_init, secondaries_to_init != 1 ? 's' : ' ');
 
-    /* release the secondary cpus */
-    spin_unlock(&arm_boot_cpu_lock);
+    /* Release the secondary cpus. The lock is born held (static initializer)
+     * rather than ever being acquired through spin_lock(), so release it at
+     * the arch level, underneath the debug-build held-lock tracking. */
+    arch_spin_unlock(&arm_boot_cpu_lock);
 
     /* flush the release of the lock, since the secondary cpus are running without cache on */
     arch_clean_cache_range((addr_t)&arm_boot_cpu_lock, sizeof(arm_boot_cpu_lock));

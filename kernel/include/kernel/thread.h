@@ -207,8 +207,12 @@ extern spin_lock_t thread_lock;
 #define THREAD_LOCK(state) arch_interrupt_saved_state_t state = spin_lock_irqsave(&thread_lock)
 #define THREAD_UNLOCK(state) spin_unlock_irqrestore(&thread_lock, state)
 
+// "Do I hold the thread lock?" -- which is what every caller of this actually
+// means, and what the ~30 DEBUG_ASSERTs across kernel/ are trying to check.
+// While there is one global lock this is nearly the same question as "is it held
+// at all"; once the lock splits per cpu it is a completely different one.
 static inline bool thread_lock_held(void) {
-    return spin_lock_held(&thread_lock);
+    return spin_lock_held_by_me(&thread_lock);
 }
 
 // Is this the idle thread for some cpu? Idle threads never sit on a run queue.

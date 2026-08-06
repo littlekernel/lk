@@ -143,13 +143,37 @@ static void spinlock_test(void) {
     // verify basic functionality (single core)
     printf("testing spinlock:\n");
     ASSERT(!spin_lock_held(&lock));
+    ASSERT(!spin_lock_held_by_me(&lock));
     ASSERT(!arch_ints_disabled());
     state = spin_lock_irqsave(&lock);
     ASSERT(arch_ints_disabled());
     ASSERT(spin_lock_held(&lock));
+    ASSERT(spin_lock_held_by_me(&lock));
+
+    /* An unrelated lock must not be mistaken for this one. This is the whole
+     * point of tracking ownership per lock: spin_lock_held() cannot tell the
+     * difference and is nearly always true once there are several locks. */
+    spin_lock_t other;
+    spin_lock_init(&other);
+    ASSERT(!spin_lock_held_by_me(&other));
+
     spin_unlock_irqrestore(&lock, state);
     ASSERT(!spin_lock_held(&lock));
+    ASSERT(!spin_lock_held_by_me(&lock));
     ASSERT(!arch_ints_disabled());
+
+    /* Nesting: releasing the inner lock must leave the outer one recorded.
+     * Release is a search-and-remove rather than a stack pop, so check that
+     * removing from the middle does not lose the survivor. */
+    state = spin_lock_irqsave(&lock);
+    spin_lock(&other);
+    ASSERT(spin_lock_held_by_me(&lock));
+    ASSERT(spin_lock_held_by_me(&other));
+    spin_unlock(&other);
+    ASSERT(spin_lock_held_by_me(&lock));
+    ASSERT(!spin_lock_held_by_me(&other));
+    spin_unlock_irqrestore(&lock, state);
+    ASSERT(!spin_lock_held_by_me(&lock));
     printf("seems to work\n");
 
 #define COUNT (1024*1024)

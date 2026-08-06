@@ -174,13 +174,17 @@ void riscv_boot_secondaries(void) {
     // the boot_cpu_lock. Via some mechanism or other, all of the cpus should have already entered
     // start.S via the main entry point for this to work. This is the default behavior when
     // running on QEMU, for example.
-    spin_unlock(&boot_cpu_lock);
+    // The lock is born held (static initializer) rather than ever being acquired through
+    // spin_lock(), so release it at the arch level, underneath the debug-build held-lock
+    // tracking.
+    arch_spin_unlock(&boot_cpu_lock);
 #else
     dprintf(INFO, "RISCV: Going to try to start %d secondary harts\n", harts_to_boot_count);
 
     // May as well release the boot cpu lock now, since there's no reason to hold back secondaries we
-    // haven't started yet.
-    spin_unlock(&boot_cpu_lock);
+    // haven't started yet. Born held, never acquired through spin_lock(), so released at the
+    // arch level underneath the debug-build held-lock tracking.
+    arch_spin_unlock(&boot_cpu_lock);
 
     // use SBI HSM to boot the secondaries
     uint boot_hart = riscv_current_hart();
