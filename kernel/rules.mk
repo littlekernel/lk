@@ -13,6 +13,7 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/preempt.c \
 	$(LOCAL_DIR)/mutex.c \
 	$(LOCAL_DIR)/thread.c \
+	$(LOCAL_DIR)/sched.c \
 	$(LOCAL_DIR)/timer.c \
 	$(LOCAL_DIR)/semaphore.c \
 	$(LOCAL_DIR)/mp.c \

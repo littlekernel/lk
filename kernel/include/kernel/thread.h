@@ -211,6 +211,11 @@ static inline bool thread_lock_held(void) {
     return spin_lock_held(&thread_lock);
 }
 
+// Is this the idle thread for some cpu? Idle threads never sit on a run queue.
+static inline bool thread_is_idle(const thread_t *t) {
+    return !!(t->flags & THREAD_FLAG_IDLE);
+}
+
 // SMP related accessors
 static inline int thread_curr_cpu(const thread_t *t) {
 #if WITH_SMP
