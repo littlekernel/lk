@@ -8,4 +8,6 @@ MODULE_SRCS += $(LOCAL_DIR)/virtio-mmio-bus.cpp
 MODULE_SRCS += $(LOCAL_DIR)/virtio-pci-bus.cpp
 MODULE_SRCS += $(LOCAL_DIR)/virtio.cpp
 
+MODULE_DEPS += lib/libcpp
+
 include make/module.mk
