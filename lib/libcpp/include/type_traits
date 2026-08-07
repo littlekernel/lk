@@ -1010,26 +1010,6 @@ struct extent<T[N], I> : extent<T, I - 1> {};
 template <typename T>
 struct alignment_of : integral_constant<size_t, alignof(T)> {};
 
-// move (deprecated location; the standard puts this in <utility>)
-
-template <typename T>
-constexpr typename remove_reference<T>::type&& move(T&& t) {
-    return static_cast<typename remove_reference<T>::type&&>(t);
-}
-
-// forward:
-
-template <typename T>
-constexpr T&& forward(typename remove_reference<T>::type& t) {
-    return static_cast<T&&>(t);
-}
-
-template <typename T>
-constexpr T&& forward(typename remove_reference<T>::type&& t) {
-    static_assert(!is_lvalue_reference<T>::value, "bad std::forward call");
-    return static_cast<T&&>(t);
-}
-
 // Macro for defining a trait that checks if a type T has a method with the
 // given name. This is not as strong as using is_same to check function
 // signatures, but checking this trait first gives a better static_assert

@@ -1,0 +1,289 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <__lk/tuple_bits.h>
+#include <stddef.h>
+#include <type_traits>
+
+// <utility> for LK's freestanding C++ standard library subset.
+//
+// Deviations from a hosted implementation:
+//  - std::pair's converting constructors and assignment operators are not
+//    SFINAE-constrained on convertibility/explicitness the way the standard
+//    requires; ill-formed conversions fail inside the member instead of
+//    falling out of overload resolution.
+//  - no piecewise_construct, no tuple interactions beyond the structured
+//    bindings protocol for pair.
+
+namespace std {
+
+// move / forward
+
+template <typename T>
+constexpr remove_reference_t<T> &&move(T &&t) noexcept {
+    return static_cast<remove_reference_t<T> &&>(t);
+}
+
+template <typename T>
+constexpr T &&forward(remove_reference_t<T> &t) noexcept {
+    return static_cast<T &&>(t);
+}
+
+template <typename T>
+constexpr T &&forward(remove_reference_t<T> &&t) noexcept {
+    static_assert(!is_lvalue_reference<T>::value, "bad std::forward call");
+    return static_cast<T &&>(t);
+}
+
+// swap
+
+template <typename T>
+inline void swap(T &a, T &b) {
+    T tmp = std::move(a);
+    a = std::move(b);
+    b = std::move(tmp);
+}
+
+template <typename T, size_t N>
+inline void swap(T (&a)[N], T (&b)[N]) {
+    for (size_t i = 0; i < N; i++) {
+        swap(a[i], b[i]);
+    }
+}
+
+// exchange
+
+template <typename T, typename U = T>
+inline T exchange(T &obj, U &&new_value) {
+    T old_value = std::move(obj);
+    obj = std::forward<U>(new_value);
+    return old_value;
+}
+
+// as_const
+
+template <typename T>
+constexpr add_const_t<T> &as_const(T &t) noexcept {
+    return t;
+}
+
+template <typename T>
+void as_const(const T &&) = delete;
+
+// integer_sequence
+
+template <typename T, T... Ints>
+struct integer_sequence {
+    using value_type = T;
+    static constexpr size_t size() noexcept { return sizeof...(Ints); }
+};
+
+template <size_t... Ints>
+using index_sequence = integer_sequence<size_t, Ints...>;
+
+#if defined(__clang__)
+template <typename T, T N>
+using make_integer_sequence = __make_integer_seq<integer_sequence, T, N>;
+#else
+template <typename T, T N>
+using make_integer_sequence = integer_sequence<T, __integer_pack(N)...>;
+#endif
+
+template <size_t N>
+using make_index_sequence = make_integer_sequence<size_t, N>;
+
+template <typename... Ts>
+using index_sequence_for = make_index_sequence<sizeof...(Ts)>;
+
+// in_place tags
+
+struct in_place_t {
+    explicit in_place_t() = default;
+};
+inline constexpr in_place_t in_place{};
+
+template <typename T>
+struct in_place_type_t {
+    explicit in_place_type_t() = default;
+};
+template <typename T>
+inline constexpr in_place_type_t<T> in_place_type{};
+
+template <size_t I>
+struct in_place_index_t {
+    explicit in_place_index_t() = default;
+};
+template <size_t I>
+inline constexpr in_place_index_t<I> in_place_index{};
+
+// pair
+
+template <typename T1, typename T2>
+struct pair {
+    using first_type = T1;
+    using second_type = T2;
+
+    T1 first;
+    T2 second;
+
+    constexpr pair() : first(), second() {}
+
+    constexpr pair(const T1 &a, const T2 &b) : first(a), second(b) {}
+
+    template <typename U1, typename U2>
+    constexpr pair(U1 &&a, U2 &&b)
+        : first(std::forward<U1>(a)), second(std::forward<U2>(b)) {}
+
+    template <typename U1, typename U2>
+    constexpr pair(const pair<U1, U2> &other) : first(other.first), second(other.second) {}
+
+    template <typename U1, typename U2>
+    constexpr pair(pair<U1, U2> &&other)
+        : first(std::forward<U1>(other.first)), second(std::forward<U2>(other.second)) {}
+
+    pair(const pair &) = default;
+    pair(pair &&) = default;
+    pair &operator=(const pair &) = default;
+    pair &operator=(pair &&) = default;
+
+    template <typename U1, typename U2>
+    pair &operator=(const pair<U1, U2> &other) {
+        first = other.first;
+        second = other.second;
+        return *this;
+    }
+
+    template <typename U1, typename U2>
+    pair &operator=(pair<U1, U2> &&other) {
+        first = std::forward<U1>(other.first);
+        second = std::forward<U2>(other.second);
+        return *this;
+    }
+
+    void swap(pair &other) {
+        std::swap(first, other.first);
+        std::swap(second, other.second);
+    }
+};
+
+template <typename T1, typename T2>
+pair(T1, T2) -> pair<T1, T2>;
+
+template <typename T1, typename T2>
+constexpr bool operator==(const pair<T1, T2> &l, const pair<T1, T2> &r) {
+    return l.first == r.first && l.second == r.second;
+}
+template <typename T1, typename T2>
+constexpr bool operator!=(const pair<T1, T2> &l, const pair<T1, T2> &r) {
+    return !(l == r);
+}
+template <typename T1, typename T2>
+constexpr bool operator<(const pair<T1, T2> &l, const pair<T1, T2> &r) {
+    return l.first < r.first || (!(r.first < l.first) && l.second < r.second);
+}
+template <typename T1, typename T2>
+constexpr bool operator>(const pair<T1, T2> &l, const pair<T1, T2> &r) {
+    return r < l;
+}
+template <typename T1, typename T2>
+constexpr bool operator<=(const pair<T1, T2> &l, const pair<T1, T2> &r) {
+    return !(r < l);
+}
+template <typename T1, typename T2>
+constexpr bool operator>=(const pair<T1, T2> &l, const pair<T1, T2> &r) {
+    return !(l < r);
+}
+
+template <typename T1, typename T2>
+inline void swap(pair<T1, T2> &a, pair<T1, T2> &b) {
+    a.swap(b);
+}
+
+template <typename T1, typename T2>
+constexpr pair<decay_t<T1>, decay_t<T2>> make_pair(T1 &&a, T2 &&b) {
+    return pair<decay_t<T1>, decay_t<T2>>(std::forward<T1>(a), std::forward<T2>(b));
+}
+
+// tuple protocol for pair (enables structured bindings)
+
+template <typename T1, typename T2>
+struct tuple_size<pair<T1, T2>> : integral_constant<size_t, 2> {};
+
+template <typename T1, typename T2>
+struct tuple_element<0, pair<T1, T2>> {
+    using type = T1;
+};
+template <typename T1, typename T2>
+struct tuple_element<1, pair<T1, T2>> {
+    using type = T2;
+};
+
+template <size_t I, typename T1, typename T2>
+constexpr tuple_element_t<I, pair<T1, T2>> &get(pair<T1, T2> &p) noexcept {
+    static_assert(I < 2, "pair index out of range");
+    if constexpr (I == 0) {
+        return p.first;
+    } else {
+        return p.second;
+    }
+}
+
+template <size_t I, typename T1, typename T2>
+constexpr const tuple_element_t<I, pair<T1, T2>> &get(const pair<T1, T2> &p) noexcept {
+    static_assert(I < 2, "pair index out of range");
+    if constexpr (I == 0) {
+        return p.first;
+    } else {
+        return p.second;
+    }
+}
+
+template <size_t I, typename T1, typename T2>
+constexpr tuple_element_t<I, pair<T1, T2>> &&get(pair<T1, T2> &&p) noexcept {
+    static_assert(I < 2, "pair index out of range");
+    if constexpr (I == 0) {
+        return std::move(p.first);
+    } else {
+        return std::move(p.second);
+    }
+}
+
+template <size_t I, typename T1, typename T2>
+constexpr const tuple_element_t<I, pair<T1, T2>> &&get(const pair<T1, T2> &&p) noexcept {
+    static_assert(I < 2, "pair index out of range");
+    if constexpr (I == 0) {
+        return std::move(p.first);
+    } else {
+        return std::move(p.second);
+    }
+}
+
+template <typename T, typename U>
+constexpr T &get(pair<T, U> &p) noexcept {
+    static_assert(!is_same<T, U>::value, "get<T> on pair<T, T> is ambiguous");
+    return p.first;
+}
+template <typename T, typename U>
+constexpr const T &get(const pair<T, U> &p) noexcept {
+    static_assert(!is_same<T, U>::value, "get<T> on pair<T, T> is ambiguous");
+    return p.first;
+}
+template <typename T, typename U>
+constexpr T &get(pair<U, T> &p) noexcept {
+    static_assert(!is_same<T, U>::value, "get<T> on pair<T, T> is ambiguous");
+    return p.second;
+}
+template <typename T, typename U>
+constexpr const T &get(const pair<U, T> &p) noexcept {
+    static_assert(!is_same<T, U>::value, "get<T> on pair<T, T> is ambiguous");
+    return p.second;
+}
+
+} // namespace std
+
+// vim: syntax=cpp
