@@ -1,0 +1,41 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <string.h>
+
+namespace std {
+
+using ::size_t;
+
+using ::memchr;
+using ::memcmp;
+using ::memcpy;
+using ::memmove;
+using ::memset;
+
+using ::strcat;
+using ::strchr;
+using ::strcmp;
+using ::strcoll;
+using ::strcpy;
+using ::strcspn;
+using ::strerror;
+using ::strlen;
+using ::strncat;
+using ::strncmp;
+using ::strncpy;
+using ::strpbrk;
+using ::strrchr;
+using ::strspn;
+using ::strstr;
+using ::strtok;
+using ::strxfrm;
+
+} // namespace std
+
+// vim: syntax=cpp

@@ -1,0 +1,42 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <stdio.h>
+
+namespace std {
+
+using ::size_t;
+using ::FILE;
+
+using ::fclose;
+using ::feof;
+using ::fflush;
+using ::fgetc;
+using ::fgets;
+using ::fopen;
+using ::fprintf;
+using ::fputc;
+using ::fputs;
+using ::fread;
+using ::fseek;
+using ::ftell;
+using ::fwrite;
+using ::getchar;
+using ::printf;
+using ::putchar;
+using ::puts;
+using ::snprintf;
+using ::sprintf;
+using ::vfprintf;
+using ::vprintf;
+using ::vsnprintf;
+using ::vsprintf;
+
+} // namespace std
+
+// vim: syntax=cpp

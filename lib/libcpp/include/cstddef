@@ -1,0 +1,58 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <stddef.h>
+
+namespace std {
+
+using ::size_t;
+using ::ptrdiff_t;
+using ::max_align_t;
+using nullptr_t = decltype(nullptr);
+
+// std::byte and its operations (C++17).
+enum class byte : unsigned char {};
+
+template <typename IntegerType>
+constexpr IntegerType to_integer(byte b) noexcept {
+    return static_cast<IntegerType>(b);
+}
+
+constexpr byte operator|(byte l, byte r) noexcept {
+    return static_cast<byte>(static_cast<unsigned char>(l) | static_cast<unsigned char>(r));
+}
+constexpr byte operator&(byte l, byte r) noexcept {
+    return static_cast<byte>(static_cast<unsigned char>(l) & static_cast<unsigned char>(r));
+}
+constexpr byte operator^(byte l, byte r) noexcept {
+    return static_cast<byte>(static_cast<unsigned char>(l) ^ static_cast<unsigned char>(r));
+}
+constexpr byte operator~(byte b) noexcept {
+    return static_cast<byte>(~static_cast<unsigned char>(b));
+}
+
+constexpr byte &operator|=(byte &l, byte r) noexcept { return l = l | r; }
+constexpr byte &operator&=(byte &l, byte r) noexcept { return l = l & r; }
+constexpr byte &operator^=(byte &l, byte r) noexcept { return l = l ^ r; }
+
+template <typename IntegerType>
+constexpr byte operator<<(byte b, IntegerType shift) noexcept {
+    return static_cast<byte>(static_cast<unsigned char>(b) << shift);
+}
+template <typename IntegerType>
+constexpr byte operator>>(byte b, IntegerType shift) noexcept {
+    return static_cast<byte>(static_cast<unsigned char>(b) >> shift);
+}
+template <typename IntegerType>
+constexpr byte &operator<<=(byte &b, IntegerType shift) noexcept { return b = b << shift; }
+template <typename IntegerType>
+constexpr byte &operator>>=(byte &b, IntegerType shift) noexcept { return b = b >> shift; }
+
+} // namespace std
+
+// vim: syntax=cpp
