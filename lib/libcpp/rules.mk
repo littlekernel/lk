@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS :=
 
+MODULE_SRCS += $(LOCAL_DIR)/abort.cpp
 MODULE_SRCS += $(LOCAL_DIR)/new.cpp
 MODULE_SRCS += $(LOCAL_DIR)/pure_virtual.cpp
 
