@@ -1,0 +1,217 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <__lk/abort.h>
+#include <__lk/tuple_bits.h>
+#include <stddef.h>
+#include <utility>
+
+// <array> for LK's freestanding C++ standard library subset.
+//
+// Deviations from a hosted implementation:
+//  - at() panics instead of throwing std::out_of_range
+//  - no reverse iterators (rbegin/rend); iterators are plain pointers
+//  - no to_array (C++20)
+
+namespace std {
+
+template <typename T, size_t N>
+struct array {
+    using value_type = T;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+    using reference = T &;
+    using const_reference = const T &;
+    using pointer = T *;
+    using const_pointer = const T *;
+    using iterator = T *;
+    using const_iterator = const T *;
+
+    // public for aggregate-ness; use data() instead of touching directly
+    T __elems[N];
+
+    constexpr reference operator[](size_type i) {
+        __LK_CXX_DEBUG_ASSERT(i < N);
+        return __elems[i];
+    }
+    constexpr const_reference operator[](size_type i) const {
+        __LK_CXX_DEBUG_ASSERT(i < N);
+        return __elems[i];
+    }
+
+    constexpr reference at(size_type i) {
+        if (i >= N) {
+            __LK_CXX_PANIC("array::at: index out of range");
+        }
+        return __elems[i];
+    }
+    constexpr const_reference at(size_type i) const {
+        if (i >= N) {
+            __LK_CXX_PANIC("array::at: index out of range");
+        }
+        return __elems[i];
+    }
+
+    constexpr reference front() { return __elems[0]; }
+    constexpr const_reference front() const { return __elems[0]; }
+    constexpr reference back() { return __elems[N - 1]; }
+    constexpr const_reference back() const { return __elems[N - 1]; }
+
+    constexpr pointer data() noexcept { return __elems; }
+    constexpr const_pointer data() const noexcept { return __elems; }
+
+    constexpr iterator begin() noexcept { return __elems; }
+    constexpr const_iterator begin() const noexcept { return __elems; }
+    constexpr const_iterator cbegin() const noexcept { return __elems; }
+    constexpr iterator end() noexcept { return __elems + N; }
+    constexpr const_iterator end() const noexcept { return __elems + N; }
+    constexpr const_iterator cend() const noexcept { return __elems + N; }
+
+    constexpr bool empty() const noexcept { return false; }
+    constexpr size_type size() const noexcept { return N; }
+    constexpr size_type max_size() const noexcept { return N; }
+
+    void fill(const T &value) {
+        for (size_type i = 0; i < N; i++) {
+            __elems[i] = value;
+        }
+    }
+
+    void swap(array &other) {
+        for (size_type i = 0; i < N; i++) {
+            std::swap(__elems[i], other.__elems[i]);
+        }
+    }
+};
+
+// The zero-length specialization: still an aggregate, data() is non-null but
+// dereferencing it is invalid, begin() == end().
+template <typename T>
+struct array<T, 0> {
+    using value_type = T;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+    using reference = T &;
+    using const_reference = const T &;
+    using pointer = T *;
+    using const_pointer = const T *;
+    using iterator = T *;
+    using const_iterator = const T *;
+
+    constexpr reference operator[](size_type) {
+        __LK_CXX_PANIC("array<T, 0>::operator[]");
+    }
+    constexpr const_reference operator[](size_type) const {
+        __LK_CXX_PANIC("array<T, 0>::operator[]");
+    }
+    constexpr reference at(size_type) {
+        __LK_CXX_PANIC("array<T, 0>::at: index out of range");
+    }
+    constexpr const_reference at(size_type) const {
+        __LK_CXX_PANIC("array<T, 0>::at: index out of range");
+    }
+
+    constexpr pointer data() noexcept { return nullptr; }
+    constexpr const_pointer data() const noexcept { return nullptr; }
+
+    constexpr iterator begin() noexcept { return nullptr; }
+    constexpr const_iterator begin() const noexcept { return nullptr; }
+    constexpr const_iterator cbegin() const noexcept { return nullptr; }
+    constexpr iterator end() noexcept { return nullptr; }
+    constexpr const_iterator end() const noexcept { return nullptr; }
+    constexpr const_iterator cend() const noexcept { return nullptr; }
+
+    constexpr bool empty() const noexcept { return true; }
+    constexpr size_type size() const noexcept { return 0; }
+    constexpr size_type max_size() const noexcept { return 0; }
+
+    void fill(const T &) {}
+    void swap(array &) {}
+};
+
+template <typename T, typename... U>
+array(T, U...) -> array<T, 1 + sizeof...(U)>;
+
+template <typename T, size_t N>
+constexpr bool operator==(const array<T, N> &l, const array<T, N> &r) {
+    for (size_t i = 0; i < N; i++) {
+        if (!(l[i] == r[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+template <typename T, size_t N>
+constexpr bool operator!=(const array<T, N> &l, const array<T, N> &r) {
+    return !(l == r);
+}
+template <typename T, size_t N>
+constexpr bool operator<(const array<T, N> &l, const array<T, N> &r) {
+    for (size_t i = 0; i < N; i++) {
+        if (l[i] < r[i]) {
+            return true;
+        }
+        if (r[i] < l[i]) {
+            return false;
+        }
+    }
+    return false;
+}
+template <typename T, size_t N>
+constexpr bool operator>(const array<T, N> &l, const array<T, N> &r) {
+    return r < l;
+}
+template <typename T, size_t N>
+constexpr bool operator<=(const array<T, N> &l, const array<T, N> &r) {
+    return !(r < l);
+}
+template <typename T, size_t N>
+constexpr bool operator>=(const array<T, N> &l, const array<T, N> &r) {
+    return !(l < r);
+}
+
+template <typename T, size_t N>
+inline void swap(array<T, N> &a, array<T, N> &b) {
+    a.swap(b);
+}
+
+// tuple protocol (enables structured bindings)
+
+template <typename T, size_t N>
+struct tuple_size<array<T, N>> : integral_constant<size_t, N> {};
+
+template <size_t I, typename T, size_t N>
+struct tuple_element<I, array<T, N>> {
+    static_assert(I < N, "array index out of range");
+    using type = T;
+};
+
+template <size_t I, typename T, size_t N>
+constexpr T &get(array<T, N> &a) noexcept {
+    static_assert(I < N, "array index out of range");
+    return a.__elems[I];
+}
+template <size_t I, typename T, size_t N>
+constexpr const T &get(const array<T, N> &a) noexcept {
+    static_assert(I < N, "array index out of range");
+    return a.__elems[I];
+}
+template <size_t I, typename T, size_t N>
+constexpr T &&get(array<T, N> &&a) noexcept {
+    static_assert(I < N, "array index out of range");
+    return std::move(a.__elems[I]);
+}
+template <size_t I, typename T, size_t N>
+constexpr const T &&get(const array<T, N> &&a) noexcept {
+    static_assert(I < N, "array index out of range");
+    return std::move(a.__elems[I]);
+}
+
+} // namespace std
+
+// vim: syntax=cpp
