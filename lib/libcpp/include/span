@@ -1,0 +1,218 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <__lk/abort.h>
+#include <array>
+#include <cstddef>
+#include <stddef.h>
+#include <type_traits>
+
+// <span> for LK's freestanding C++ standard library subset.
+//
+// std::span is a C++20 header, provided here under C++17 because it is
+// exactly the vocabulary type driver code wants (pointer + length with
+// bounds-checked subviews). Deviations from the C++20 specification:
+//  - no ranges integration; constructible from pointer+size, pointer pair,
+//    C arrays, and std::array
+//  - the fixed-extent pointer constructors are not marked explicit
+//    (conditional explicit needs C++20)
+//  - out-of-range subviews (first/last/subspan) and a size-mismatched
+//    fixed-extent construction panic instead of being undefined behavior;
+//    operator[]/front/back debug-assert
+//  - no reverse iterators
+
+namespace std {
+
+inline constexpr size_t dynamic_extent = size_t(-1);
+
+namespace internal {
+
+template <typename T, size_t Extent>
+struct span_storage {
+    constexpr span_storage() noexcept : data(nullptr) {}
+    constexpr span_storage(T *p, size_t) noexcept : data(p) {}
+    T *data;
+    static constexpr size_t size = Extent;
+};
+
+template <typename T>
+struct span_storage<T, dynamic_extent> {
+    constexpr span_storage() noexcept : data(nullptr), size(0) {}
+    constexpr span_storage(T *p, size_t n) noexcept : data(p), size(n) {}
+    T *data;
+    size_t size;
+};
+
+} // namespace internal
+
+template <typename T, size_t Extent = dynamic_extent>
+class span {
+public:
+    using element_type = T;
+    using value_type = remove_cv_t<T>;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+    using pointer = T *;
+    using const_pointer = const T *;
+    using reference = T &;
+    using const_reference = const T &;
+    using iterator = T *;
+    using const_iterator = const T *;
+
+    static constexpr size_type extent = Extent;
+
+    template <size_t E = Extent,
+              typename = enable_if_t<E == dynamic_extent || E == 0>>
+    constexpr span() noexcept {}
+
+    constexpr span(pointer ptr, size_type count) : storage_(ptr, count) {
+        if constexpr (Extent != dynamic_extent) {
+            if (count != Extent) {
+                __LK_CXX_PANIC("span: fixed-extent size mismatch");
+            }
+        }
+    }
+
+    constexpr span(pointer first, pointer last)
+        : span(first, static_cast<size_type>(last - first)) {}
+
+    template <size_t N, size_t E = Extent,
+              typename = enable_if_t<E == dynamic_extent || E == N>>
+    constexpr span(element_type (&arr)[N]) noexcept : storage_(arr, N) {}
+
+    template <size_t N, size_t E = Extent,
+              typename = enable_if_t<E == dynamic_extent || E == N>>
+    constexpr span(array<value_type, N> &arr) noexcept : storage_(arr.data(), N) {}
+
+    template <size_t N, size_t E = Extent,
+              typename = enable_if_t<E == dynamic_extent || E == N>>
+    constexpr span(const array<value_type, N> &arr) noexcept : storage_(arr.data(), N) {}
+
+    // converting from a compatible span (e.g. span<T> -> span<const T>)
+    template <typename U, size_t UE,
+              typename = enable_if_t<(Extent == dynamic_extent || UE == Extent ||
+                                      UE == dynamic_extent) &&
+                                     is_convertible<U (*)[], T (*)[]>::value>>
+    constexpr span(const span<U, UE> &other) : span(other.data(), other.size()) {}
+
+    constexpr span(const span &) noexcept = default;
+    constexpr span &operator=(const span &) noexcept = default;
+
+    constexpr size_type size() const noexcept { return storage_.size; }
+    constexpr size_type size_bytes() const noexcept { return size() * sizeof(element_type); }
+    [[nodiscard]] constexpr bool empty() const noexcept { return size() == 0; }
+
+    constexpr reference operator[](size_type i) const {
+        __LK_CXX_DEBUG_ASSERT(i < size());
+        return storage_.data[i];
+    }
+    constexpr reference front() const {
+        __LK_CXX_DEBUG_ASSERT(!empty());
+        return storage_.data[0];
+    }
+    constexpr reference back() const {
+        __LK_CXX_DEBUG_ASSERT(!empty());
+        return storage_.data[size() - 1];
+    }
+    constexpr pointer data() const noexcept { return storage_.data; }
+
+    constexpr iterator begin() const noexcept { return storage_.data; }
+    constexpr iterator end() const noexcept { return storage_.data + size(); }
+    constexpr const_iterator cbegin() const noexcept { return storage_.data; }
+    constexpr const_iterator cend() const noexcept { return storage_.data + size(); }
+
+    template <size_t Count>
+    constexpr span<element_type, Count> first() const {
+        static_assert(Count != dynamic_extent, "first<Count> requires a real count");
+        if constexpr (Extent != dynamic_extent) {
+            static_assert(Count <= Extent, "span::first: count out of range");
+        }
+        if (Count > size()) {
+            __LK_CXX_PANIC("span::first: count out of range");
+        }
+        return {data(), Count};
+    }
+    constexpr span<element_type> first(size_type count) const {
+        if (count > size()) {
+            __LK_CXX_PANIC("span::first: count out of range");
+        }
+        return {data(), count};
+    }
+
+    template <size_t Count>
+    constexpr span<element_type, Count> last() const {
+        static_assert(Count != dynamic_extent, "last<Count> requires a real count");
+        if constexpr (Extent != dynamic_extent) {
+            static_assert(Count <= Extent, "span::last: count out of range");
+        }
+        if (Count > size()) {
+            __LK_CXX_PANIC("span::last: count out of range");
+        }
+        return {data() + (size() - Count), Count};
+    }
+    constexpr span<element_type> last(size_type count) const {
+        if (count > size()) {
+            __LK_CXX_PANIC("span::last: count out of range");
+        }
+        return {data() + (size() - count), count};
+    }
+
+    template <size_t Offset, size_t Count = dynamic_extent>
+    constexpr auto subspan() const {
+        if constexpr (Extent != dynamic_extent) {
+            static_assert(Offset <= Extent, "span::subspan: offset out of range");
+            static_assert(Count == dynamic_extent || Count <= Extent - Offset,
+                          "span::subspan: count out of range");
+        }
+        if (Offset > size() || (Count != dynamic_extent && Count > size() - Offset)) {
+            __LK_CXX_PANIC("span::subspan: out of range");
+        }
+        constexpr size_t kSubExtent =
+            Count != dynamic_extent ? Count
+                                    : (Extent != dynamic_extent ? Extent - Offset : dynamic_extent);
+        return span<element_type, kSubExtent>(
+            data() + Offset, Count == dynamic_extent ? size() - Offset : Count);
+    }
+    constexpr span<element_type> subspan(size_type offset,
+                                         size_type count = dynamic_extent) const {
+        if (offset > size() || (count != dynamic_extent && count > size() - offset)) {
+            __LK_CXX_PANIC("span::subspan: out of range");
+        }
+        return {data() + offset, count == dynamic_extent ? size() - offset : count};
+    }
+
+private:
+    internal::span_storage<T, Extent> storage_;
+};
+
+template <typename T, size_t N>
+span(T (&)[N]) -> span<T, N>;
+template <typename T, size_t N>
+span(array<T, N> &) -> span<T, N>;
+template <typename T, size_t N>
+span(const array<T, N> &) -> span<const T, N>;
+template <typename T>
+span(T *, size_t) -> span<T>;
+template <typename T>
+span(T *, T *) -> span<T>;
+
+template <typename T, size_t E>
+inline span<const byte, E == dynamic_extent ? dynamic_extent : E * sizeof(T)>
+as_bytes(span<T, E> s) noexcept {
+    return {reinterpret_cast<const byte *>(s.data()), s.size_bytes()};
+}
+
+template <typename T, size_t E, typename = enable_if_t<!is_const<T>::value>>
+inline span<byte, E == dynamic_extent ? dynamic_extent : E * sizeof(T)>
+as_writable_bytes(span<T, E> s) noexcept {
+    return {reinterpret_cast<byte *>(s.data()), s.size_bytes()};
+}
+
+} // namespace std
+
+// vim: syntax=cpp

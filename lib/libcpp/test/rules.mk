@@ -6,6 +6,7 @@ MODULE_SRCS += $(LOCAL_DIR)/array_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/cstddef_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/limits_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/new_tests.cpp
+MODULE_SRCS += $(LOCAL_DIR)/span_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/string_view_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/type_traits_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/utility_tests.cpp
