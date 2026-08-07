@@ -1,0 +1,291 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+// std::numeric_limits for LK's freestanding C++ standard library subset.
+//
+// Implemented entirely in terms of the compiler's predefined macros
+// (__INT_MAX__, __FLT_MAX__, ...) so it has no dependency on libc or libm
+// and every member is usable in constant expressions.
+//
+// Deviations from a hosted implementation:
+//  - traps is false for all types (whether integer division by zero traps
+//    is architecture dependent; ARM, for one, does not trap).
+
+namespace std {
+
+enum float_round_style {
+    round_indeterminate = -1,
+    round_toward_zero = 0,
+    round_to_nearest = 1,
+    round_toward_infinity = 2,
+    round_toward_neg_infinity = 3,
+};
+
+enum float_denorm_style {
+    denorm_indeterminate = -1,
+    denorm_absent = 0,
+    denorm_present = 1,
+};
+
+namespace internal {
+
+// Common defaults, matching the primary (unspecialized) numeric_limits.
+struct limits_base {
+    static constexpr bool is_specialized = false;
+    static constexpr bool is_signed = false;
+    static constexpr bool is_integer = false;
+    static constexpr bool is_exact = false;
+    static constexpr int digits = 0;
+    static constexpr int digits10 = 0;
+    static constexpr int max_digits10 = 0;
+    static constexpr int radix = 0;
+    static constexpr int min_exponent = 0;
+    static constexpr int min_exponent10 = 0;
+    static constexpr int max_exponent = 0;
+    static constexpr int max_exponent10 = 0;
+    static constexpr bool has_infinity = false;
+    static constexpr bool has_quiet_NaN = false;
+    static constexpr bool has_signaling_NaN = false;
+    static constexpr float_denorm_style has_denorm = denorm_absent;
+    static constexpr bool has_denorm_loss = false;
+    static constexpr bool is_iec559 = false;
+    static constexpr bool is_bounded = false;
+    static constexpr bool is_modulo = false;
+    static constexpr bool traps = false;
+    static constexpr bool tinyness_before = false;
+    static constexpr float_round_style round_style = round_toward_zero;
+};
+
+template <typename T, T MIN, T MAX>
+struct int_limits : limits_base {
+    static constexpr bool is_specialized = true;
+    static constexpr bool is_signed = (MIN != T(0));
+    static constexpr bool is_integer = true;
+    static constexpr bool is_exact = true;
+    static constexpr int digits = static_cast<int>(sizeof(T) * __CHAR_BIT__) - (is_signed ? 1 : 0);
+    static constexpr int digits10 = digits * 643L / 2136; // digits * log10(2)
+    static constexpr int radix = 2;
+    static constexpr bool is_bounded = true;
+    static constexpr bool is_modulo = !is_signed;
+
+    static constexpr T min() noexcept { return MIN; }
+    static constexpr T max() noexcept { return MAX; }
+    static constexpr T lowest() noexcept { return MIN; }
+    static constexpr T epsilon() noexcept { return T(0); }
+    static constexpr T round_error() noexcept { return T(0); }
+    static constexpr T infinity() noexcept { return T(0); }
+    static constexpr T quiet_NaN() noexcept { return T(0); }
+    static constexpr T signaling_NaN() noexcept { return T(0); }
+    static constexpr T denorm_min() noexcept { return T(0); }
+};
+
+} // namespace internal
+
+// Primary template: not a specialized (arithmetic) type.
+template <typename T>
+struct numeric_limits : internal::limits_base {
+    static constexpr T min() noexcept { return T(); }
+    static constexpr T max() noexcept { return T(); }
+    static constexpr T lowest() noexcept { return T(); }
+    static constexpr T epsilon() noexcept { return T(); }
+    static constexpr T round_error() noexcept { return T(); }
+    static constexpr T infinity() noexcept { return T(); }
+    static constexpr T quiet_NaN() noexcept { return T(); }
+    static constexpr T signaling_NaN() noexcept { return T(); }
+    static constexpr T denorm_min() noexcept { return T(); }
+};
+
+// cv-qualified variants defer to the unqualified specialization.
+template <typename T>
+struct numeric_limits<const T> : numeric_limits<T> {};
+template <typename T>
+struct numeric_limits<volatile T> : numeric_limits<T> {};
+template <typename T>
+struct numeric_limits<const volatile T> : numeric_limits<T> {};
+
+template <>
+struct numeric_limits<bool> : internal::limits_base {
+    static constexpr bool is_specialized = true;
+    static constexpr bool is_integer = true;
+    static constexpr bool is_exact = true;
+    static constexpr int digits = 1;
+    static constexpr int radix = 2;
+    static constexpr bool is_bounded = true;
+
+    static constexpr bool min() noexcept { return false; }
+    static constexpr bool max() noexcept { return true; }
+    static constexpr bool lowest() noexcept { return false; }
+    static constexpr bool epsilon() noexcept { return false; }
+    static constexpr bool round_error() noexcept { return false; }
+    static constexpr bool infinity() noexcept { return false; }
+    static constexpr bool quiet_NaN() noexcept { return false; }
+    static constexpr bool signaling_NaN() noexcept { return false; }
+    static constexpr bool denorm_min() noexcept { return false; }
+};
+
+#ifdef __CHAR_UNSIGNED__
+template <>
+struct numeric_limits<char> : internal::int_limits<char, char(0), char(__SCHAR_MAX__ * 2 + 1)> {};
+#else
+template <>
+struct numeric_limits<char> : internal::int_limits<char, char(-__SCHAR_MAX__ - 1), char(__SCHAR_MAX__)> {};
+#endif
+
+template <>
+struct numeric_limits<signed char>
+    : internal::int_limits<signed char, -__SCHAR_MAX__ - 1, __SCHAR_MAX__> {};
+template <>
+struct numeric_limits<unsigned char>
+    : internal::int_limits<unsigned char, 0, static_cast<unsigned char>(-1)> {};
+
+// gcc predefines __WCHAR_MIN__; clang only provides __WCHAR_MAX__ and
+// __WCHAR_UNSIGNED__.
+#if defined(__WCHAR_MIN__)
+#define __LK_WCHAR_MIN __WCHAR_MIN__
+#elif defined(__WCHAR_UNSIGNED__)
+#define __LK_WCHAR_MIN (wchar_t(0))
+#else
+#define __LK_WCHAR_MIN (-__WCHAR_MAX__ - 1)
+#endif
+
+template <>
+struct numeric_limits<wchar_t>
+    : internal::int_limits<wchar_t, __LK_WCHAR_MIN, __WCHAR_MAX__> {};
+
+#undef __LK_WCHAR_MIN
+template <>
+struct numeric_limits<char16_t>
+    : internal::int_limits<char16_t, 0, static_cast<char16_t>(-1)> {};
+template <>
+struct numeric_limits<char32_t>
+    : internal::int_limits<char32_t, 0, static_cast<char32_t>(-1)> {};
+
+template <>
+struct numeric_limits<short>
+    : internal::int_limits<short, -__SHRT_MAX__ - 1, __SHRT_MAX__> {};
+template <>
+struct numeric_limits<unsigned short>
+    : internal::int_limits<unsigned short, 0, static_cast<unsigned short>(-1)> {};
+
+template <>
+struct numeric_limits<int>
+    : internal::int_limits<int, -__INT_MAX__ - 1, __INT_MAX__> {};
+template <>
+struct numeric_limits<unsigned int>
+    : internal::int_limits<unsigned int, 0, static_cast<unsigned int>(-1)> {};
+
+template <>
+struct numeric_limits<long>
+    : internal::int_limits<long, -__LONG_MAX__ - 1L, __LONG_MAX__> {};
+template <>
+struct numeric_limits<unsigned long>
+    : internal::int_limits<unsigned long, 0, static_cast<unsigned long>(-1)> {};
+
+template <>
+struct numeric_limits<long long>
+    : internal::int_limits<long long, -__LONG_LONG_MAX__ - 1LL, __LONG_LONG_MAX__> {};
+template <>
+struct numeric_limits<unsigned long long>
+    : internal::int_limits<unsigned long long, 0, static_cast<unsigned long long>(-1)> {};
+
+template <>
+struct numeric_limits<float> : internal::limits_base {
+    static constexpr bool is_specialized = true;
+    static constexpr bool is_signed = true;
+    static constexpr int digits = __FLT_MANT_DIG__;
+    static constexpr int digits10 = __FLT_DIG__;
+    static constexpr int max_digits10 = __FLT_DECIMAL_DIG__;
+    static constexpr int radix = __FLT_RADIX__;
+    static constexpr int min_exponent = __FLT_MIN_EXP__;
+    static constexpr int min_exponent10 = __FLT_MIN_10_EXP__;
+    static constexpr int max_exponent = __FLT_MAX_EXP__;
+    static constexpr int max_exponent10 = __FLT_MAX_10_EXP__;
+    static constexpr bool has_infinity = true;
+    static constexpr bool has_quiet_NaN = true;
+    static constexpr bool has_signaling_NaN = true;
+    static constexpr float_denorm_style has_denorm = denorm_present;
+    static constexpr bool is_iec559 = true;
+    static constexpr bool is_bounded = true;
+    static constexpr float_round_style round_style = round_to_nearest;
+
+    static constexpr float min() noexcept { return __FLT_MIN__; }
+    static constexpr float max() noexcept { return __FLT_MAX__; }
+    static constexpr float lowest() noexcept { return -__FLT_MAX__; }
+    static constexpr float epsilon() noexcept { return __FLT_EPSILON__; }
+    static constexpr float round_error() noexcept { return 0.5f; }
+    static constexpr float infinity() noexcept { return __builtin_huge_valf(); }
+    static constexpr float quiet_NaN() noexcept { return __builtin_nanf(""); }
+    static constexpr float signaling_NaN() noexcept { return __builtin_nansf(""); }
+    static constexpr float denorm_min() noexcept { return __FLT_DENORM_MIN__; }
+};
+
+template <>
+struct numeric_limits<double> : internal::limits_base {
+    static constexpr bool is_specialized = true;
+    static constexpr bool is_signed = true;
+    static constexpr int digits = __DBL_MANT_DIG__;
+    static constexpr int digits10 = __DBL_DIG__;
+    static constexpr int max_digits10 = __DBL_DECIMAL_DIG__;
+    static constexpr int radix = __FLT_RADIX__;
+    static constexpr int min_exponent = __DBL_MIN_EXP__;
+    static constexpr int min_exponent10 = __DBL_MIN_10_EXP__;
+    static constexpr int max_exponent = __DBL_MAX_EXP__;
+    static constexpr int max_exponent10 = __DBL_MAX_10_EXP__;
+    static constexpr bool has_infinity = true;
+    static constexpr bool has_quiet_NaN = true;
+    static constexpr bool has_signaling_NaN = true;
+    static constexpr float_denorm_style has_denorm = denorm_present;
+    static constexpr bool is_iec559 = true;
+    static constexpr bool is_bounded = true;
+    static constexpr float_round_style round_style = round_to_nearest;
+
+    static constexpr double min() noexcept { return __DBL_MIN__; }
+    static constexpr double max() noexcept { return __DBL_MAX__; }
+    static constexpr double lowest() noexcept { return -__DBL_MAX__; }
+    static constexpr double epsilon() noexcept { return __DBL_EPSILON__; }
+    static constexpr double round_error() noexcept { return 0.5; }
+    static constexpr double infinity() noexcept { return __builtin_huge_val(); }
+    static constexpr double quiet_NaN() noexcept { return __builtin_nan(""); }
+    static constexpr double signaling_NaN() noexcept { return __builtin_nans(""); }
+    static constexpr double denorm_min() noexcept { return __DBL_DENORM_MIN__; }
+};
+
+template <>
+struct numeric_limits<long double> : internal::limits_base {
+    static constexpr bool is_specialized = true;
+    static constexpr bool is_signed = true;
+    static constexpr int digits = __LDBL_MANT_DIG__;
+    static constexpr int digits10 = __LDBL_DIG__;
+    static constexpr int max_digits10 = __LDBL_DECIMAL_DIG__;
+    static constexpr int radix = __FLT_RADIX__;
+    static constexpr int min_exponent = __LDBL_MIN_EXP__;
+    static constexpr int min_exponent10 = __LDBL_MIN_10_EXP__;
+    static constexpr int max_exponent = __LDBL_MAX_EXP__;
+    static constexpr int max_exponent10 = __LDBL_MAX_10_EXP__;
+    static constexpr bool has_infinity = true;
+    static constexpr bool has_quiet_NaN = true;
+    static constexpr bool has_signaling_NaN = true;
+    static constexpr float_denorm_style has_denorm = denorm_present;
+    static constexpr bool is_iec559 = true;
+    static constexpr bool is_bounded = true;
+    static constexpr float_round_style round_style = round_to_nearest;
+
+    static constexpr long double min() noexcept { return __LDBL_MIN__; }
+    static constexpr long double max() noexcept { return __LDBL_MAX__; }
+    static constexpr long double lowest() noexcept { return -__LDBL_MAX__; }
+    static constexpr long double epsilon() noexcept { return __LDBL_EPSILON__; }
+    static constexpr long double round_error() noexcept { return 0.5L; }
+    static constexpr long double infinity() noexcept { return __builtin_huge_vall(); }
+    static constexpr long double quiet_NaN() noexcept { return __builtin_nanl(""); }
+    static constexpr long double signaling_NaN() noexcept { return __builtin_nansl(""); }
+    static constexpr long double denorm_min() noexcept { return __LDBL_DENORM_MIN__; }
+};
+
+} // namespace std
+
+// vim: syntax=cpp
