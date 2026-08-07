@@ -20,6 +20,9 @@
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 #define __UNUSED __attribute__((__unused__))
+// Prefer over the [[maybe_unused]] C++ attribute; do not use on non-static data members though,
+// since GCC before version 15 rejects any attribute (this one included) placed there.
+#define __MAYBE_UNUSED __attribute__((__unused__))
 #if __clang__
 // Per https://clang.llvm.org/docs/AttributeReference.html#used
 // __used__ does not prevent linkers from removing unused sections
@@ -191,6 +194,7 @@
 #define likely(x)       (x)
 #define unlikely(x)     (x)
 #define __UNUSED
+#define __MAYBE_UNUSED
 #define __PACKED
 #define __ALIGNED(x)
 #define __PRINTFLIKE(__fmt,__varargs)

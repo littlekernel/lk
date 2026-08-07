@@ -26,7 +26,7 @@
 #define LOCAL_TRACE 0
 
 pci_ecam::pci_ecam(paddr_t base, uint16_t segment, uint8_t start_bus, uint8_t end_bus) :
-    base_(base), segment_(segment), start_bus_(start_bus), end_bus_(end_bus) {}
+    base_(base), start_bus_(start_bus), end_bus_(end_bus) {}
 
 pci_ecam::~pci_ecam() {
     LTRACE_ENTRY;

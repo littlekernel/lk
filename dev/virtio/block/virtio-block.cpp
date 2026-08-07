@@ -119,23 +119,23 @@ constexpr uint32_t VIRTIO_BLK_F_ZONED = (1 << 17);
 
 constexpr uint32_t VIRTIO_BLK_T_IN = 0;
 constexpr uint32_t VIRTIO_BLK_T_OUT = 1;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_FLUSH = 4;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_GET_ID = 8;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_GET_LIFETIME = 10;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_DISCARD = 11;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_WRITE_ZEROES = 13;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_SECURE_ERASE = 14;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_ZONE_APPEND = 15;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_ZONE_REPORT = 16;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_ZONE_OPEN = 17;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_ZONE_CLOSE = 18;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_ZONE_FINISH = 19;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_ZONE_RESET = 24;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_T_ZONE_RESET_ALL = 26;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_FLUSH = 4;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_GET_ID = 8;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_GET_LIFETIME = 10;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_DISCARD = 11;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_WRITE_ZEROES = 13;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_SECURE_ERASE = 14;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_ZONE_APPEND = 15;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_ZONE_REPORT = 16;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_ZONE_OPEN = 17;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_ZONE_CLOSE = 18;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_ZONE_FINISH = 19;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_ZONE_RESET = 24;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_T_ZONE_RESET_ALL = 26;
 
 constexpr uint32_t VIRTIO_BLK_S_OK = 0;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_S_IOERR = 1;
-[[maybe_unused]] constexpr uint32_t VIRTIO_BLK_S_UNSUPP = 2;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_S_IOERR = 1;
+__MAYBE_UNUSED constexpr uint32_t VIRTIO_BLK_S_UNSUPP = 2;
 
 constexpr uint16_t VIRTIO_BLK_RING_LEN = 256;
 
