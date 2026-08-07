@@ -16,6 +16,7 @@
 #include <lk/err.h>
 #include <lk/trace.h>
 #include <malloc.h>
+#include <new>
 #include <stdlib.h>
 #include <string.h>
 
@@ -287,7 +288,7 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
     }
 
     // allocate a structure, all fields implicity zeroed
-    auto *fat = new fat_fs;
+    auto *fat = new (std::nothrow) fat_fs;
     if (!fat) {
         return ERR_NO_MEMORY;
     }
