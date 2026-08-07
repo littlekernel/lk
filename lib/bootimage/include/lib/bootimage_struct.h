@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <lk/compiler.h>
 #include <stdint.h>
 
 typedef struct {
@@ -17,15 +18,15 @@ typedef struct {
     uint32_t length;    /* length in bytes */
     uint8_t name[16];
     uint8_t sha256[32];
-} __attribute__ ((packed)) bootentry_file;
+} __PACKED bootentry_file;
 
 typedef struct {
     uint32_t kind;
     union {
         uint32_t u[15];
         uint8_t b[60];
-    } __attribute__((packed)) u;
-} __attribute__((packed)) bootentry_data;
+    } __PACKED u;
+} __PACKED bootentry_data;
 
 typedef struct {
     uint32_t kind;
@@ -33,7 +34,7 @@ typedef struct {
     uint32_t image_size;    /* byte size of entire image */
     uint32_t entry_count;   /* number of valid bootentries */
     uint32_t reserved[12];
-} __attribute__((packed)) bootentry_info;
+} __PACKED bootentry_info;
 
 typedef union {
     uint32_t kind;

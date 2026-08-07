@@ -19,6 +19,7 @@
 #define __PE_HEADER_
 
 #include <endian.h>
+#include <lk/compiler.h>
 #include <sys/types.h>
 
 //
@@ -77,7 +78,7 @@ struct IMAGE_DOS_HEADER { // DOS .EXE header
         reinterpret_cast<const IMAGE_NT_HEADERS64 *>(address + e_lfanew);
     return pe_header;
   }
-} __attribute__((packed));
+} __PACKED;
 
 enum class ArchitectureType : u16 {
   Unknown = 0x00,
@@ -127,12 +128,12 @@ struct IMAGE_FILE_HEADER {
   u32 NumberOfSymbols;
   u16 SizeOfOptionalHeader;
   u16 Characteristics;
-} __attribute__((packed));
+} __PACKED;
 
 struct IMAGE_DATA_DIRECTORY {
   u32 VirtualAddress;
   u32 Size;
-} __attribute__((packed));
+} __PACKED;
 
 enum SubsystemType : u16 {
   Unknown = 0x00,
@@ -215,7 +216,7 @@ struct IMAGE_OPTIONAL_HEADER64 {
   u32 LoaderFlags;
   u32 NumberOfRvaAndSizes;
   IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
-} __attribute__((packed));
+} __PACKED;
 
 struct IMAGE_OPTIONAL_HEADER32 {
   u16 Magic;
@@ -249,7 +250,7 @@ struct IMAGE_OPTIONAL_HEADER32 {
   u32 LoaderFlags;
   u32 NumberOfRvaAndSizes;
   IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
-} __attribute__((packed));
+} __PACKED;
 
 struct IMAGE_SECTION_HEADER {
   char Name[IMAGE_SIZEOF_SHORT_NAME];
@@ -265,12 +266,12 @@ struct IMAGE_SECTION_HEADER {
   u16 NumberOfRelocations;
   u16 NumberOfLinenumbers;
   u32 Characteristics;
-} __attribute__((packed));
+} __PACKED;
 
 struct IMAGE_NT_HEADERS64 {
   IMAGE_FILE_HEADER FileHeader;
   IMAGE_OPTIONAL_HEADER64 OptionalHeader;
-} __attribute__((packed));
+} __PACKED;
 
 struct EFI_IMAGE_BASE_RELOCATION {
   uint32_t VirtualAddress;
