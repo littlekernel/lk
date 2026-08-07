@@ -70,7 +70,12 @@ GLOBAL_COMPILEFLAGS += -fno-common
 # rely on all hosted environment functionality being present.
 GLOBAL_COMPILEFLAGS += -ffreestanding
 GLOBAL_CFLAGS := --std=gnu11 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings
+# -nostdinc++ keeps the toolchain's own C++ standard library headers out of
+# the include path; the kernel provides its own freestanding subset in
+# lib/libcpp. An accidental #include <vector> should fail loudly instead of
+# silently picking up whatever hosted headers sit next to the cross compiler.
 GLOBAL_CPPFLAGS := --std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wno-mismatched-tags
+GLOBAL_CPPFLAGS += -nostdinc++
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
 
