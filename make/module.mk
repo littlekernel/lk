@@ -70,6 +70,10 @@ ifneq (,$(findstring float,$(MODULE_OPTIONS)))
 #$(info MODULE $(MODULE) has float option)
 MODULE_FLOAT_SRCS := $(sort $(MODULE_FLOAT_SRCS) $(MODULE_SRCS))
 MODULE_SRCS :=
+# mark the module's TUs as compiled with FPU codegen enabled, so headers can
+# conditionally expose things that need hardware float support, e.g.
+# numeric_limits<long double> on x86.
+MODULE_DEFINES += LK_FLOAT_TU=1
 MODULE_OPTIONS_COPY := $(filter-out float,$(MODULE_OPTIONS_COPY))
 endif
 ifneq (,$(findstring extra_warnings,$(MODULE_OPTIONS)))

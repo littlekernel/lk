@@ -63,9 +63,12 @@ static_assert(numeric_limits<double>::max_digits10 == 17);
 static_assert(numeric_limits<double>::epsilon() > 0.0);
 static_assert(numeric_limits<double>::quiet_NaN() != numeric_limits<double>::quiet_NaN());
 
-// numeric_limits<long double> is deliberately not instantiated here: kernel
-// x86 targets build without x87 support and clang rejects any use of the
-// type there. The specialization exists for targets that can use it.
+// clang/x86 kernel TUs build without x87 support and reject any use of long
+// double, so the specialization is only present (and only checked) where the
+// type is usable; float-compiled TUs (LK_FLOAT_TU) get it everywhere.
+#if !(defined(__clang__) && (defined(__i386__) || defined(__x86_64__)) && !defined(LK_FLOAT_TU))
+static_assert(numeric_limits<long double>::is_specialized);
+#endif
 
 bool limits_smoke() {
     BEGIN_TEST;
