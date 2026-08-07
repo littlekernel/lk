@@ -1,0 +1,391 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <__lk/abort.h>
+#include <stddef.h>
+#include <type_traits>
+
+// <string_view> for LK's freestanding C++ standard library subset.
+//
+// Deviations from a hosted implementation:
+//  - no Traits template parameter; comparisons are plain character
+//    comparisons (equivalent to char_traits<char> for the char case)
+//  - at(), substr(pos > size()), and copy(pos > size()) panic instead of
+//    throwing std::out_of_range
+//  - no reverse iterators, no hash support
+//  - only the string_view (char) typedef is provided; LK has no wchar_t
+//    string support
+//  - starts_with/ends_with are provided from C++20
+
+namespace std {
+
+template <typename CharT>
+class basic_string_view {
+public:
+    using value_type = CharT;
+    using pointer = CharT *;
+    using const_pointer = const CharT *;
+    using reference = CharT &;
+    using const_reference = const CharT &;
+    using iterator = const CharT *;
+    using const_iterator = const CharT *;
+    using size_type = size_t;
+    using difference_type = ptrdiff_t;
+
+    static constexpr size_type npos = size_type(-1);
+
+    constexpr basic_string_view() noexcept : data_(nullptr), size_(0) {}
+    constexpr basic_string_view(const basic_string_view &) noexcept = default;
+    constexpr basic_string_view &operator=(const basic_string_view &) noexcept = default;
+    constexpr basic_string_view(const CharT *s, size_type count) : data_(s), size_(count) {}
+    constexpr basic_string_view(const CharT *s) : data_(s), size_(length_of(s)) {}
+    basic_string_view(decltype(nullptr)) = delete;
+
+    constexpr const_iterator begin() const noexcept { return data_; }
+    constexpr const_iterator end() const noexcept { return data_ + size_; }
+    constexpr const_iterator cbegin() const noexcept { return data_; }
+    constexpr const_iterator cend() const noexcept { return data_ + size_; }
+
+    constexpr size_type size() const noexcept { return size_; }
+    constexpr size_type length() const noexcept { return size_; }
+    constexpr size_type max_size() const noexcept { return npos - 1; }
+    [[nodiscard]] constexpr bool empty() const noexcept { return size_ == 0; }
+
+    constexpr const_reference operator[](size_type i) const {
+        __LK_CXX_DEBUG_ASSERT(i < size_);
+        return data_[i];
+    }
+    constexpr const_reference at(size_type i) const {
+        if (i >= size_) {
+            __LK_CXX_PANIC("string_view::at: index out of range");
+        }
+        return data_[i];
+    }
+    constexpr const_reference front() const {
+        __LK_CXX_DEBUG_ASSERT(!empty());
+        return data_[0];
+    }
+    constexpr const_reference back() const {
+        __LK_CXX_DEBUG_ASSERT(!empty());
+        return data_[size_ - 1];
+    }
+    constexpr const_pointer data() const noexcept { return data_; }
+
+    constexpr void remove_prefix(size_type n) {
+        __LK_CXX_DEBUG_ASSERT(n <= size_);
+        data_ += n;
+        size_ -= n;
+    }
+    constexpr void remove_suffix(size_type n) {
+        __LK_CXX_DEBUG_ASSERT(n <= size_);
+        size_ -= n;
+    }
+    constexpr void swap(basic_string_view &other) noexcept {
+        const basic_string_view tmp = other;
+        other = *this;
+        *this = tmp;
+    }
+
+    size_type copy(CharT *dest, size_type count, size_type pos = 0) const {
+        if (pos > size_) {
+            __LK_CXX_PANIC("string_view::copy: pos out of range");
+        }
+        const size_type rcount = min_(count, size_ - pos);
+        for (size_type i = 0; i < rcount; i++) {
+            dest[i] = data_[pos + i];
+        }
+        return rcount;
+    }
+
+    constexpr basic_string_view substr(size_type pos = 0, size_type count = npos) const {
+        if (pos > size_) {
+            __LK_CXX_PANIC("string_view::substr: pos out of range");
+        }
+        return basic_string_view(data_ + pos, min_(count, size_ - pos));
+    }
+
+    constexpr int compare(basic_string_view other) const noexcept {
+        const size_type rlen = min_(size_, other.size_);
+        for (size_type i = 0; i < rlen; i++) {
+            if (data_[i] < other.data_[i]) {
+                return -1;
+            }
+            if (other.data_[i] < data_[i]) {
+                return 1;
+            }
+        }
+        if (size_ < other.size_) {
+            return -1;
+        }
+        if (size_ > other.size_) {
+            return 1;
+        }
+        return 0;
+    }
+    constexpr int compare(size_type pos, size_type count, basic_string_view other) const {
+        return substr(pos, count).compare(other);
+    }
+    constexpr int compare(const CharT *s) const {
+        return compare(basic_string_view(s));
+    }
+
+    constexpr bool starts_with(basic_string_view prefix) const noexcept {
+        return size_ >= prefix.size_ && substr(0, prefix.size_).compare(prefix) == 0;
+    }
+    constexpr bool starts_with(CharT c) const noexcept {
+        return !empty() && data_[0] == c;
+    }
+    constexpr bool ends_with(basic_string_view suffix) const noexcept {
+        return size_ >= suffix.size_ && substr(size_ - suffix.size_).compare(suffix) == 0;
+    }
+    constexpr bool ends_with(CharT c) const noexcept {
+        return !empty() && data_[size_ - 1] == c;
+    }
+
+    constexpr size_type find(basic_string_view needle, size_type pos = 0) const noexcept {
+        if (needle.size_ == 0) {
+            return pos <= size_ ? pos : npos;
+        }
+        if (needle.size_ > size_) {
+            return npos;
+        }
+        for (size_type i = pos; i + needle.size_ <= size_; i++) {
+            if (substr(i, needle.size_).compare(needle) == 0) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type find(CharT c, size_type pos = 0) const noexcept {
+        for (size_type i = pos; i < size_; i++) {
+            if (data_[i] == c) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type find(const CharT *s, size_type pos = 0) const {
+        return find(basic_string_view(s), pos);
+    }
+
+    constexpr size_type rfind(basic_string_view needle, size_type pos = npos) const noexcept {
+        if (needle.size_ > size_) {
+            return npos;
+        }
+        size_type start = min_(pos, size_ - needle.size_);
+        for (size_type i = start + 1; i-- > 0;) {
+            if (substr(i, needle.size_).compare(needle) == 0) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type rfind(CharT c, size_type pos = npos) const noexcept {
+        if (size_ == 0) {
+            return npos;
+        }
+        for (size_type i = min_(pos, size_ - 1) + 1; i-- > 0;) {
+            if (data_[i] == c) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type rfind(const CharT *s, size_type pos = npos) const {
+        return rfind(basic_string_view(s), pos);
+    }
+
+    constexpr size_type find_first_of(basic_string_view set, size_type pos = 0) const noexcept {
+        for (size_type i = pos; i < size_; i++) {
+            if (set.find(data_[i]) != npos) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type find_first_of(CharT c, size_type pos = 0) const noexcept {
+        return find(c, pos);
+    }
+    constexpr size_type find_last_of(basic_string_view set, size_type pos = npos) const noexcept {
+        if (size_ == 0) {
+            return npos;
+        }
+        for (size_type i = min_(pos, size_ - 1) + 1; i-- > 0;) {
+            if (set.find(data_[i]) != npos) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type find_last_of(CharT c, size_type pos = npos) const noexcept {
+        return rfind(c, pos);
+    }
+    constexpr size_type find_first_not_of(basic_string_view set, size_type pos = 0) const noexcept {
+        for (size_type i = pos; i < size_; i++) {
+            if (set.find(data_[i]) == npos) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type find_first_not_of(CharT c, size_type pos = 0) const noexcept {
+        for (size_type i = pos; i < size_; i++) {
+            if (data_[i] != c) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type find_last_not_of(basic_string_view set, size_type pos = npos) const noexcept {
+        if (size_ == 0) {
+            return npos;
+        }
+        for (size_type i = min_(pos, size_ - 1) + 1; i-- > 0;) {
+            if (set.find(data_[i]) == npos) {
+                return i;
+            }
+        }
+        return npos;
+    }
+    constexpr size_type find_last_not_of(CharT c, size_type pos = npos) const noexcept {
+        if (size_ == 0) {
+            return npos;
+        }
+        for (size_type i = min_(pos, size_ - 1) + 1; i-- > 0;) {
+            if (data_[i] != c) {
+                return i;
+            }
+        }
+        return npos;
+    }
+
+private:
+    static constexpr size_type length_of(const CharT *s) {
+        if constexpr (is_same_v<CharT, char>) {
+            return __builtin_strlen(s);
+        } else {
+            size_type len = 0;
+            while (s[len] != CharT()) {
+                len++;
+            }
+            return len;
+        }
+    }
+    static constexpr size_type min_(size_type a, size_type b) { return a < b ? a : b; }
+
+    const CharT *data_;
+    size_type size_;
+};
+
+using string_view = basic_string_view<char>;
+
+// Comparison operators. The type_identity_t forms let one side undergo
+// implicit conversion (e.g. sv == "literal").
+
+template <typename CharT>
+constexpr bool operator==(basic_string_view<CharT> l, basic_string_view<CharT> r) noexcept {
+    return l.size() == r.size() && l.compare(r) == 0;
+}
+template <typename CharT>
+constexpr bool operator==(basic_string_view<CharT> l, type_identity_t<basic_string_view<CharT>> r) noexcept {
+    return l.size() == r.size() && l.compare(r) == 0;
+}
+template <typename CharT>
+constexpr bool operator==(type_identity_t<basic_string_view<CharT>> l, basic_string_view<CharT> r) noexcept {
+    return l.size() == r.size() && l.compare(r) == 0;
+}
+
+template <typename CharT>
+constexpr bool operator!=(basic_string_view<CharT> l, basic_string_view<CharT> r) noexcept {
+    return !(l == r);
+}
+template <typename CharT>
+constexpr bool operator!=(basic_string_view<CharT> l, type_identity_t<basic_string_view<CharT>> r) noexcept {
+    return !(l == r);
+}
+template <typename CharT>
+constexpr bool operator!=(type_identity_t<basic_string_view<CharT>> l, basic_string_view<CharT> r) noexcept {
+    return !(l == r);
+}
+
+template <typename CharT>
+constexpr bool operator<(basic_string_view<CharT> l, basic_string_view<CharT> r) noexcept {
+    return l.compare(r) < 0;
+}
+template <typename CharT>
+constexpr bool operator<(basic_string_view<CharT> l, type_identity_t<basic_string_view<CharT>> r) noexcept {
+    return l.compare(r) < 0;
+}
+template <typename CharT>
+constexpr bool operator<(type_identity_t<basic_string_view<CharT>> l, basic_string_view<CharT> r) noexcept {
+    return l.compare(r) < 0;
+}
+
+template <typename CharT>
+constexpr bool operator>(basic_string_view<CharT> l, basic_string_view<CharT> r) noexcept {
+    return r < l;
+}
+template <typename CharT>
+constexpr bool operator>(basic_string_view<CharT> l, type_identity_t<basic_string_view<CharT>> r) noexcept {
+    return r < l;
+}
+template <typename CharT>
+constexpr bool operator>(type_identity_t<basic_string_view<CharT>> l, basic_string_view<CharT> r) noexcept {
+    return r < l;
+}
+
+template <typename CharT>
+constexpr bool operator<=(basic_string_view<CharT> l, basic_string_view<CharT> r) noexcept {
+    return !(r < l);
+}
+template <typename CharT>
+constexpr bool operator<=(basic_string_view<CharT> l, type_identity_t<basic_string_view<CharT>> r) noexcept {
+    return !(r < l);
+}
+template <typename CharT>
+constexpr bool operator<=(type_identity_t<basic_string_view<CharT>> l, basic_string_view<CharT> r) noexcept {
+    return !(r < l);
+}
+
+template <typename CharT>
+constexpr bool operator>=(basic_string_view<CharT> l, basic_string_view<CharT> r) noexcept {
+    return !(l < r);
+}
+template <typename CharT>
+constexpr bool operator>=(basic_string_view<CharT> l, type_identity_t<basic_string_view<CharT>> r) noexcept {
+    return !(l < r);
+}
+template <typename CharT>
+constexpr bool operator>=(type_identity_t<basic_string_view<CharT>> l, basic_string_view<CharT> r) noexcept {
+    return !(l < r);
+}
+
+inline namespace literals {
+inline namespace string_view_literals {
+
+// The suffix without a leading underscore is reserved for the standard
+// library -- which is what this is, hence the diagnostic suppression.
+#pragma GCC diagnostic push
+#if defined(__clang__)
+#pragma GCC diagnostic ignored "-Wuser-defined-literals"
+#else
+#pragma GCC diagnostic ignored "-Wliteral-suffix"
+#endif
+
+constexpr string_view operator""sv(const char *s, size_t len) noexcept {
+    return string_view(s, len);
+}
+
+#pragma GCC diagnostic pop
+
+} // namespace string_view_literals
+} // namespace literals
+
+} // namespace std
+
+// vim: syntax=cpp
