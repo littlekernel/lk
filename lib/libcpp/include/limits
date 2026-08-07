@@ -255,6 +255,11 @@ struct numeric_limits<double> : internal::limits_base {
     static constexpr double denorm_min() noexcept { return __DBL_DENORM_MIN__; }
 };
 
+// clang rejects even the declaration of functions involving long double on
+// x86 targets built without x87 support, and LK's kernel x86 builds use
+// -mgeneral-regs-only. The type is unusable there regardless, so the
+// specialization is omitted for clang/x86 entirely.
+#if !(defined(__clang__) && (defined(__i386__) || defined(__x86_64__)))
 template <>
 struct numeric_limits<long double> : internal::limits_base {
     static constexpr bool is_specialized = true;
@@ -285,6 +290,7 @@ struct numeric_limits<long double> : internal::limits_base {
     static constexpr long double signaling_NaN() noexcept { return __builtin_nansl(""); }
     static constexpr long double denorm_min() noexcept { return __LDBL_DENORM_MIN__; }
 };
+#endif // !(clang && x86)
 
 } // namespace std
 

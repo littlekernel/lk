@@ -63,7 +63,9 @@ static_assert(numeric_limits<double>::max_digits10 == 17);
 static_assert(numeric_limits<double>::epsilon() > 0.0);
 static_assert(numeric_limits<double>::quiet_NaN() != numeric_limits<double>::quiet_NaN());
 
-static_assert(numeric_limits<long double>::is_specialized);
+// numeric_limits<long double> is deliberately not instantiated here: kernel
+// x86 targets build without x87 support and clang rejects any use of the
+// type there. The specialization exists for targets that can use it.
 
 bool limits_smoke() {
     BEGIN_TEST;
