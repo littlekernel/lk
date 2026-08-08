@@ -48,10 +48,14 @@ class QEMUTestRunner:
             }
         }
 
-    def run_qemu_test(self, arch, arch_config, quiet=False, log_dir=None, disk_images=None, append_cmdline=None, toolchain='gcc'):
+    def run_qemu_test(self, arch, arch_config, quiet=False, log_dir=None, disk_images=None, append_cmdline=None, toolchain='gcc', timeout=None):
         """Run QEMU for the specified architecture and monitor for test completion"""
         tc_label = f" ({toolchain})" if toolchain != 'gcc' else ""
         print(f"\nRunning QEMU test for {arch}{tc_label}...")
+
+        # an explicit timeout overrides the per-arch default
+        if timeout is None:
+            timeout = arch_config['timeout']
 
         script_path = self.lk_root / 'scripts' / arch_config['script']
         if not script_path.exists():
@@ -127,8 +131,8 @@ class QEMUTestRunner:
 
             while True:
                 # Check timeout
-                if time.time() - start_time > arch_config['timeout']:
-                    print(f"Timeout reached for {arch}")
+                if time.time() - start_time > timeout:
+                    print(f"Timeout reached for {arch} after {timeout}s")
                     process.terminate()
                     break
 
@@ -223,7 +227,7 @@ class QEMUTestRunner:
             sys.stdout.flush()
             return False
 
-    def run_all_tests(self, selected_archs=None, quiet=False, log_dir=None, disk_images=None, append_cmdline=None, toolchain='gcc'):
+    def run_all_tests(self, selected_archs=None, quiet=False, log_dir=None, disk_images=None, append_cmdline=None, toolchain='gcc', timeout=None):
         """Run tests for all or selected architectures"""
         if selected_archs is None:
             selected_archs = list(self.architectures.keys())
@@ -238,7 +242,7 @@ class QEMUTestRunner:
             arch_config = self.architectures[arch]
 
             # Run the test
-            results[arch] = self.run_qemu_test(arch, arch_config, quiet, log_dir, disk_images, append_cmdline, toolchain)
+            results[arch] = self.run_qemu_test(arch, arch_config, quiet, log_dir, disk_images, append_cmdline, toolchain, timeout)
 
         return results
 
@@ -320,6 +324,8 @@ def main():
                        help='Build and run tests using Clang toolchain with LLD linker')
     parser.add_argument('--toolchain', choices=['gcc', 'clang', 'clang-lld'], default=None,
                        help='Specify toolchain to use (gcc, clang, or clang-lld)')
+    parser.add_argument('--timeout', type=int, default=None, metavar='SECONDS',
+                       help='Override the per-architecture QEMU timeout (default: 30s)')
 
     args = parser.parse_args()
 
@@ -338,7 +344,7 @@ def main():
     runner = QEMUTestRunner(lk_root)
 
     # Run tests
-    results = runner.run_all_tests(args.arch, args.quiet, args.log_dir, args.disk_images, args.append_cmdline, toolchain=toolchain)
+    results = runner.run_all_tests(args.arch, args.quiet, args.log_dir, args.disk_images, args.append_cmdline, toolchain=toolchain, timeout=args.timeout)
 
     # Print summary and return appropriate exit code
     return runner.print_summary(results, args.log_dir, toolchain=toolchain)
