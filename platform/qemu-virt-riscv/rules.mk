@@ -35,7 +35,7 @@ MODULE_SRCS += $(LOCAL_DIR)/platform.c
 MODULE_SRCS += $(LOCAL_DIR)/uart.c
 
 MEMBASE ?= 0x80000000
-MEMSIZE ?= 0x01000000 # default to 16MB
+MEMSIZE ?= 0x20000000 # default to 512MB
 ifeq ($(RISCV_MODE),supervisor)
 # offset the kernel to account for OpenSBI using the bottom
 KERNEL_LOAD_OFFSET ?= 0x00200000 # kernel load offset
