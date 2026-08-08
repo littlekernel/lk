@@ -48,6 +48,14 @@ static_assert(kHello.substr(1, 3) == "ell");
 static_assert(kHello.substr(3) == "lo");
 static_assert(kHello.substr(5).empty());
 
+// remaining compare/observer forms
+static_assert(kHello.compare(1, 3, "ell") == 0);
+static_assert(kHello.compare(1, 3, "xyz") != 0);
+static_assert(kHello.max_size() > 0);
+static_assert(kHello.data() != nullptr);
+static_assert(*kHello.cbegin() == 'h');
+static_assert(kHello.cend() - kHello.cbegin() == 5);
+
 // starts_with / ends_with
 static_assert(kHello.starts_with("he"));
 static_assert(kHello.starts_with('h'));
@@ -68,9 +76,15 @@ static_assert(kAba.rfind("aba") == 4);
 static_assert(kAba.rfind("aba", 3) == 0);
 static_assert(kAba.find_first_of("bc") == 1);
 static_assert(kAba.find_first_of("xyz") == string_view::npos);
+static_assert(kAba.find_first_of('c', 2) == 3);
 static_assert(kAba.find_last_of("bc") == 5);
+static_assert(kAba.find_last_of('b') == 5);
 static_assert(kAba.find_first_not_of("ab") == 3);
+static_assert(kAba.find_first_not_of('a') == 1);
 static_assert(kAba.find_last_not_of("ad") == 5);
+static_assert(kAba.find_last_not_of('d') == 6);
+static_assert(kAba.rfind("aba", 3) == 0);
+static_assert(string_view("aaa").find_last_not_of('a') == string_view::npos);
 
 bool sv_runtime() {
     BEGIN_TEST;

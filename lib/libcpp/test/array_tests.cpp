@@ -46,7 +46,17 @@ static_assert(std::is_same_v<std::tuple_element_t<2, std::array<char, 3>>, char>
 constexpr std::array<int, 0> kZ{};
 static_assert(kZ.empty());
 static_assert(kZ.size() == 0);
+static_assert(kZ.max_size() == 0);
 static_assert(kZ.begin() == kZ.end());
+static_assert(kZ.cbegin() == kZ.cend());
+static_assert(kZ.data() == nullptr);
+
+// remaining observers on the general form
+static_assert(kA.max_size() == 3);
+static_assert(kA.cend() - kA.cbegin() == 3);
+static_assert(kA.data() != nullptr);
+static_assert(std::array<int, 2>{{1, 2}} <= std::array<int, 2>{{1, 2}});
+static_assert(std::array<int, 2>{{1, 3}} >= std::array<int, 2>{{1, 2}});
 
 bool array_runtime() {
     BEGIN_TEST;

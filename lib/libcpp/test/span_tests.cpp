@@ -48,6 +48,14 @@ static_assert(kDyn.subspan(1, 1)[0] == 2);
 static_assert(std::span<int>().empty());
 static_assert(std::span<int, 0>().empty());
 
+// remaining observers
+static_assert(*kSpan.cbegin() == 1);
+static_assert(kSpan.cend() - kSpan.cbegin() == 4);
+static_assert(kSpan.data() == kArr);
+static_assert(kDyn.first<2>().extent == 2, "templated subview of a dynamic span");
+static_assert(kDyn.last<1>()[0] == 3);
+static_assert(kDyn.subspan<1>().size() == 2);
+
 bool span_runtime() {
     BEGIN_TEST;
 

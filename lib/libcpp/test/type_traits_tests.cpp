@@ -135,6 +135,34 @@ static_assert(std::negation_v<std::false_type>);
 static_assert(std::true_type{});
 static_assert(std::integral_constant<int, 3>{}() == 3);
 
+// remaining alias/variable forms
+static_assert(is_same_v<std::add_cv_t<int>, const volatile int>);
+static_assert(is_same_v<std::add_volatile_t<int>, volatile int>);
+static_assert(is_same_v<std::type_identity_t<int &>, int &>);
+static_assert(is_same_v<std::void_t<int, Empty>, void>);
+static_assert(is_same_v<std::common_type_t<int>, int>);
+static_assert(is_same_v<std::enable_if_t<true, char>, char>);
+static_assert(std::is_nothrow_assignable_v<int &, int>);
+static_assert(std::is_trivially_assignable_v<int &, int>);
+static_assert(std::is_trivially_constructible_v<Agg, const Agg &>);
+static_assert(std::extent_v<int[7]> == 7, "default dimension parameter");
+static_assert(std::is_unsigned_v<std::make_unsigned_t<wchar_t>>);
+static_assert(sizeof(std::make_unsigned_t<wchar_t>) == sizeof(wchar_t));
+static_assert(std::is_signed_v<std::make_signed_t<char16_t>>);
+static_assert(sizeof(std::make_signed_t<char16_t>) == sizeof(char16_t));
+
+// the has-member-fn detection macros
+struct WithBar {
+    void Bar(int) {}
+};
+struct WithoutBar {};
+DECLARE_HAS_MEMBER_FN(has_bar, Bar);
+DECLARE_HAS_MEMBER_FN_WITH_SIGNATURE(has_bar_sig, Bar, void (C::*)(int));
+static_assert(has_bar<WithBar>::value);
+static_assert(!has_bar<WithoutBar>::value);
+static_assert(has_bar_sig<WithBar>::value);
+static_assert(!has_bar_sig<WithoutBar>::value);
+
 // non-standard extensions preserved
 static_assert(std::is_signed_integer<int>::value);
 static_assert(!std::is_signed_integer<float>::value);

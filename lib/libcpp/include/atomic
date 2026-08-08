@@ -16,8 +16,12 @@
 // types, implemented directly over the compiler's __atomic builtins. The
 // static_assert on __atomic_always_lock_free is the load-bearing policy: no
 // instantiation can ever generate a libatomic call, so e.g. atomic<uint64_t>
-// on a 32-bit architecture without 64-bit atomics is rejected at compile
-// time rather than failing at link time.
+// on a 32-bit architecture without inline 64-bit atomics is rejected at
+// compile time rather than failing at link time. Note this tracks what the
+// compiler will actually inline, which can be stricter than the
+// __GCC_ATOMIC_*_LOCK_FREE macros: gcc reports 8-byte atomics as lock-free
+// on i686 (libatomic implements them via cmpxchg8b) but will not inline an
+// 8-byte atomic load, so atomic<uint64_t> is unavailable on x86-32.
 //
 // Deviations from a hosted implementation:
 //  - no atomic<T> for arbitrary trivially copyable structs or floats
@@ -174,7 +178,9 @@ private:
                                                : order;
     }
 
-    T value_;
+    // over-aligned to the value size so the lock-free guarantee holds even
+    // where the type's natural alignment is smaller (long long on x86-32)
+    alignas(sizeof(T) > alignof(T) ? sizeof(T) : alignof(T)) T value_;
 };
 
 struct atomic_flag {

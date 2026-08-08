@@ -64,9 +64,25 @@ static_assert(std::optional<int>(5) == kFive);
 static_assert(std::optional<int>(4) < kFive);
 static_assert(kEmpty == std::optional<int>());
 
-// CTAD + make_optional
+// CTAD + make_optional, both forms
 static_assert(std::is_same_v<decltype(std::make_optional(3)), std::optional<int>>);
 static_assert(*std::make_optional(3) == 3);
+static_assert(*std::make_optional<int>(4) == 4);
+static_assert(std::make_optional<std::pair<int, int>>(1, 2)->second == 2,
+              "variadic make_optional forwards to in_place construction");
+
+// nullopt ordering operators
+static_assert(!(kEmpty < std::nullopt));
+static_assert(kEmpty <= std::nullopt);
+static_assert(kEmpty >= std::nullopt);
+static_assert(std::nullopt < kFive);
+static_assert(kFive > std::nullopt);
+static_assert(std::nullopt <= kFive);
+static_assert(!(std::nullopt >= kFive));
+
+// const access forms
+static_assert(*kFive == 5);
+static_assert(kFive.operator->() != nullptr);
 
 bool optional_basics() {
     BEGIN_TEST;
@@ -168,6 +184,13 @@ bool optional_value_or_move() {
     m.reset();
 
     EXPECT_EQ(1, Counted::live, "");
+
+    // value() on an rvalue optional moves as well
+    std::optional<Counted> r(std::in_place, 8);
+    Counted moved = std::move(r).value();
+    EXPECT_EQ(8, moved.v, "");
+    EXPECT_EQ(-1, r->v, "");
+    r.reset();
 
     END_TEST;
 }

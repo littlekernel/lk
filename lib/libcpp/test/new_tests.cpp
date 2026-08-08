@@ -76,6 +76,20 @@ bool nothrow_new() {
     EXPECT_EQ(7, *p, "");
     delete p;
 
+    auto *arr = new (std::nothrow) int[4]{};
+    ASSERT_TRUE(arr != nullptr, "");
+    delete[] arr;
+
+    // the nothrow delete forms are only called by the compiler during
+    // exception unwind, which cannot happen here; call them directly so
+    // they are exercised at all
+    void *raw = operator new(8, std::nothrow);
+    ASSERT_TRUE(raw != nullptr, "");
+    operator delete(raw, std::nothrow);
+    raw = operator new[](8, std::nothrow);
+    ASSERT_TRUE(raw != nullptr, "");
+    operator delete[](raw, std::nothrow);
+
     END_TEST;
 }
 

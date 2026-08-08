@@ -144,6 +144,54 @@ bool atomic_enum_and_bool() {
     END_TEST;
 }
 
+// 64-bit atomics, only on targets where std::atomic accepts them. The gate
+// must be the same __atomic_always_lock_free() the header asserts on (the
+// __GCC_ATOMIC_LLONG_LOCK_FREE macro over-reports: gcc calls 8-byte atomics
+// "lock-free" on i686 because libatomic's implementation is, but will not
+// inline them). That is not a preprocessor constant, so the test body is a
+// template whose discarded branch never instantiates atomic<uint64_t>.
+constexpr bool k64BitAtomics = __atomic_always_lock_free(sizeof(uint64_t), nullptr);
+
+template <bool Enabled>
+bool atomic_u64_ops_impl() {
+    BEGIN_TEST;
+
+    if constexpr (Enabled) {
+        // dependent on Enabled so the false instantiation skips it entirely
+        using U = std::conditional_t<Enabled, uint64_t, uint32_t>;
+
+        std::atomic<U> a(0x100000000ULL);
+        EXPECT_TRUE(a.load() == 0x100000000ULL, "");
+        EXPECT_TRUE(a.fetch_add(1) == 0x100000000ULL, "");
+        EXPECT_TRUE(a.load() == 0x100000001ULL, "");
+
+        U expected = 0x100000001ULL;
+        EXPECT_TRUE(a.compare_exchange_strong(expected, 0x200000000ULL), "");
+        EXPECT_TRUE(a.exchange(7) == 0x200000000ULL, "");
+
+        std::atomic<U> b(1);
+        b.fetch_or(0x8000000000000000ULL);
+        EXPECT_TRUE(b.load() == 0x8000000000000001ULL, "");
+        static_assert(std::is_same_v<std::atomic_uint64_t, std::atomic<U>>,
+                      "typedef instantiation");
+    } else {
+        unittest_printf(" (skipped: no lock-free 64-bit atomics)");
+    }
+
+    END_TEST;
+}
+
+bool atomic_u64_ops() {
+    return atomic_u64_ops_impl<k64BitAtomics>();
+}
+
+// instantiate a representative sample of the typedefs
+static_assert(sizeof(std::atomic_size_t) == sizeof(size_t));
+static_assert(sizeof(std::atomic_uintptr_t) == sizeof(uintptr_t));
+static_assert(sizeof(std::atomic_uint32_t) == sizeof(uint32_t));
+static_assert(std::atomic_char(0).is_always_lock_free);
+static_assert(sizeof(std::atomic_short) == sizeof(short));
+
 bool atomic_flag_and_fences() {
     BEGIN_TEST;
 
@@ -200,6 +248,7 @@ RUN_TEST(atomic_int_ops)
 RUN_TEST(atomic_compare_exchange)
 RUN_TEST(atomic_pointer_ops)
 RUN_TEST(atomic_enum_and_bool)
+RUN_TEST(atomic_u64_ops)
 RUN_TEST(atomic_flag_and_fences)
 RUN_TEST(atomic_cross_thread)
 END_TEST_CASE(libcpp_atomic_tests)

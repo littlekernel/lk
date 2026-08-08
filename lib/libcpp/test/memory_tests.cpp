@@ -110,6 +110,46 @@ bool unique_ptr_move_and_convert() {
     END_TEST;
 }
 
+// a deleter that provides its own pointer type; unique_ptr must pick it up
+struct BufDeleter {
+    using pointer = char *;
+    static inline int frees = 0;
+    void operator()(char *p) const {
+        frees++;
+        delete[] p;
+    }
+};
+static_assert(std::is_same_v<std::unique_ptr<int, BufDeleter>::pointer, char *>,
+              "D::pointer must override element_type*");
+
+bool unique_ptr_deleter_pointer_hook() {
+    BEGIN_TEST;
+
+    BufDeleter::frees = 0;
+    {
+        std::unique_ptr<int, BufDeleter> p(new char[16]);
+        EXPECT_TRUE(static_cast<bool>(p), "");
+        EXPECT_TRUE(p.get() != nullptr, "");
+    }
+    EXPECT_EQ(1, BufDeleter::frees, "");
+
+    END_TEST;
+}
+
+bool unique_ptr_converting_assign() {
+    BEGIN_TEST;
+
+    std::unique_ptr<Counted> base;
+    base = std::make_unique<Derived>(3);
+    ASSERT_TRUE(static_cast<bool>(base), "");
+    EXPECT_EQ(3, base->v, "");
+    EXPECT_EQ(1, Counted::live, "");
+    base.reset();
+    EXPECT_EQ(0, Counted::live, "");
+
+    END_TEST;
+}
+
 bool unique_ptr_custom_deleter() {
     BEGIN_TEST;
 
@@ -176,6 +216,8 @@ bool addressof_and_destroy() {
 BEGIN_TEST_CASE(libcpp_memory_tests)
 RUN_TEST(unique_ptr_basics)
 RUN_TEST(unique_ptr_move_and_convert)
+RUN_TEST(unique_ptr_deleter_pointer_hook)
+RUN_TEST(unique_ptr_converting_assign)
 RUN_TEST(unique_ptr_custom_deleter)
 RUN_TEST(unique_ptr_array)
 RUN_TEST(addressof_and_destroy)

@@ -25,6 +25,16 @@ static_assert(std::clamp(-1, 0, 5) == 0);
 static_assert(std::clamp(3, 0, 5) == 3);
 static_assert(std::min(3, 5, [](int a, int b) { return a > b; }) == 5, "comparator form");
 
+// comparator forms of the rest of the family
+struct Desc {
+    constexpr bool operator()(int a, int b) const { return a > b; }
+};
+static_assert(std::max(3, 5, Desc{}) == 3);
+static_assert(std::min({4, 2, 9}, Desc{}) == 9);
+static_assert(std::max({4, 2, 9}, Desc{}) == 2);
+static_assert(std::minmax(3, 5, Desc{}).first == 5);
+static_assert(std::clamp(1, 5, 3, Desc{}) == 3, "descending-order clamp");
+
 constexpr int kSorted[] = {1, 3, 5, 7, 9};
 constexpr int kOther[] = {1, 3, 5, 7, 10};
 
@@ -54,6 +64,21 @@ static_assert(std::upper_bound(kSorted, kSorted + 5, 5) == kSorted + 3);
 static_assert(std::upper_bound(kSorted, kSorted + 5, 0) == kSorted);
 static_assert(std::binary_search(kSorted, kSorted + 5, 7));
 static_assert(!std::binary_search(kSorted, kSorted + 5, 6));
+
+// comparator forms over a descending-sorted range
+constexpr int kDesc[] = {9, 7, 5, 3, 1};
+static_assert(std::lower_bound(kDesc, kDesc + 5, 5, Desc{}) == kDesc + 2);
+static_assert(std::upper_bound(kDesc, kDesc + 5, 5, Desc{}) == kDesc + 3);
+static_assert(std::binary_search(kDesc, kDesc + 5, 3, Desc{}));
+static_assert(std::min_element(kDesc, kDesc + 5, Desc{}) == kDesc, "min by > is the max");
+static_assert(std::max_element(kDesc, kDesc + 5, Desc{}) == kDesc + 4);
+static_assert(std::is_sorted(kDesc, kDesc + 5, Desc{}));
+static_assert(std::lexicographical_compare(kDesc, kDesc + 5, kSorted, kSorted + 5, Desc{}));
+static_assert(std::equal(kSorted, kSorted + 5, kSorted,
+                         [](int a, int b) { return a == b; }));
+static_assert(std::mismatch(kSorted, kSorted + 5, kOther,
+                            [](int a, int b) { return a == b; })
+                  .first == kSorted + 4);
 
 bool copy_fill_transform() {
     BEGIN_TEST;

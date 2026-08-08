@@ -51,6 +51,20 @@ static_assert(std::index_sequence_for<int, char, long>::size() == 3);
 
 static_assert(std::is_same_v<decltype(std::declval<int &>()), int &>);
 
+// the in_place tag objects and their types
+static_assert(std::is_same_v<decltype(std::in_place), const std::in_place_t &> ||
+              std::is_same_v<std::remove_cvref_t<decltype(std::in_place)>, std::in_place_t>);
+static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::in_place_type<int>)>,
+                             std::in_place_type_t<int>>);
+static_assert(std::is_same_v<std::remove_cvref_t<decltype(std::in_place_index<3>)>,
+                             std::in_place_index_t<3>>);
+
+// get on rvalue/const-rvalue pairs, and get<T> on const
+constexpr const std::pair<int, long> kConstPair{8, 9L};
+static_assert(std::get<int>(kConstPair) == 8);
+static_assert(std::get<0>(std::pair<int, long>{4, 5L}) == 4);
+static_assert(std::get<1>(static_cast<const std::pair<int, long> &&>(kConstPair)) == 9L);
+
 template <std::size_t... I>
 constexpr int sum_seq(std::integer_sequence<std::size_t, I...>) {
     return (int(I) + ... + 0);
