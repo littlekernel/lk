@@ -513,6 +513,12 @@ bool test_fat_create_file() {
         ASSERT_NONNULL(handle);
         ASSERT_EQ(NO_ERROR, fs_close_file(handle));
 
+        // leave the volume as we found it so this can be re-run in place
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/newfile"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/newfile.txt"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/dir.a/newfile"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/this_is_a_long_filename_for_create.txt"));
+
         END_TEST;
     });
 }
@@ -546,6 +552,11 @@ bool test_fat_resize_file() {
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 8192));
+
+        // leave the volume as we found it so this can be re-run in place
+        closefile_cleanup1.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/reszfile"));
 
         END_TEST;
     });
@@ -590,6 +601,11 @@ bool test_fat_write_file() {
         EXPECT_EQ(0u, tail_read[3]);
         EXPECT_EQ('L', tail_read[4]);
         EXPECT_EQ('K', tail_read[5]);
+
+        // leave the volume as we found it so this can be re-run in place
+        closefile_cleanup.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/wrfile"));
 
         END_TEST;
     });
@@ -680,6 +696,14 @@ bool test_fat_mkdir() {
         ASSERT_NONNULL(fh);
         ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
+        // leave the volume as we found it so this can be re-run in place
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/this_is_a_long_directory_name/inside.txt"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/this_is_a_long_directory_name"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/newdir/file"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/newdir"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/parent/child"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/parent"));
+
         END_TEST;
     });
 }
@@ -699,8 +723,12 @@ bool test_fat_remove_file() {
         ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/rmfile", &fh));
         ASSERT_EQ(ERR_NOT_FOUND, fs_remove_file(test_path "/rmfile"));
 
-        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/long_filename_hello.txt"));
-        ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/long_filename_hello.txt", &fh));
+        // Remove a long-named file that was put on the image for exactly this
+        // purpose, rather than one the other tests read back. mkimage.py marks it
+        // consumed and run-fat-tests.py asserts it really is gone afterwards.
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/removable_long_filename_victim.txt"));
+        ASSERT_EQ(ERR_NOT_FOUND,
+                  fs_open_file(test_path "/removable_long_filename_victim.txt", &fh));
 
         ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/busyfile", &fh, 0));
         ASSERT_NONNULL(fh);
@@ -710,6 +738,9 @@ bool test_fat_remove_file() {
 
         ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/rmdirtgt"));
         ASSERT_EQ(ERR_NOT_FILE, fs_remove_file(test_path "/rmdirtgt"));
+
+        // leave the volume as we found it so this can be re-run in place
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/rmdirtgt"));
 
         END_TEST;
     });
@@ -848,6 +879,90 @@ bool test_fat_lfn_ordinal_rollover() {
     });
 }
 
+// Post-condition contract for the image based tests.
+//
+// Every other test in this file cleans up after itself, so `ut fat` can be run
+// repeatedly against the same image without failing on leftovers. This one test
+// deliberately leaves a fixed tree behind, which scripts/run-fat-tests.py then
+// checks from the host with mtools. It is the only thing the guest is allowed to
+// leave on the volume, and the two definitions have to stay in step -- see
+// WITNESS_* in run-fat-tests.py.
+//
+//   /witness/                 directory
+//   /witness/small.txt        13 bytes, "witness small"
+//   /witness/pattern.bin      9000 bytes, byte i = (i * 7 + 11) & 0xff
+//   /witness/a_long_witness_file_name_that_needs_lfn.txt   5 bytes, "hello"
+//   /witness/nested/          directory
+//   /witness/nested/deep.txt  4 bytes, "deep"
+bool test_fat_witness() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        // start from a clean slate so a re-run reproduces the tree exactly
+        fs_remove_file(test_path "/witness/nested/deep.txt");
+        fs_remove_dir(test_path "/witness/nested");
+        fs_remove_file(test_path "/witness/small.txt");
+        fs_remove_file(test_path "/witness/pattern.bin");
+        fs_remove_file(test_path "/witness/a_long_witness_file_name_that_needs_lfn.txt");
+        fs_remove_dir(test_path "/witness");
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/witness"));
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/witness/nested"));
+
+        struct {
+            const char *path;
+            const char *data;
+            size_t len;
+        } const simple[] = {
+            {test_path "/witness/small.txt", "witness small", 13},
+            {test_path "/witness/a_long_witness_file_name_that_needs_lfn.txt", "hello", 5},
+            {test_path "/witness/nested/deep.txt", "deep", 4},
+        };
+
+        for (auto &s : simple) {
+            filehandle *fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_create_file(s.path, &fh, 0));
+            ASSERT_NONNULL(fh);
+            auto close_fh = lk::make_auto_call([&]() { fs_close_file(fh); });
+            ASSERT_EQ((ssize_t)s.len, fs_write_file(fh, s.data, 0, s.len));
+            close_fh.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // A multi-cluster file with a position dependent pattern: this is the one
+        // the host verifier compares byte for byte, so a cluster written to the
+        // wrong place shows up as a specific bad offset rather than a size change.
+        const size_t pattern_len = 9000;
+        auto *buf = new uint8_t[pattern_len];
+        auto delete_buf = lk::make_auto_call([&]() { delete[] buf; });
+        for (size_t i = 0; i < pattern_len; i++) {
+            buf[i] = (uint8_t)((i * 7 + 11) & 0xff);
+        }
+
+        filehandle *fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/witness/pattern.bin", &fh, 0));
+        ASSERT_NONNULL(fh);
+        auto close_fh = lk::make_auto_call([&]() { fs_close_file(fh); });
+        ASSERT_EQ((ssize_t)pattern_len, fs_write_file(fh, buf, 0, pattern_len));
+        close_fh.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        // read it all back through a fresh open before handing off to the host
+        fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/witness/pattern.bin", &fh));
+        auto close_fh2 = lk::make_auto_call([&]() { fs_close_file(fh); });
+        auto *readback = new uint8_t[pattern_len];
+        auto delete_readback = lk::make_auto_call([&]() { delete[] readback; });
+        memset(readback, 0, pattern_len);
+        ASSERT_EQ((ssize_t)pattern_len, fs_read_file(fh, readback, 0, pattern_len));
+        EXPECT_EQ(0, memcmp(buf, readback, pattern_len));
+        close_fh2.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        END_TEST;
+    });
+}
+
 bool test_fat_read_only() {
     BEGIN_TEST;
 
@@ -912,6 +1027,8 @@ RUN_TEST(test_fat_remove_dir)
 RUN_TEST(test_fat_dir_growth)
 RUN_TEST(test_fat_lfn_ordinal_rollover)
 RUN_TEST(test_fat_read_only)
+// must be last: it is the only test that deliberately leaves files behind
+RUN_TEST(test_fat_witness)
 END_TEST_CASE(fat)
 
 } // namespace
