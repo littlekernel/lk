@@ -123,6 +123,61 @@ def verify_manifest(image, manifest_path, quiet):
     return problems
 
 
+def list_image(image):
+    """Every path in the image, as mtools sees it. Directories keep a trailing
+    slash, which is how we tell them apart."""
+    r = subprocess.run(['mdir', '-b', '-/', '-i', image, '::'],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    paths = set()
+    for line in r.stdout.splitlines():
+        line = line.strip()
+        if not line.startswith('::/'):
+            continue
+        # A name that fits 8.3 is stored as an upper case short name with no long
+        # name entry to preserve case, and FAT lookup is case insensitive, so
+        # compare that way. Two names differing only in case cannot coexist.
+        paths.add(line[len('::/'):].lower())
+    return paths
+
+
+def verify_nothing_leaked(image, manifest_path, quiet):
+    """The guest must leave the volume exactly as it found it, apart from the
+    witness tree. Anything else is a test that failed to clean up, or worse, a
+    directory entry the driver created and lost track of.
+
+    verify_manifest() only checks that the expected files are still right; this
+    is the other half, and it is the half that catches leaks.
+    """
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
+    expected = set()
+    for d in manifest['directories']:
+        expected.add((d + '/').lower())
+    for entry in manifest['files']:
+        if not entry.get('consumed'):
+            expected.add(entry['path'].lower())
+    expected.add((WITNESS_DIR + '/').lower())
+    expected.add(f'{WITNESS_DIR}/nested/'.lower())
+    expected.update(p.lower() for p in WITNESS_FILES)
+
+    actual = list_image(image)
+    if actual is None:
+        return ["could not list the image"]
+
+    problems = []
+    for extra in sorted(actual - expected):
+        problems.append(f"unexpected leftover on the volume: {extra}")
+    for missing in sorted(expected - actual):
+        problems.append(f"expected path is gone: {missing}")
+
+    if not quiet and not problems:
+        print(f"  layout: {len(actual)} paths, exactly as expected")
+    return problems
+
+
 def verify_witness(image, quiet):
     """The tree the guest wrote must be readable from the host and match byte
     for byte. This is what proves the guest's writes are really correct, which
@@ -195,6 +250,7 @@ def run_one(image_type, arch, timeout, stress, keep, quiet, scratch_dir):
     problems += fsck_problems
     problems += verify_manifest(scratch, manifest, quiet)
     problems += verify_witness(scratch, quiet)
+    problems += verify_nothing_leaked(scratch, manifest, quiet)
 
     if problems:
         print(f"  {image_type}: image verification FAILED")

@@ -7,44 +7,48 @@ import argparse
 from pathlib import Path
 
 class QEMUTestRunner:
+    # Per-architecture wall clock budget for the QEMU run, in seconds. This is a
+    # hang detector, not a performance target: a healthy `ut all` finishes in well
+    # under ten seconds locally, but CI runners are slower and the suite grows.
+    # Override with --timeout for the longer suites (e.g. FAT stress).
     def __init__(self, lk_root):
         self.lk_root = Path(lk_root)
         self.architectures = {
             'arm': {
                 'script': 'do-qemuarm',
                 'args': '',
-                'timeout': 30
+                'timeout': 90
             },
             'arm64': {
                 'script': 'do-qemuarm',
                 'args': '-6s4',
-                'timeout': 30
+                'timeout': 90
             },
             'm68k': {
                 'script': 'do-qemum68k',
                 'args': '',
-                'timeout': 30,
+                'timeout': 90,
                 'experimental_toolchains': ['clang', 'clang-lld']
             },
             'riscv32': {
                 'script': 'do-qemuriscv',
                 'args': '',
-                'timeout': 30
+                'timeout': 90
             },
             'riscv64': {
                 'script': 'do-qemuriscv',
                 'args': '-6Ss4',
-                'timeout': 30
+                'timeout': 90
             },
             'x86': {
                 'script': 'do-qemux86',
                 'args': '-s4',
-                'timeout': 30
+                'timeout': 90
             },
             'x86-64': {
                 'script': 'do-qemux86',
                 'args': '-6s4',
-                'timeout': 30
+                'timeout': 90
             }
         }
 
