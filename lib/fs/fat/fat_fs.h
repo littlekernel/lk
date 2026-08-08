@@ -48,6 +48,7 @@ class fat_fs {
     static status_t mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options);
     static status_t unmount(fscookie *cookie);
     static status_t fs_stat(fscookie *cookie, struct fs_stat *stat);
+    static status_t format(bdev_t *dev, const void *args);
 
     bdev_t *dev() { return dev_; }
     bcache_t bcache() { return bcache_; }

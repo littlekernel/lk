@@ -531,7 +531,7 @@ status_t fat_fs::unmount(fscookie *cookie) {
 }
 
 static const struct fs_api fat_api = {
-    .format = nullptr,
+    .format = fat_fs::format,
     .fs_stat = fat_fs::fs_stat,
 
     .mount = fat_fs::mount,
