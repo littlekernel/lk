@@ -1,0 +1,529 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <initializer_list>
+#include <stddef.h>
+#include <type_traits>
+#include <utility>
+
+// <algorithm> for LK's freestanding C++ standard library subset.
+//
+// The commonly used non-allocating algorithms, iterator-pair based.
+// Deviations from a hosted implementation:
+//  - no execution policies, no ranges overloads, no projections
+//  - counts and distances are computed as ptrdiff_t (there is no
+//    <iterator>/iterator_traits machinery); algorithms that index
+//    (sort, the binary search family) assume random access iterators
+//  - sort is an in-place iterative heapsort: O(n log n) worst case, no
+//    allocation, no recursion, but not the introsort a hosted library
+//    would use, and it is not stable (stable_sort is not provided)
+//  - many query algorithms are constexpr ahead of C++20
+
+namespace std {
+
+namespace internal {
+
+struct less {
+    template <typename A, typename B>
+    constexpr bool operator()(const A &a, const B &b) const {
+        return a < b;
+    }
+};
+
+struct equal_to {
+    template <typename A, typename B>
+    constexpr bool operator()(const A &a, const B &b) const {
+        return a == b;
+    }
+};
+
+} // namespace internal
+
+// min / max / minmax / clamp
+
+template <typename T, typename Compare>
+constexpr const T &min(const T &a, const T &b, Compare comp) {
+    return comp(b, a) ? b : a;
+}
+template <typename T>
+constexpr const T &min(const T &a, const T &b) {
+    return (b < a) ? b : a;
+}
+
+template <typename T, typename Compare>
+constexpr const T &max(const T &a, const T &b, Compare comp) {
+    return comp(a, b) ? b : a;
+}
+template <typename T>
+constexpr const T &max(const T &a, const T &b) {
+    return (a < b) ? b : a;
+}
+
+template <typename T, typename Compare>
+constexpr pair<T, T> minmax(const T &a, const T &b, Compare comp) {
+    return comp(b, a) ? pair<T, T>(b, a) : pair<T, T>(a, b);
+}
+template <typename T>
+constexpr pair<T, T> minmax(const T &a, const T &b) {
+    return minmax(a, b, internal::less{});
+}
+
+template <typename T, typename Compare>
+constexpr T min(initializer_list<T> list, Compare comp) {
+    const T *best = list.begin();
+    for (const T *it = list.begin() + 1; it != list.end(); ++it) {
+        if (comp(*it, *best)) {
+            best = it;
+        }
+    }
+    return *best;
+}
+template <typename T>
+constexpr T min(initializer_list<T> list) {
+    return min(list, internal::less{});
+}
+
+template <typename T, typename Compare>
+constexpr T max(initializer_list<T> list, Compare comp) {
+    const T *best = list.begin();
+    for (const T *it = list.begin() + 1; it != list.end(); ++it) {
+        if (comp(*best, *it)) {
+            best = it;
+        }
+    }
+    return *best;
+}
+template <typename T>
+constexpr T max(initializer_list<T> list) {
+    return max(list, internal::less{});
+}
+
+template <typename T, typename Compare>
+constexpr const T &clamp(const T &v, const T &lo, const T &hi, Compare comp) {
+    return comp(v, lo) ? lo : (comp(hi, v) ? hi : v);
+}
+template <typename T>
+constexpr const T &clamp(const T &v, const T &lo, const T &hi) {
+    return clamp(v, lo, hi, internal::less{});
+}
+
+// element-wise swaps
+
+template <typename It1, typename It2>
+constexpr void iter_swap(It1 a, It2 b) {
+    swap(*a, *b);
+}
+
+template <typename It1, typename It2>
+constexpr It2 swap_ranges(It1 first1, It1 last1, It2 first2) {
+    while (first1 != last1) {
+        iter_swap(first1++, first2++);
+    }
+    return first2;
+}
+
+// queries
+
+template <typename It, typename Pred>
+constexpr bool all_of(It first, It last, Pred pred) {
+    for (; first != last; ++first) {
+        if (!pred(*first)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename It, typename Pred>
+constexpr bool any_of(It first, It last, Pred pred) {
+    for (; first != last; ++first) {
+        if (pred(*first)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+template <typename It, typename Pred>
+constexpr bool none_of(It first, It last, Pred pred) {
+    return !any_of(first, last, pred);
+}
+
+template <typename It, typename Func>
+constexpr Func for_each(It first, It last, Func f) {
+    for (; first != last; ++first) {
+        f(*first);
+    }
+    return f;
+}
+
+template <typename It, typename T>
+constexpr It find(It first, It last, const T &value) {
+    for (; first != last; ++first) {
+        if (*first == value) {
+            break;
+        }
+    }
+    return first;
+}
+
+template <typename It, typename Pred>
+constexpr It find_if(It first, It last, Pred pred) {
+    for (; first != last; ++first) {
+        if (pred(*first)) {
+            break;
+        }
+    }
+    return first;
+}
+
+template <typename It, typename Pred>
+constexpr It find_if_not(It first, It last, Pred pred) {
+    for (; first != last; ++first) {
+        if (!pred(*first)) {
+            break;
+        }
+    }
+    return first;
+}
+
+template <typename It, typename T>
+constexpr ptrdiff_t count(It first, It last, const T &value) {
+    ptrdiff_t n = 0;
+    for (; first != last; ++first) {
+        if (*first == value) {
+            n++;
+        }
+    }
+    return n;
+}
+
+template <typename It, typename Pred>
+constexpr ptrdiff_t count_if(It first, It last, Pred pred) {
+    ptrdiff_t n = 0;
+    for (; first != last; ++first) {
+        if (pred(*first)) {
+            n++;
+        }
+    }
+    return n;
+}
+
+template <typename It1, typename It2, typename Pred>
+constexpr pair<It1, It2> mismatch(It1 first1, It1 last1, It2 first2, Pred pred) {
+    while (first1 != last1 && pred(*first1, *first2)) {
+        ++first1;
+        ++first2;
+    }
+    return pair<It1, It2>(first1, first2);
+}
+template <typename It1, typename It2>
+constexpr pair<It1, It2> mismatch(It1 first1, It1 last1, It2 first2) {
+    return mismatch(first1, last1, first2, internal::equal_to{});
+}
+
+template <typename It1, typename It2, typename Pred>
+constexpr bool equal(It1 first1, It1 last1, It2 first2, Pred pred) {
+    for (; first1 != last1; ++first1, ++first2) {
+        if (!pred(*first1, *first2)) {
+            return false;
+        }
+    }
+    return true;
+}
+template <typename It1, typename It2>
+constexpr bool equal(It1 first1, It1 last1, It2 first2) {
+    return equal(first1, last1, first2, internal::equal_to{});
+}
+template <typename It1, typename It2, typename Pred>
+constexpr bool equal(It1 first1, It1 last1, It2 first2, It2 last2, Pred pred) {
+    for (; first1 != last1 && first2 != last2; ++first1, ++first2) {
+        if (!pred(*first1, *first2)) {
+            return false;
+        }
+    }
+    return first1 == last1 && first2 == last2;
+}
+template <typename It1, typename It2>
+constexpr bool equal(It1 first1, It1 last1, It2 first2, It2 last2) {
+    return equal(first1, last1, first2, last2, internal::equal_to{});
+}
+
+template <typename It1, typename It2, typename Compare>
+constexpr bool lexicographical_compare(It1 first1, It1 last1, It2 first2, It2 last2,
+                                       Compare comp) {
+    for (; first1 != last1 && first2 != last2; ++first1, ++first2) {
+        if (comp(*first1, *first2)) {
+            return true;
+        }
+        if (comp(*first2, *first1)) {
+            return false;
+        }
+    }
+    return first1 == last1 && first2 != last2;
+}
+template <typename It1, typename It2>
+constexpr bool lexicographical_compare(It1 first1, It1 last1, It2 first2, It2 last2) {
+    return lexicographical_compare(first1, last1, first2, last2, internal::less{});
+}
+
+template <typename It, typename Compare>
+constexpr It min_element(It first, It last, Compare comp) {
+    if (first == last) {
+        return last;
+    }
+    It best = first;
+    for (++first; first != last; ++first) {
+        if (comp(*first, *best)) {
+            best = first;
+        }
+    }
+    return best;
+}
+template <typename It>
+constexpr It min_element(It first, It last) {
+    return min_element(first, last, internal::less{});
+}
+
+template <typename It, typename Compare>
+constexpr It max_element(It first, It last, Compare comp) {
+    if (first == last) {
+        return last;
+    }
+    It best = first;
+    for (++first; first != last; ++first) {
+        if (comp(*best, *first)) {
+            best = first;
+        }
+    }
+    return best;
+}
+template <typename It>
+constexpr It max_element(It first, It last) {
+    return max_element(first, last, internal::less{});
+}
+
+// binary search family (sorted ranges, random access iterators)
+
+template <typename It, typename T, typename Compare>
+constexpr It lower_bound(It first, It last, const T &value, Compare comp) {
+    ptrdiff_t len = last - first;
+    while (len > 0) {
+        const ptrdiff_t half = len / 2;
+        It mid = first + half;
+        if (comp(*mid, value)) {
+            first = mid + 1;
+            len -= half + 1;
+        } else {
+            len = half;
+        }
+    }
+    return first;
+}
+template <typename It, typename T>
+constexpr It lower_bound(It first, It last, const T &value) {
+    return lower_bound(first, last, value, internal::less{});
+}
+
+template <typename It, typename T, typename Compare>
+constexpr It upper_bound(It first, It last, const T &value, Compare comp) {
+    ptrdiff_t len = last - first;
+    while (len > 0) {
+        const ptrdiff_t half = len / 2;
+        It mid = first + half;
+        if (!comp(value, *mid)) {
+            first = mid + 1;
+            len -= half + 1;
+        } else {
+            len = half;
+        }
+    }
+    return first;
+}
+template <typename It, typename T>
+constexpr It upper_bound(It first, It last, const T &value) {
+    return upper_bound(first, last, value, internal::less{});
+}
+
+template <typename It, typename T, typename Compare>
+constexpr bool binary_search(It first, It last, const T &value, Compare comp) {
+    It it = lower_bound(first, last, value, comp);
+    return it != last && !comp(value, *it);
+}
+template <typename It, typename T>
+constexpr bool binary_search(It first, It last, const T &value) {
+    return binary_search(first, last, value, internal::less{});
+}
+
+// copying / filling / transforming
+
+template <typename InIt, typename OutIt>
+constexpr OutIt copy(InIt first, InIt last, OutIt out) {
+    for (; first != last; ++first, ++out) {
+        *out = *first;
+    }
+    return out;
+}
+
+template <typename InIt, typename Size, typename OutIt>
+constexpr OutIt copy_n(InIt first, Size count, OutIt out) {
+    for (Size i = 0; i < count; ++i, ++first, ++out) {
+        *out = *first;
+    }
+    return out;
+}
+
+template <typename InIt, typename OutIt>
+constexpr OutIt copy_backward(InIt first, InIt last, OutIt out_last) {
+    while (first != last) {
+        *--out_last = *--last;
+    }
+    return out_last;
+}
+
+// range form of move; the single-argument cast form lives in <utility>
+template <typename InIt, typename OutIt>
+constexpr OutIt move(InIt first, InIt last, OutIt out) {
+    for (; first != last; ++first, ++out) {
+        *out = std::move(*first);
+    }
+    return out;
+}
+
+template <typename It, typename T>
+constexpr void fill(It first, It last, const T &value) {
+    for (; first != last; ++first) {
+        *first = value;
+    }
+}
+
+template <typename It, typename Size, typename T>
+constexpr It fill_n(It first, Size count, const T &value) {
+    for (Size i = 0; i < count; ++i, ++first) {
+        *first = value;
+    }
+    return first;
+}
+
+template <typename InIt, typename OutIt, typename UnaryOp>
+constexpr OutIt transform(InIt first, InIt last, OutIt out, UnaryOp op) {
+    for (; first != last; ++first, ++out) {
+        *out = op(*first);
+    }
+    return out;
+}
+template <typename InIt1, typename InIt2, typename OutIt, typename BinaryOp>
+constexpr OutIt transform(InIt1 first1, InIt1 last1, InIt2 first2, OutIt out, BinaryOp op) {
+    for (; first1 != last1; ++first1, ++first2, ++out) {
+        *out = op(*first1, *first2);
+    }
+    return out;
+}
+
+// in-place mutation
+
+template <typename It>
+constexpr void reverse(It first, It last) {
+    while (first != last && first != --last) {
+        iter_swap(first++, last);
+    }
+}
+
+template <typename It, typename Pred>
+constexpr It remove_if(It first, It last, Pred pred) {
+    first = find_if(first, last, pred);
+    if (first == last) {
+        return first;
+    }
+    It out = first;
+    for (++first; first != last; ++first) {
+        if (!pred(*first)) {
+            *out++ = std::move(*first);
+        }
+    }
+    return out;
+}
+
+template <typename It, typename T>
+constexpr It remove(It first, It last, const T &value) {
+    first = find(first, last, value);
+    if (first == last) {
+        return first;
+    }
+    It out = first;
+    for (++first; first != last; ++first) {
+        if (!(*first == value)) {
+            *out++ = std::move(*first);
+        }
+    }
+    return out;
+}
+
+// sort: in-place iterative heapsort over random access iterators.
+// O(n log n) worst case, no allocation, no recursion, not stable.
+
+namespace internal {
+
+template <typename It, typename Compare>
+constexpr void sift_down(It first, ptrdiff_t root, ptrdiff_t end, Compare &comp) {
+    while (2 * root + 1 <= end) {
+        ptrdiff_t child = 2 * root + 1;
+        if (child + 1 <= end && comp(first[child], first[child + 1])) {
+            child++;
+        }
+        if (comp(first[root], first[child])) {
+            iter_swap(first + root, first + child);
+            root = child;
+        } else {
+            return;
+        }
+    }
+}
+
+} // namespace internal
+
+template <typename It, typename Compare>
+constexpr void sort(It first, It last, Compare comp) {
+    const ptrdiff_t n = last - first;
+    if (n < 2) {
+        return;
+    }
+    for (ptrdiff_t start = (n - 2) / 2; start >= 0; start--) {
+        internal::sift_down(first, start, n - 1, comp);
+    }
+    for (ptrdiff_t end = n - 1; end > 0; end--) {
+        iter_swap(first, first + end);
+        internal::sift_down(first, ptrdiff_t(0), end - 1, comp);
+    }
+}
+template <typename It>
+constexpr void sort(It first, It last) {
+    sort(first, last, internal::less{});
+}
+
+template <typename It, typename Compare>
+constexpr bool is_sorted(It first, It last, Compare comp) {
+    if (first == last) {
+        return true;
+    }
+    It next = first;
+    for (++next; next != last; ++first, ++next) {
+        if (comp(*next, *first)) {
+            return false;
+        }
+    }
+    return true;
+}
+template <typename It>
+constexpr bool is_sorted(It first, It last) {
+    return is_sorted(first, last, internal::less{});
+}
+
+} // namespace std
+
+// vim: syntax=cpp
