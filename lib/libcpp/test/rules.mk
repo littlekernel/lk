@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += $(LOCAL_DIR)/algorithm_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/array_tests.cpp
+MODULE_SRCS += $(LOCAL_DIR)/atomic_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/cstddef_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/limits_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/memory_tests.cpp

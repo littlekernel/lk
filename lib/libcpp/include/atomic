@@ -1,0 +1,224 @@
+//
+// Copyright (c) 2026 Travis Geiselbrecht
+//
+// Use of this source code is governed by a MIT-style
+// license that can be found in the LICENSE file or at
+// https://opensource.org/licenses/MIT
+#pragma once
+
+#include <stddef.h>
+#include <stdint.h>
+#include <type_traits>
+
+// <atomic> for LK's freestanding C++ standard library subset.
+//
+// std::atomic<T> restricted to always-lock-free integral, enum, and pointer
+// types, implemented directly over the compiler's __atomic builtins. The
+// static_assert on __atomic_always_lock_free is the load-bearing policy: no
+// instantiation can ever generate a libatomic call, so e.g. atomic<uint64_t>
+// on a 32-bit architecture without 64-bit atomics is rejected at compile
+// time rather than failing at link time.
+//
+// Deviations from a hosted implementation:
+//  - no atomic<T> for arbitrary trivially copyable structs or floats
+//  - no wait/notify (C++20)
+//  - no volatile-qualified overloads
+//  - fetch_add/fetch_sub and the arithmetic operators compile only for
+//    integral and pointer specializations (as in the standard, but the
+//    failure is a builtin error on use rather than a missing overload)
+
+namespace std {
+
+typedef enum memory_order {
+    memory_order_relaxed = __ATOMIC_RELAXED,
+    memory_order_consume = __ATOMIC_CONSUME,
+    memory_order_acquire = __ATOMIC_ACQUIRE,
+    memory_order_release = __ATOMIC_RELEASE,
+    memory_order_acq_rel = __ATOMIC_ACQ_REL,
+    memory_order_seq_cst = __ATOMIC_SEQ_CST,
+} memory_order;
+
+inline void atomic_thread_fence(memory_order order) noexcept {
+    __atomic_thread_fence(static_cast<int>(order));
+}
+
+inline void atomic_signal_fence(memory_order order) noexcept {
+    __atomic_signal_fence(static_cast<int>(order));
+}
+
+template <typename T>
+T kill_dependency(T y) noexcept {
+    return y;
+}
+
+namespace internal {
+
+// the value added to a pointer atomic scales by the pointee size; for
+// integers it is the value itself
+template <typename T>
+struct atomic_difference {
+    using type = T;
+    static constexpr T scale(T v) { return v; }
+};
+template <typename U>
+struct atomic_difference<U *> {
+    using type = ptrdiff_t;
+    static constexpr ptrdiff_t scale(ptrdiff_t v) {
+        return v * static_cast<ptrdiff_t>(sizeof(U));
+    }
+};
+
+} // namespace internal
+
+template <typename T>
+class atomic {
+    static_assert(is_integral<T>::value || is_enum<T>::value || is_pointer<T>::value,
+                  "this atomic subset supports only integral, enum, and pointer types");
+    static_assert(__atomic_always_lock_free(sizeof(T), nullptr),
+                  "atomic<T> would not be lock-free on this architecture");
+
+    using difference = internal::atomic_difference<T>;
+
+public:
+    using value_type = T;
+
+    static constexpr bool is_always_lock_free = true;
+    bool is_lock_free() const noexcept { return true; }
+
+    atomic() noexcept = default;
+    constexpr atomic(T v) noexcept : value_(v) {}
+
+    atomic(const atomic &) = delete;
+    atomic &operator=(const atomic &) = delete;
+
+    // the generic (address-based) __atomic forms are used instead of the _n
+    // forms because clang restricts the latter to integer/pointer types,
+    // rejecting enums
+
+    T load(memory_order order = memory_order_seq_cst) const noexcept {
+        T ret;
+        __atomic_load(&value_, &ret, static_cast<int>(order));
+        return ret;
+    }
+
+    void store(T v, memory_order order = memory_order_seq_cst) noexcept {
+        __atomic_store(&value_, &v, static_cast<int>(order));
+    }
+
+    T exchange(T v, memory_order order = memory_order_seq_cst) noexcept {
+        T ret;
+        __atomic_exchange(&value_, &v, &ret, static_cast<int>(order));
+        return ret;
+    }
+
+    bool compare_exchange_weak(T &expected, T desired, memory_order success,
+                               memory_order failure) noexcept {
+        return __atomic_compare_exchange(&value_, &expected, &desired, true,
+                                         static_cast<int>(success), static_cast<int>(failure));
+    }
+    bool compare_exchange_weak(T &expected, T desired,
+                               memory_order order = memory_order_seq_cst) noexcept {
+        return compare_exchange_weak(expected, desired, order, internal_failure_order(order));
+    }
+
+    bool compare_exchange_strong(T &expected, T desired, memory_order success,
+                                 memory_order failure) noexcept {
+        return __atomic_compare_exchange(&value_, &expected, &desired, false,
+                                         static_cast<int>(success), static_cast<int>(failure));
+    }
+    bool compare_exchange_strong(T &expected, T desired,
+                                 memory_order order = memory_order_seq_cst) noexcept {
+        return compare_exchange_strong(expected, desired, order, internal_failure_order(order));
+    }
+
+    T fetch_add(typename difference::type v,
+                memory_order order = memory_order_seq_cst) noexcept {
+        return __atomic_fetch_add(&value_, difference::scale(v), static_cast<int>(order));
+    }
+    T fetch_sub(typename difference::type v,
+                memory_order order = memory_order_seq_cst) noexcept {
+        return __atomic_fetch_sub(&value_, difference::scale(v), static_cast<int>(order));
+    }
+    T fetch_and(T v, memory_order order = memory_order_seq_cst) noexcept {
+        return __atomic_fetch_and(&value_, v, static_cast<int>(order));
+    }
+    T fetch_or(T v, memory_order order = memory_order_seq_cst) noexcept {
+        return __atomic_fetch_or(&value_, v, static_cast<int>(order));
+    }
+    T fetch_xor(T v, memory_order order = memory_order_seq_cst) noexcept {
+        return __atomic_fetch_xor(&value_, v, static_cast<int>(order));
+    }
+
+    operator T() const noexcept { return load(); }
+
+    T operator=(T v) noexcept {
+        store(v);
+        return v;
+    }
+
+    T operator++() noexcept { return fetch_add(1) + 1; }
+    T operator++(int) noexcept { return fetch_add(1); }
+    T operator--() noexcept { return fetch_sub(1) - 1; }
+    T operator--(int) noexcept { return fetch_sub(1); }
+    T operator+=(typename difference::type v) noexcept { return fetch_add(v) + v; }
+    T operator-=(typename difference::type v) noexcept { return fetch_sub(v) - v; }
+    T operator&=(T v) noexcept { return fetch_and(v) & v; }
+    T operator|=(T v) noexcept { return fetch_or(v) | v; }
+    T operator^=(T v) noexcept { return fetch_xor(v) ^ v; }
+
+private:
+    // a failure ordering derived from the success ordering, per the standard
+    static constexpr memory_order internal_failure_order(memory_order order) {
+        return order == memory_order_acq_rel   ? memory_order_acquire
+               : order == memory_order_release ? memory_order_relaxed
+                                               : order;
+    }
+
+    T value_;
+};
+
+struct atomic_flag {
+    atomic_flag() noexcept = default;
+    atomic_flag(const atomic_flag &) = delete;
+    atomic_flag &operator=(const atomic_flag &) = delete;
+
+    bool test_and_set(memory_order order = memory_order_seq_cst) noexcept {
+        return __atomic_test_and_set(&flag_, static_cast<int>(order));
+    }
+    void clear(memory_order order = memory_order_seq_cst) noexcept {
+        __atomic_clear(&flag_, static_cast<int>(order));
+    }
+
+    unsigned char flag_ = 0;
+};
+
+using atomic_bool = atomic<bool>;
+using atomic_char = atomic<char>;
+using atomic_schar = atomic<signed char>;
+using atomic_uchar = atomic<unsigned char>;
+using atomic_short = atomic<short>;
+using atomic_ushort = atomic<unsigned short>;
+using atomic_int = atomic<int>;
+using atomic_uint = atomic<unsigned int>;
+using atomic_long = atomic<long>;
+using atomic_ulong = atomic<unsigned long>;
+using atomic_llong = atomic<long long>;
+using atomic_ullong = atomic<unsigned long long>;
+
+using atomic_int8_t = atomic<int8_t>;
+using atomic_uint8_t = atomic<uint8_t>;
+using atomic_int16_t = atomic<int16_t>;
+using atomic_uint16_t = atomic<uint16_t>;
+using atomic_int32_t = atomic<int32_t>;
+using atomic_uint32_t = atomic<uint32_t>;
+using atomic_int64_t = atomic<int64_t>;
+using atomic_uint64_t = atomic<uint64_t>;
+
+using atomic_size_t = atomic<size_t>;
+using atomic_ptrdiff_t = atomic<ptrdiff_t>;
+using atomic_intptr_t = atomic<intptr_t>;
+using atomic_uintptr_t = atomic<uintptr_t>;
+
+} // namespace std
+
+// vim: syntax=cpp
