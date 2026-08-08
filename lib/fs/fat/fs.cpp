@@ -360,8 +360,28 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
         info->total_sectors = fat_read32(bs, 0x20); // total sectors 32
     }
     if (info->total_sectors == 0) {
-        // TODO: test that total sectors <= bio device size
         printf("invalid total sector count 0\n");
+        return ERR_NOT_VALID;
+    }
+
+    // The volume must fit inside the device it claims to live on. Without this a
+    // malformed BPB sends every later cluster computation off the end of the device.
+    const uint64_t volume_bytes = (uint64_t)info->total_sectors * info->bytes_per_sector;
+    if (volume_bytes > (uint64_t)dev->total_size) {
+        printf("total sectors (%u x %u = %llu bytes) exceeds device size (%llu bytes)\n",
+               info->total_sectors, info->bytes_per_sector, volume_bytes,
+               (uint64_t)dev->total_size);
+        return ERR_NOT_VALID;
+    }
+
+    // The metadata (reserved sectors + FATs + a fixed root dir) has to fit too,
+    // otherwise data_start_sector below underflows.
+    const uint64_t metadata_sectors = (uint64_t)info->reserved_sectors +
+                                      (uint64_t)info->fat_count * info->sectors_per_fat +
+                                      info->root_dir_sectors;
+    if (metadata_sectors >= info->total_sectors) {
+        printf("filesystem metadata (%llu sectors) does not fit in %u total sectors\n",
+               metadata_sectors, info->total_sectors);
         return ERR_NOT_VALID;
     }
 
@@ -376,10 +396,15 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
     info->total_clusters = (data_sectors / info->sectors_per_cluster) + 2;
     LTRACEF("total clusters %u\n", info->total_clusters);
 
-    // table according to FAT spec
-    if (info->total_clusters < 4085) {
+    // Table according to the FAT spec. Note the spec's thresholds apply to
+    // CountofClusters, which is the number of *data* clusters, whereas
+    // total_clusters above is an exclusive upper bound on cluster numbers and so
+    // counts the two reserved entries as well. Compare the data cluster count or
+    // volumes within two clusters of a boundary get the wrong FAT width.
+    const uint32_t data_cluster_count = info->total_clusters - 2;
+    if (data_cluster_count < 4085) {
         info->fat_bits = 12;
-    } else if (info->total_clusters < 65525) {
+    } else if (data_cluster_count < 65525) {
         info->fat_bits = 16;
     } else {
         info->fat_bits = 32;
