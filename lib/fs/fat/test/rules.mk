@@ -8,6 +8,7 @@ MODULE_DEPS += lib/unittest
 
 MODULE_SRCS += $(LOCAL_DIR)/ram_tests.cpp
 MODULE_SRCS += $(LOCAL_DIR)/ramdisk.cpp
+MODULE_SRCS += $(LOCAL_DIR)/stress.cpp
 MODULE_SRCS += $(LOCAL_DIR)/test.cpp
 
 # pass in the local dir relative to the build root
