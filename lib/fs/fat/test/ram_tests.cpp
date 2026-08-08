@@ -364,10 +364,112 @@ bool test_fat_format_rejects_impossible_geometry() {
     END_TEST;
 }
 
+// Mounting a corrupt volume must fail cleanly. Before the device size check went
+// in, a BPB claiming more sectors than the device holds sent every subsequent
+// cluster computation off the end of it. These are cheap to construct on a RAM
+// disk and impossible to construct with mkfs.fat.
+bool test_fat_mount_rejects_malformed() {
+    BEGIN_TEST;
+
+    constexpr size_t kSize = 2 * 1024 * 1024;
+    constexpr const char *kDev = "fatbadbpb";
+
+    void *mem = memalign(CACHE_LINE, kSize);
+    ASSERT_NONNULL(mem);
+    auto free_mem = lk::make_auto_call([&]() { free(mem); });
+
+    ASSERT_EQ(0, create_membdev(kDev, mem, kSize));
+    bdev_t *dev = bio_open(kDev);
+    ASSERT_NONNULL(dev);
+    auto cleanup = lk::make_auto_call([&]() {
+        bio_close(dev);
+        bio_unregister_device(dev);
+    });
+
+    fat_format_args_t args = {};
+    args.fat_bits = 12;
+    args.bytes_per_sector = 512;
+    args.sectors_per_cluster = 1;
+
+    // A pristine volume, kept aside so each case starts from a good image.
+    ASSERT_EQ(NO_ERROR, fs_format_device("fat", kDev, &args));
+    auto *pristine = (uint8_t *)malloc(512);
+    ASSERT_NONNULL(pristine);
+    auto free_pristine = lk::make_auto_call([&]() { free(pristine); });
+    ASSERT_EQ(512, bio_read(dev, pristine, 0, 512));
+
+    // it must mount before we start breaking it, or the test proves nothing
+    ASSERT_EQ(NO_ERROR, fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE));
+    ASSERT_EQ(NO_ERROR, fs_unmount("/badbpb"));
+
+    struct {
+        const char *what;
+        uint32_t offset;
+        uint32_t width; // 1, 2 or 4 bytes
+        uint32_t value;
+    } const cases[] = {
+        {"total sectors larger than the device", 0x20, 4, 0x00ffffff},
+        {"total sectors (16 bit) larger than the device", 0x13, 2, 0xfffe},
+        {"zero sectors per cluster", 0x0d, 1, 0},
+        {"sectors per cluster not a power of two", 0x0d, 1, 3},
+        {"sectors per cluster absurdly large", 0x0d, 1, 0xff},
+        {"unsupported sector size", 0x0b, 2, 777},
+        {"zero FAT count", 0x10, 1, 0},
+        {"absurd FAT count", 0x10, 1, 200},
+        {"bad media descriptor", 0x15, 1, 0xf0},
+        {"root entries not a whole sector", 0x11, 2, 7},
+        {"zero sectors per FAT", 0x16, 2, 0},
+    };
+
+    auto *sector = (uint8_t *)malloc(512);
+    ASSERT_NONNULL(sector);
+    auto free_sector = lk::make_auto_call([&]() { free(sector); });
+
+    for (auto &c : cases) {
+        memcpy(sector, pristine, 512);
+        switch (c.width) {
+            case 1:
+                sector[c.offset] = (uint8_t)c.value;
+                break;
+            case 2:
+                sector[c.offset] = (uint8_t)c.value;
+                sector[c.offset + 1] = (uint8_t)(c.value >> 8);
+                break;
+            default:
+                for (int i = 0; i < 4; i++) {
+                    sector[c.offset + i] = (uint8_t)(c.value >> (i * 8));
+                }
+                break;
+        }
+        // a 32 bit total sector count is only consulted when the 16 bit one is
+        // zero, so clear it for that case
+        if (c.offset == 0x20) {
+            sector[0x13] = sector[0x14] = 0;
+        }
+        ASSERT_EQ(512, bio_write(dev, sector, 0, 512));
+
+        status_t err = fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE);
+        if (err == NO_ERROR) {
+            fs_unmount("/badbpb");
+            UNITTEST_FAIL_TRACEF("mounted a volume with %s\n", c.what);
+            all_ok = false;
+        }
+    }
+
+    // restore, and confirm the volume is still good: a rejected mount must not
+    // have left anything behind
+    ASSERT_EQ(512, bio_write(dev, pristine, 0, 512));
+    ASSERT_EQ(NO_ERROR, fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE));
+    ASSERT_EQ(NO_ERROR, fs_unmount("/badbpb"));
+
+    END_TEST;
+}
+
 } // anonymous namespace
 
 BEGIN_TEST_CASE(fat_ram)
 RUN_TEST(test_fat_ram_geometries)
 RUN_TEST(test_fat_ram_format_roundtrip)
 RUN_TEST(test_fat_format_rejects_impossible_geometry)
+RUN_TEST(test_fat_mount_rejects_malformed)
 END_TEST_CASE(fat_ram)
