@@ -595,6 +595,59 @@ bool test_fat_write_file() {
     });
 }
 
+// Every test above writes through the same handle it created the file with, so
+// nothing covers the ordinary create/close/reopen/write sequence a shell or an
+// application would do.
+bool test_fat_write_reopened_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        const char *path = test_path "/reopenwr";
+        const uint8_t data[] = {'a', 'b', 'c'};
+
+        // create it empty and close it
+        filehandle *handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(path, &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // reopen and write
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(path, &handle));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ((ssize_t)sizeof(data), fs_write_file(handle, data, 0, sizeof(data)));
+
+        // the size must be visible through this handle...
+        struct file_stat st = {};
+        ASSERT_EQ(NO_ERROR, fs_stat_file(handle, &st));
+        EXPECT_EQ(sizeof(data), (size_t)st.size);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // ...and must have reached the directory entry, so a fresh open sees it.
+        // Close on every path: leaking a handle here makes fs_unmount trip its
+        // "no open files" assert and every later test fail for the wrong reason.
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(path, &handle));
+        ASSERT_NONNULL(handle);
+        auto close_cleanup = lk::make_auto_call([&]() { fs_close_file(handle); });
+
+        st = {};
+        ASSERT_EQ(NO_ERROR, fs_stat_file(handle, &st));
+        EXPECT_EQ(sizeof(data), (size_t)st.size);
+
+        uint8_t readback[sizeof(data)] = {};
+        ASSERT_EQ((ssize_t)sizeof(readback), fs_read_file(handle, readback, 0, sizeof(readback)));
+        EXPECT_EQ(0, memcmp(data, readback, sizeof(data)));
+
+        close_cleanup.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        ASSERT_EQ(NO_ERROR, fs_remove_file(path));
+
+        END_TEST;
+    });
+}
+
 bool test_fat_mkdir() {
     return test_mount_wrapper([]() {
         BEGIN_TEST;
@@ -852,6 +905,7 @@ RUN_TEST(test_fat_multi_open)
 RUN_TEST(test_fat_create_file)
 RUN_TEST(test_fat_resize_file)
 RUN_TEST(test_fat_write_file)
+RUN_TEST(test_fat_write_reopened_file)
 RUN_TEST(test_fat_mkdir)
 RUN_TEST(test_fat_remove_file)
 RUN_TEST(test_fat_remove_dir)

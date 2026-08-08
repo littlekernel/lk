@@ -546,9 +546,16 @@ status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, const char
 
         // see if we've matched an entry
         if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
-            // we have, return with a good status
+            // we have, return with a good status.
+            // fat_find_next_entry advances offset past the short name entry it
+            // matched, so step back one entry to name the entry itself. This has
+            // to agree with fat_dir_allocate, which hands back the offset of the
+            // short name entry: a dir_entry_location is both the key in the open
+            // file table and the address fat_dir_update_entry writes to.
             if (found_offset) {
-                *found_offset = dir_offset_base + offset;
+                const uint32_t entry_end_offset = dir_offset_base + offset;
+                DEBUG_ASSERT(entry_end_offset >= DIR_ENTRY_LENGTH);
+                *found_offset = entry_end_offset - DIR_ENTRY_LENGTH;
             }
             return NO_ERROR;
         }
@@ -1010,16 +1017,14 @@ status_t check_entry_not_busy(fat_fs *fat, uint32_t parent_cluster, uint32_t ent
         return ERR_BAD_STATE;
     }
 
+    // Every dir_entry_location names the short name entry, which is the last of
+    // the run, so entry_end_offset is one entry past it.
     dir_entry_location sfn_loc = {
         .starting_dir_cluster = parent_cluster,
         .dir_offset = entry_end_offset - DIR_ENTRY_LENGTH,
     };
-    dir_entry_location walk_loc = {
-        .starting_dir_cluster = parent_cluster,
-        .dir_offset = entry_end_offset,
-    };
 
-    if (fat->lookup_file(sfn_loc) || fat->lookup_file(walk_loc)) {
+    if (fat->lookup_file(sfn_loc)) {
         return ERR_BUSY;
     }
 
