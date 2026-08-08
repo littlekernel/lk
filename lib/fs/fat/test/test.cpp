@@ -536,10 +536,12 @@ bool test_fat_resize_file() {
         auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle); });
 
         // resize the file
-        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));                           // same size
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2UL * 1024 * 1024 * 1024)); // too big for FAT
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8UL * 1024 * 1024 * 1024)); // >32bit too big for FAT
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, -1));                       // negative should produce way out of range
+        // These sizes must be spelled ULL: on a 32 bit target UL is 32 bits, so
+        // 8UL * 1024 * 1024 * 1024 overflows to 0 and silently tests nothing.
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));                            // same size
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2ULL * 1024 * 1024 * 1024)); // too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8ULL * 1024 * 1024 * 1024)); // >32bit too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, UINT64_MAX));                // way out of range
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4095)); // assumes cluster size 4k
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4096));

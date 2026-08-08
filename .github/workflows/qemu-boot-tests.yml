@@ -98,9 +98,78 @@ jobs:
         echo "$GITHUB_WORKSPACE/$TOOLCHAIN/bin" >> $GITHUB_PATH
 
     # run the boot test for this architecture
+    # this includes the RAM backed FAT tests, which format their own volumes and
+    # so need no disk image or host tooling
     - name: run boot test
       shell: bash
       run: |
         ./scripts/run-qemu-boot-tests.py --arch ${{ matrix.arch }}
+
+  # The FAT tests that need a real disk image. Separate from the matrix above
+  # because they need dosfstools and mtools to build and then verify the images,
+  # and because the host side verification is what makes them worth running:
+  # fsck.fat checks the metadata graph, mtools checks the bytes.
+  fat-image-test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # arm64 is the primary target and gates the build
+          - arch: arm64
+            toolchain-prefix: aarch64-elf-
+            experimental: false
+          # m68k is the only big endian architecture in the tree. FAT is little
+          # endian on disk, so this is the one place the byte swapping is
+          # exercised, and it is 32 bit, which catches width bugs the 64 bit
+          # targets hide. It passes today; kept non-gating so a failure here
+          # reports rather than blocking. Promote it if it proves stable.
+          - arch: m68k
+            toolchain-prefix: m68k-elf-
+            experimental: true
+        toolchain-ver: [15.2.0]
+
+    continue-on-error: ${{ matrix.experimental }}
+
+    env:
+      TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v6
+
+    - name: install qemu and filesystem tools
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-system-arm qemu-system-misc dosfstools mtools
+
+    - name: compute toolchain
+      shell: bash
+      run: |
+        echo "TOOLCHAIN=${{ matrix.toolchain-prefix }}${{ matrix.toolchain-ver }}-$(uname)-$(uname -m)" >> $GITHUB_ENV
+
+    - name: cache
+      uses: actions/cache@v5
+      id: cache
+      with:
+        path: archives
+        key: archives-${{ env.TOOLCHAIN }}
+
+    - name: fetch/extract toolchain
+      shell: bash
+      run: |
+        TOOLCHAIN_ADDRESS="https://newos.org/toolchains/$TOOLCHAIN.tar.xz"
+        mkdir -p archives
+        cd archives
+        wget -v -N $TOOLCHAIN_ADDRESS || exit 1
+        cd ..
+        tar xf archives/$TOOLCHAIN.tar.xz || exit 1
+        echo "$GITHUB_WORKSPACE/$TOOLCHAIN/bin" >> $GITHUB_PATH
+
+    - name: run FAT image tests
+      shell: bash
+      run: |
+        ./scripts/run-fat-tests.py --arch ${{ matrix.arch }}
 
 # vim: ts=2 sw=2 expandtab

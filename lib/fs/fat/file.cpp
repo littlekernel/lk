@@ -363,7 +363,9 @@ status_t fat_file::truncate_file_priv(uint64_t _len) {
     }
 
     // test some boundary conditions
-    if (_len >= 2UL * 1024 * 1024 * 1024) {
+    // ULL, not UL: on a 32 bit target UL is 32 bits and a limit expressed that
+    // way is one factor away from silently overflowing to zero
+    if (_len >= 2ULL * 1024 * 1024 * 1024) {
         // 2GB limit on the fs
         return ERR_TOO_BIG;
     }
@@ -512,7 +514,7 @@ ssize_t fat_file::write_file_priv(const void *_buf, const off_t offset, size_t l
     }
 
     const uint64_t end = (uint64_t)offset + len;
-    if (end >= 2UL * 1024 * 1024 * 1024) {
+    if (end >= 2ULL * 1024 * 1024 * 1024) {
         return ERR_TOO_BIG;
     }
 
