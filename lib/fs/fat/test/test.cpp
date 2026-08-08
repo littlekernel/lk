@@ -56,14 +56,41 @@ const char *get_test_device() {
     return result;
 }
 
+// Returns true if test.fat.required is set on the command line, which turns a
+// missing test.fat.device into a hard failure instead of a silent skip. Test
+// drivers that do attach a disk set this so a misconfigured run cannot pass
+// vacuously.  Result is cached after the first call.
+bool device_required() {
+    static bool checked = false;
+    static bool required = false;
+
+    if (!checked) {
+        checked = true;
+        bool val = false;
+        if (cmdline_get_bool("test.fat.required", &val) == NO_ERROR) {
+            required = val;
+        }
+    }
+    return required;
+}
+
 #define test_path "/fat"
 
-#define SKIP_TEST_IF_NO_DEVICE()                                                          \
-    do {                                                                                  \
-        if (!get_test_device()) {                                                         \
-            unittest_printf(" test.fat.device not set or device absent, skipping test "); \
-            return true;                                                                  \
-        }                                                                                 \
+// Distinctive marker so a host-side harness can grep a boot log and tell a real
+// run from a skipped one. Keep the spelling in sync with scripts/run-fat-tests.py.
+#define FAT_SKIP_MARKER "FAT-TEST-SKIPPED(no test.fat.device)"
+
+#define SKIP_TEST_IF_NO_DEVICE()                                                    \
+    do {                                                                            \
+        if (!get_test_device()) {                                                    \
+            if (device_required()) {                                                 \
+                UNITTEST_FAIL_TRACEF("test.fat.required is set but test.fat.device " \
+                                     "is unset or the device could not be opened\n");\
+                return false;                                                        \
+            }                                                                        \
+            unittest_printf(" " FAT_SKIP_MARKER " ");                                \
+            return true;                                                             \
+        }                                                                            \
     } while (0)
 
 // helper routine that mounts the above in the /fat path and then cleans up on
