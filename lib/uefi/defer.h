@@ -43,7 +43,10 @@ public:
     that.active_ = false;
   }
 
-  ~ScopeGuard() { f_(); }
+  ~ScopeGuard() {
+    if (active_)
+      f_();
+  }
 
   ScopeGuard() = delete;
   ScopeGuard(const ScopeGuard &) = delete;
