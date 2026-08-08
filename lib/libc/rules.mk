@@ -43,9 +43,7 @@ MODULE_FLOAT_SRCS += \
 
 MODULE_COMPILEFLAGS += -fno-builtin
 
-MODULE_OPTIONS := extra_warnings
-
-MODULE_OPTIONS := test
+MODULE_OPTIONS := extra_warnings test
 
 include $(LOCAL_DIR)/string/rules.mk
 
