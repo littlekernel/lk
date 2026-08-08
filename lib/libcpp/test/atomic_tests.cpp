@@ -13,6 +13,11 @@
 #include <kernel/thread.h>
 #include <lib/unittest.h>
 
+// std::atomic rejects instantiation on targets without always-lock-free
+// atomics (e.g. 386-class x86), so there is nothing to test there.
+#if __GCC_ATOMIC_INT_LOCK_FREE == 2 && __GCC_ATOMIC_POINTER_LOCK_FREE == 2 && \
+    __GCC_ATOMIC_BOOL_LOCK_FREE == 2
+
 namespace {
 
 enum class Color : int { red = 1, green = 2 };
@@ -200,3 +205,5 @@ RUN_TEST(atomic_cross_thread)
 END_TEST_CASE(libcpp_atomic_tests)
 
 } // namespace
+
+#endif // always-lock-free atomics available
