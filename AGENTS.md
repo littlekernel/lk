@@ -169,7 +169,35 @@ The do-qemu* scripts auto-build before launching QEMU.
 
 # For all architectures
 ./scripts/run-qemu-boot-tests.py
+
+# Raise the per-architecture timeout (default 30s) for longer suites
+./scripts/run-qemu-boot-tests.py --arch arm64 --timeout 600
 ```
+
+### Filesystem tests against a real disk image
+
+Most unit tests need nothing but the kernel. The FAT tests come in two tiers:
+the RAM backed ones format their own volume with `fs_format_device()` and run
+under the command above on every architecture, while the image based ones need a
+disk attached. `scripts/run-fat-tests.py` drives the latter end to end -- it
+builds the images, boots QEMU with one attached, and then verifies the result
+from the host with both `fsck.fat` and `mtools`:
+
+```bash
+# Build images and run the FAT tests on arm64 (needs dosfstools and mtools)
+./scripts/run-fat-tests.py
+
+# One image type, a different architecture, or the stress suite
+./scripts/run-fat-tests.py --type fat16
+./scripts/run-fat-tests.py --arch x86-64
+./scripts/run-fat-tests.py --stress
+
+# Rebuild the disk images by hand
+./lib/fs/fat/test/mkimage.py --force
+```
+
+It works on a scratch copy of each image and the in-guest tests clean up after
+themselves, so runs are repeatable without rebuilding the images.
 
 ## Code Conventions
 
