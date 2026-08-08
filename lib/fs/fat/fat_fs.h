@@ -47,6 +47,7 @@ class fat_fs {
     // mount hook, creates a new fs instance and passes it back in fscookie
     static status_t mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options);
     static status_t unmount(fscookie *cookie);
+    static status_t fs_stat(fscookie *cookie, struct fs_stat *stat);
 
     bdev_t *dev() { return dev_; }
     bcache_t bcache() { return bcache_; }
@@ -61,6 +62,9 @@ class fat_fs {
     // FAT16/32 volume dirty/clean bit in FAT entry 1 (no-op on FAT12)
     status_t mark_volume_dirty_locked();
     status_t mark_volume_clean_locked();
+
+    // count the free (zero) entries in the active FAT by walking the whole table
+    status_t count_free_clusters_locked(uint32_t *out_free);
 
     // file list apis
     // must be called with lock held
