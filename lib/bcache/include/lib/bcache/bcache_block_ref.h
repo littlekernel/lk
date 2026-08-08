@@ -10,6 +10,7 @@
 #include <lib/bcache.h>
 #include <lk/cpp.h>
 #include <lk/err.h>
+#include <utility>
 
 // C++ helper routine to hold a reference to a block in the block cache,
 // mostly for RAII purposes.
@@ -21,22 +22,17 @@ public:
     }
     // move constructor
     bcache_block_ref(bcache_block_ref &&other) : bcache_block_ref(other.cache_) {
-        // TODO: replace with equivalent to std::swap when/if implemented
-        ptr_ = other.ptr_;
-        block_num_ = other.block_num_;
+        std::swap(ptr_, other.ptr_);
+        std::swap(block_num_, other.block_num_);
         other.cache_ = {};
-        other.ptr_ = {};
-        other.block_num_ = {};
     }
 
-    // move copy constructor
+    // move assignment; swapping hands any currently held block to other,
+    // whose destructor will put the reference back
     bcache_block_ref &operator=(bcache_block_ref &&other) {
-        cache_ = other.cache_;
-        ptr_ = other.ptr_;
-        block_num_ = other.block_num_;
-        other.cache_ = {};
-        other.ptr_ = {};
-        other.block_num_ = {};
+        std::swap(cache_, other.cache_);
+        std::swap(ptr_, other.ptr_);
+        std::swap(block_num_, other.block_num_);
         return *this;
     }
 
