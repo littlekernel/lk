@@ -17,6 +17,7 @@
 #include <lk/list.h>
 #include <lk/pow2.h>
 #include <lk/trace.h>
+#include <memory>
 #include <platform/interrupts.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,12 +100,11 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device)
     LTRACEF_LEVEL(2, "type %#hhx\n", header_type);
 
     // create a new device and pass it up
-    device *d = new device(loc, parent_bus);
+    std::unique_ptr<device> d(new device(loc, parent_bus));
 
     // try to read in the basic config space for this device
     err = d->load_config();
     if (err < 0) {
-        delete d;
         return err;
     }
 
@@ -115,7 +115,7 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device)
     d->probe_capabilities();
 
     // return the newly constructed device
-    *out_device = d;
+    *out_device = d.release();
 
     return NO_ERROR;
 }

@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <memory>
 #include <platform/interrupts.h>
 
 #define LOCAL_TRACE 0
@@ -66,12 +67,11 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     }
 
     // we are a bridge to a new set of busses
-    bridge *br = new bridge(loc, parent_bus);
+    std::unique_ptr<bridge> br(new bridge(loc, parent_bus));
 
     // we only grok type 1 headers here
     err = br->load_config();
     if (err < 0) {
-        delete br;
         return err;
     }
 
@@ -80,8 +80,6 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
 
     // probe the bridge's capabilities
     br->probe_capabilities();
-
-    *out_bridge = br;
 
     if (br->secondary_bus() == 0) {
         // allocate a new secondary bus
@@ -105,7 +103,6 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     // sanity check that we don't have overlapping busses
     if (br->secondary_bus() < get_last_bus()) {
         TRACEF("secondary bus %u of bridge we've already seen (last bus seen %u)\n", br->secondary_bus(), get_last_bus());
-        delete br;
         return ERR_NO_RESOURCES;
     }
 
@@ -116,9 +113,8 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     bus_location.bus = br->secondary_bus();
 
     bus *new_bus;
-    err = bus::probe(bus_location, br, &new_bus);
+    err = bus::probe(bus_location, br.get(), &new_bus);
     if (err != NO_ERROR) {
-        // TODO: don't leak bridge and/or bus
         return err;
     }
 
@@ -128,6 +124,8 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
 
     // add the bus to the global bus list
     new_bus->add_to_global_list();
+
+    *out_bridge = br.release();
 
     return NO_ERROR;
 }

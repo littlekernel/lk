@@ -16,6 +16,7 @@
 #include <kernel/spinlock.h>
 #include <dev/bus/pci.h>
 #include <lk/trace.h>
+#include <memory>
 
 #if WITH_KERNEL_VM
 #include <kernel/vm.h>
@@ -45,16 +46,15 @@ pci_ecam *pci_ecam::detect(paddr_t base, uint16_t segment, uint8_t start_bus, ui
         return nullptr;
     }
 
-    auto ecam = new pci_ecam(base, segment, start_bus, end_bus);
+    std::unique_ptr<pci_ecam> ecam(new pci_ecam(base, segment, start_bus, end_bus));
 
     // initialize the object, which may fail
     status_t err = ecam->initialize();
     if (err != NO_ERROR) {
-        delete ecam;
         return nullptr;
     }
 
-    return ecam;
+    return ecam.release();
 }
 
 status_t pci_ecam::initialize() {
