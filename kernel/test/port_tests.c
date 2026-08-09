@@ -636,7 +636,13 @@ static status_t make_port_pair(const char *name, void *ctx, port_t *write, port_
     status_t st = port_create(name, PORT_MODE_UNICAST, write);
     if (st < 0)
         return st;
-    return port_open(name,ctx, read);
+    st = port_open(name, ctx, read);
+    if (st < 0) {
+        // don't leave the half constructed named port behind
+        port_close(*write);
+        port_destroy(*write);
+    }
+    return st;
 }
 
 typedef struct {
@@ -738,66 +744,91 @@ static bool group_basic(void) {
     END_TEST;
 }
 
-static bool group_dynamic(void) {
+typedef struct {
+    port_t w_port[2];
+    port_t r_port[2];
+    bool created[2];
+    port_t pg;
+    bool grouped;
+} group_dynamic_state_t;
+
+/* The fallible middle of group_dynamic. Everything it creates is recorded in
+ * the state before use so that the caller's cleanup path can release exactly
+ * what a failed ASSERT left behind. */
+static bool group_dynamic_body(group_dynamic_state_t *s) {
     BEGIN_TEST;
 
-    status_t st;
-
-    port_t w_test_port1, r_test_port1;
-    st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
+    status_t st = make_port_pair("tst_port1", TS1_PORT_CTX, &s->w_port[0], &s->r_port[0]);
     ASSERT_GE(st, 0, "could not make port pair 1");
+    s->created[0] = true;
 
-    port_t w_test_port2, r_test_port2;
-    st = make_port_pair("tst_port2", TS2_PORT_CTX, &w_test_port2, &r_test_port2);
+    st = make_port_pair("tst_port2", TS2_PORT_CTX, &s->w_port[1], &s->r_port[1]);
     ASSERT_GE(st, 0, "could not make port pair 2");
+    s->created[1] = true;
 
-    port_t pg;
-    st = port_group(&r_test_port1, 1, &pg);
+    st = port_group(&s->r_port[0], 1, &s->pg);
     ASSERT_GE(st, 0, "could not create port group");
+    s->grouped = true;
 
     port_packet_t pkt = { { 0 } };
-    st = port_write(w_test_port2, &pkt, 1);
+    st = port_write(s->w_port[1], &pkt, 1);
     ASSERT_GE(st, 0, "could not write test port 2");
 
     port_result_t rslt;
-    st = port_read(pg, 0, &rslt);
+    st = port_read(s->pg, 0, &rslt);
     ASSERT_EQ(ERR_TIMED_OUT, st, "port 2 is not in the group yet");
 
     // Attach the port that has been written to to the port group and ensure
     // that we can read from it.
-    st = port_group_add(pg, r_test_port2);
+    st = port_group_add(s->pg, s->r_port[1]);
     ASSERT_GE(st, 0, "could not add port 2 to the group");
 
-    st = port_read(pg, 0, &rslt);
+    st = port_read(s->pg, 0, &rslt);
     ASSERT_GE(st, 0, "could not read the packet queued on port 2");
 
     // Write some data to a port then remove it from the port group and ensure
     // that we can't read from it.
-    st = port_write(w_test_port1, &pkt, 1);
+    st = port_write(s->w_port[0], &pkt, 1);
     ASSERT_GE(st, 0, "could not write test port 1");
 
-    st = port_group_remove(pg, r_test_port1);
+    st = port_group_remove(s->pg, s->r_port[0]);
     ASSERT_GE(st, 0, "could not remove port 1 from the group");
 
-    st = port_read(pg, 0, &rslt);
+    st = port_read(s->pg, 0, &rslt);
     ASSERT_EQ(ERR_TIMED_OUT, st, "port 1 was removed from the group");
 
-    st = port_close(pg);
-    EXPECT_GE(st, 0, "could not close the port group");
-    /* the read ports have to be closed as well: destroying the write side only
-     * detaches its readers, it does not free them */
-    st = port_close(r_test_port1);
-    EXPECT_GE(st, 0, "could not close read port 1");
-    st = port_close(r_test_port2);
-    EXPECT_GE(st, 0, "could not close read port 2");
-    st = port_close(w_test_port1);
-    EXPECT_GE(st, 0, "could not close test port 1");
-    st = port_close(w_test_port2);
-    EXPECT_GE(st, 0, "could not close test port 2");
-    st = port_destroy(w_test_port1);
-    EXPECT_GE(st, 0, "could not destroy test port 1");
-    st = port_destroy(w_test_port2);
-    EXPECT_GE(st, 0, "could not destroy test port 2");
+    END_TEST;
+}
+
+static bool group_dynamic(void) {
+    BEGIN_TEST;
+
+    group_dynamic_state_t s = {};
+    bool body_ok = group_dynamic_body(&s);
+
+    /* The cleanup below runs even when the body failed partway, so the named
+     * test ports cannot leak and poison every later run of this test with
+     * ERR_ALREADY_EXISTS. Close the group first so its members are detached
+     * by the time they are closed. */
+    status_t st;
+    if (s.grouped) {
+        st = port_close(s.pg);
+        EXPECT_GE(st, 0, "could not close the port group");
+    }
+    for (int i = 0; i < 2; ++i) {
+        if (!s.created[i])
+            continue;
+        /* the read ports have to be closed as well: destroying the write side
+         * only detaches its readers, it does not free them */
+        st = port_close(s.r_port[i]);
+        EXPECT_GE(st, 0, "could not close read port");
+        st = port_close(s.w_port[i]);
+        EXPECT_GE(st, 0, "could not close test port");
+        st = port_destroy(s.w_port[i]);
+        EXPECT_GE(st, 0, "could not destroy test port");
+    }
+
+    EXPECT_TRUE(body_ok, "group sequence failed");
 
     END_TEST;
 }
@@ -808,15 +839,70 @@ static int receive_thread(void *arg) {
     port_t pg = (port_t)arg;
 
     // Try to read from an empty port group. When the other thread adds a port
-    // to this port group, we should wake up and
+    // to this port group, we should wake up and read the queued packet. The
+    // bounded timeout means this thread always exits on its own, so the
+    // parent's join cannot hang.
     port_result_t rslt;
     status_t st = port_read(pg, 500, &rslt);
-    if (st == ERR_TIMED_OUT)
+    if (st < 0)
         return __LINE__;
 
     event_signal(&group_waiting_sync_evt, true);
 
     return 0;
+}
+
+typedef struct {
+    port_t w_port;
+    port_t r_port;
+    bool created;
+    port_t pg;
+    bool grouped;
+    thread_t *receiver;
+} group_waiting_state_t;
+
+/* The fallible middle of group_waiting. Everything it creates is recorded in
+ * the state before use so that the caller's cleanup path can release exactly
+ * what a failed ASSERT left behind. */
+static bool group_waiting_body(group_waiting_state_t *s) {
+    BEGIN_TEST;
+
+    status_t st = make_port_pair("tst_port1", TS1_PORT_CTX, &s->w_port, &s->r_port);
+    ASSERT_GE(st, 0, "could not make port pair");
+    s->created = true;
+
+    // Write something to this port group that currently has no receivers.
+    port_packet_t pkt = { { 0 } };
+    st = port_write(s->w_port, &pkt, 1);
+    ASSERT_GE(st, 0, "could not write test port");
+
+    // Create an empty port group.
+    st = port_group(NULL, 0, &s->pg);
+    ASSERT_GE(st, 0, "could not create an empty port group");
+    s->grouped = true;
+
+    s->receiver = thread_create(
+                      "receiver",
+                      &receive_thread,
+                      (void *)s->pg,
+                      DEFAULT_PRIORITY,
+                      DEFAULT_STACK_SIZE
+                  );
+    ASSERT_NONNULL(s->receiver, "could not create receiver thread");
+    thread_resume(s->receiver);
+
+    // Wait for the other thread to block on the read.
+    thread_sleep(20);
+
+    // Adding a port that has data available to the port group should wake any
+    // threads waiting on that port group.
+    st = port_group_add(s->pg, s->r_port);
+    ASSERT_GE(st, 0, "could not add the port to the group");
+
+    st = event_wait_timeout(&group_waiting_sync_evt, 500);
+    EXPECT_EQ(NO_ERROR, st, "receiver did not wake when a ready port joined the group");
+
+    END_TEST;
 }
 
 /* Test the edge case where a read port with data available is added to a port
@@ -825,62 +911,41 @@ static int receive_thread(void *arg) {
 static bool group_waiting(void) {
     BEGIN_TEST;
 
-    status_t st;
-
     event_init(&group_waiting_sync_evt, false, EVENT_FLAG_AUTOUNSIGNAL);
 
-    port_t w_test_port1, r_test_port1;
-    st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
-    ASSERT_GE(st, 0, "could not make port pair");
+    group_waiting_state_t s = {};
+    bool body_ok = group_waiting_body(&s);
 
-    // Write something to this port group that currently has no receivers.
-    port_packet_t pkt = { { 0 } };
-    st = port_write(w_test_port1, &pkt, 1);
-    ASSERT_GE(st, 0, "could not write test port");
+    /* The cleanup below runs even when the body failed partway, so the named
+     * test port cannot leak and poison every later run of this test with
+     * ERR_ALREADY_EXISTS. The receiver always exits on its own -- its group
+     * read is bounded -- so the join cannot hang. */
+    if (s.receiver) {
+        int retcode = -1;
+        thread_join(s.receiver, &retcode, INFINITE_TIME);
+        EXPECT_EQ(0, retcode, "receiver thread exited with an error line number");
+    }
 
-    // Create an empty port group.
-    port_t pg;
-    st = port_group(NULL, 0, &pg);
-    ASSERT_GE(st, 0, "could not create an empty port group");
+    status_t st;
+    if (s.grouped) {
+        st = port_close(s.pg);
+        EXPECT_GE(st, 0, "could not close the port group");
+    }
 
-    thread_t *t1 = thread_create(
-                       "receiver",
-                       &receive_thread,
-                       (void *)pg,
-                       DEFAULT_PRIORITY,
-                       DEFAULT_STACK_SIZE
-                   );
+    if (s.created) {
+        st = port_close(s.r_port);
+        EXPECT_GE(st, 0, "could not close read port");
 
-    thread_resume(t1);
+        st = port_close(s.w_port);
+        EXPECT_GE(st, 0, "could not close test port");
 
-    // Wait for the other thread to block on the read.
-    thread_sleep(20);
-
-    // Adding a port that has data available to the port group should wake any
-    // threads waiting on that port group.
-    st = port_group_add(pg, r_test_port1);
-    ASSERT_GE(st, 0, "could not add the port to the group");
-
-    st = event_wait_timeout(&group_waiting_sync_evt, 500);
-    EXPECT_EQ(NO_ERROR, st, "receiver did not wake when a ready port joined the group");
-
-    int retcode = -1;
-    thread_join(t1, &retcode, INFINITE_TIME);
-    EXPECT_EQ(0, retcode, "receiver thread exited with an error line number");
-
-    st = port_close(pg);
-    EXPECT_GE(st, 0, "could not close the port group");
-
-    st = port_close(r_test_port1);
-    EXPECT_GE(st, 0, "could not close read port");
-
-    st = port_close(w_test_port1);
-    EXPECT_GE(st, 0, "could not close test port");
-
-    st = port_destroy(w_test_port1);
-    EXPECT_GE(st, 0, "could not destroy test port");
+        st = port_destroy(s.w_port);
+        EXPECT_GE(st, 0, "could not destroy test port");
+    }
 
     event_destroy(&group_waiting_sync_evt);
+
+    EXPECT_TRUE(body_ok, "group waiting sequence failed");
 
     END_TEST;
 }
