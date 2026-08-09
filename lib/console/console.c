@@ -36,6 +36,11 @@
 
 #define LINE_LEN 128
 
+// Upper bound on the length of a single line of input, used when a script is passed
+// in wholesale via console_run_script(). Also the size of the buffer the tokenizer
+// writes the split up tokens into, which keeps the two in sync.
+#define MAX_LINE_LEN 1024
+
 #define PANIC_LINE_LEN 32
 
 #define MAX_NUM_ARGS 16
@@ -418,6 +423,14 @@ static int tokenize_command(const char *inbuffer, const char **continuebuffer, c
 
 //      dprintf(SPEW, "c 0x%hhx state %d arg %d inpos %d pos %d\n", c, state, arg, inpos, outpos);
 
+        // A single pass through the state machine writes at most two bytes, and the
+        // terminator below needs one more. Bail out instead of running off the end of
+        // the output buffer.
+        if (unlikely(outpos + 3 > (int)buflen)) {
+            dprintf(INFO, "console: command too long, discarding\n");
+            return -1;
+        }
+
         switch (state) {
             case INITIAL:
             case NEXT_FIELD:
@@ -538,6 +551,10 @@ static int tokenize_command(const char *inbuffer, const char **continuebuffer, c
 
                     state = NEXT_FIELD;
                 } else {
+                    if (unlikely(varnamepos + 1 >= (int)sizeof(varname))) {
+                        dprintf(INFO, "console: variable name too long, discarding command\n");
+                        return -1;
+                    }
                     varname[varnamepos] = c;
                     varnamepos++;
                     inpos++;
@@ -611,7 +628,7 @@ static status_t command_loop(console_t *con, int (*get_line)(const char **, void
         goto no_mem_error;
     }
 
-    const size_t outbuflen = 1024;
+    const size_t outbuflen = MAX_LINE_LEN;
     outbuf = malloc(outbuflen);
     if (unlikely(outbuf == NULL)) {
         goto no_mem_error;
@@ -792,10 +809,24 @@ static int fetch_next_line(const char **buffer, void *cookie) {
 static int console_run_script_etc(console_t *con, const char *string, bool locked) {
     struct line_read_struct lineread;
 
+    // Size the line buffer off the script itself so that fetch_next_line() doesn't
+    // silently split a long line in the middle of a token. Clamp it to the size of the
+    // buffer the tokenizer will be writing into.
+    size_t buflen = strlen(string) + 1;
+    if (buflen < LINE_LEN) {
+        buflen = LINE_LEN;
+    } else if (buflen > MAX_LINE_LEN) {
+        buflen = MAX_LINE_LEN;
+    }
+
     lineread.string = string;
     lineread.pos = 0;
-    lineread.buffer = malloc(LINE_LEN);
-    lineread.buflen = LINE_LEN;
+    lineread.buffer = malloc(buflen);
+    if (!lineread.buffer) {
+        dprintf(INFO, "%s: not enough memory\n", __func__);
+        return ERR_NO_MEMORY;
+    }
+    lineread.buflen = buflen;
 
     command_loop(con, &fetch_next_line, (void *)&lineread, false, locked);
 
