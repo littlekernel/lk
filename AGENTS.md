@@ -348,7 +348,7 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
   files and a `rules.mk` that defines a module for the tests. The module should have `MODULE_DEPS`
   on the library being tested. MODULE_OPTIONS of the parent module should have 'test' to ensure the
   tests module is only built when `WITH_TESTS` is enabled.
-- `ut all` runs at boot in CI under a 30 second per architecture timeout on emulated targets, so
+- `ut all` runs at boot in CI under a 60 second per architecture timeout on emulated targets, so
   keep individual tests fast: prefer joins and events over fixed sleeps, and keep iteration counts
   low enough to stay well under a second on a slow emulator.
 
