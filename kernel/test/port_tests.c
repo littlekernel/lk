@@ -5,7 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
-#include "tests.h"
+#include <lib/unittest.h>
 
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -21,7 +21,7 @@
 
 #define LOCAL_TRACE 0
 
-void *context1 = (void *) 0x53;
+static void *context1 = (void *) 0x53;
 
 static void dump_port_result(const port_result_t *result) {
     const port_packet_t *p = &result->packet;
@@ -30,26 +30,19 @@ static void dump_port_result(const port_result_t *result) {
             p->value[4], p->value[5], p->value[6], p->value[7]);
 }
 
-static int single_thread_basic(void) {
+static bool single_thread_basic(void) {
+    BEGIN_TEST;
+
     port_t w_port;
     status_t st = port_create("sh_prt1", PORT_MODE_UNICAST, &w_port);
-    if (st < 0) {
-        printf("could not create port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not create port");
 
     port_t r_port;
     st = port_open("sh_prt0", context1, &r_port);
-    if (st != ERR_NOT_FOUND) {
-        printf("expected not to find port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_EQ(ERR_NOT_FOUND, st, "expected not to find port");
 
     st = port_open("sh_prt1", context1, &r_port);
-    if (st < 0) {
-        printf("could not open port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not open port");
 
     port_packet_t packet[3] = {
         {{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}},
@@ -58,48 +51,25 @@ static int single_thread_basic(void) {
     };
 
     st = port_write(w_port, &packet[0], 1);
-    if (st < 0) {
-        printf("could not write port, status = %d\n", st);
-        return __LINE__;
-    }
-
-    printf("reading from port:\n");
+    ASSERT_GE(st, 0, "could not write port");
 
     port_result_t res = {0};
 
     st = port_read(r_port, 0, &res);
-    if (st < 0) {
-        printf("could not read port, status = %d\n", st);
-        return __LINE__;
-    }
-    if (res.ctx != context1) {
-        printf("bad context! = %p\n", res.ctx);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not read port");
+    ASSERT_EQ(context1, res.ctx, "bad context");
 
     st = port_read(r_port, 0, &res);
-    if (st != ERR_TIMED_OUT) {
-        printf("expected timeout, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_EQ(ERR_TIMED_OUT, st, "expected timeout on empty port");
 
     st = port_write(w_port, &packet[1], 1);
-    if (st < 0) {
-        printf("could not write port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not write port");
 
     st = port_write(w_port, &packet[0], 1);
-    if (st < 0) {
-        printf("could not write port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not write port");
 
     st = port_write(w_port, &packet[2], 1);
-    if (st < 0) {
-        printf("could not write port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not write port");
 
     int expected_count = 3;
     while (true) {
@@ -109,13 +79,7 @@ static int single_thread_basic(void) {
         dump_port_result(&res);
         --expected_count;
     }
-
-    if (expected_count != 0) {
-        printf("invalid read count = %d\n", expected_count);
-        return __LINE__;
-    }
-
-    printf("\n");
+    ASSERT_EQ(0, expected_count, "invalid read count");
 
     // port should be empty. should be able to write 8 packets.
     expected_count = 8;
@@ -129,33 +93,20 @@ static int single_thread_basic(void) {
             break;
         --expected_count;
     }
-
-    if (expected_count != 0) {
-        printf("invalid write count = %d\n", expected_count);
-        return __LINE__;
-    }
+    ASSERT_EQ(0, expected_count, "invalid write count");
 
     // tod(cpu) fix this possibly wrong error.
-    if (st != ERR_PARTIAL_WRITE) {
-        printf("expected buffer error, status =%d\n", st);
-        return __LINE__;
-    }
+    ASSERT_EQ(ERR_PARTIAL_WRITE, st, "expected buffer full error");
 
     // read 3 packets.
     for (int ix = 0; ix != 3; ++ix) {
         st = port_read(r_port, 0, &res);
-        if (st < 0) {
-            printf("could not read port, status = %d\n", st);
-            return __LINE__;
-        }
+        ASSERT_GE(st, 0, "could not read port");
     }
 
     // there are 5 packets, now we add another 3.
     st = port_write(w_port, packet, 3);
-    if (st < 0) {
-        printf("could not write port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not write port");
 
     expected_count = 8;
     while (true) {
@@ -165,57 +116,31 @@ static int single_thread_basic(void) {
         dump_port_result(&res);
         --expected_count;
     }
-
-    if (expected_count != 0) {
-        printf("invalid read count = %d\n", expected_count);
-        return __LINE__;
-    }
+    ASSERT_EQ(0, expected_count, "invalid read count");
 
     // attempt to use the wrong port.
     st = port_write(r_port, &packet[1], 1);
-    if (st !=  ERR_BAD_HANDLE) {
-        printf("expected bad handle error, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_EQ(ERR_BAD_HANDLE, st, "expected bad handle writing to a read port");
 
     st = port_read(w_port, 0, &res);
-    if (st !=  ERR_BAD_HANDLE) {
-        printf("expected bad handle error, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_EQ(ERR_BAD_HANDLE, st, "expected bad handle reading from a write port");
 
     st = port_close(r_port);
-    if (st < 0) {
-        printf("could not close read port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not close read port");
 
     st = port_close(w_port);
-    if (st < 0) {
-        printf("could not close write port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not close write port");
 
     st = port_close(r_port);
-    if (st != ERR_BAD_HANDLE) {
-        printf("expected bad handle error, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_EQ(ERR_BAD_HANDLE, st, "expected bad handle on double close");
 
     st = port_close(w_port);
-    if (st != ERR_BAD_HANDLE) {
-        printf("expected bad handle error, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_EQ(ERR_BAD_HANDLE, st, "expected bad handle on double close");
 
     st = port_destroy(w_port);
-    if (st < 0) {
-        printf("could not destroy port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not destroy port");
 
-    printf("single_thread_basic : ok\n");
-    return 0;
+    END_TEST;
 }
 
 static int ping_pong_thread(void *arg) {
@@ -269,9 +194,6 @@ static int ping_pong_thread(void *arg) {
     }
 
     return 0;
-
-bail:
-    return __LINE__;
 }
 
 static const char *kStatusPortNames[] = {
@@ -287,19 +209,23 @@ static const port_packet_t kQuit =
 
 static event_t race_evt;
 
+/* How long the thread that wins the port_create() race keeps the port alive
+ * before tearing it down, giving the losing thread time to observe it. */
+#define RACE_HOLD_MS 25
+
 static int race_thread(void *arg)
 {
     port_t r_port;
     int tid = (int)(intptr_t)arg;
 
-    printf("thread %d: connecting to control port\n", tid);
+    LTRACEF("thread %d: connecting to control port\n", tid);
     status_t st = port_open("race_ctl", NULL, &r_port);
     if (st < 0) {
         printf("thread %d: could not open control port, status = %d\n", tid, st);
         return __LINE__;
     }
 
-    printf("thread %d: creating status port\n", tid);
+    LTRACEF("thread %d: creating status port\n", tid);
     port_t w_port;
     st = port_create(kStatusPortNames[tid], PORT_MODE_UNICAST, &w_port);
     if (st < 0) {
@@ -326,7 +252,13 @@ static int race_thread(void *arg)
             st = port_create(kRacePortName, PORT_MODE_UNICAST, &race_port);
             if (st != ERR_BUSY)
                 break;
-            thread_sleep(25);
+            // The loser only sees ERR_BUSY for as long as the winner's
+            // placeholder entry is in the port list, so retry promptly. This
+            // has to be well under RACE_HOLD_MS: the winner tears the port down
+            // after that long, and if we retry any later we create a second
+            // port of our own instead of finding the winner's, which looks
+            // exactly like both threads having won.
+            thread_sleep(1);
         } // EINTR all over again . . .
         LTRACEF_LEVEL(1, "thread %d: sampling chronochip (%p)\n", tid, race_port);
         if (st == ERR_ALREADY_EXISTS) {
@@ -336,7 +268,8 @@ static int race_thread(void *arg)
             ret = __LINE__;
             break;
         } else { // Dispose of it now.
-            thread_sleep(25);
+            // Hold the port long enough for the losing thread to observe it.
+            thread_sleep(RACE_HOLD_MS);
             port_close(race_port);
             port_destroy(race_port);
         }
@@ -380,7 +313,7 @@ static int race_thread(void *arg)
         ret = __LINE__;
     }
     thread_sleep((1+tid) * 5); // Make console output orderly.
-    printf("thread %d: shutting down (ret=%d)\n", tid, ret);
+    LTRACEF("thread %d: shutting down (ret=%d)\n", tid, ret);
 
     port_close(r_port);
     port_close(w_port);
@@ -389,16 +322,19 @@ static int race_thread(void *arg)
 }
 
 
-int two_threads_race(void)
-{
-    printf("two_threads_race test . . .\n");
+/* Number of times the two threads race to create the same named port. Each pass
+ * costs at least a couple of 25ms sleeps in race_thread, so keep this modest --
+ * this test runs as part of `ut all` at boot, which has a 30 second budget on
+ * the slowest emulated targets. */
+#define RACE_PASSES 16
+
+static bool two_threads_race(void) {
+    BEGIN_TEST;
+
     // Used to tell the threads what to do.
     port_t w_port;
     status_t st = port_create("race_ctl", PORT_MODE_BROADCAST, &w_port);
-    if (st < 0) {
-        printf("could not create port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not create port");
 
     event_init(&race_evt, false, 0);
 
@@ -414,116 +350,82 @@ int two_threads_race(void)
     // wait for each status port to be created so we can
     // track behavior.
     port_t r_port0, r_port1;
-    printf("control: connecting to thread 0 . . .\n");
+    LTRACEF("control: connecting to thread 0 . . .\n");
     while (true) {
         st = port_open(kStatusPortNames[0], NULL, &r_port0);
-        if (st == NO_ERROR) {
+        if (st == NO_ERROR)
             break;
-        } else if (st == ERR_NOT_FOUND) {
-            thread_sleep(100);
-        } else {
-            printf("could not open port, status = %d\n", st);
-            // XXX: clean up...
-            break;
-        }
+        ASSERT_EQ(ERR_NOT_FOUND, st, "could not open status port 0");
+        thread_sleep(10);
     }
-    printf("control: connecting to thread 1 . . .\n");
+    LTRACEF("control: connecting to thread 1 . . .\n");
     while (true) {
         st = port_open(kStatusPortNames[1], NULL, &r_port1);
-        if (st == NO_ERROR) {
+        if (st == NO_ERROR)
             break;
-        } else if (st == ERR_NOT_FOUND) {
-            thread_sleep(100);
-        } else {
-            printf("could not open port, status = %d\n", st);
-            return __LINE__;
-        }
+        ASSERT_EQ(ERR_NOT_FOUND, st, "could not open status port 1");
+        thread_sleep(10);
     }
 
     // control port says:  0 "REPEAT, or 1 "QUIT"
-    int ret = 0;
+    // Both threads race to create the same named port; exactly one must win, so
+    // both must report the same port handle back to us every pass.
+    bool raced = false;
     int count = 0;
-    while (ret == 0) {
+    while (true) {
         LTRACEF_LEVEL(1, "Go!\n");
-        printf(".");
         event_signal(&race_evt, false);
         port_result_t pr0, pr1;
         LTRACEF_LEVEL(1, "Collecting status from thread 0 . . .\n");
         st = port_read(r_port0, INFINITE_TIME, &pr0);
-        if (st < 0) {
-            printf("could not read port, status = %d\n", st);
-            ret = __LINE__;
-        }
+        ASSERT_GE(st, 0, "could not read status port 0");
         LTRACEF_LEVEL(1, "Collecting status from thread 1 . . .\n");
         st = port_read(r_port1, INFINITE_TIME, &pr1);
-        if (st < 0) {
-            printf("could not read port, status = %d\n", st);
-            ret = __LINE__;
-        }
+        ASSERT_GE(st, 0, "could not read status port 1");
         LTRACEF_LEVEL(1, "Checking responses . . .\n");
         if (memcmp(pr0.packet.value, pr1.packet.value, sizeof(pr0.packet.value)) != 0) {
-            printf("Race detected on iteration %d!\n", count);
-            ret = __LINE__;
+            UNITTEST_FAIL_TRACEF("both threads claimed the port on iteration %d\n", count);
+            raced = true;
+            all_ok = false;
         }
         event_unsignal(&race_evt);
-        int repeat = (ret == 0 && count++ < 99 ? 1 : 0);
+        bool repeat = (!raced && ++count < RACE_PASSES);
         LTRACEF_LEVEL(1, "Telling threads to %s\n", (repeat ? "repeat" : "quit"));
         st = port_write(w_port, (repeat ? &kRepeat : &kQuit), 1);
-        if (st < 0) {
-            printf("could not write port, status = %d\n", st);
-            ret = __LINE__;
-        }
-        if (!repeat) {
+        ASSERT_GE(st, 0, "could not write control port");
+        if (!repeat)
             break;
-        }
     }
-    printf("\n%d passes completed with result %d\n", count, ret);
 
     st = port_close(r_port0);
-    if (st < 0) {
-        printf("could not close port, status = %d\n", st);
-        ret = __LINE__;
-    }
+    EXPECT_GE(st, 0, "could not close status port 0");
 
     st = port_close(r_port1);
-    if (st < 0) {
-        printf("could not close port, status = %d\n", st);
-        ret = __LINE__;
-    }
+    EXPECT_GE(st, 0, "could not close status port 1");
 
     st = port_close(w_port);
-    if (st < 0) {
-        printf("could not close port, status = %d\n", st);
-        ret = __LINE__;
-    }
+    EXPECT_GE(st, 0, "could not close control port");
 
     int retcode = -1;
     thread_join(t1, &retcode, INFINITE_TIME);
-    if (retcode)
-        ret = retcode;
+    EXPECT_EQ(0, retcode, "race thread 0 exited with an error line number");
 
     thread_join(t2,  &retcode, INFINITE_TIME);
-    if (retcode)
-        ret = retcode;
+    EXPECT_EQ(0, retcode, "race thread 1 exited with an error line number");
 
     st = port_destroy(w_port);
-    if (st < 0) {
-        printf("could not destroy port, status = %d\n", st);
-        ret = __LINE__;
-    }
+    EXPECT_GE(st, 0, "could not destroy control port");
 
-    printf("two_thread_race: %d\n", ret);
-    return ret;
+    END_TEST;
 }
 
 
-static int two_threads_basic(void) {
+static bool two_threads_basic(void) {
+    BEGIN_TEST;
+
     port_t w_port;
     status_t st = port_create("ping_port", PORT_MODE_BROADCAST, &w_port);
-    if (st < 0) {
-        printf("could not create port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not create port");
 
     thread_t *t1 = thread_create(
                        "worker1", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
@@ -536,20 +438,15 @@ static int two_threads_basic(void) {
     port_t r_port;
     while (true) {
         st = port_open("pong_port", NULL, &r_port);
-        if (st == NO_ERROR) {
+        if (st == NO_ERROR)
             break;
-        } else if (st == ERR_NOT_FOUND) {
-            thread_sleep(100);
-        } else {
-            printf("could not open port, status = %d\n", st);
-            return __LINE__;
-        }
+        ASSERT_EQ(ERR_NOT_FOUND, st, "could not open port");
+        thread_sleep(10);
     }
 
     // We have two threads listening to the ping port. Which both reply
     // on the pong port, so we get two packets in per packet out.
     const int passes = 256;
-    printf("two_threads_basic test, %d passes\n", passes);
 
     port_packet_t packet_out = {{0xaf, 0x77, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05}};
 
@@ -559,10 +456,7 @@ static int two_threads_basic(void) {
 
         for (size_t jx = 0; jx != count; ++jx) {
             st = port_write(w_port, &packet_out, 1);
-            if (st < 0) {
-                printf("could not write port, status = %d\n", st);
-                return __LINE__;
-            }
+            ASSERT_GE(st, 0, "could not write port");
         }
 
         packet_out.value[0]++;
@@ -570,16 +464,10 @@ static int two_threads_basic(void) {
 
         for (size_t jx = 0; jx != count * 2; ++jx) {
             st = port_read(r_port, INFINITE_TIME, &pr);
-            if (st < 0) {
-                printf("could not read port, status = %d\n", st);
-                return __LINE__;
-            }
+            ASSERT_GE(st, 0, "could not read port");
 
-            if ((pr.packet.value[0] != packet_out.value[0]) ||
-                    (pr.packet.value[5] != packet_out.value[5])) {
-                printf("unexpected data in packet, loop %d", ix);
-                return __LINE__;
-            }
+            ASSERT_EQ(packet_out.value[0], pr.packet.value[0], "unexpected data in packet");
+            ASSERT_EQ(packet_out.value[5], pr.packet.value[5], "unexpected data in packet");
         }
     }
 
@@ -587,45 +475,25 @@ static int two_threads_basic(void) {
 
     // there should be no more packets to read.
     st = port_read(r_port, 0, &pr);
-    if (st != ERR_TIMED_OUT) {
-        printf("unexpected packet, status = %d\n", st);
-        return __LINE__;
-    }
-
-    printf("two_threads_basic master shutdown\n");
+    ASSERT_EQ(ERR_TIMED_OUT, st, "unexpected extra packet");
 
     st = port_close(r_port);
-    if (st < 0) {
-        printf("could not close port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not close port");
 
     st = port_close(w_port);
-    if (st < 0) {
-        printf("could not close port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not close port");
 
     st = port_destroy(w_port);
-    if (st < 0) {
-        printf("could not destroy port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not destroy port");
 
     int retcode = -1;
     thread_join(t1, &retcode, INFINITE_TIME);
-    if (retcode)
-        goto fail;
+    EXPECT_EQ(0, retcode, "worker1 exited with an error line number");
 
     thread_join(t2,  &retcode, INFINITE_TIME);
-    if (retcode)
-        goto fail;
+    EXPECT_EQ(0, retcode, "worker2 exited with an error line number");
 
-    return 0;
-
-fail:
-    printf("child thread exited with %d\n", retcode);
-    return __LINE__;
+    END_TEST;
 }
 
 #define CMD_PORT_CTX ((void*) 0x77)
@@ -728,15 +596,14 @@ static status_t make_port_pair(const char *name, void *ctx, port_t *write, port_
     return port_open(name,ctx, read);
 }
 
-static int group_basic(void) {
+static bool group_basic(void) {
+    BEGIN_TEST;
+
     // we spin a thread that connects to a well known port, then we
     // send two ports that it will add to a group port.
     port_t cmd_port;
     status_t st = port_create("grp_ctrl", PORT_MODE_UNICAST, &cmd_port);
-    if (st < 0 ) {
-        printf("could not create port, status = %d\n", st);
-        return __LINE__;
-    }
+    ASSERT_GE(st, 0, "could not create control port");
 
     thread_t *wt = thread_create(
                        "g_watcher", &group_watcher_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
@@ -744,132 +611,106 @@ static int group_basic(void) {
 
     port_t w_test_port1, r_test_port1;
     st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not make port pair 1");
 
     port_t w_test_port2, r_test_port2;
     st = make_port_pair("tst_port2", TS2_PORT_CTX, &w_test_port2, &r_test_port2);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not make port pair 2");
 
     st = send_watcher_cmd(cmd_port, ADD_PORT, r_test_port1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not send ADD_PORT");
 
     st = send_watcher_cmd(cmd_port, ADD_PORT, r_test_port2);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not send ADD_PORT");
 
     thread_sleep(50);
 
     port_packet_t pp = {{0}};
     st = port_write(w_test_port1, &pp, 1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not write test port 1");
 
     st = port_write(w_test_port2, &pp, 1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not write test port 2");
 
     st = send_watcher_cmd(cmd_port, QUIT, 0);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not send QUIT");
 
     int retcode = -1;
     thread_join(wt, &retcode, INFINITE_TIME);
-    if (retcode) {
-        printf("child thread exited with %d\n", retcode);
-        return __LINE__;
-    }
+    EXPECT_EQ(0, retcode, "watcher thread exited with an error line number");
 
     st = port_close(w_test_port1);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not close test port 1");
     st = port_close(w_test_port2);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not close test port 2");
     st = port_close(cmd_port);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not close control port");
     st = port_destroy(w_test_port1);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not destroy test port 1");
     st = port_destroy(w_test_port2);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not destroy test port 2");
     st = port_destroy(cmd_port);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not destroy control port");
 
-    return 0;
+    END_TEST;
 }
 
-static int group_dynamic(void) {
+static bool group_dynamic(void) {
+    BEGIN_TEST;
+
     status_t st;
 
     port_t w_test_port1, r_test_port1;
     st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not make port pair 1");
 
     port_t w_test_port2, r_test_port2;
     st = make_port_pair("tst_port2", TS2_PORT_CTX, &w_test_port2, &r_test_port2);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not make port pair 2");
 
     port_t pg;
     st = port_group(&r_test_port1, 1, &pg);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not create port group");
 
     port_packet_t pkt = { { 0 } };
     st = port_write(w_test_port2, &pkt, 1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not write test port 2");
 
     port_result_t rslt;
     st = port_read(pg, 0, &rslt);
-    if (st != ERR_TIMED_OUT)
-        return __LINE__;
+    ASSERT_EQ(ERR_TIMED_OUT, st, "port 2 is not in the group yet");
 
     // Attach the port that has been written to to the port group and ensure
     // that we can read from it.
     st = port_group_add(pg, r_test_port2);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not add port 2 to the group");
 
     st = port_read(pg, 0, &rslt);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not read the packet queued on port 2");
 
     // Write some data to a port then remove it from the port group and ensure
     // that we can't read from it.
     st = port_write(w_test_port1, &pkt, 1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not write test port 1");
 
     st = port_group_remove(pg, r_test_port1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not remove port 1 from the group");
 
     st = port_read(pg, 0, &rslt);
-    if (st != ERR_TIMED_OUT)
-        return __LINE__;
+    ASSERT_EQ(ERR_TIMED_OUT, st, "port 1 was removed from the group");
 
+    st = port_close(pg);
+    EXPECT_GE(st, 0, "could not close the port group");
     st = port_close(w_test_port1);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not close test port 1");
     st = port_close(w_test_port2);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not close test port 2");
     st = port_destroy(w_test_port1);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not destroy test port 1");
     st = port_destroy(w_test_port2);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not destroy test port 2");
 
-    return 0;
+    END_TEST;
 }
 
 static event_t group_waiting_sync_evt;
@@ -892,28 +733,26 @@ static int receive_thread(void *arg) {
 /* Test the edge case where a read port with data available is added to a port
  * group that has a read-blocked receiver.
  */
-static int group_waiting(void) {
+static bool group_waiting(void) {
+    BEGIN_TEST;
+
     status_t st;
 
     event_init(&group_waiting_sync_evt, false, EVENT_FLAG_AUTOUNSIGNAL);
 
     port_t w_test_port1, r_test_port1;
     st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not make port pair");
 
     // Write something to this port group that currently has no receivers.
     port_packet_t pkt = { { 0 } };
     st = port_write(w_test_port1, &pkt, 1);
-    if (st < 0)
-        return __LINE__;
+    ASSERT_GE(st, 0, "could not write test port");
 
     // Create an empty port group.
     port_t pg;
     st = port_group(NULL, 0, &pg);
-    if (st < 0)
-        return __LINE__;
-
+    ASSERT_GE(st, 0, "could not create an empty port group");
 
     thread_t *t1 = thread_create(
                        "receiver",
@@ -930,40 +769,35 @@ static int group_waiting(void) {
 
     // Adding a port that has data available to the port group should wake any
     // threads waiting on that port group.
-    port_group_add(pg, r_test_port1);
+    st = port_group_add(pg, r_test_port1);
+    ASSERT_GE(st, 0, "could not add the port to the group");
 
-    if (event_wait_timeout(&group_waiting_sync_evt, 500) != NO_ERROR)
-        return __LINE__;
+    st = event_wait_timeout(&group_waiting_sync_evt, 500);
+    EXPECT_EQ(NO_ERROR, st, "receiver did not wake when a ready port joined the group");
+
+    int retcode = -1;
+    thread_join(t1, &retcode, INFINITE_TIME);
+    EXPECT_EQ(0, retcode, "receiver thread exited with an error line number");
+
+    st = port_close(pg);
+    EXPECT_GE(st, 0, "could not close the port group");
 
     st = port_close(w_test_port1);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not close test port");
 
     st = port_destroy(w_test_port1);
-    if (st < 0)
-        return __LINE__;
+    EXPECT_GE(st, 0, "could not destroy test port");
 
-    return 0;
+    event_destroy(&group_waiting_sync_evt);
+
+    END_TEST;
 }
 
-#define RUN_TEST(t)  result = t(); if (result) goto fail
-
-int port_tests(int argc, const console_cmd_args *argv) {
-    int result;
-    int count = 3;
-    while (count--) {
-        RUN_TEST(single_thread_basic);
-        RUN_TEST(two_threads_basic);
-        RUN_TEST(two_threads_race);
-        RUN_TEST(group_basic);
-        RUN_TEST(group_dynamic);
-    }
-
-    printf("all tests passed\n");
-    return 0;
-fail:
-    printf("test failed at line %d\n", result);
-    return 1;
-}
-
-#undef RUN_TEST
+BEGIN_TEST_CASE(port_tests)
+RUN_TEST(single_thread_basic);
+RUN_TEST(two_threads_basic);
+RUN_TEST(two_threads_race);
+RUN_TEST(group_basic);
+RUN_TEST(group_dynamic);
+RUN_TEST(group_waiting);
+END_TEST_CASE(port_tests)

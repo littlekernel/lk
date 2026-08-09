@@ -7,7 +7,6 @@ MODULE_SRCS := \
     $(LOCAL_DIR)/clock_tests.c \
     $(LOCAL_DIR)/fibo.c \
     $(LOCAL_DIR)/mem_tests.c \
-    $(LOCAL_DIR)/port_tests.c \
     $(LOCAL_DIR)/tests.c \
     $(LOCAL_DIR)/thread_tests.c \
 
