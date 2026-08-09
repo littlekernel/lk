@@ -1,6 +1,6 @@
 # LK Kernel Development Guide
 
-LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on diverse 32/64-bit architectures. It's used extensively in embedded systems, including Android bootloaders. Written primarily in C and assembly, with limited C++ (no STL, no exceptions).
+LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on diverse 32/64-bit architectures. It's used extensively in embedded systems, including Android bootloaders. Written primarily in C and assembly, with a limited C++ subset: `lib/libcpp` provides a curated portion of the C++17 standard library (see `lib/libcpp/include/` for the authoritative list), built with no exceptions, no RTTI, and no dynamic containers.
 
 ## Architecture Overview
 
@@ -53,6 +53,7 @@ include make/module.mk
 - Must `include make/module.mk` at end of `rules.mk` to finalize the module definition
 - All MODULE_* variables are cleared after inclusion, preventing leakage between modules
 - Modules are built as separate ELF .o files and linked into the final kernel image
+- Modules that include any `std::` header must declare `MODULE_DEPS += lib/libcpp` (see `dev/bus/pci/rules.mk`)
 - Modules commonly export their include name space that matches the name of the module.
   - ie. lib/foo will export the include path `lib/foo.h` with any additioal headers under `lib/foo/`.
 
@@ -235,7 +236,8 @@ For in-progress (WIP) work on a branch that is intended to be collapsed or merge
 
 - Base flags: `-Wall -Werror=return-type -Wshadow -Wdouble-promotion`
 - C-specific: `-Werror-implicit-function-declaration -Wstrict-prototypes`
-- C++: `-fno-exceptions -fno-rtti -fno-threadsafe-statics --std=c++14`
+- C++: `--std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -nostdinc++`
+  - `-nostdinc++` keeps the host toolchain's C++ headers out of the build; `std::` headers come from `lib/libcpp` only
 - All code compiled with `-ffreestanding` (no hosted environment assumptions)
 - `MODULE_OPTIONS := extra_warnings` adds `-Wmissing-declarations -Wredundant-decls`
 - When compiling with WERROR=1, all warnings are treated as errors.
@@ -416,6 +418,7 @@ scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
 - `kernel/thread.c` - Threading and scheduler implementation
 - `kernel/vm/` - Virtual memory subsystem (for MMU architectures)
 - `lib/libc/` - Minimal C library (string, stdio, stdlib basics)
+- `lib/libcpp/` - Freestanding subset of the C++ standard library (headers in `lib/libcpp/include/`)
 - `top/` - Top level module in the system. Contains the kernel's lk_main() system init routines.
    Also contains top level lk/ include headers.
 
