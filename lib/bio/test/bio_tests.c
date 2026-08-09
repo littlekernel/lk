@@ -41,26 +41,30 @@ static bool basic_read_write(void) {
     EXPECT_EQ(TEST_DEVICE_SIZE / BLOCK_SIZE, dev->block_count, "");
 
     // Test simple read
-    uint8_t buf[256];
-    ssize_t result = bio_read(dev, buf, 0, sizeof(buf));
-    EXPECT_EQ((ssize_t)sizeof(buf), result, "");
-    for (size_t i = 0; i < sizeof(buf); i++) {
+    // heap allocated to keep the buffer out of the test's stack frame
+    const size_t buf_len = 256;
+    uint8_t *buf = malloc(buf_len);
+    ASSERT_NONNULL(buf, "");
+    ssize_t result = bio_read(dev, buf, 0, buf_len);
+    EXPECT_EQ((ssize_t)buf_len, result, "");
+    for (size_t i = 0; i < buf_len; i++) {
         EXPECT_EQ(0xAA, buf[i], "");
     }
 
     // Test simple write
-    memset(buf, 0x55, sizeof(buf));
-    result = bio_write(dev, buf, 0, sizeof(buf));
-    EXPECT_EQ((ssize_t)sizeof(buf), result, "");
+    memset(buf, 0x55, buf_len);
+    result = bio_write(dev, buf, 0, buf_len);
+    EXPECT_EQ((ssize_t)buf_len, result, "");
 
     // Read back and verify
-    memset(buf, 0, sizeof(buf));
-    result = bio_read(dev, buf, 0, sizeof(buf));
-    EXPECT_EQ((ssize_t)sizeof(buf), result, "");
-    for (size_t i = 0; i < sizeof(buf); i++) {
+    memset(buf, 0, buf_len);
+    result = bio_read(dev, buf, 0, buf_len);
+    EXPECT_EQ((ssize_t)buf_len, result, "");
+    for (size_t i = 0; i < buf_len; i++) {
         EXPECT_EQ(0x55, buf[i], "");
     }
 
+    free(buf);
     bio_close(dev);
     bio_unregister_device(dev);
     free(mem);
@@ -144,40 +148,49 @@ static bool unaligned_read_write(void) {
     ASSERT_NONNULL(dev, "failed to open bio device");
 
     // Test unaligned write (offset not block-aligned)
-    uint8_t pattern[1024];
-    for (size_t i = 0; i < sizeof(pattern); i++) {
+    // heap allocated to keep the large buffers out of the test's stack frame
+    const size_t pattern_len = 1024;
+    uint8_t *pattern = malloc(pattern_len);
+    uint8_t *read_buf = malloc(pattern_len);
+    ASSERT_NONNULL(pattern, "");
+    ASSERT_NONNULL(read_buf, "");
+    for (size_t i = 0; i < pattern_len; i++) {
         pattern[i] = (i * 7) & 0xFF;
     }
 
     // Write at offset 100 (not block aligned)
-    ssize_t result = bio_write(dev, pattern, 100, sizeof(pattern));
-    EXPECT_EQ((ssize_t)sizeof(pattern), result, "");
+    ssize_t result = bio_write(dev, pattern, 100, pattern_len);
+    EXPECT_EQ((ssize_t)pattern_len, result, "");
 
     // Read back from same unaligned offset
-    uint8_t read_buf[1024];
-    memset(read_buf, 0, sizeof(read_buf));
-    result = bio_read(dev, read_buf, 100, sizeof(read_buf));
-    EXPECT_EQ((ssize_t)sizeof(read_buf), result, "");
+    memset(read_buf, 0, pattern_len);
+    result = bio_read(dev, read_buf, 100, pattern_len);
+    EXPECT_EQ((ssize_t)pattern_len, result, "");
 
     // Verify data matches
-    for (size_t i = 0; i < sizeof(pattern); i++) {
+    for (size_t i = 0; i < pattern_len; i++) {
         EXPECT_EQ(pattern[i], read_buf[i], "");
     }
 
     // Test partial block read at end of device
     off_t offset = TEST_DEVICE_SIZE - 256;
-    uint8_t small_buf[256];
-    memset(small_buf, 0xBB, sizeof(small_buf));
-    result = bio_write(dev, small_buf, offset, sizeof(small_buf));
-    EXPECT_EQ((ssize_t)sizeof(small_buf), result, "");
+    const size_t small_buf_len = 256;
+    uint8_t *small_buf = malloc(small_buf_len);
+    ASSERT_NONNULL(small_buf, "");
+    memset(small_buf, 0xBB, small_buf_len);
+    result = bio_write(dev, small_buf, offset, small_buf_len);
+    EXPECT_EQ((ssize_t)small_buf_len, result, "");
 
-    memset(small_buf, 0, sizeof(small_buf));
-    result = bio_read(dev, small_buf, offset, sizeof(small_buf));
-    EXPECT_EQ((ssize_t)sizeof(small_buf), result, "");
-    for (size_t i = 0; i < sizeof(small_buf); i++) {
+    memset(small_buf, 0, small_buf_len);
+    result = bio_read(dev, small_buf, offset, small_buf_len);
+    EXPECT_EQ((ssize_t)small_buf_len, result, "");
+    for (size_t i = 0; i < small_buf_len; i++) {
         EXPECT_EQ(0xBB, small_buf[i], "");
     }
 
+    free(pattern);
+    free(read_buf);
+    free(small_buf);
     bio_close(dev);
     bio_unregister_device(dev);
     free(mem);
@@ -278,8 +291,13 @@ static bool async_read_write(void) {
     ASSERT_NONNULL(dev, "failed to open bio device");
 
     // Test async write
-    uint8_t write_buf[512];
-    for (size_t i = 0; i < sizeof(write_buf); i++) {
+    // heap allocated to keep the large buffers out of the test's stack frame
+    const size_t async_buf_len = 512;
+    uint8_t *write_buf = malloc(async_buf_len);
+    uint8_t *read_buf = malloc(async_buf_len);
+    ASSERT_NONNULL(write_buf, "");
+    ASSERT_NONNULL(read_buf, "");
+    for (size_t i = 0; i < async_buf_len; i++) {
         write_buf[i] = (i ^ 0xAA) & 0xFF;
     }
 
@@ -287,37 +305,38 @@ static bool async_read_write(void) {
     event_init(&write_cookie.event, false, 0);
     write_cookie.result = -1;
 
-    status_t status = bio_write_async(dev, write_buf, 1024, sizeof(write_buf),
+    status_t status = bio_write_async(dev, write_buf, 1024, async_buf_len,
                                       async_callback, &write_cookie);
     EXPECT_EQ(NO_ERROR, status, "");
 
     // Wait for the async operation to complete
     event_wait(&write_cookie.event);
-    EXPECT_EQ((ssize_t)sizeof(write_buf), write_cookie.result, "");
+    EXPECT_EQ((ssize_t)async_buf_len, write_cookie.result, "");
     event_destroy(&write_cookie.event);
 
     // Test async read
-    uint8_t read_buf[512];
-    memset(read_buf, 0, sizeof(read_buf));
+    memset(read_buf, 0, async_buf_len);
 
     async_cookie_t read_cookie;
     event_init(&read_cookie.event, false, 0);
     read_cookie.result = -1;
 
-    status = bio_read_async(dev, read_buf, 1024, sizeof(read_buf),
+    status = bio_read_async(dev, read_buf, 1024, async_buf_len,
                            async_callback, &read_cookie);
     EXPECT_EQ(NO_ERROR, status, "");
 
     // Wait for the async operation to complete
     event_wait(&read_cookie.event);
-    EXPECT_EQ((ssize_t)sizeof(read_buf), read_cookie.result, "");
+    EXPECT_EQ((ssize_t)async_buf_len, read_cookie.result, "");
     event_destroy(&read_cookie.event);
 
     // Verify data
-    for (size_t i = 0; i < sizeof(write_buf); i++) {
+    for (size_t i = 0; i < async_buf_len; i++) {
         EXPECT_EQ(write_buf[i], read_buf[i], "");
     }
 
+    free(write_buf);
+    free(read_buf);
     bio_close(dev);
     bio_unregister_device(dev);
     free(mem);
@@ -560,34 +579,40 @@ static bool subdev_async(void) {
     ASSERT_NONNULL(sub, "");
 
     // Async write into subdevice
-    uint8_t wbuf[512];
-    for (size_t i = 0; i < sizeof(wbuf); i++) {
+    // heap allocated to keep the large buffers out of the test's stack frame
+    const size_t sub_buf_len = 512;
+    uint8_t *wbuf = malloc(sub_buf_len);
+    uint8_t *rbuf = malloc(sub_buf_len);
+    ASSERT_NONNULL(wbuf, "");
+    ASSERT_NONNULL(rbuf, "");
+    for (size_t i = 0; i < sub_buf_len; i++) {
         wbuf[i] = (uint8_t)(i ^ 0x5A);
     }
     sub_async_cookie_t wcookie = {0};
     event_init(&wcookie.event, false, 0);
-    status_t st = bio_write_async(sub, wbuf, 1024, sizeof(wbuf), sub_async_cb, &wcookie);
+    status_t st = bio_write_async(sub, wbuf, 1024, sub_buf_len, sub_async_cb, &wcookie);
     EXPECT_EQ(NO_ERROR, st, "");
     event_wait(&wcookie.event);
-    EXPECT_EQ((ssize_t)sizeof(wbuf), wcookie.result, "");
+    EXPECT_EQ((ssize_t)sub_buf_len, wcookie.result, "");
     event_destroy(&wcookie.event);
 
     // Async read back from subdevice
-    uint8_t rbuf[512];
-    memset(rbuf, 0, sizeof(rbuf));
+    memset(rbuf, 0, sub_buf_len);
     sub_async_cookie_t rcookie = {0};
     event_init(&rcookie.event, false, 0);
-    st = bio_read_async(sub, rbuf, 1024, sizeof(rbuf), sub_async_cb, &rcookie);
+    st = bio_read_async(sub, rbuf, 1024, sub_buf_len, sub_async_cb, &rcookie);
     EXPECT_EQ(NO_ERROR, st, "");
     event_wait(&rcookie.event);
-    EXPECT_EQ((ssize_t)sizeof(rbuf), rcookie.result, "");
+    EXPECT_EQ((ssize_t)sub_buf_len, rcookie.result, "");
     event_destroy(&rcookie.event);
 
     // Verify data matches
-    for (size_t i = 0; i < sizeof(wbuf); i++) {
+    for (size_t i = 0; i < sub_buf_len; i++) {
         EXPECT_EQ(wbuf[i], rbuf[i], "");
     }
 
+    free(wbuf);
+    free(rbuf);
     bio_close(sub);
     bio_unregister_device(sub);
     bio_close(parent);
@@ -620,17 +645,21 @@ static bool subdev_nested(void) {
     ASSERT_NONNULL(sub2, "");
 
     // Write into sub2 and verify absolute placement
-    uint8_t data[256];
-    for (size_t i = 0; i < sizeof(data); i++) {
+    // heap allocated to keep the buffer out of the test's stack frame
+    const size_t data_len = 256;
+    uint8_t *data = malloc(data_len);
+    ASSERT_NONNULL(data, "");
+    for (size_t i = 0; i < data_len; i++) {
         data[i] = (uint8_t)(0xC0 + (i & 0x3F));
     }
-    EXPECT_EQ((ssize_t)sizeof(data), bio_write(sub2, data, 33, sizeof(data)), "");
+    EXPECT_EQ((ssize_t)data_len, bio_write(sub2, data, 33, data_len), "");
 
     size_t base = (size_t)(10 + 5) * BLOCK_SIZE; // total block offset into parent
-    for (size_t i = 0; i < sizeof(data); i++) {
+    for (size_t i = 0; i < data_len; i++) {
         EXPECT_EQ(data[i], mem[base + 33 + i], "");
     }
 
+    free(data);
     bio_close(sub2);
     bio_unregister_device(sub2);
     bio_close(sub1);
@@ -659,8 +688,11 @@ static bool memdev_direct_ops_clamp(void) {
     bdev_t *dev = bio_open("test_bdev_memdev_clamp");
     ASSERT_NONNULL(dev, "failed to open bio device");
 
-    uint8_t write_buf[512];
-    for (size_t i = 0; i < sizeof(write_buf); i++) {
+    // heap allocated to keep the large buffers out of the test's stack frame
+    const size_t write_buf_len = 512;
+    uint8_t *write_buf = malloc(write_buf_len);
+    ASSERT_NONNULL(write_buf, "");
+    for (size_t i = 0; i < write_buf_len; i++) {
         write_buf[i] = (uint8_t)(0x80 + (i & 0x7F));
     }
 
@@ -681,8 +713,10 @@ static bool memdev_direct_ops_clamp(void) {
     }
 
     const bnum_t last_block = dev->block_count - 1;
-    uint8_t block_write[BLOCK_SIZE * 2];
-    for (size_t i = 0; i < sizeof(block_write); i++) {
+    const size_t block_write_len = BLOCK_SIZE * 2;
+    uint8_t *block_write = malloc(block_write_len);
+    ASSERT_NONNULL(block_write, "");
+    for (size_t i = 0; i < block_write_len; i++) {
         block_write[i] = (uint8_t)(i & 0xFF);
     }
 
@@ -696,11 +730,12 @@ static bool memdev_direct_ops_clamp(void) {
     }
 
     // Block access starting at block_count should be out-of-range.
-    uint8_t block_read[BLOCK_SIZE];
-    memset(block_read, 0xA5, sizeof(block_read));
+    uint8_t *block_read = malloc(BLOCK_SIZE);
+    ASSERT_NONNULL(block_read, "");
+    memset(block_read, 0xA5, BLOCK_SIZE);
     result = dev->read_block(dev, block_read, dev->block_count, 1);
     EXPECT_EQ((ssize_t)0, result, "");
-    for (size_t i = 0; i < sizeof(block_read); i++) {
+    for (size_t i = 0; i < BLOCK_SIZE; i++) {
         EXPECT_EQ(0xA5, block_read[i], "");
     }
 
@@ -710,6 +745,9 @@ static bool memdev_direct_ops_clamp(void) {
         EXPECT_EQ(0xEE, raw[guard_size + TEST_DEVICE_SIZE + i], "");
     }
 
+    free(write_buf);
+    free(block_write);
+    free(block_read);
     bio_close(dev);
     bio_unregister_device(dev);
     free(raw);
