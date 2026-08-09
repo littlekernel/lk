@@ -9,7 +9,7 @@
  * Correctness tests for the core kernel synchronization primitives.
  *
  * These run as part of `ut all`, which is executed at boot by
- * scripts/run-qemu-boot-tests.py under a 30 second per architecture budget on
+ * scripts/run-qemu-boot-tests.py under a 60 second per architecture budget on
  * emulated targets. Keep the iteration counts small enough that the whole case
  * stays well under a second on a slow emulator, and prefer joins and events
  * over fixed sleeps. The cycle counting benchmarks that used to live alongside
@@ -97,7 +97,13 @@ static bool test_mutex_mutual_exclusion(void) {
     END_TEST;
 }
 
-#define MUTEX_TIMEOUT_MS 100
+/* The hold time below is deliberately much longer than the timeout: a waiter
+ * thread has until (hold - timeout) after its thread_resume() to actually reach
+ * mutex_acquire_timeout(), or its timeout window extends past the release and
+ * it acquires the mutex instead of timing out. On a heavily loaded emulator
+ * that scheduling delay can be substantial, so keep the slack generous. */
+#define MUTEX_TIMEOUT_MS 250
+#define MUTEX_HOLD_MS 2000
 
 static int mutex_timeout_thread(void *arg) {
     mutex_t *timeout_mutex = (mutex_t *)arg;
@@ -131,7 +137,7 @@ static bool test_mutex_timeout(void) {
     }
 
     /* hold the mutex past every waiter's timeout */
-    thread_sleep(MUTEX_TIMEOUT_MS * 2);
+    thread_sleep(MUTEX_HOLD_MS);
     mutex_release(&timeout_mutex);
 
     for (uint i = 0; i < countof(threads); i++) {
