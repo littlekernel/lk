@@ -41,6 +41,9 @@ struct fat_info {
 class fat_file;
 struct dir_entry_location;
 
+const int DIR_ENTRY_LENGTH = 32;
+const size_t MAX_FILE_NAME_LEN = 256;
+
 // main fs object representing a mount
 class fat_fs {
   public:
@@ -72,6 +75,20 @@ class fat_fs {
     void add_to_file_list(fat_file *file);
     fat_file *lookup_file(const dir_entry_location &loc);
 
+    // Scratch buffers for the directory walk machinery, guarded by lock. Kept off the
+    // stack because these routines nest several frames deep on threads with small
+    // kernel stacks. name_scratch() holds the candidate name read out of each directory
+    // entry by fat_find_next_entry; element_scratch() holds the path element currently
+    // being matched, which stays live across a nested find that fills name_scratch().
+    char *name_scratch() {
+        DEBUG_ASSERT(lock.is_held());
+        return name_scratch_;
+    }
+    char *element_scratch() {
+        DEBUG_ASSERT(lock.is_held());
+        return element_scratch_;
+    }
+
     // for now keep the lock public
     Mutex lock;
 
@@ -90,6 +107,9 @@ class fat_fs {
 
     // shared implementation for mark_volume_dirty/clean_locked
     status_t set_volume_clean_bit_locked(bool clean);
+
+    char name_scratch_[MAX_FILE_NAME_LEN];
+    char element_scratch_[MAX_FILE_NAME_LEN];
 
     bool read_only_ = false;
 };
@@ -145,6 +165,3 @@ const uint32_t EOF_CLUSTER = 0x0fffffff;
 inline bool is_eof_cluster(uint32_t cluster) {
     return cluster >= EOF_CLUSTER_BASE && cluster <= EOF_CLUSTER;
 }
-
-const int DIR_ENTRY_LENGTH = 32;
-const size_t MAX_FILE_NAME_LEN = 256;
