@@ -368,7 +368,7 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
   counts or need arguments, so they have no pass/fail criterion and are not unit tests.
 - `lib/unittest` contains a unit test framework that other libraries can use to define tests.
   - Tests are auto-discovered and run with `ut all` on the command line shell, or automatically
-    at boot time if `lk.unittests_at_boot=1` is passed in the kernel command line.
+    at boot time via the `lk.autorun` kernel command line variable (see below).
   - Self-validating tests belong here, next to the code they exercise: `kernel/test/` covers the
     thread, mutex, semaphore, event and port primitives plus the platform clock invariants,
     `arch/test/` covers MMU and FPU context switching.
@@ -379,6 +379,34 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 - `ut all` runs at boot in CI under a 60 second per architecture timeout on emulated targets, so
   keep individual tests fast: prefer joins and events over fixed sleeps, and keep iteration counts
   low enough to stay well under a second on a slow emulator.
+
+### Running a script at boot (`lk.autorun`)
+
+If `app/shell` is in the build, the shell app looks for an `lk.autorun` kernel command line
+variable and runs its value as a shell script before dropping into the interactive shell.
+This is the preferred way to drive a target from a host script — start QEMU and tell it what
+to run, rather than adding a new command line variable per scenario.
+
+```bash
+# spaces encoded as '+', which avoids needing to quote anything along the way
+scripts/do-qemuarm -6 -A 'lk.autorun=sleep+5;ut+all;poweroff'
+
+# real spaces work too: the do-qemu* wrappers quote the value and lib/cmdline unquotes it
+# (don't add the quotes yourself, they'd end up quoted a second time)
+scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
+```
+
+- `+` decodes to a space in both forms, `++` decodes to a literal `+`.
+- Commands are separated with `;` or newlines (`\n` in the quoted form), same as any other
+  console script.
+- Ending the script with `poweroff` makes QEMU exit once the script is done, which is how
+  `scripts/run-qemu-boot-tests.py` drives its runs. Note `poweroff` is only registered when
+  `LK_DEBUGLEVEL > 1` (i.e. the default `DEBUG=2`).
+- The script is capped at 511 bytes. On PC targets `platform/pc` copies the multiboot command
+  line into a 256 byte buffer, which caps the *entire* command line there.
+- The script runs on the shell app's thread, which is given `SHELL_STACK_SIZE`
+  (`DEFAULT_STACK_SIZE * 2` by default) since commands like `ut all` are stack hungry.
+  Memory constrained targets can define `SHELL_STACK_SIZE` down.
 
 ## Key Files Reference
 

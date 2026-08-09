@@ -83,7 +83,11 @@ class QEMUTestRunner:
         qemu_cmdline = [str(script_path)]
         if arch_config['args']:
             qemu_cmdline.append(str(arch_config['args']))
-        qemu_cmdline.extend(['-A', 'lk.unittests_at_boot=1'])
+        # Drive the test run from a shell script passed on the kernel command line.
+        # Spaces are encoded as '+' so the value passes through the do-qemu* wrappers
+        # unquoted. The sleep gives device probing a chance to settle and the poweroff
+        # lets qemu exit on its own once the tests have run.
+        qemu_cmdline.extend(['-A', 'lk.autorun=sleep+5;ut+all;poweroff'])
         for cmdline in (append_cmdline or []):
             qemu_cmdline.extend(['-A', str(cmdline)])
         for disk in (disk_images or []):
@@ -133,15 +137,13 @@ class QEMUTestRunner:
             flags = fcntl.fcntl(fd, fcntl.F_GETFL)
             fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
+            eof = False
+
             while True:
                 # Check timeout
                 if time.time() - start_time > timeout:
                     print(f"Timeout reached for {arch} after {timeout}s")
                     process.terminate()
-                    break
-
-                # If process exited and buffer empty, stop
-                if process.poll() is not None and not buffer:
                     break
 
                 # Wait up to 1s for data to arrive
@@ -150,13 +152,15 @@ class QEMUTestRunner:
                     try:
                         chunk = _os.read(fd, 4096).decode(errors='replace')
                     except BlockingIOError:
-                        chunk = ''
-                    if chunk == '':
-                        # EOF
-                        if process.poll() is not None:
-                            break
+                        pass
                     else:
-                        buffer += chunk
+                        if chunk == '':
+                            # Real EOF: qemu has exited and the pipe is fully drained.
+                            # Note this is deliberately not keyed off process.poll(),
+                            # which can report an exit while output is still in flight.
+                            eof = True
+                        else:
+                            buffer += chunk
 
                 # Emit full lines from buffer
                 while True:
@@ -188,6 +192,9 @@ class QEMUTestRunner:
                         break
 
                 if test_passed or test_failed:
+                    break
+
+                if eof:
                     break
 
             # Emit any trailing partial line for visibility
