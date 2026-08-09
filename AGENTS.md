@@ -404,9 +404,9 @@ scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
   `LK_DEBUGLEVEL > 1` (i.e. the default `DEBUG=2`).
 - The script is capped at 511 bytes. On PC targets `platform/pc` copies the multiboot command
   line into a 256 byte buffer, which caps the *entire* command line there.
-- The script runs on the shell app's thread, which is given `SHELL_STACK_SIZE`
-  (`DEFAULT_STACK_SIZE * 2` by default) since commands like `ut all` are stack hungry.
-  Memory constrained targets can define `SHELL_STACK_SIZE` down.
+- The script runs on the shell app's thread, whose stack size can be overridden with
+  `SHELL_STACK_SIZE` (`DEFAULT_STACK_SIZE` by default). Commands like `ut all` run close
+  to the default stack size, so keep large buffers in tests on the heap, not the stack.
 
 ## Key Files Reference
 

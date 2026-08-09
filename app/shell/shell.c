@@ -20,7 +20,7 @@
 // Commands run from the shell, notably the unit tests, can be far more stack hungry than
 // the default thread stack allows for. Memory constrained targets can override this.
 #ifndef SHELL_STACK_SIZE
-#define SHELL_STACK_SIZE (DEFAULT_STACK_SIZE * 2)
+#define SHELL_STACK_SIZE (DEFAULT_STACK_SIZE)
 #endif
 
 // Decode the plus encoded form of an autorun script in place:
