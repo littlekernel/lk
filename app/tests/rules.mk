@@ -14,7 +14,6 @@ MODULE_FLOAT_SRCS := \
     $(LOCAL_DIR)/benchmarks.c \
 
 MODULE_DEPS += \
-    lib/cbuf \
     lib/libm
 
 MODULE_COMPILEFLAGS += -fno-builtin

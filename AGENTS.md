@@ -335,14 +335,22 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 ### Testing
 
 - Some Shell commands test individual subsystems interactively
-- `app/tests/` contains some unit test commands to run through the shell
+- `app/tests/` contains benchmarks and interactive/operator tools that are run through the shell
+  (`bench`, `cache_tests`, `clock_tests`, `fibo`, `mem_test`, `thread_tests`). These measure cycle
+  counts or need arguments, so they have no pass/fail criterion and are not unit tests.
 - `lib/unittest` contains a unit test framework that other libraries can use to define tests.
   - Tests are auto-discovered and run with `ut all` on the command line shell, or automatically
     at boot time if `lk.unittests_at_boot=1` is passed in the kernel command line.
-- When a library adds its own unit tests, it should add a `tests/` subdirectory with test source
+  - Self-validating tests belong here, next to the code they exercise: `kernel/test/` covers the
+    thread, mutex, semaphore, event and port primitives, `arch/test/` covers MMU and FPU context
+    switching.
+- When a library adds its own unit tests, it should add a `test/` subdirectory with test source
   files and a `rules.mk` that defines a module for the tests. The module should have `MODULE_DEPS`
   on the library being tested. MODULE_OPTIONS of the parent module should have 'test' to ensure the
   tests module is only built when `WITH_TESTS` is enabled.
+- `ut all` runs at boot in CI under a 30 second per architecture timeout on emulated targets, so
+  keep individual tests fast: prefer joins and events over fixed sleeps, and keep iteration counts
+  low enough to stay well under a second on a slow emulator.
 
 ## Key Files Reference
 
