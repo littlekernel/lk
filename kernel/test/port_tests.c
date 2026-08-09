@@ -784,6 +784,12 @@ static bool group_dynamic(void) {
 
     st = port_close(pg);
     EXPECT_GE(st, 0, "could not close the port group");
+    /* the read ports have to be closed as well: destroying the write side only
+     * detaches its readers, it does not free them */
+    st = port_close(r_test_port1);
+    EXPECT_GE(st, 0, "could not close read port 1");
+    st = port_close(r_test_port2);
+    EXPECT_GE(st, 0, "could not close read port 2");
     st = port_close(w_test_port1);
     EXPECT_GE(st, 0, "could not close test port 1");
     st = port_close(w_test_port2);
@@ -864,6 +870,9 @@ static bool group_waiting(void) {
 
     st = port_close(pg);
     EXPECT_GE(st, 0, "could not close the port group");
+
+    st = port_close(r_test_port1);
+    EXPECT_GE(st, 0, "could not close read port");
 
     st = port_close(w_test_port1);
     EXPECT_GE(st, 0, "could not close test port");
