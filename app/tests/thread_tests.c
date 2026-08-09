@@ -16,7 +16,6 @@
 
 #include <lk/debug.h>
 #include <lk/trace.h>
-#include <rand.h>
 #include <lk/err.h>
 #include <assert.h>
 #include <kernel/thread.h>
@@ -25,34 +24,9 @@
 #include <platform/time.h>
 #include <arch/atomic.h>
 
-static int sleep_thread(void *arg) {
-    for (;;) {
-        printf("sleeper %p\n", get_current_thread());
-        thread_sleep(rand() % 500);
-    }
-    return 0;
-}
-
-static int sleep_test(void) {
-    int i;
-    for (i=0; i < 16; i++)
-        thread_detach_and_resume(thread_create("sleeper", &sleep_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
-    return 0;
-}
-
-static int quantum_tester(void *arg) {
-    for (;;) {
-        printf("%p: in this thread. rq %d\n", get_current_thread(), get_current_thread()->remaining_quantum);
-    }
-    return 0;
-}
-
-static void quantum_test(void) {
-    thread_detach_and_resume(thread_create("quantum tester 0", &quantum_tester, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
-    thread_detach_and_resume(thread_create("quantum tester 1", &quantum_tester, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
-    thread_detach_and_resume(thread_create("quantum tester 2", &quantum_tester, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
-    thread_detach_and_resume(thread_create("quantum tester 3", &quantum_tester, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE));
-}
+/* Everything here is only reachable through the console command at the bottom,
+ * so without lib/console in the build there is nothing to emit. */
+#if WITH_LIB_CONSOLE
 
 static event_t context_switch_event;
 static event_t context_switch_done_event;
@@ -215,3 +189,5 @@ static int thread_bench(int argc, const console_cmd_args *argv) {
 STATIC_COMMAND_START
 STATIC_COMMAND("thread_tests", "scheduler benchmarks", &thread_bench)
 STATIC_COMMAND_END(thread_tests);
+
+#endif // WITH_LIB_CONSOLE
