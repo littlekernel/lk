@@ -324,9 +324,73 @@ static int race_thread(void *arg)
 
 /* Number of times the two threads race to create the same named port. Each pass
  * costs at least a couple of 25ms sleeps in race_thread, so keep this modest --
- * this test runs as part of `ut all` at boot, which has a 30 second budget on
+ * this test runs as part of `ut all` at boot, which has a 60 second budget on
  * the slowest emulated targets. */
 #define RACE_PASSES 16
+
+/* Bounds every wait on a race thread so that one dying unexpectedly fails the
+ * test instead of hanging it until the CI harness times the whole boot out. */
+#define RACE_STATUS_TIMEOUT_MS 10000
+
+typedef struct {
+    port_t r_port[2];
+    bool opened[2];
+} race_state_t;
+
+/* The fallible middle of two_threads_race. This runs while the two race
+ * threads are alive, so it must not leave anything behind that the caller's
+ * shutdown path does not know about: every status port it opens is recorded
+ * in the state before use, and a failed ASSERT simply returns through here
+ * back into the caller, which always drives the threads to exit. */
+static bool two_threads_race_body(race_state_t *rs, port_t w_port) {
+    BEGIN_TEST;
+
+    // wait for each status port to be created so we can
+    // track behavior.
+    status_t st;
+    for (int tid = 0; tid < 2; ++tid) {
+        LTRACEF("control: connecting to thread %d . . .\n", tid);
+        st = ERR_NOT_FOUND;
+        for (int tries = 0; tries < 500 && st == ERR_NOT_FOUND; ++tries) {
+            st = port_open(kStatusPortNames[tid], NULL, &rs->r_port[tid]);
+            if (st == ERR_NOT_FOUND)
+                thread_sleep(10);
+        }
+        ASSERT_EQ(NO_ERROR, st, "could not open status port");
+        rs->opened[tid] = true;
+    }
+
+    // control port says: "REPEAT" or "QUIT"
+    // Both threads race to create the same named port; exactly one must win, so
+    // both must report the same port handle back to us every pass.
+    bool raced = false;
+    int count = 0;
+    while (true) {
+        LTRACEF_LEVEL(1, "Go!\n");
+        event_signal(&race_evt, false);
+        port_result_t pr0, pr1;
+        LTRACEF_LEVEL(1, "Collecting status from thread 0 . . .\n");
+        st = port_read(rs->r_port[0], RACE_STATUS_TIMEOUT_MS, &pr0);
+        ASSERT_GE(st, 0, "could not read status port 0");
+        LTRACEF_LEVEL(1, "Collecting status from thread 1 . . .\n");
+        st = port_read(rs->r_port[1], RACE_STATUS_TIMEOUT_MS, &pr1);
+        ASSERT_GE(st, 0, "could not read status port 1");
+        LTRACEF_LEVEL(1, "Checking responses . . .\n");
+        if (memcmp(pr0.packet.value, pr1.packet.value, sizeof(pr0.packet.value)) != 0) {
+            UNITTEST_FAIL_TRACEF("both threads claimed the port on iteration %d\n", count);
+            raced = true;
+            all_ok = false;
+        }
+        event_unsignal(&race_evt);
+        if (raced || ++count >= RACE_PASSES)
+            break;
+        LTRACEF_LEVEL(1, "Telling threads to repeat\n");
+        st = port_write(w_port, &kRepeat, 1);
+        ASSERT_GE(st, 0, "could not write control port");
+    }
+
+    END_TEST;
+}
 
 static bool two_threads_race(void) {
     BEGIN_TEST;
@@ -342,79 +406,58 @@ static bool two_threads_race(void) {
                        "rt0", &race_thread, (void *)0, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     thread_t *t2 = thread_create(
                        "rt1", &race_thread, (void *)1, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
-    thread_set_real_time(t1);
-    thread_set_real_time(t2);
-    thread_resume(t1);
-    thread_resume(t2);
-
-    // wait for each status port to be created so we can
-    // track behavior.
-    port_t r_port0, r_port1;
-    LTRACEF("control: connecting to thread 0 . . .\n");
-    while (true) {
-        st = port_open(kStatusPortNames[0], NULL, &r_port0);
-        if (st == NO_ERROR)
-            break;
-        ASSERT_EQ(ERR_NOT_FOUND, st, "could not open status port 0");
-        thread_sleep(10);
+    EXPECT_NONNULL(t1, "could not create race thread 0");
+    EXPECT_NONNULL(t2, "could not create race thread 1");
+    if (t1) {
+        thread_set_real_time(t1);
+        thread_resume(t1);
     }
-    LTRACEF("control: connecting to thread 1 . . .\n");
-    while (true) {
-        st = port_open(kStatusPortNames[1], NULL, &r_port1);
-        if (st == NO_ERROR)
-            break;
-        ASSERT_EQ(ERR_NOT_FOUND, st, "could not open status port 1");
-        thread_sleep(10);
+    if (t2) {
+        thread_set_real_time(t2);
+        thread_resume(t2);
     }
 
-    // control port says:  0 "REPEAT, or 1 "QUIT"
-    // Both threads race to create the same named port; exactly one must win, so
-    // both must report the same port handle back to us every pass.
-    bool raced = false;
-    int count = 0;
-    while (true) {
-        LTRACEF_LEVEL(1, "Go!\n");
-        event_signal(&race_evt, false);
-        port_result_t pr0, pr1;
-        LTRACEF_LEVEL(1, "Collecting status from thread 0 . . .\n");
-        st = port_read(r_port0, INFINITE_TIME, &pr0);
-        ASSERT_GE(st, 0, "could not read status port 0");
-        LTRACEF_LEVEL(1, "Collecting status from thread 1 . . .\n");
-        st = port_read(r_port1, INFINITE_TIME, &pr1);
-        ASSERT_GE(st, 0, "could not read status port 1");
-        LTRACEF_LEVEL(1, "Checking responses . . .\n");
-        if (memcmp(pr0.packet.value, pr1.packet.value, sizeof(pr0.packet.value)) != 0) {
-            UNITTEST_FAIL_TRACEF("both threads claimed the port on iteration %d\n", count);
-            raced = true;
-            all_ok = false;
+    race_state_t rs = {};
+    bool body_ok = (t1 && t2) ? two_threads_race_body(&rs, w_port) : false;
+
+    /* The shutdown below runs even when the body failed partway: a race
+     * thread may still be waiting at the starting line or for an instruction,
+     * and if it is not driven to exit it stays blocked forever and the named
+     * ports it owns poison every later run of this test with
+     * ERR_ALREADY_EXISTS. Close the status read ports first so the threads
+     * destroy the write sides after their readers are gone. */
+    for (int tid = 0; tid < 2; ++tid) {
+        if (rs.opened[tid]) {
+            st = port_close(rs.r_port[tid]);
+            EXPECT_GE(st, 0, "could not close status port");
         }
-        event_unsignal(&race_evt);
-        bool repeat = (!raced && ++count < RACE_PASSES);
-        LTRACEF_LEVEL(1, "Telling threads to %s\n", (repeat ? "repeat" : "quit"));
-        st = port_write(w_port, (repeat ? &kRepeat : &kQuit), 1);
-        ASSERT_GE(st, 0, "could not write control port");
-        if (!repeat)
-            break;
     }
 
-    st = port_close(r_port0);
-    EXPECT_GE(st, 0, "could not close status port 0");
+    event_signal(&race_evt, true);
+    st = port_write(w_port, &kQuit, 1);
+    EXPECT_GE(st, 0, "could not write control port");
 
-    st = port_close(r_port1);
-    EXPECT_GE(st, 0, "could not close status port 1");
+    int retcode;
+    if (t1) {
+        retcode = -1;
+        thread_join(t1, &retcode, INFINITE_TIME);
+        EXPECT_EQ(0, retcode, "race thread 0 exited with an error line number");
+    }
+    if (t2) {
+        retcode = -1;
+        thread_join(t2, &retcode, INFINITE_TIME);
+        EXPECT_EQ(0, retcode, "race thread 1 exited with an error line number");
+    }
+
+    event_destroy(&race_evt);
 
     st = port_close(w_port);
     EXPECT_GE(st, 0, "could not close control port");
 
-    int retcode = -1;
-    thread_join(t1, &retcode, INFINITE_TIME);
-    EXPECT_EQ(0, retcode, "race thread 0 exited with an error line number");
-
-    thread_join(t2,  &retcode, INFINITE_TIME);
-    EXPECT_EQ(0, retcode, "race thread 1 exited with an error line number");
-
     st = port_destroy(w_port);
     EXPECT_GE(st, 0, "could not destroy control port");
+
+    EXPECT_TRUE(body_ok, "race sequence failed");
 
     END_TEST;
 }
@@ -596,6 +639,48 @@ static status_t make_port_pair(const char *name, void *ctx, port_t *write, port_
     return port_open(name,ctx, read);
 }
 
+typedef struct {
+    port_t w_port[2];
+    port_t r_port[2];
+    bool created[2];
+    bool sent[2];
+} group_state_t;
+
+/* The fallible middle of group_basic, run while the watcher thread is alive.
+ * Everything it creates is recorded in the state before use so that the
+ * caller's shutdown path can release exactly what a failed ASSERT left behind.
+ * Once a read port has been sent to the watcher (sent[i]), the watcher owns
+ * closing it. */
+static bool group_basic_body(group_state_t *gs, port_t cmd_port) {
+    BEGIN_TEST;
+
+    static const char *kTestPortNames[2] = { "tst_port1", "tst_port2" };
+    void *const test_port_ctxs[2] = { TS1_PORT_CTX, TS2_PORT_CTX };
+
+    for (int i = 0; i < 2; ++i) {
+        status_t st = make_port_pair(kTestPortNames[i], test_port_ctxs[i],
+                                     &gs->w_port[i], &gs->r_port[i]);
+        ASSERT_GE(st, 0, "could not make port pair");
+        gs->created[i] = true;
+    }
+
+    for (int i = 0; i < 2; ++i) {
+        status_t st = send_watcher_cmd(cmd_port, ADD_PORT, gs->r_port[i]);
+        ASSERT_GE(st, 0, "could not send ADD_PORT");
+        gs->sent[i] = true;
+    }
+
+    thread_sleep(50);
+
+    port_packet_t pp = {{0}};
+    for (int i = 0; i < 2; ++i) {
+        status_t st = port_write(gs->w_port[i], &pp, 1);
+        ASSERT_GE(st, 0, "could not write test port");
+    }
+
+    END_TEST;
+}
+
 static bool group_basic(void) {
     BEGIN_TEST;
 
@@ -607,50 +692,48 @@ static bool group_basic(void) {
 
     thread_t *wt = thread_create(
                        "g_watcher", &group_watcher_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    if (wt == NULL) {
+        // the watcher never existed so nothing is blocked; safe to bail directly
+        port_close(cmd_port);
+        port_destroy(cmd_port);
+        ASSERT_NONNULL(wt, "could not create watcher thread");
+    }
     thread_resume(wt);
 
-    port_t w_test_port1, r_test_port1;
-    st = make_port_pair("tst_port1", TS1_PORT_CTX, &w_test_port1, &r_test_port1);
-    ASSERT_GE(st, 0, "could not make port pair 1");
+    group_state_t gs = {};
+    bool body_ok = group_basic_body(&gs, cmd_port);
 
-    port_t w_test_port2, r_test_port2;
-    st = make_port_pair("tst_port2", TS2_PORT_CTX, &w_test_port2, &r_test_port2);
-    ASSERT_GE(st, 0, "could not make port pair 2");
-
-    st = send_watcher_cmd(cmd_port, ADD_PORT, r_test_port1);
-    ASSERT_GE(st, 0, "could not send ADD_PORT");
-
-    st = send_watcher_cmd(cmd_port, ADD_PORT, r_test_port2);
-    ASSERT_GE(st, 0, "could not send ADD_PORT");
-
-    thread_sleep(50);
-
-    port_packet_t pp = {{0}};
-    st = port_write(w_test_port1, &pp, 1);
-    ASSERT_GE(st, 0, "could not write test port 1");
-
-    st = port_write(w_test_port2, &pp, 1);
-    ASSERT_GE(st, 0, "could not write test port 2");
-
+    /* The shutdown below runs even when the body failed partway: the watcher
+     * must always be told to quit and joined, otherwise it stays blocked on
+     * its group port forever and the named control port poisons every later
+     * run of this test with ERR_ALREADY_EXISTS. */
     st = send_watcher_cmd(cmd_port, QUIT, 0);
-    ASSERT_GE(st, 0, "could not send QUIT");
+    EXPECT_GE(st, 0, "could not send QUIT");
 
     int retcode = -1;
     thread_join(wt, &retcode, INFINITE_TIME);
     EXPECT_EQ(0, retcode, "watcher thread exited with an error line number");
 
-    st = port_close(w_test_port1);
-    EXPECT_GE(st, 0, "could not close test port 1");
-    st = port_close(w_test_port2);
-    EXPECT_GE(st, 0, "could not close test port 2");
+    for (int i = 0; i < 2; ++i) {
+        if (!gs.created[i])
+            continue;
+        if (!gs.sent[i]) {
+            // the watcher never took ownership of this read port
+            st = port_close(gs.r_port[i]);
+            EXPECT_GE(st, 0, "could not close read test port");
+        }
+        st = port_close(gs.w_port[i]);
+        EXPECT_GE(st, 0, "could not close test port");
+        st = port_destroy(gs.w_port[i]);
+        EXPECT_GE(st, 0, "could not destroy test port");
+    }
+
     st = port_close(cmd_port);
     EXPECT_GE(st, 0, "could not close control port");
-    st = port_destroy(w_test_port1);
-    EXPECT_GE(st, 0, "could not destroy test port 1");
-    st = port_destroy(w_test_port2);
-    EXPECT_GE(st, 0, "could not destroy test port 2");
     st = port_destroy(cmd_port);
     EXPECT_GE(st, 0, "could not destroy control port");
+
+    EXPECT_TRUE(body_ok, "group watcher sequence failed");
 
     END_TEST;
 }
