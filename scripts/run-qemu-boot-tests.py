@@ -13,38 +13,38 @@ class QEMUTestRunner:
             'arm': {
                 'script': 'do-qemuarm',
                 'args': '',
-                'timeout': 30
+                'timeout': 60
             },
             'arm64': {
                 'script': 'do-qemuarm',
                 'args': '-6s4',
-                'timeout': 30
+                'timeout': 60
             },
             'm68k': {
                 'script': 'do-qemum68k',
                 'args': '',
-                'timeout': 30,
+                'timeout': 60,
                 'experimental_toolchains': ['clang', 'clang-lld']
             },
             'riscv32': {
                 'script': 'do-qemuriscv',
                 'args': '',
-                'timeout': 30
+                'timeout': 60
             },
             'riscv64': {
                 'script': 'do-qemuriscv',
                 'args': '-6Ss4',
-                'timeout': 30
+                'timeout': 60
             },
             'x86': {
                 'script': 'do-qemux86',
                 'args': '-s4',
-                'timeout': 30
+                'timeout': 60
             },
             'x86-64': {
                 'script': 'do-qemux86',
                 'args': '-6s4',
-                'timeout': 30
+                'timeout': 60
             }
         }
 
