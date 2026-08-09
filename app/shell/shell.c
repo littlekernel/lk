@@ -8,6 +8,7 @@
 #include <app.h>
 #include <lk/debug.h>
 #include <lk/err.h>
+#include <kernel/thread.h>
 #include <lib/cmdline.h>
 #include <lib/console.h>
 #include <stdio.h>
@@ -15,6 +16,12 @@
 
 // Maximum length of a script passed in via the lk.autorun kernel command line variable.
 #define AUTORUN_MAX_LEN 512
+
+// Commands run from the shell, notably the unit tests, can be far more stack hungry than
+// the default thread stack allows for. Memory constrained targets can override this.
+#ifndef SHELL_STACK_SIZE
+#define SHELL_STACK_SIZE (DEFAULT_STACK_SIZE * 2)
+#endif
 
 // Decode the plus encoded form of an autorun script in place:
 //   '++' -> a literal '+'
@@ -80,5 +87,7 @@ static void shell_entry(const struct app_descriptor *app, void *args) {
 
 APP_START(shell)
 .entry = shell_entry,
+.flags = APP_FLAG_CUSTOM_STACK_SIZE,
+.stack_size = SHELL_STACK_SIZE,
 APP_END
 
