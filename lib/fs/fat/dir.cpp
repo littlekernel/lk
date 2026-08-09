@@ -524,8 +524,8 @@ status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, const char
 
     uint32_t offset = 0;
     uint32_t dir_offset_base = 0;
+    char *filename_buffer = fat->name_scratch();
     for (;;) {
-        char filename_buffer[MAX_FILE_NAME_LEN]; // max fat file name length
         char *filename;
 
         // Reset the sector increment count before calling fat_find_next_entry,
@@ -546,9 +546,16 @@ status_t fat_find_file_in_dir(fat_fs *fat, uint32_t starting_cluster, const char
 
         // see if we've matched an entry
         if (filenamelen == namelen && !strnicmp(name, filename, filenamelen)) {
-            // we have, return with a good status
+            // we have, return with a good status.
+            // fat_find_next_entry advances offset past the short name entry it
+            // matched, so step back one entry to name the entry itself. This has
+            // to agree with fat_dir_allocate, which hands back the offset of the
+            // short name entry: a dir_entry_location is both the key in the open
+            // file table and the address fat_dir_update_entry writes to.
             if (found_offset) {
-                *found_offset = dir_offset_base + offset;
+                const uint32_t entry_end_offset = dir_offset_base + offset;
+                DEBUG_ASSERT(entry_end_offset >= DIR_ENTRY_LENGTH);
+                *found_offset = entry_end_offset - DIR_ENTRY_LENGTH;
             }
             return NO_ERROR;
         }
@@ -574,8 +581,8 @@ status_t fat_find_file_in_dir_with_offsets(fat_fs *fat, uint32_t starting_cluste
 
     uint32_t offset = 0;
     uint32_t dir_offset_base = 0;
+    char *filename_buffer = fat->name_scratch();
     for (;;) {
-        char filename_buffer[MAX_FILE_NAME_LEN];
         char *filename;
         uint32_t old_offset = dir_offset_base + offset;
 
@@ -708,8 +715,8 @@ static status_t fat_dir_is_empty(fat_fs *fat, uint32_t starting_cluster) {
     }
 
     uint32_t offset = 0;
+    char *filename_buffer = fat->name_scratch();
     for (;;) {
-        char filename_buffer[MAX_FILE_NAME_LEN];
         char *filename;
         dir_entry entry;
 
@@ -777,9 +784,9 @@ status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_e
     dir_entry entry{};
 
     // walk the directory structure
+    char *name_element = fat->element_scratch();
     for (;;) {
-        char name_element[MAX_FILE_NAME_LEN];
-        strlcpy(name_element, path, MIN(sizeof(name_element), path_element_size + 1));
+        strlcpy(name_element, path, MIN(MAX_FILE_NAME_LEN, path_element_size + 1));
 
         LTRACEF("searching for element %s\n", name_element);
 
@@ -1010,16 +1017,14 @@ status_t check_entry_not_busy(fat_fs *fat, uint32_t parent_cluster, uint32_t ent
         return ERR_BAD_STATE;
     }
 
+    // Every dir_entry_location names the short name entry, which is the last of
+    // the run, so entry_end_offset is one entry past it.
     dir_entry_location sfn_loc = {
         .starting_dir_cluster = parent_cluster,
         .dir_offset = entry_end_offset - DIR_ENTRY_LENGTH,
     };
-    dir_entry_location walk_loc = {
-        .starting_dir_cluster = parent_cluster,
-        .dir_offset = entry_end_offset,
-    };
 
-    if (fat->lookup_file(sfn_loc) || fat->lookup_file(walk_loc)) {
+    if (fat->lookup_file(sfn_loc)) {
         return ERR_BUSY;
     }
 
@@ -1620,12 +1625,13 @@ status_t fat_dir::readdir_priv(fat_dir_cookie *cookie, struct dirent *ent) {
     // make sure the cookie makes sense
     DEBUG_ASSERT((cookie->index % DIR_ENTRY_LENGTH) == 0);
 
-    char filename_buffer[MAX_FILE_NAME_LEN];
-    char *filename;
     dir_entry entry;
 
     {
         AutoLock guard(fs_->lock);
+
+        char *filename_buffer = fs_->name_scratch();
+        char *filename;
 
         // kick start our directory sector iterator
         LTRACEF("start cluster %u\n", start_cluster_);
@@ -1654,10 +1660,11 @@ status_t fat_dir::readdir_priv(fat_dir_cookie *cookie, struct dirent *ent) {
         LTRACEF("calculated index increment %u (old index %u, offset %u, sector_inc_count %u)\n",
                 index_inc, cookie->index, offset, dbi.get_sector_inc_count());
         cookie->index += index_inc;
-    }
 
-    // copy the info into the fs layer's entry
-    strlcpy(ent->name, filename, MIN(sizeof(ent->name), MAX_FILE_NAME_LEN));
+        // copy the info into the fs layer's entry while the lock still guards the
+        // scratch buffer filename points into
+        strlcpy(ent->name, filename, MIN(sizeof(ent->name), MAX_FILE_NAME_LEN));
+    }
 
     return NO_ERROR;
 }

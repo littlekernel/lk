@@ -56,14 +56,41 @@ const char *get_test_device() {
     return result;
 }
 
+// Returns true if test.fat.required is set on the command line, which turns a
+// missing test.fat.device into a hard failure instead of a silent skip. Test
+// drivers that do attach a disk set this so a misconfigured run cannot pass
+// vacuously.  Result is cached after the first call.
+bool device_required() {
+    static bool checked = false;
+    static bool required = false;
+
+    if (!checked) {
+        checked = true;
+        bool val = false;
+        if (cmdline_get_bool("test.fat.required", &val) == NO_ERROR) {
+            required = val;
+        }
+    }
+    return required;
+}
+
 #define test_path "/fat"
 
-#define SKIP_TEST_IF_NO_DEVICE()                                                          \
-    do {                                                                                  \
-        if (!get_test_device()) {                                                         \
-            unittest_printf(" test.fat.device not set or device absent, skipping test "); \
-            return true;                                                                  \
-        }                                                                                 \
+// Distinctive marker so a host-side harness can grep a boot log and tell a real
+// run from a skipped one. Keep the spelling in sync with scripts/run-fat-tests.py.
+#define FAT_SKIP_MARKER "FAT-TEST-SKIPPED(no test.fat.device)"
+
+#define SKIP_TEST_IF_NO_DEVICE()                                                    \
+    do {                                                                            \
+        if (!get_test_device()) {                                                    \
+            if (device_required()) {                                                 \
+                UNITTEST_FAIL_TRACEF("test.fat.required is set but test.fat.device " \
+                                     "is unset or the device could not be opened\n");\
+                return false;                                                        \
+            }                                                                        \
+            unittest_printf(" " FAT_SKIP_MARKER " ");                                \
+            return true;                                                             \
+        }                                                                            \
     } while (0)
 
 // helper routine that mounts the above in the /fat path and then cleans up on
@@ -146,18 +173,21 @@ bool test_fat_utf8_to_ucs2() {
 bool test_fat_ucs2_to_utf8() {
     BEGIN_TEST;
 
-    char utf8_buf[256];
+    // heap allocated to keep large buffers out of the test's stack frame
+    const size_t utf8_buf_len = 256;
+    char *utf8_buf = new char[utf8_buf_len];
+    auto free_utf8_buf = lk::make_auto_call([&]() { delete[] utf8_buf; });
     size_t utf8_len = 0;
 
     // ASCII round-trip
     uint16_t ascii[] = {'h', 'e', 'l', 'l', 'o'};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(5u, utf8_len);
     EXPECT_EQ(0, strcmp(utf8_buf, "hello"));
 
     // U+00E9 (é) — 2-byte UTF-8, U+20AC (€) — 3-byte UTF-8
     uint16_t mixed_byte[] = {0x00e9, 0x20ac};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(5u, utf8_len); // 2 + 3 bytes
     EXPECT_EQ(static_cast<char>(0xc3), utf8_buf[0]);
     EXPECT_EQ(static_cast<char>(0xa9), utf8_buf[1]);
@@ -167,7 +197,7 @@ bool test_fat_ucs2_to_utf8() {
 
     // U+0080 → 2-byte UTF-8; U+0100 → 2-byte UTF-8; U+0800 → 3-byte UTF-8
     uint16_t two_three[] = {0x0080, 0x0100, 0x0800};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(7u, utf8_len); // 2 + 2 + 3
     // U+0080 -> 0xc2 0x80
     EXPECT_EQ(static_cast<char>(0xc2), utf8_buf[0]);
@@ -181,7 +211,7 @@ bool test_fat_ucs2_to_utf8() {
     EXPECT_EQ(static_cast<char>(0x80), utf8_buf[6]);
 
     // Empty input
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(0u, utf8_len);
     EXPECT_EQ(0, strcmp(utf8_buf, ""));
 
@@ -209,17 +239,24 @@ bool test_fat_utf8_ucs2_roundtrip() {
         "\xEF\xBD\xA1\xEF\xBD\xA2",                 // ！！ (fullwidth exclamation)
     };
 
-    uint16_t ucs2_buf[256];
-    char utf8_out[768];
+    // heap allocated to keep large buffers out of the test's stack frame
+    const size_t ucs2_buf_len = 256;
+    const size_t utf8_out_len = 768;
+    uint16_t *ucs2_buf = new uint16_t[ucs2_buf_len];
+    char *utf8_out = new char[utf8_out_len];
+    auto free_bufs = lk::make_auto_call([&]() {
+        delete[] ucs2_buf;
+        delete[] utf8_out;
+    });
 
     for (const char *input : test_cases) {
         size_t ucs2_len = 0;
         size_t utf8_len = 0;
 
-        status_t err = fat_utf8_to_ucs2(input, ucs2_buf, countof(ucs2_buf), &ucs2_len);
+        status_t err = fat_utf8_to_ucs2(input, ucs2_buf, ucs2_buf_len, &ucs2_len);
         ASSERT_EQ(NO_ERROR, err);
 
-        err = fat_ucs2_to_utf8(ucs2_buf, ucs2_len, utf8_out, sizeof(utf8_out), &utf8_len);
+        err = fat_ucs2_to_utf8(ucs2_buf, ucs2_len, utf8_out, utf8_out_len, &utf8_len);
         ASSERT_EQ(NO_ERROR, err);
 
         size_t input_len = strlen(input);
@@ -486,6 +523,12 @@ bool test_fat_create_file() {
         ASSERT_NONNULL(handle);
         ASSERT_EQ(NO_ERROR, fs_close_file(handle));
 
+        // leave the volume as we found it so this can be re-run in place
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/newfile"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/newfile.txt"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/dir.a/newfile"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/this_is_a_long_filename_for_create.txt"));
+
         END_TEST;
     });
 }
@@ -503,10 +546,12 @@ bool test_fat_resize_file() {
         auto closefile_cleanup1 = lk::make_auto_call([&]() { fs_close_file(handle); });
 
         // resize the file
-        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));                           // same size
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2UL * 1024 * 1024 * 1024)); // too big for FAT
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8UL * 1024 * 1024 * 1024)); // >32bit too big for FAT
-        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, -1));                       // negative should produce way out of range
+        // These sizes must be spelled ULL: on a 32 bit target UL is 32 bits, so
+        // 8UL * 1024 * 1024 * 1024 overflows to 0 and silently tests nothing.
+        EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));                            // same size
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 2ULL * 1024 * 1024 * 1024)); // too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, 8ULL * 1024 * 1024 * 1024)); // >32bit too big for FAT
+        EXPECT_EQ(ERR_TOO_BIG, fs_truncate_file(handle, UINT64_MAX));                // way out of range
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4095)); // assumes cluster size 4k
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 4096));
@@ -519,6 +564,11 @@ bool test_fat_resize_file() {
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 1));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 0));
         EXPECT_EQ(NO_ERROR, fs_truncate_file(handle, 8192));
+
+        // leave the volume as we found it so this can be re-run in place
+        closefile_cleanup1.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/reszfile"));
 
         END_TEST;
     });
@@ -564,6 +614,64 @@ bool test_fat_write_file() {
         EXPECT_EQ('L', tail_read[4]);
         EXPECT_EQ('K', tail_read[5]);
 
+        // leave the volume as we found it so this can be re-run in place
+        closefile_cleanup.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/wrfile"));
+
+        END_TEST;
+    });
+}
+
+// Every test above writes through the same handle it created the file with, so
+// nothing covers the ordinary create/close/reopen/write sequence a shell or an
+// application would do.
+bool test_fat_write_reopened_file() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        const char *path = test_path "/reopenwr";
+        const uint8_t data[] = {'a', 'b', 'c'};
+
+        // create it empty and close it
+        filehandle *handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(path, &handle, 0));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // reopen and write
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(path, &handle));
+        ASSERT_NONNULL(handle);
+        ASSERT_EQ((ssize_t)sizeof(data), fs_write_file(handle, data, 0, sizeof(data)));
+
+        // the size must be visible through this handle...
+        struct file_stat st = {};
+        ASSERT_EQ(NO_ERROR, fs_stat_file(handle, &st));
+        EXPECT_EQ(sizeof(data), (size_t)st.size);
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        // ...and must have reached the directory entry, so a fresh open sees it.
+        // Close on every path: leaking a handle here makes fs_unmount trip its
+        // "no open files" assert and every later test fail for the wrong reason.
+        handle = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(path, &handle));
+        ASSERT_NONNULL(handle);
+        auto close_cleanup = lk::make_auto_call([&]() { fs_close_file(handle); });
+
+        st = {};
+        ASSERT_EQ(NO_ERROR, fs_stat_file(handle, &st));
+        EXPECT_EQ(sizeof(data), (size_t)st.size);
+
+        uint8_t readback[sizeof(data)] = {};
+        ASSERT_EQ((ssize_t)sizeof(readback), fs_read_file(handle, readback, 0, sizeof(readback)));
+        EXPECT_EQ(0, memcmp(data, readback, sizeof(data)));
+
+        close_cleanup.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(handle));
+
+        ASSERT_EQ(NO_ERROR, fs_remove_file(path));
+
         END_TEST;
     });
 }
@@ -600,6 +708,14 @@ bool test_fat_mkdir() {
         ASSERT_NONNULL(fh);
         ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
+        // leave the volume as we found it so this can be re-run in place
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/this_is_a_long_directory_name/inside.txt"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/this_is_a_long_directory_name"));
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/newdir/file"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/newdir"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/parent/child"));
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/parent"));
+
         END_TEST;
     });
 }
@@ -619,8 +735,12 @@ bool test_fat_remove_file() {
         ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/rmfile", &fh));
         ASSERT_EQ(ERR_NOT_FOUND, fs_remove_file(test_path "/rmfile"));
 
-        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/long_filename_hello.txt"));
-        ASSERT_EQ(ERR_NOT_FOUND, fs_open_file(test_path "/long_filename_hello.txt", &fh));
+        // Remove a long-named file that was put on the image for exactly this
+        // purpose, rather than one the other tests read back. mkimage.py marks it
+        // consumed and run-fat-tests.py asserts it really is gone afterwards.
+        ASSERT_EQ(NO_ERROR, fs_remove_file(test_path "/removable_long_filename_victim.txt"));
+        ASSERT_EQ(ERR_NOT_FOUND,
+                  fs_open_file(test_path "/removable_long_filename_victim.txt", &fh));
 
         ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/busyfile", &fh, 0));
         ASSERT_NONNULL(fh);
@@ -630,6 +750,9 @@ bool test_fat_remove_file() {
 
         ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/rmdirtgt"));
         ASSERT_EQ(ERR_NOT_FILE, fs_remove_file(test_path "/rmdirtgt"));
+
+        // leave the volume as we found it so this can be re-run in place
+        ASSERT_EQ(NO_ERROR, fs_remove_dir(test_path "/rmdirtgt"));
 
         END_TEST;
     });
@@ -679,12 +802,16 @@ bool test_fat_dir_growth() {
         const char *dirname = test_path "/growdir";
         ASSERT_EQ(NO_ERROR, fs_make_dir(dirname));
 
+        // heap allocated to keep the buffer out of the test's stack frame
+        const size_t filename_len = 256;
+        char *filename = new char[filename_len];
+        auto free_filename = lk::make_auto_call([&]() { delete[] filename; });
+
         // Create enough files to force directory growth beyond one cluster.
         // Assuming 4KB clusters and 32-byte entries, one cluster holds 128 entries.
         // Creating 1000 files should force growth.
         for (int i = 0; i < 1000; i++) {
-            char filename[256];
-            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            snprintf(filename, filename_len, "%s/f%03d", dirname, i);
             filehandle *fh = nullptr;
             ASSERT_EQ(NO_ERROR, fs_create_file(filename, &fh, 0));
             ASSERT_NONNULL(fh);
@@ -693,8 +820,7 @@ bool test_fat_dir_growth() {
 
         // Verify all 1000 files exist.
         for (int i = 0; i < 1000; i++) {
-            char filename[256];
-            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            snprintf(filename, filename_len, "%s/f%03d", dirname, i);
             filehandle *fh = nullptr;
             ASSERT_EQ(NO_ERROR, fs_open_file(filename, &fh));
             ASSERT_NONNULL(fh);
@@ -715,8 +841,7 @@ bool test_fat_dir_growth() {
 
         // Remove all files.
         for (int i = 0; i < 1000; i++) {
-            char filename[256];
-            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            snprintf(filename, filename_len, "%s/f%03d", dirname, i);
             ASSERT_EQ(NO_ERROR, fs_remove_file(filename));
         }
 
@@ -734,6 +859,7 @@ bool test_fat_lfn_ordinal_rollover() {
         // Test SFN alias ordinal rollover with multiple files that collide on their base SFN.
         filehandle *fh = nullptr;
         char *filename_buf = new char[256];
+        auto free_filename_buf = lk::make_auto_call([&]() { delete[] filename_buf; });
 
         // Create 10 files with colliding long names to verify ordinal generation
         for (int i = 0; i < 10; i++) {
@@ -762,7 +888,89 @@ bool test_fat_lfn_ordinal_rollover() {
             ASSERT_EQ(NO_ERROR, ret);
         }
 
-        delete[] filename_buf;
+        END_TEST;
+    });
+}
+
+// Post-condition contract for the image based tests.
+//
+// Every other test in this file cleans up after itself, so `ut fat` can be run
+// repeatedly against the same image without failing on leftovers. This one test
+// deliberately leaves a fixed tree behind, which scripts/run-fat-tests.py then
+// checks from the host with mtools. It is the only thing the guest is allowed to
+// leave on the volume, and the two definitions have to stay in step -- see
+// WITNESS_* in run-fat-tests.py.
+//
+//   /witness/                 directory
+//   /witness/small.txt        13 bytes, "witness small"
+//   /witness/pattern.bin      9000 bytes, byte i = (i * 7 + 11) & 0xff
+//   /witness/a_long_witness_file_name_that_needs_lfn.txt   5 bytes, "hello"
+//   /witness/nested/          directory
+//   /witness/nested/deep.txt  4 bytes, "deep"
+bool test_fat_witness() {
+    return test_mount_wrapper([]() {
+        BEGIN_TEST;
+
+        // start from a clean slate so a re-run reproduces the tree exactly
+        fs_remove_file(test_path "/witness/nested/deep.txt");
+        fs_remove_dir(test_path "/witness/nested");
+        fs_remove_file(test_path "/witness/small.txt");
+        fs_remove_file(test_path "/witness/pattern.bin");
+        fs_remove_file(test_path "/witness/a_long_witness_file_name_that_needs_lfn.txt");
+        fs_remove_dir(test_path "/witness");
+
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/witness"));
+        ASSERT_EQ(NO_ERROR, fs_make_dir(test_path "/witness/nested"));
+
+        struct {
+            const char *path;
+            const char *data;
+            size_t len;
+        } const simple[] = {
+            {test_path "/witness/small.txt", "witness small", 13},
+            {test_path "/witness/a_long_witness_file_name_that_needs_lfn.txt", "hello", 5},
+            {test_path "/witness/nested/deep.txt", "deep", 4},
+        };
+
+        for (auto &s : simple) {
+            filehandle *fh = nullptr;
+            ASSERT_EQ(NO_ERROR, fs_create_file(s.path, &fh, 0));
+            ASSERT_NONNULL(fh);
+            auto close_fh = lk::make_auto_call([&]() { fs_close_file(fh); });
+            ASSERT_EQ((ssize_t)s.len, fs_write_file(fh, s.data, 0, s.len));
+            close_fh.cancel();
+            ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+        }
+
+        // A multi-cluster file with a position dependent pattern: this is the one
+        // the host verifier compares byte for byte, so a cluster written to the
+        // wrong place shows up as a specific bad offset rather than a size change.
+        const size_t pattern_len = 9000;
+        auto *buf = new uint8_t[pattern_len];
+        auto delete_buf = lk::make_auto_call([&]() { delete[] buf; });
+        for (size_t i = 0; i < pattern_len; i++) {
+            buf[i] = (uint8_t)((i * 7 + 11) & 0xff);
+        }
+
+        filehandle *fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/witness/pattern.bin", &fh, 0));
+        ASSERT_NONNULL(fh);
+        auto close_fh = lk::make_auto_call([&]() { fs_close_file(fh); });
+        ASSERT_EQ((ssize_t)pattern_len, fs_write_file(fh, buf, 0, pattern_len));
+        close_fh.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
+
+        // read it all back through a fresh open before handing off to the host
+        fh = nullptr;
+        ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/witness/pattern.bin", &fh));
+        auto close_fh2 = lk::make_auto_call([&]() { fs_close_file(fh); });
+        auto *readback = new uint8_t[pattern_len];
+        auto delete_readback = lk::make_auto_call([&]() { delete[] readback; });
+        memset(readback, 0, pattern_len);
+        ASSERT_EQ((ssize_t)pattern_len, fs_read_file(fh, readback, 0, pattern_len));
+        EXPECT_EQ(0, memcmp(buf, readback, pattern_len));
+        close_fh2.cancel();
+        ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
         END_TEST;
     });
@@ -825,12 +1033,15 @@ RUN_TEST(test_fat_multi_open)
 RUN_TEST(test_fat_create_file)
 RUN_TEST(test_fat_resize_file)
 RUN_TEST(test_fat_write_file)
+RUN_TEST(test_fat_write_reopened_file)
 RUN_TEST(test_fat_mkdir)
 RUN_TEST(test_fat_remove_file)
 RUN_TEST(test_fat_remove_dir)
 RUN_TEST(test_fat_dir_growth)
 RUN_TEST(test_fat_lfn_ordinal_rollover)
 RUN_TEST(test_fat_read_only)
+// must be last: it is the only test that deliberately leaves files behind
+RUN_TEST(test_fat_witness)
 END_TEST_CASE(fat)
 
 } // namespace

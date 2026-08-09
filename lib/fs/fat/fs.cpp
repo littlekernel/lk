@@ -204,6 +204,62 @@ status_t fat_fs::set_volume_clean_bit_locked(bool clean) {
     return NO_ERROR;
 }
 
+// Walk the active FAT and count entries that are still zero (free).
+// Clusters 0 and 1 are reserved and never counted.
+status_t fat_fs::count_free_clusters_locked(uint32_t *out_free) {
+    DEBUG_ASSERT(lock.is_held());
+    DEBUG_ASSERT(out_free);
+
+    uint32_t free_count = 0;
+    for (uint32_t cluster = 2; cluster < info_.total_clusters; cluster++) {
+        // fat_next_cluster_in_chain handles all three FAT widths, including the
+        // FAT12 entry that straddles a sector boundary. A free entry reads as 0.
+        if (fat_next_cluster_in_chain(this, cluster) == 0) {
+            free_count++;
+        }
+    }
+
+    *out_free = free_count;
+    return NO_ERROR;
+}
+
+// static
+status_t fat_fs::fs_stat(fscookie *cookie, struct fs_stat *stat) {
+    auto *fat = (fat_fs *)cookie;
+
+    if (!stat) {
+        return ERR_INVALID_ARGS;
+    }
+
+    AutoLock guard(fat->lock);
+
+    const auto &info = fat->info();
+
+    // clusters 0 and 1 are reserved, so the data area holds total_clusters - 2 clusters
+    const uint64_t data_clusters = info.total_clusters - 2;
+    stat->total_space = data_clusters * info.bytes_per_cluster;
+
+    // On FAT32 a valid FSInfo free count is authoritative and avoids walking the
+    // whole table; otherwise count the free entries directly.
+    uint32_t free_clusters;
+    if (info.fat_bits == 32 && info.fsinfo_valid &&
+        info.fsinfo_free_clusters != UINT32_MAX) {
+        free_clusters = info.fsinfo_free_clusters;
+    } else {
+        status_t err = fat->count_free_clusters_locked(&free_clusters);
+        if (err < 0) {
+            return err;
+        }
+    }
+    stat->free_space = (uint64_t)free_clusters * info.bytes_per_cluster;
+
+    // FAT has no inode table; directory entries are allocated out of the data area.
+    stat->total_inodes = 0;
+    stat->free_inodes = 0;
+
+    return NO_ERROR;
+}
+
 // static fs hooks
 status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options options) {
     status_t result = NO_ERROR;
@@ -304,8 +360,28 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
         info->total_sectors = fat_read32(bs, 0x20); // total sectors 32
     }
     if (info->total_sectors == 0) {
-        // TODO: test that total sectors <= bio device size
         printf("invalid total sector count 0\n");
+        return ERR_NOT_VALID;
+    }
+
+    // The volume must fit inside the device it claims to live on. Without this a
+    // malformed BPB sends every later cluster computation off the end of the device.
+    const uint64_t volume_bytes = (uint64_t)info->total_sectors * info->bytes_per_sector;
+    if (volume_bytes > (uint64_t)dev->total_size) {
+        printf("total sectors (%u x %u = %llu bytes) exceeds device size (%llu bytes)\n",
+               info->total_sectors, info->bytes_per_sector, volume_bytes,
+               (uint64_t)dev->total_size);
+        return ERR_NOT_VALID;
+    }
+
+    // The metadata (reserved sectors + FATs + a fixed root dir) has to fit too,
+    // otherwise data_start_sector below underflows.
+    const uint64_t metadata_sectors = (uint64_t)info->reserved_sectors +
+                                      (uint64_t)info->fat_count * info->sectors_per_fat +
+                                      info->root_dir_sectors;
+    if (metadata_sectors >= info->total_sectors) {
+        printf("filesystem metadata (%llu sectors) does not fit in %u total sectors\n",
+               metadata_sectors, info->total_sectors);
         return ERR_NOT_VALID;
     }
 
@@ -320,10 +396,15 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
     info->total_clusters = (data_sectors / info->sectors_per_cluster) + 2;
     LTRACEF("total clusters %u\n", info->total_clusters);
 
-    // table according to FAT spec
-    if (info->total_clusters < 4085) {
+    // Table according to the FAT spec. Note the spec's thresholds apply to
+    // CountofClusters, which is the number of *data* clusters, whereas
+    // total_clusters above is an exclusive upper bound on cluster numbers and so
+    // counts the two reserved entries as well. Compare the data cluster count or
+    // volumes within two clusters of a boundary get the wrong FAT width.
+    const uint32_t data_cluster_count = info->total_clusters - 2;
+    if (data_cluster_count < 4085) {
         info->fat_bits = 12;
-    } else if (info->total_clusters < 65525) {
+    } else if (data_cluster_count < 65525) {
         info->fat_bits = 16;
     } else {
         info->fat_bits = 32;
@@ -450,8 +531,8 @@ status_t fat_fs::unmount(fscookie *cookie) {
 }
 
 static const struct fs_api fat_api = {
-    .format = nullptr,
-    .fs_stat = nullptr,
+    .format = fat_fs::format,
+    .fs_stat = fat_fs::fs_stat,
 
     .mount = fat_fs::mount,
     .unmount = fat_fs::unmount,
