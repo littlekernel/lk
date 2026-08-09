@@ -114,6 +114,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # arch has to be a real axis here: keys that only appear in include
+        # entries are merged into the existing combinations rather than
+        # creating new ones, so an include-only matrix would collapse to a
+        # single job with the last entry winning.
+        arch: [arm64, m68k]
+        toolchain-ver: [15.2.0]
         include:
           # arm64 is the primary target and gates the build
           - arch: arm64
@@ -127,7 +133,6 @@ jobs:
           - arch: m68k
             toolchain-prefix: m68k-elf-
             experimental: true
-        toolchain-ver: [15.2.0]
 
     continue-on-error: ${{ matrix.experimental }}
 
