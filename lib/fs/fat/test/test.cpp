@@ -173,18 +173,21 @@ bool test_fat_utf8_to_ucs2() {
 bool test_fat_ucs2_to_utf8() {
     BEGIN_TEST;
 
-    char utf8_buf[256];
+    // heap allocated to keep large buffers out of the test's stack frame
+    const size_t utf8_buf_len = 256;
+    char *utf8_buf = new char[utf8_buf_len];
+    auto free_utf8_buf = lk::make_auto_call([&]() { delete[] utf8_buf; });
     size_t utf8_len = 0;
 
     // ASCII round-trip
     uint16_t ascii[] = {'h', 'e', 'l', 'l', 'o'};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(5u, utf8_len);
     EXPECT_EQ(0, strcmp(utf8_buf, "hello"));
 
     // U+00E9 (é) — 2-byte UTF-8, U+20AC (€) — 3-byte UTF-8
     uint16_t mixed_byte[] = {0x00e9, 0x20ac};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(5u, utf8_len); // 2 + 3 bytes
     EXPECT_EQ(static_cast<char>(0xc3), utf8_buf[0]);
     EXPECT_EQ(static_cast<char>(0xa9), utf8_buf[1]);
@@ -194,7 +197,7 @@ bool test_fat_ucs2_to_utf8() {
 
     // U+0080 → 2-byte UTF-8; U+0100 → 2-byte UTF-8; U+0800 → 3-byte UTF-8
     uint16_t two_three[] = {0x0080, 0x0100, 0x0800};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(7u, utf8_len); // 2 + 2 + 3
     // U+0080 -> 0xc2 0x80
     EXPECT_EQ(static_cast<char>(0xc2), utf8_buf[0]);
@@ -208,7 +211,7 @@ bool test_fat_ucs2_to_utf8() {
     EXPECT_EQ(static_cast<char>(0x80), utf8_buf[6]);
 
     // Empty input
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf, sizeof(utf8_buf), &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf, utf8_buf_len, &utf8_len));
     ASSERT_EQ(0u, utf8_len);
     EXPECT_EQ(0, strcmp(utf8_buf, ""));
 
@@ -236,17 +239,24 @@ bool test_fat_utf8_ucs2_roundtrip() {
         "\xEF\xBD\xA1\xEF\xBD\xA2",                 // ！！ (fullwidth exclamation)
     };
 
-    uint16_t ucs2_buf[256];
-    char utf8_out[768];
+    // heap allocated to keep large buffers out of the test's stack frame
+    const size_t ucs2_buf_len = 256;
+    const size_t utf8_out_len = 768;
+    uint16_t *ucs2_buf = new uint16_t[ucs2_buf_len];
+    char *utf8_out = new char[utf8_out_len];
+    auto free_bufs = lk::make_auto_call([&]() {
+        delete[] ucs2_buf;
+        delete[] utf8_out;
+    });
 
     for (const char *input : test_cases) {
         size_t ucs2_len = 0;
         size_t utf8_len = 0;
 
-        status_t err = fat_utf8_to_ucs2(input, ucs2_buf, countof(ucs2_buf), &ucs2_len);
+        status_t err = fat_utf8_to_ucs2(input, ucs2_buf, ucs2_buf_len, &ucs2_len);
         ASSERT_EQ(NO_ERROR, err);
 
-        err = fat_ucs2_to_utf8(ucs2_buf, ucs2_len, utf8_out, sizeof(utf8_out), &utf8_len);
+        err = fat_ucs2_to_utf8(ucs2_buf, ucs2_len, utf8_out, utf8_out_len, &utf8_len);
         ASSERT_EQ(NO_ERROR, err);
 
         size_t input_len = strlen(input);
@@ -792,12 +802,16 @@ bool test_fat_dir_growth() {
         const char *dirname = test_path "/growdir";
         ASSERT_EQ(NO_ERROR, fs_make_dir(dirname));
 
+        // heap allocated to keep the buffer out of the test's stack frame
+        const size_t filename_len = 256;
+        char *filename = new char[filename_len];
+        auto free_filename = lk::make_auto_call([&]() { delete[] filename; });
+
         // Create enough files to force directory growth beyond one cluster.
         // Assuming 4KB clusters and 32-byte entries, one cluster holds 128 entries.
         // Creating 1000 files should force growth.
         for (int i = 0; i < 1000; i++) {
-            char filename[256];
-            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            snprintf(filename, filename_len, "%s/f%03d", dirname, i);
             filehandle *fh = nullptr;
             ASSERT_EQ(NO_ERROR, fs_create_file(filename, &fh, 0));
             ASSERT_NONNULL(fh);
@@ -806,8 +820,7 @@ bool test_fat_dir_growth() {
 
         // Verify all 1000 files exist.
         for (int i = 0; i < 1000; i++) {
-            char filename[256];
-            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            snprintf(filename, filename_len, "%s/f%03d", dirname, i);
             filehandle *fh = nullptr;
             ASSERT_EQ(NO_ERROR, fs_open_file(filename, &fh));
             ASSERT_NONNULL(fh);
@@ -828,8 +841,7 @@ bool test_fat_dir_growth() {
 
         // Remove all files.
         for (int i = 0; i < 1000; i++) {
-            char filename[256];
-            snprintf(filename, sizeof(filename), "%s/f%03d", dirname, i);
+            snprintf(filename, filename_len, "%s/f%03d", dirname, i);
             ASSERT_EQ(NO_ERROR, fs_remove_file(filename));
         }
 
@@ -847,6 +859,7 @@ bool test_fat_lfn_ordinal_rollover() {
         // Test SFN alias ordinal rollover with multiple files that collide on their base SFN.
         filehandle *fh = nullptr;
         char *filename_buf = new char[256];
+        auto free_filename_buf = lk::make_auto_call([&]() { delete[] filename_buf; });
 
         // Create 10 files with colliding long names to verify ordinal generation
         for (int i = 0; i < 10; i++) {
@@ -874,8 +887,6 @@ bool test_fat_lfn_ordinal_rollover() {
             }
             ASSERT_EQ(NO_ERROR, ret);
         }
-
-        delete[] filename_buf;
 
         END_TEST;
     });
