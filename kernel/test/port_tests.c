@@ -147,18 +147,34 @@ static int ping_pong_thread(void *arg) {
     port_t r_port;
     status_t st = port_open("ping_port", NULL, &r_port);
     if (st < 0) {
-        printf("thread: could not open port, status = %d\n", st);
+        printf("thread: could not open ping port, status = %d\n", st);
         return __LINE__;
     }
 
+    // The two workers race to create the pong port. The loser normally sees
+    // ERR_ALREADY_EXISTS, but if it lands inside the winner's creation window
+    // it sees ERR_BUSY for as long as the winner's placeholder entry is in
+    // the port list, so retry promptly. Bounded so that a stuck placeholder
+    // fails the test instead of hanging it (and the parent's join) forever.
     bool should_dispose_pong_port = true;
     port_t w_port;
-    st = port_create("pong_port", PORT_MODE_UNICAST, &w_port);
+    for (int tries = 0; ; ++tries) {
+        st = port_create("pong_port", PORT_MODE_UNICAST, &w_port);
+        if (st != ERR_BUSY)
+            break;
+        if (tries >= 1000) {
+            printf("thread: pong port stuck busy\n");
+            port_close(r_port);
+            return __LINE__;
+        }
+        thread_sleep(1);
+    }
     if (st == ERR_ALREADY_EXISTS) {
-        // won the race to create the port.
+        // lost the race to create the port.
         should_dispose_pong_port = false;
     } else if (st < 0) {
-        printf("thread: could not open port, status = %d\n", st);
+        printf("thread: could not create pong port, status = %d\n", st);
+        port_close(r_port);
         return __LINE__;
     }
 
@@ -248,6 +264,7 @@ static int race_thread(void *arg)
         }
 
         port_t race_port;
+        int tries = 0;
         while(true) {
             st = port_create(kRacePortName, PORT_MODE_UNICAST, &race_port);
             if (st != ERR_BUSY)
@@ -258,8 +275,15 @@ static int race_thread(void *arg)
             // after that long, and if we retry any later we create a second
             // port of our own instead of finding the winner's, which looks
             // exactly like both threads having won.
+            if (++tries >= 1000) // a stuck placeholder must not hang the join
+                break;
             thread_sleep(1);
         } // EINTR all over again . . .
+        if (st == ERR_BUSY) {
+            printf("thread %d: race port stuck busy\n", tid);
+            ret = __LINE__;
+            break;
+        }
         LTRACEF_LEVEL(1, "thread %d: sampling chronochip (%p)\n", tid, race_port);
         if (st == ERR_ALREADY_EXISTS) {
             // lost the race to create the port.
@@ -328,9 +352,10 @@ static int race_thread(void *arg)
  * the slowest emulated targets. */
 #define RACE_PASSES 16
 
-/* Bounds every wait on a race thread so that one dying unexpectedly fails the
- * test instead of hanging it until the CI harness times the whole boot out. */
-#define RACE_STATUS_TIMEOUT_MS 10000
+/* Bounds every wait on a test worker thread so that one dying unexpectedly
+ * fails the test instead of hanging it until the CI harness times the whole
+ * boot out. */
+#define WORKER_WAIT_TIMEOUT_MS 10000
 
 typedef struct {
     port_t r_port[2];
@@ -370,10 +395,10 @@ static bool two_threads_race_body(race_state_t *rs, port_t w_port) {
         event_signal(&race_evt, false);
         port_result_t pr0, pr1;
         LTRACEF_LEVEL(1, "Collecting status from thread 0 . . .\n");
-        st = port_read(rs->r_port[0], RACE_STATUS_TIMEOUT_MS, &pr0);
+        st = port_read(rs->r_port[0], WORKER_WAIT_TIMEOUT_MS, &pr0);
         ASSERT_GE(st, 0, "could not read status port 0");
         LTRACEF_LEVEL(1, "Collecting status from thread 1 . . .\n");
-        st = port_read(rs->r_port[1], RACE_STATUS_TIMEOUT_MS, &pr1);
+        st = port_read(rs->r_port[1], WORKER_WAIT_TIMEOUT_MS, &pr1);
         ASSERT_GE(st, 0, "could not read status port 1");
         LTRACEF_LEVEL(1, "Checking responses . . .\n");
         if (memcmp(pr0.packet.value, pr1.packet.value, sizeof(pr0.packet.value)) != 0) {
@@ -463,29 +488,27 @@ static bool two_threads_race(void) {
 }
 
 
-static bool two_threads_basic(void) {
+typedef struct {
+    port_t r_port;
+    bool opened;
+} pingpong_state_t;
+
+/* The fallible middle of two_threads_basic. This runs while the two workers
+ * are alive, so a failed ASSERT simply returns through here back into the
+ * caller, which always destroys the ping port to unblock the workers and
+ * joins them. */
+static bool two_threads_basic_body(pingpong_state_t *s, port_t w_port) {
     BEGIN_TEST;
 
-    port_t w_port;
-    status_t st = port_create("ping_port", PORT_MODE_BROADCAST, &w_port);
-    ASSERT_GE(st, 0, "could not create port");
-
-    thread_t *t1 = thread_create(
-                       "worker1", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
-    thread_t *t2 = thread_create(
-                       "worker2", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
-    thread_resume(t1);
-    thread_resume(t2);
-
     // wait for the pong port to be created, the two threads race to do it.
-    port_t r_port;
-    while (true) {
-        st = port_open("pong_port", NULL, &r_port);
-        if (st == NO_ERROR)
-            break;
-        ASSERT_EQ(ERR_NOT_FOUND, st, "could not open port");
-        thread_sleep(10);
+    status_t st = ERR_NOT_FOUND;
+    for (int tries = 0; tries < 500 && st == ERR_NOT_FOUND; ++tries) {
+        st = port_open("pong_port", NULL, &s->r_port);
+        if (st == ERR_NOT_FOUND)
+            thread_sleep(10);
     }
+    ASSERT_EQ(NO_ERROR, st, "could not open pong port");
+    s->opened = true;
 
     // We have two threads listening to the ping port. Which both reply
     // on the pong port, so we get two packets in per packet out.
@@ -506,7 +529,7 @@ static bool two_threads_basic(void) {
         packet_out.value[5]--;
 
         for (size_t jx = 0; jx != count * 2; ++jx) {
-            st = port_read(r_port, INFINITE_TIME, &pr);
+            st = port_read(s->r_port, WORKER_WAIT_TIMEOUT_MS, &pr);
             ASSERT_GE(st, 0, "could not read port");
 
             ASSERT_EQ(packet_out.value[0], pr.packet.value[0], "unexpected data in packet");
@@ -517,24 +540,62 @@ static bool two_threads_basic(void) {
     thread_sleep(100);
 
     // there should be no more packets to read.
-    st = port_read(r_port, 0, &pr);
+    st = port_read(s->r_port, 0, &pr);
     ASSERT_EQ(ERR_TIMED_OUT, st, "unexpected extra packet");
 
-    st = port_close(r_port);
-    ASSERT_GE(st, 0, "could not close port");
+    END_TEST;
+}
+
+static bool two_threads_basic(void) {
+    BEGIN_TEST;
+
+    port_t w_port;
+    status_t st = port_create("ping_port", PORT_MODE_BROADCAST, &w_port);
+    ASSERT_GE(st, 0, "could not create port");
+
+    thread_t *t1 = thread_create(
+                       "worker1", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_t *t2 = thread_create(
+                       "worker2", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    EXPECT_NONNULL(t1, "could not create worker 1");
+    EXPECT_NONNULL(t2, "could not create worker 2");
+    if (t1)
+        thread_resume(t1);
+    if (t2)
+        thread_resume(t2);
+
+    pingpong_state_t s = {};
+    bool body_ok = (t1 && t2) ? two_threads_basic_body(&s, w_port) : false;
+
+    /* The shutdown below runs even when the body failed partway: the workers
+     * sit blocked reading the ping port until its write side is destroyed,
+     * and the named ports otherwise poison every later run of this test with
+     * ERR_ALREADY_EXISTS. Close the pong read side first so the surviving
+     * worker destroys the write side after its reader is gone. */
+    if (s.opened) {
+        st = port_close(s.r_port);
+        EXPECT_GE(st, 0, "could not close pong port");
+    }
 
     st = port_close(w_port);
-    ASSERT_GE(st, 0, "could not close port");
+    EXPECT_GE(st, 0, "could not close ping port");
 
     st = port_destroy(w_port);
-    ASSERT_GE(st, 0, "could not destroy port");
+    EXPECT_GE(st, 0, "could not destroy ping port");
 
-    int retcode = -1;
-    thread_join(t1, &retcode, INFINITE_TIME);
-    EXPECT_EQ(0, retcode, "worker1 exited with an error line number");
+    int retcode;
+    if (t1) {
+        retcode = -1;
+        thread_join(t1, &retcode, INFINITE_TIME);
+        EXPECT_EQ(0, retcode, "worker1 exited with an error line number");
+    }
+    if (t2) {
+        retcode = -1;
+        thread_join(t2, &retcode, INFINITE_TIME);
+        EXPECT_EQ(0, retcode, "worker2 exited with an error line number");
+    }
 
-    thread_join(t2,  &retcode, INFINITE_TIME);
-    EXPECT_EQ(0, retcode, "worker2 exited with an error line number");
+    EXPECT_TRUE(body_ok, "ping pong sequence failed");
 
     END_TEST;
 }
