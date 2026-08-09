@@ -14,7 +14,6 @@
 #include <lk/console_cmd.h>
 
 STATIC_COMMAND_START
-STATIC_COMMAND("thread_tests", "scheduler benchmarks", &thread_tests)
 STATIC_COMMAND("clock_tests", "test clocks", &clock_tests)
 STATIC_COMMAND("bench", "miscellaneous benchmarks", &benchmarks)
 STATIC_COMMAND("fibo", "threaded fibonacci", &fibo)
