@@ -15,7 +15,20 @@
  * because arch/test/rules.mk builds this file with -ffp-contract=off, so the
  * compiler cannot fold the multiply-add pairs into fma instructions.
  */
-#if !WITH_NO_FP
+/*
+ * TODO: m68k does not save or restore the FPU registers across a context
+ * switch. arch/m68k/asm.S:m68k_context_switch() only preserves %d2-%d7/%a2-%a6,
+ * yet the default M68K_CPU is a 68040, which has an FPU. Floating point state
+ * is therefore silently corrupted whenever more than one thread uses it, and
+ * this test reliably produces garbage and NaNs there, with different values
+ * from run to run. It fails the same way on builds from before these tests
+ * moved here, so it is a pre-existing kernel bug rather than a test problem.
+ * The whole file is compiled out on m68k rather than registering a test case
+ * that runs nothing and reports success. Either implement FPU context
+ * switching for m68k or set WITH_NO_FP=1 for the FPU bearing CPUs, then drop
+ * the ARCH_M68K term below.
+ */
+#if !WITH_NO_FP && !ARCH_M68K
 
 #include <lib/unittest.h>
 
@@ -42,7 +55,14 @@
  * both compute in 80 bit extended precision -- so over a million iterations the
  * low bits legitimately drift. That drift is around 1e-14 relative, while
  * losing or mixing up whole registers across a context switch lands orders of
- * magnitude away (or on a NaN), so this still catches what the test is for. */
+ * magnitude away (or on a NaN), so this still catches what the test is for.
+ *
+ * Note this tolerance was calibrated against the double precision path, which
+ * is what every qemu target in CI exercises. The ARM_WITH_VFP_SP_ONLY path
+ * carries only about 1e-7 relative precision to begin with, and test_results_32
+ * has never been run on hardware, so expect to have to widen the tolerance and
+ * regenerate that table the first time this runs on a single precision only
+ * target. */
 #define FLOAT_TOLERANCE 1e-9
 
 static bool value_close(double got, double expected) {
@@ -181,18 +201,7 @@ static bool float_test(void) {
 }
 
 BEGIN_TEST_CASE(float_tests)
-/* TODO: m68k does not save or restore the FPU registers across a context
- * switch. arch/m68k/asm.S:m68k_context_switch() only preserves %d2-%d7/%a2-%a6,
- * yet the default M68K_CPU is a 68040, which has an FPU. Floating point state
- * is therefore silently corrupted whenever more than one thread uses it, and
- * this test reliably produces garbage and NaNs there. It fails the same way on
- * builds from before these tests were moved here, so it is a pre-existing
- * kernel bug rather than a test problem. Either implement FPU context
- * switching for m68k or set WITH_NO_FP=1 for the FPU bearing CPUs, then drop
- * this guard. */
-#if !ARCH_M68K
 RUN_TEST(float_test);
-#endif
 #if ARCH_ARM && !ARM_ISA_ARMV7M && !ARM_ISA_ARMV8M
 RUN_TEST(arm_float_instruction_trap_test);
 #endif

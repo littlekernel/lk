@@ -291,7 +291,12 @@ static bool test_event_broadcast(void) {
     END_TEST;
 }
 
-/* A signal on an EVENT_FLAG_AUTOUNSIGNAL event wakes exactly one waiter. */
+/* A signal on an EVENT_FLAG_AUTOUNSIGNAL event wakes exactly one waiter.
+ *
+ * This is the one test here whose correctness is gated on a sleep rather than a
+ * join: there is no way to observe "every waiter is now blocked" or "no second
+ * thread woke" other than to wait a while. If this ever flakes on a heavily
+ * loaded or very slow emulator, the first sleep is the one to lengthen. */
 static bool test_event_autounsignal(void) {
     BEGIN_TEST;
 
