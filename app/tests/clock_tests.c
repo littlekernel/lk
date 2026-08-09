@@ -5,18 +5,20 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+/*
+ * Clock benchmarks: these measure cycle counts and print timing for a human to
+ * eyeball, so they have no pass/fail criterion and stay console commands. The
+ * self validating clock invariant checks (monotonicity, common time base) live
+ * in kernel/test/clock_tests.c and run under `ut all`.
+ */
 #include "tests.h"
 
 #include <stdio.h>
-#include <rand.h>
 #include <lk/err.h>
 #include <kernel/thread.h>
-#include <kernel/mutex.h>
-#include <kernel/semaphore.h>
-#include <kernel/event.h>
 #include <platform.h>
 
-int clock_tests(int argc, const console_cmd_args *argv) {
+int clock_bench(int argc, const console_cmd_args *argv) {
     ulong c;
     lk_time_t t;
     lk_bigtime_t t2;
@@ -38,55 +40,8 @@ int clock_tests(int argc, const console_cmd_args *argv) {
     c = arch_cycle_count() - c;
     printf("%lu cycles per current_time_hires()\n", c / CYCLE_COUNT_TRIES);
 
-    printf("making sure time never goes backwards\n");
-    {
-        printf("testing current_time()\n");
-        lk_time_t start = current_time();
-        lk_time_t last = start;
-        for (;;) {
-            t = current_time();
-            //printf("%lu %lu\n", last, t);
-            if (TIME_LT(t, last)) {
-                printf("WARNING: time ran backwards: %u < %u\n", t, last);
-                last = t;
-                continue;
-            }
-            last = t;
-            if (last - start > 5000)
-                break;
-        }
-    }
-    {
-        printf("testing current_time_hires()\n");
-        lk_bigtime_t start = current_time_hires();
-        lk_bigtime_t last = start;
-        for (;;) {
-            t2 = current_time_hires();
-            //printf("%llu %llu\n", last, t2);
-            if (t2 < last) {
-                printf("WARNING: time ran backwards: %llu < %llu\n", t2, last);
-                last = t2;
-                continue;
-            }
-            last = t2;
-            if (last - start > 5000000)
-                break;
-        }
-    }
-
-    printf("making sure current_time() and current_time_hires() are always the same base\n");
-    {
-        lk_time_t start = current_time();
-        for (;;) {
-            t = current_time();
-            t2 = current_time_hires();
-            if (t > ((t2 + 500) / 1000)) {
-                printf("WARNING: current_time() ahead of current_time_hires() %u %llu\n", t, t2);
-            }
-            if (t - start > 5000)
-                break;
-        }
-    }
+    (void)t;
+    (void)t2;
 
     printf("counting to 5, in one second intervals\n");
     for (int i = 0; i < 5; i++) {
