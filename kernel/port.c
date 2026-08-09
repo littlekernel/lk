@@ -377,6 +377,11 @@ status_t port_group_remove(port_t group, port_t port) {
     }
 
     list_delete(&rp->g_node);
+    // Drop the back pointer as well, otherwise the read port keeps a dangling
+    // reference to a group it is no longer a member of. port_destroy() would
+    // wake that group's wait queue (possibly after the group was freed) and
+    // port_group_add() would refuse to ever add this port to a group again.
+    rp->gport = NULL;
 
     THREAD_UNLOCK(state);
 
