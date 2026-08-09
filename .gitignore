@@ -1,5 +1,6 @@
 *.dSYM
 *.orig
+*.pyc
 *.swp
 *~
 .cache
@@ -10,6 +11,7 @@
 .rsync-filter
 .vscode
 TAGS
+__pycache__/
 blk*.bin*
 build-*
 buildall.log
