@@ -61,18 +61,30 @@ void *operator new[](size_t s, std::align_val_t align) {
 }
 
 void *operator new(size_t s, const std::nothrow_t &) noexcept {
+    if (s == 0) {
+        s = 1;
+    }
     return malloc(s);
 }
 
 void *operator new[](size_t s, const std::nothrow_t &) noexcept {
+    if (s == 0) {
+        s = 1;
+    }
     return malloc(s);
 }
 
 void *operator new(size_t s, std::align_val_t align, const std::nothrow_t &) noexcept {
+    if (s == 0) {
+        s = 1;
+    }
     return memalign(static_cast<size_t>(align), s);
 }
 
 void *operator new[](size_t s, std::align_val_t align, const std::nothrow_t &) noexcept {
+    if (s == 0) {
+        s = 1;
+    }
     return memalign(static_cast<size_t>(align), s);
 }
 
