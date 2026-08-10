@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS += lib/fs/fat
 MODULE_DEPS += lib/cmdline
+MODULE_DEPS += lib/libcpp
 MODULE_DEPS += lib/unittest
 
 MODULE_SRCS += $(LOCAL_DIR)/ram_tests.cpp

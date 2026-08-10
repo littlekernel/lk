@@ -13,7 +13,8 @@
 #include <lk/cpp.h>
 #include <lk/debug.h>
 #include <lk/err.h>
-#include <malloc.h>
+#include <memory>
+#include <new>
 #include <rand.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -166,9 +167,9 @@ bool test_fat_stress_remount() {
     constexpr int kFiles = 24;
     constexpr size_t kLen = 3000;
 
-    auto *buf = (uint8_t *)malloc(kLen);
-    ASSERT_NONNULL(buf);
-    auto free_buf = lk::make_auto_call([&]() { free(buf); });
+    std::unique_ptr<uint8_t[]> buf_storage(new (std::nothrow) uint8_t[kLen]);
+    ASSERT_NONNULL(buf_storage.get());
+    uint8_t *buf = buf_storage.get();
 
     char path[FS_MAX_PATH_LEN];
     for (int i = 0; i < kFiles; i++) {
@@ -236,9 +237,9 @@ bool test_fat_stress_enospc() {
     ASSERT_EQ(NO_ERROR, fs_stat_fs(vol.path(), &before));
 
     constexpr size_t kChunk = 4096;
-    auto *buf = (uint8_t *)malloc(kChunk);
-    ASSERT_NONNULL(buf);
-    auto free_buf = lk::make_auto_call([&]() { free(buf); });
+    std::unique_ptr<uint8_t[]> buf_storage(new (std::nothrow) uint8_t[kChunk]);
+    ASSERT_NONNULL(buf_storage.get());
+    uint8_t *buf = buf_storage.get();
 
     char path[FS_MAX_PATH_LEN];
     int created = 0;
@@ -321,9 +322,9 @@ bool test_fat_stress_fragmentation() {
     constexpr int kRounds = 8;
     constexpr size_t kChunk = 600; // not a multiple of the 512 byte cluster
 
-    auto *buf = (uint8_t *)malloc(kChunk);
-    ASSERT_NONNULL(buf);
-    auto free_buf = lk::make_auto_call([&]() { free(buf); });
+    std::unique_ptr<uint8_t[]> buf_storage(new (std::nothrow) uint8_t[kChunk]);
+    ASSERT_NONNULL(buf_storage.get());
+    uint8_t *buf = buf_storage.get();
 
     char path[FS_MAX_PATH_LEN];
     for (int i = 0; i < kFiles; i++) {
@@ -430,11 +431,12 @@ bool test_fat_stress_boundaries() {
     char path[FS_MAX_PATH_LEN];
     snprintf(path, sizeof(path), "%s/boundary", vol.path());
 
-    auto *wbuf = (uint8_t *)malloc(4096);
-    auto *rbuf = (uint8_t *)malloc(4096);
-    ASSERT_NONNULL(wbuf);
-    ASSERT_NONNULL(rbuf);
-    auto free_bufs = lk::make_auto_call([&]() { free(wbuf); free(rbuf); });
+    std::unique_ptr<uint8_t[]> wbuf_storage(new (std::nothrow) uint8_t[4096]);
+    std::unique_ptr<uint8_t[]> rbuf_storage(new (std::nothrow) uint8_t[4096]);
+    ASSERT_NONNULL(wbuf_storage.get());
+    ASSERT_NONNULL(rbuf_storage.get());
+    uint8_t *wbuf = wbuf_storage.get();
+    uint8_t *rbuf = rbuf_storage.get();
 
     uint32_t seed = 1;
     for (auto off : offsets) {
@@ -627,13 +629,12 @@ bool test_fat_stress_random_ops() {
 
     constexpr int kSlots = 16;
     constexpr uint32_t kMaxSize = 12 * 1024;
-    auto *model = (model_file *)calloc(kSlots, sizeof(model_file));
-    ASSERT_NONNULL(model);
-    auto free_model = lk::make_auto_call([&]() { free(model); });
+    std::unique_ptr<model_file[]> model(new (std::nothrow) model_file[kSlots]());
+    ASSERT_NONNULL(model.get());
 
-    auto *buf = (uint8_t *)malloc(kMaxSize);
-    ASSERT_NONNULL(buf);
-    auto free_buf = lk::make_auto_call([&]() { free(buf); });
+    std::unique_ptr<uint8_t[]> buf_storage(new (std::nothrow) uint8_t[kMaxSize]);
+    ASSERT_NONNULL(buf_storage.get());
+    uint8_t *buf = buf_storage.get();
 
     char path[FS_MAX_PATH_LEN];
     auto slot_path = [&](int i) {

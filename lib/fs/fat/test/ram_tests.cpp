@@ -13,6 +13,8 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <malloc.h>
+#include <memory>
+#include <new>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,24 +69,23 @@ size_t check_pattern(const uint8_t *buf, size_t len, uint32_t seed, uint64_t off
 bool write_and_verify(const char *path, uint32_t seed, uint64_t offset, size_t len) {
     BEGIN_TEST;
 
-    auto *wbuf = (uint8_t *)malloc(len);
-    auto *rbuf = (uint8_t *)malloc(len);
-    ASSERT_NONNULL(wbuf);
-    ASSERT_NONNULL(rbuf);
-    auto free_bufs = lk::make_auto_call([&]() { free(wbuf); free(rbuf); });
+    std::unique_ptr<uint8_t[]> wbuf(new (std::nothrow) uint8_t[len]);
+    std::unique_ptr<uint8_t[]> rbuf(new (std::nothrow) uint8_t[len]);
+    ASSERT_NONNULL(wbuf.get());
+    ASSERT_NONNULL(rbuf.get());
 
-    fill_pattern(wbuf, len, seed, offset);
+    fill_pattern(wbuf.get(), len, seed, offset);
 
     filehandle *fh = nullptr;
     ASSERT_EQ(NO_ERROR, fs_open_file(path, &fh));
     auto close_fh = lk::make_auto_call([&]() { fs_close_file(fh); });
 
-    ASSERT_EQ((ssize_t)len, fs_write_file(fh, wbuf, offset, len));
+    ASSERT_EQ((ssize_t)len, fs_write_file(fh, wbuf.get(), offset, len));
 
-    memset(rbuf, 0, len);
-    ASSERT_EQ((ssize_t)len, fs_read_file(fh, rbuf, offset, len));
+    memset(rbuf.get(), 0, len);
+    ASSERT_EQ((ssize_t)len, fs_read_file(fh, rbuf.get(), offset, len));
 
-    const size_t bad = check_pattern(rbuf, len, seed, offset);
+    const size_t bad = check_pattern(rbuf.get(), len, seed, offset);
     if (bad != len) {
         unittest_printf("\n        content mismatch at offset %llu (byte %zu of %zu): "
                         "expected %#x got %#x\n",
@@ -101,9 +102,8 @@ bool verify_file_contents(const char *path, uint32_t seed, uint64_t offset, size
                           uint64_t expected_size) {
     BEGIN_TEST;
 
-    auto *rbuf = (uint8_t *)malloc(len);
-    ASSERT_NONNULL(rbuf);
-    auto free_buf = lk::make_auto_call([&]() { free(rbuf); });
+    std::unique_ptr<uint8_t[]> rbuf(new (std::nothrow) uint8_t[len]);
+    ASSERT_NONNULL(rbuf.get());
 
     filehandle *fh = nullptr;
     ASSERT_EQ(NO_ERROR, fs_open_file(path, &fh));
@@ -113,10 +113,10 @@ bool verify_file_contents(const char *path, uint32_t seed, uint64_t offset, size
     ASSERT_EQ(NO_ERROR, fs_stat_file(fh, &st));
     EXPECT_EQ(expected_size, st.size);
 
-    memset(rbuf, 0, len);
-    ASSERT_EQ((ssize_t)len, fs_read_file(fh, rbuf, offset, len));
+    memset(rbuf.get(), 0, len);
+    ASSERT_EQ((ssize_t)len, fs_read_file(fh, rbuf.get(), offset, len));
 
-    const size_t bad = check_pattern(rbuf, len, seed, offset);
+    const size_t bad = check_pattern(rbuf.get(), len, seed, offset);
     if (bad != len) {
         unittest_printf("\n        content mismatch after remount at offset %llu: "
                         "expected %#x got %#x\n",
@@ -393,10 +393,9 @@ bool test_fat_mount_rejects_malformed() {
 
     // A pristine volume, kept aside so each case starts from a good image.
     ASSERT_EQ(NO_ERROR, fs_format_device("fat", kDev, &args));
-    auto *pristine = (uint8_t *)malloc(512);
-    ASSERT_NONNULL(pristine);
-    auto free_pristine = lk::make_auto_call([&]() { free(pristine); });
-    ASSERT_EQ(512, bio_read(dev, pristine, 0, 512));
+    std::unique_ptr<uint8_t[]> pristine(new (std::nothrow) uint8_t[512]);
+    ASSERT_NONNULL(pristine.get());
+    ASSERT_EQ(512, bio_read(dev, pristine.get(), 0, 512));
 
     // it must mount before we start breaking it, or the test proves nothing
     ASSERT_EQ(NO_ERROR, fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE));
@@ -421,12 +420,11 @@ bool test_fat_mount_rejects_malformed() {
         {"zero sectors per FAT", 0x16, 2, 0},
     };
 
-    auto *sector = (uint8_t *)malloc(512);
-    ASSERT_NONNULL(sector);
-    auto free_sector = lk::make_auto_call([&]() { free(sector); });
+    std::unique_ptr<uint8_t[]> sector(new (std::nothrow) uint8_t[512]);
+    ASSERT_NONNULL(sector.get());
 
     for (auto &c : cases) {
-        memcpy(sector, pristine, 512);
+        memcpy(sector.get(), pristine.get(), 512);
         switch (c.width) {
             case 1:
                 sector[c.offset] = (uint8_t)c.value;
@@ -446,7 +444,7 @@ bool test_fat_mount_rejects_malformed() {
         if (c.offset == 0x20) {
             sector[0x13] = sector[0x14] = 0;
         }
-        ASSERT_EQ(512, bio_write(dev, sector, 0, 512));
+        ASSERT_EQ(512, bio_write(dev, sector.get(), 0, 512));
 
         status_t err = fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE);
         if (err == NO_ERROR) {
@@ -458,7 +456,7 @@ bool test_fat_mount_rejects_malformed() {
 
     // restore, and confirm the volume is still good: a rejected mount must not
     // have left anything behind
-    ASSERT_EQ(512, bio_write(dev, pristine, 0, 512));
+    ASSERT_EQ(512, bio_write(dev, pristine.get(), 0, 512));
     ASSERT_EQ(NO_ERROR, fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE));
     ASSERT_EQ(NO_ERROR, fs_unmount("/badbpb"));
 

@@ -15,7 +15,7 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <malloc.h>
+#include <memory>
 #include <string.h>
 
 #include "../dir.h"
@@ -175,19 +175,18 @@ bool test_fat_ucs2_to_utf8() {
 
     // heap allocated to keep large buffers out of the test's stack frame
     const size_t utf8_buf_len = 256;
-    char *utf8_buf = new char[utf8_buf_len];
-    auto free_utf8_buf = lk::make_auto_call([&]() { delete[] utf8_buf; });
+    auto utf8_buf = std::make_unique<char[]>(utf8_buf_len);
     size_t utf8_len = 0;
 
     // ASCII round-trip
     uint16_t ascii[] = {'h', 'e', 'l', 'l', 'o'};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf, utf8_buf_len, &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(ascii, countof(ascii), utf8_buf.get(), utf8_buf_len, &utf8_len));
     ASSERT_EQ(5u, utf8_len);
-    EXPECT_EQ(0, strcmp(utf8_buf, "hello"));
+    EXPECT_EQ(0, strcmp(utf8_buf.get(), "hello"));
 
     // U+00E9 (é) — 2-byte UTF-8, U+20AC (€) — 3-byte UTF-8
     uint16_t mixed_byte[] = {0x00e9, 0x20ac};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf, utf8_buf_len, &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(mixed_byte, countof(mixed_byte), utf8_buf.get(), utf8_buf_len, &utf8_len));
     ASSERT_EQ(5u, utf8_len); // 2 + 3 bytes
     EXPECT_EQ(static_cast<char>(0xc3), utf8_buf[0]);
     EXPECT_EQ(static_cast<char>(0xa9), utf8_buf[1]);
@@ -197,7 +196,7 @@ bool test_fat_ucs2_to_utf8() {
 
     // U+0080 → 2-byte UTF-8; U+0100 → 2-byte UTF-8; U+0800 → 3-byte UTF-8
     uint16_t two_three[] = {0x0080, 0x0100, 0x0800};
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf, utf8_buf_len, &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(two_three, countof(two_three), utf8_buf.get(), utf8_buf_len, &utf8_len));
     ASSERT_EQ(7u, utf8_len); // 2 + 2 + 3
     // U+0080 -> 0xc2 0x80
     EXPECT_EQ(static_cast<char>(0xc2), utf8_buf[0]);
@@ -211,9 +210,9 @@ bool test_fat_ucs2_to_utf8() {
     EXPECT_EQ(static_cast<char>(0x80), utf8_buf[6]);
 
     // Empty input
-    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf, utf8_buf_len, &utf8_len));
+    ASSERT_EQ(NO_ERROR, fat_ucs2_to_utf8(nullptr, 0, utf8_buf.get(), utf8_buf_len, &utf8_len));
     ASSERT_EQ(0u, utf8_len);
-    EXPECT_EQ(0, strcmp(utf8_buf, ""));
+    EXPECT_EQ(0, strcmp(utf8_buf.get(), ""));
 
     // Buffer too small for output
     char tiny_buf[1];
@@ -242,31 +241,27 @@ bool test_fat_utf8_ucs2_roundtrip() {
     // heap allocated to keep large buffers out of the test's stack frame
     const size_t ucs2_buf_len = 256;
     const size_t utf8_out_len = 768;
-    uint16_t *ucs2_buf = new uint16_t[ucs2_buf_len];
-    char *utf8_out = new char[utf8_out_len];
-    auto free_bufs = lk::make_auto_call([&]() {
-        delete[] ucs2_buf;
-        delete[] utf8_out;
-    });
+    auto ucs2_buf = std::make_unique<uint16_t[]>(ucs2_buf_len);
+    auto utf8_out = std::make_unique<char[]>(utf8_out_len);
 
     for (const char *input : test_cases) {
         size_t ucs2_len = 0;
         size_t utf8_len = 0;
 
-        status_t err = fat_utf8_to_ucs2(input, ucs2_buf, ucs2_buf_len, &ucs2_len);
+        status_t err = fat_utf8_to_ucs2(input, ucs2_buf.get(), ucs2_buf_len, &ucs2_len);
         ASSERT_EQ(NO_ERROR, err);
 
-        err = fat_ucs2_to_utf8(ucs2_buf, ucs2_len, utf8_out, utf8_out_len, &utf8_len);
+        err = fat_ucs2_to_utf8(ucs2_buf.get(), ucs2_len, utf8_out.get(), utf8_out_len, &utf8_len);
         ASSERT_EQ(NO_ERROR, err);
 
         size_t input_len = strlen(input);
         EXPECT_EQ(input_len, utf8_len);
         size_t cmp_len = input_len < utf8_len ? input_len : utf8_len;
-        if (input_len != utf8_len || memcmp(input, utf8_out, cmp_len)) {
+        if (input_len != utf8_len || memcmp(input, utf8_out.get(), cmp_len)) {
             unittest_printf("Round-trip failed for input: ");
             hexdump8_ex(reinterpret_cast<const uint8_t *>(input), input_len, 0);
             unittest_printf("Got: ");
-            hexdump8_ex(reinterpret_cast<const uint8_t *>(utf8_out), utf8_len, 0);
+            hexdump8_ex(reinterpret_cast<const uint8_t *>(utf8_out.get()), utf8_len, 0);
             EXPECT_FALSE(true);
         }
     }
@@ -395,20 +390,19 @@ bool test_file_read(const char *path, const unsigned char *test_file_buffer, siz
     ASSERT_NONNULL(handle);
 
     const size_t buflen = test_file_size * 2; // should be somewhat larger than test_file_size
-    char *buf = new char[buflen];
-    auto delete_buffer = lk::make_auto_call([&]() { delete[] buf; });
+    auto buf = std::make_unique<char[]>(buflen);
 
     // try to read the file in and make sure it reads exactly the target size of bytes
-    ssize_t read_len = fs_read_file(handle, buf, 0, buflen);
+    ssize_t read_len = fs_read_file(handle, buf.get(), 0, buflen);
     ASSERT_LT(0, read_len);
     ASSERT_EQ(test_file_size, (size_t)read_len);
 
-    EXPECT_EQ(0, memcmp(buf, test_file_buffer, read_len));
-    if (memcmp(buf, test_file_buffer, read_len)) {
+    EXPECT_EQ(0, memcmp(buf.get(), test_file_buffer, read_len));
+    if (memcmp(buf.get(), test_file_buffer, read_len)) {
         printf("\nfailure in comparison\nexpected:\n");
         hexdump8(test_file_buffer, read_len);
         printf("read:\n");
-        hexdump8(buf, read_len);
+        hexdump8(buf.get(), read_len);
     }
 
     // close the file
@@ -804,8 +798,8 @@ bool test_fat_dir_growth() {
 
         // heap allocated to keep the buffer out of the test's stack frame
         const size_t filename_len = 256;
-        char *filename = new char[filename_len];
-        auto free_filename = lk::make_auto_call([&]() { delete[] filename; });
+        auto filename_storage = std::make_unique<char[]>(filename_len);
+        char *filename = filename_storage.get();
 
         // Create enough files to force directory growth beyond one cluster.
         // Assuming 4KB clusters and 32-byte entries, one cluster holds 128 entries.
@@ -858,8 +852,8 @@ bool test_fat_lfn_ordinal_rollover() {
 
         // Test SFN alias ordinal rollover with multiple files that collide on their base SFN.
         filehandle *fh = nullptr;
-        char *filename_buf = new char[256];
-        auto free_filename_buf = lk::make_auto_call([&]() { delete[] filename_buf; });
+        auto filename_buf_storage = std::make_unique<char[]>(256);
+        char *filename_buf = filename_buf_storage.get();
 
         // Create 10 files with colliding long names to verify ordinal generation
         for (int i = 0; i < 10; i++) {
@@ -946,8 +940,7 @@ bool test_fat_witness() {
         // the host verifier compares byte for byte, so a cluster written to the
         // wrong place shows up as a specific bad offset rather than a size change.
         const size_t pattern_len = 9000;
-        auto *buf = new uint8_t[pattern_len];
-        auto delete_buf = lk::make_auto_call([&]() { delete[] buf; });
+        auto buf = std::make_unique<uint8_t[]>(pattern_len);
         for (size_t i = 0; i < pattern_len; i++) {
             buf[i] = (uint8_t)((i * 7 + 11) & 0xff);
         }
@@ -956,7 +949,7 @@ bool test_fat_witness() {
         ASSERT_EQ(NO_ERROR, fs_create_file(test_path "/witness/pattern.bin", &fh, 0));
         ASSERT_NONNULL(fh);
         auto close_fh = lk::make_auto_call([&]() { fs_close_file(fh); });
-        ASSERT_EQ((ssize_t)pattern_len, fs_write_file(fh, buf, 0, pattern_len));
+        ASSERT_EQ((ssize_t)pattern_len, fs_write_file(fh, buf.get(), 0, pattern_len));
         close_fh.cancel();
         ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
@@ -964,11 +957,9 @@ bool test_fat_witness() {
         fh = nullptr;
         ASSERT_EQ(NO_ERROR, fs_open_file(test_path "/witness/pattern.bin", &fh));
         auto close_fh2 = lk::make_auto_call([&]() { fs_close_file(fh); });
-        auto *readback = new uint8_t[pattern_len];
-        auto delete_readback = lk::make_auto_call([&]() { delete[] readback; });
-        memset(readback, 0, pattern_len);
-        ASSERT_EQ((ssize_t)pattern_len, fs_read_file(fh, readback, 0, pattern_len));
-        EXPECT_EQ(0, memcmp(buf, readback, pattern_len));
+        auto readback = std::make_unique<uint8_t[]>(pattern_len);
+        ASSERT_EQ((ssize_t)pattern_len, fs_read_file(fh, readback.get(), 0, pattern_len));
+        EXPECT_EQ(0, memcmp(buf.get(), readback.get(), pattern_len));
         close_fh2.cancel();
         ASSERT_EQ(NO_ERROR, fs_close_file(fh));
 
