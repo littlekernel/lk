@@ -359,13 +359,13 @@ static void dump_mmu_regs(void) {
 static bool is_l0_entry_valid(root_ptp_t entry) {
     // 0, 1 == invalid
     // 2, 3 == valid
-    return entry.udt > 2;
+    return entry.udt >= 2;
 }
 
 static bool is_l1_entry_valid(ptp_t entry) {
     // 0, 1 == invalid
     // 2, 3 == valid
-    return entry.udt > 2;
+    return entry.udt >= 2;
 }
 
 static bool is_l2_entry_valid(pte_t entry) {
