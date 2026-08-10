@@ -5,7 +5,7 @@
 // https://opensource.org/licenses/MIT
 #include <lib/pool.h>
 #include <lib/unittest.h>
-#include <lk/cpp.h>
+#include <memory>
 #include <stdint.h>
 
 namespace {
@@ -13,11 +13,10 @@ namespace {
 bool test_pool_basic() {
     BEGIN_TEST;
 
-    uint64_t *test_storage = new uint64_t[256];
-    auto ac = lk::make_auto_call([&]() { delete[] test_storage; });
+    auto test_storage = std::make_unique<uint64_t[]>(256);
 
     pool_t pool{};
-    pool_init(&pool, 8, 8, 3, test_storage);
+    pool_init(&pool, 8, 8, 3, test_storage.get());
 
     // First 3 allocations should succeed.
     void *i0 = pool_alloc(&pool);
