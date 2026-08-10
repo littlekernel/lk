@@ -15,6 +15,8 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <memory>
+#include <new>
 #include <stdio.h>
 #include <string.h>
 
@@ -358,7 +360,7 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
     printf("welcome to IRC!\n");
 
     // create a local state object
-    irc_client *irc = new irc_client();
+    std::unique_ptr<irc_client> irc(new (std::nothrow) irc_client());
     if (!irc) {
         return;
     }
@@ -367,11 +369,11 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
 
     irc->init();
 
-    // clean up and delete the object on the way out
+    // shut down on the way out. Declared after the client so it runs first:
+    // the unique_ptr deletes the object once this has returned.
     auto ac = lk::make_auto_call([&irc]() {
         printf("cleaning up IRC\n");
         irc->shutdown();
-        delete irc;
     });
 
     // configure the parameters
@@ -392,7 +394,7 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
     thread_t *console_thread;
     thread_t *server_thread;
 
-    console_thread = thread_create("irc console", console_thread_worker, irc, DEFAULT_PRIORITY,
+    console_thread = thread_create("irc console", console_thread_worker, irc.get(), DEFAULT_PRIORITY,
                                    DEFAULT_STACK_SIZE);
     thread_resume(console_thread);
 
@@ -404,7 +406,7 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
 
         return 0;
     };
-    server_thread = thread_create("irc socket", server_thread_worker, irc, DEFAULT_PRIORITY,
+    server_thread = thread_create("irc socket", server_thread_worker, irc.get(), DEFAULT_PRIORITY,
                                   DEFAULT_STACK_SIZE);
     thread_resume(server_thread);
 
