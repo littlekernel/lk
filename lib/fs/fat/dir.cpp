@@ -11,9 +11,10 @@
 #include <ctype.h>
 #include <endian.h>
 #include <lib/bcache/bcache_block_ref.h>
-#include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <memory>
+#include <new>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1359,19 +1360,18 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
     }
 
     char sfn[8 + 3 + 1];
-    uint16_t *lfn_ucs2 = nullptr;
-    auto lfn_cleanup = lk::make_auto_call([&]() { free(lfn_ucs2); });
+    std::unique_ptr<uint16_t[]> lfn_ucs2;
     size_t lfn_ucs2_len = 0;
     bool needs_lfn = false;
 
     err = name_to_short_file_name(sfn, last_element);
     if (err < 0) {
-        lfn_ucs2 = static_cast<uint16_t *>(malloc(sizeof(uint16_t) * kFatMaxLfnChars));
+        lfn_ucs2.reset(new (std::nothrow) uint16_t[kFatMaxLfnChars]);
         if (!lfn_ucs2) {
             return ERR_NO_MEMORY;
         }
 
-        status_t lfn_err = fat_utf8_to_ucs2(last_element, lfn_ucs2, kFatMaxLfnChars, &lfn_ucs2_len);
+        status_t lfn_err = fat_utf8_to_ucs2(last_element, lfn_ucs2.get(), kFatMaxLfnChars, &lfn_ucs2_len);
         if (lfn_err < 0) {
             return lfn_err;
         }
@@ -1486,7 +1486,7 @@ status_t fat_dir_allocate(fat_fs *fat, const char *path, const fat_attribute att
 
         if (i < lfn_entry_count) {
             size_t reverse = lfn_entry_count - i;
-            fill_lfn_dirent(ent, lfn_ucs2, lfn_ucs2_len,
+            fill_lfn_dirent(ent, lfn_ucs2.get(), lfn_ucs2_len,
                             static_cast<uint8_t>(reverse),
                             (reverse == lfn_entry_count), checksum);
         } else {

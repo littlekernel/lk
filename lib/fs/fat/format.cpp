@@ -9,11 +9,11 @@
 #include <lib/bio.h>
 #include <lib/fs.h>
 #include <lib/fs/fat.h>
-#include <lk/cpp.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <malloc.h>
+#include <memory>
+#include <new>
 #include <stdlib.h>
 #include <string.h>
 
@@ -266,18 +266,17 @@ status_t zero_sectors(bdev_t *dev, const layout &l, uint32_t start_sector, uint3
     const uint32_t chunk_sectors = MIN(count, MAX(1u, 65536u / l.bytes_per_sector));
     const size_t chunk_bytes = (size_t)chunk_sectors * l.bytes_per_sector;
 
-    auto *buf = (uint8_t *)calloc(1, chunk_bytes);
+    std::unique_ptr<uint8_t[]> buf(new (std::nothrow) uint8_t[chunk_bytes]());
     if (!buf) {
         return ERR_NO_MEMORY;
     }
-    auto free_buf = lk::make_auto_call([&]() { free(buf); });
 
     uint32_t remaining = count;
     uint32_t sector = start_sector;
     while (remaining > 0) {
         const uint32_t this_count = MIN(remaining, chunk_sectors);
         const size_t this_bytes = (size_t)this_count * l.bytes_per_sector;
-        ssize_t err = bio_write(dev, buf, (off_t)sector * l.bytes_per_sector, this_bytes);
+        ssize_t err = bio_write(dev, buf.get(), (off_t)sector * l.bytes_per_sector, this_bytes);
         if (err < 0) {
             return (status_t)err;
         }
@@ -302,11 +301,11 @@ status_t write_sector(bdev_t *dev, const layout &l, uint32_t sector, const void 
 // Write the first sector of every FAT copy: the two reserved entries, plus the
 // end-of-chain marker for the FAT32 root directory cluster.
 status_t write_fat_head_sectors(bdev_t *dev, const layout &l) {
-    auto *buf = (uint8_t *)calloc(1, l.bytes_per_sector);
-    if (!buf) {
+    std::unique_ptr<uint8_t[]> buf_storage(new (std::nothrow) uint8_t[l.bytes_per_sector]());
+    if (!buf_storage) {
         return ERR_NO_MEMORY;
     }
-    auto free_buf = lk::make_auto_call([&]() { free(buf); });
+    uint8_t *buf = buf_storage.get();
 
     switch (l.fat_bits) {
         case 12:
@@ -488,11 +487,11 @@ status_t fat_fs::format(bdev_t *dev, const void *_args) {
         }
     }
 
-    auto *sector_buf = (uint8_t *)calloc(1, l.bytes_per_sector);
-    if (!sector_buf) {
+    std::unique_ptr<uint8_t[]> sector_buf_storage(new (std::nothrow) uint8_t[l.bytes_per_sector]());
+    if (!sector_buf_storage) {
         return ERR_NO_MEMORY;
     }
-    auto free_sector_buf = lk::make_auto_call([&]() { free(sector_buf); });
+    uint8_t *sector_buf = sector_buf_storage.get();
 
     build_boot_sector(sector_buf, l, args);
     err = write_sector(dev, l, 0, sector_buf);

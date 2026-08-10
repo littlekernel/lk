@@ -15,7 +15,7 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
-#include <malloc.h>
+#include <memory>
 #include <new>
 #include <stdlib.h>
 #include <string.h>
@@ -269,13 +269,11 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
         return ERR_NOT_VALID;
     }
 
-    uint8_t *bs = (uint8_t *)malloc(512);
-    if (!bs) {
+    std::unique_ptr<uint8_t[]> bs_storage(new (std::nothrow) uint8_t[512]);
+    if (!bs_storage) {
         return ERR_NO_MEMORY;
     }
-
-    // free the block on the way out of the function
-    auto ac = lk::make_auto_call([&]() { free(bs); });
+    uint8_t *bs = bs_storage.get();
 
     ssize_t err = bio_read(dev, bs, 0, 512);
     if (err < 0) {
@@ -295,7 +293,8 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
     fat->dev_ = dev;
     fat->read_only_ = (options & FS_MOUNT_OPTION_READ_ONLY) != 0;
 
-    // if we early terminate, free the fat structure
+    // if we early terminate, free the fat structure. Not a unique_ptr: the
+    // destructor is private, so only a member of fat_fs can delete one.
     auto ac2 = lk::make_auto_call([&]() { delete (fat); });
 
     auto *info = &fat->info_;
@@ -439,25 +438,24 @@ status_t fat_fs::mount(bdev_t *dev, fscookie **cookie, enum fs_mount_options opt
         // read FSInfo metadata if available and valid.
         info->fsinfo_sector = fat_read16(bs, 0x30);
         if (info->fsinfo_sector < info->reserved_sectors) {
-            uint8_t *fsi = static_cast<uint8_t *>(malloc(info->bytes_per_sector));
+            std::unique_ptr<uint8_t[]> fsi(new (std::nothrow) uint8_t[info->bytes_per_sector]);
             if (fsi) {
-                auto ac3 = lk::make_auto_call([&]() { free(fsi); });
-                ssize_t fsi_err = bio_read(dev, fsi,
+                ssize_t fsi_err = bio_read(dev, fsi.get(),
                                            static_cast<off_t>(info->fsinfo_sector) * info->bytes_per_sector,
                                            info->bytes_per_sector);
                 if (fsi_err >= 0) {
-                    uint32_t lead_sig = fat_read32(fsi, 0x000);
-                    uint32_t struct_sig = fat_read32(fsi, 0x1e4);
-                    uint32_t trail_sig = fat_read32(fsi, 0x1fc);
+                    uint32_t lead_sig = fat_read32(fsi.get(), 0x000);
+                    uint32_t struct_sig = fat_read32(fsi.get(), 0x1e4);
+                    uint32_t trail_sig = fat_read32(fsi.get(), 0x1fc);
                     if (lead_sig == kFsInfoLeadSig && struct_sig == kFsInfoStructSig &&
                         trail_sig == kFsInfoTrailSig) {
                         info->fsinfo_valid = true;
 
-                        uint32_t free_clusters = fat_read32(fsi, 0x1e8);
+                        uint32_t free_clusters = fat_read32(fsi.get(), 0x1e8);
                         info->fsinfo_free_clusters =
                             (free_clusters <= info->total_clusters - 2) ? free_clusters : UINT32_MAX;
 
-                        uint32_t next_free = fat_read32(fsi, 0x1ec);
+                        uint32_t next_free = fat_read32(fsi.get(), 0x1ec);
                         info->fsinfo_next_free =
                             (next_free >= 2 && next_free < info->total_clusters) ? next_free
                                                                                  : UINT32_MAX;
