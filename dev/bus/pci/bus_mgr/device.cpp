@@ -100,7 +100,7 @@ status_t device::probe(pci_location_t loc, bus *parent_bus, device **out_device)
     LTRACEF_LEVEL(2, "type %#hhx\n", header_type);
 
     // create a new device and pass it up
-    std::unique_ptr<device> d(new device(loc, parent_bus));
+    auto d = std::make_unique<device>(loc, parent_bus);
 
     // try to read in the basic config space for this device
     err = d->load_config();
