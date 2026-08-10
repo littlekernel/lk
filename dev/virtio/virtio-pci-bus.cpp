@@ -10,6 +10,7 @@
 
 #include <dev/virtio/virtio-pci-bus.h>
 
+#include <memory>
 #include <stdlib.h>
 #include <dev/virtio.h>
 #include <dev/virtio/virtio-device.h>
@@ -456,21 +457,24 @@ static status_t init_block(pci_location_t loc, const virtio_pci_devices &dev_tab
 #if WITH_DEV_VIRTIO_BLOCK
     // create a virtio_pci_bus object and initialize it based on the location
     auto *bus = new virtio_pci_bus();
-    auto *dev = new virtio_device(bus);
+    auto dev = std::make_unique<virtio_device>(bus);
 
-    auto err = bus->init(dev, loc, index);
+    auto err = bus->init(dev.get(), loc, index);
     if (err != NO_ERROR) {
-        delete bus;
+        // the device destructor deletes the bus it owns
         return err;
     }
 
     // TODO: move the config pointer getter that devices use into the bus
     dev->set_config_ptr(bus->device_config());
 
-    err = virtio_block_init(dev);
+    err = virtio_block_init(dev.get());
     if (err != NO_ERROR) {
         PANIC_UNIMPLEMENTED;
     }
+
+    // the device lives for the lifetime of the system from here on
+    dev.release();
 
     return err;
 #else
@@ -484,21 +488,24 @@ static status_t init_net(pci_location_t loc, const virtio_pci_devices &dev_table
 #if WITH_DEV_VIRTIO_NET
     // create a virtio_pci_bus object and initialize it based on the location
     auto *bus = new virtio_pci_bus();
-    auto *dev = new virtio_device(bus);
+    auto dev = std::make_unique<virtio_device>(bus);
 
-    auto err = bus->init(dev, loc, index);
+    auto err = bus->init(dev.get(), loc, index);
     if (err != NO_ERROR) {
-        delete bus;
+        // the device destructor deletes the bus it owns
         return err;
     }
 
     // TODO: move the config pointer getter that devices use into the bus
     dev->set_config_ptr(bus->device_config());
 
-    err = virtio_net_init(dev);
+    err = virtio_net_init(dev.get());
     if (err != NO_ERROR) {
         PANIC_UNIMPLEMENTED;
     }
+
+    // the device lives for the lifetime of the system from here on
+    dev.release();
 
     return err;
 #else
@@ -512,23 +519,26 @@ static status_t init_gpu(pci_location_t loc, const virtio_pci_devices &dev_table
 #if WITH_DEV_VIRTIO_GPU
     // create a virtio_pci_bus object and initialize it based on the location
     auto *bus = new virtio_pci_bus();
-    auto *dev = new virtio_device(bus);
+    auto dev = std::make_unique<virtio_device>(bus);
 
-    auto err = bus->init(dev, loc, index);
+    auto err = bus->init(dev.get(), loc, index);
     if (err != NO_ERROR) {
-        delete bus;
+        // the device destructor deletes the bus it owns
         return err;
     }
 
     // TODO: move the config pointer getter that devices use into the bus
     dev->set_config_ptr(bus->device_config());
 
-    err = virtio_gpu_init(dev);
+    err = virtio_gpu_init(dev.get());
     if (err != NO_ERROR) {
         PANIC_UNIMPLEMENTED;
     }
 
-    virtio_gpu_start(dev);
+    virtio_gpu_start(dev.get());
+
+    // the device lives for the lifetime of the system from here on
+    dev.release();
 
     return err;
 #else
@@ -541,20 +551,23 @@ static status_t init_rng(pci_location_t loc, const virtio_pci_devices &dev_table
 
 #if WITH_DEV_VIRTIO_RNG
     auto *bus = new virtio_pci_bus();
-    auto *dev = new virtio_device(bus);
+    auto dev = std::make_unique<virtio_device>(bus);
 
-    auto err = bus->init(dev, loc, index);
+    auto err = bus->init(dev.get(), loc, index);
     if (err != NO_ERROR) {
-        delete bus;
+        // the device destructor deletes the bus it owns
         return err;
     }
 
     dev->set_config_ptr(bus->device_config());
 
-    err = virtio_rng_init(dev);
+    err = virtio_rng_init(dev.get());
     if (err != NO_ERROR) {
         PANIC_UNIMPLEMENTED;
     }
+
+    // the device lives for the lifetime of the system from here on
+    dev.release();
 
     return err;
 #else
