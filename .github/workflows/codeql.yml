@@ -1,0 +1,246 @@
+name: CodeQL
+
+# Static analysis with GitHub CodeQL.
+#
+# Unlike GitHub's "default setup", which extracts C/C++ with build-mode none and
+# therefore never sees config.h, the arch #ifdefs or the real include paths, this
+# builds LK for real with the same toolchains the rest of CI uses. Each job runs
+# scripts/buildall for one architecture, so every project of that arch is compiled
+# into a single CodeQL database.
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - 'wip/**'
+      - 'docs/**' # Skip analysis for documentation branches
+    paths-ignore:
+      - '**.md'   # Skip analysis when only markdown files change
+      - 'docs/**' # Skip analysis for docs directory changes
+  schedule:
+    # weekly, monday 05:17 UTC
+    - cron: '17 5 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+# These jobs build the whole tree per arch, so a superseded push should not keep
+# burning runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-cpp:
+    name: analyze (${{ matrix.arch }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # The actively developed arches. m68k/mips/or1k are omitted until the
+        # CodeQL C/C++ extractor is known to cope with them.
+        arch:
+          - arm
+          - arm64
+          - riscv32
+          - riscv64
+          - x86
+
+    env:
+      # A single toolchain version is enough for static analysis; the gcc CI
+      # matrix's second version exists to catch compiler differences.
+      TOOLCHAIN_VER: 15.2.0
+      TOOLCHAIN: # computed below
+      TOOLCHAIN_ALT: # computed below
+
+    steps:
+    - name: banner
+      shell: bash
+      run: |
+        printf "Building with %d processors\n" "$(nproc)"
+        echo ARCH = ${{ matrix.arch }}
+        echo TOOLCHAIN_VER = $TOOLCHAIN_VER
+
+    - name: checkout
+      uses: actions/checkout@v6
+
+    # compute the toolchain prefix this arch will need.
+    # Keep this in sync with .github/workflows/github-ci.yml: 'x86' means the
+    # x86_64-elf toolchain plus i386-elf as an alternate, because buildall -a x86
+    # builds both the 32 and 64 bit x86 projects.
+    - name: compute toolchain
+      shell: bash
+      run: |
+        case "${{ matrix.arch }}" in
+            arm) TOOLCHAIN_PREFIX="arm-eabi-" ;;
+            arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
+            riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
+            riscv64) TOOLCHAIN_PREFIX="riscv64-elf-" ;;
+            x86) TOOLCHAIN_PREFIX="x86_64-elf-" ;;
+            *) echo "Unknown architecture: ${{ matrix.arch }}" && exit 1 ;;
+        esac
+        echo "TOOLCHAIN_PREFIX=${TOOLCHAIN_PREFIX}" >> $GITHUB_ENV
+        echo "TOOLCHAIN=${TOOLCHAIN_PREFIX}${TOOLCHAIN_VER}-$(uname)-$(uname -m)" >> $GITHUB_ENV
+        if [ "$TOOLCHAIN_PREFIX" = "x86_64-elf-" ]; then
+          # for some x86_64-elf projects, we need i386-elf as well
+          echo "TOOLCHAIN_ALT=i386-elf-${TOOLCHAIN_VER}-$(uname)-$(uname -m)" >> $GITHUB_ENV
+        fi
+
+    # maintain a directory archives/ in the repo
+    # it will contain tarballs of various toolchains
+    - name: cache
+      uses: actions/cache@v5
+      id: cache
+      with:
+        path: archives
+        key: archives-${{ env.TOOLCHAIN }}-${{ env.TOOLCHAIN_ALT }}
+
+    # download a toolchain from https://newos.org/toolchains
+    # if not already cached
+    - name: fetch/extract toolchain
+      shell: bash
+      run: |
+        TOOLCHAIN_BASE_URL="https://newos.org/toolchains"
+        TOOLCHAIN_SUFFIX="tar.xz"
+        TOOLCHAIN_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN.$TOOLCHAIN_SUFFIX"
+        mkdir -p archives
+        cd archives
+        echo "Downloading toolchain $TOOLCHAIN from $TOOLCHAIN_ADDRESS"
+        wget -v -N $TOOLCHAIN_ADDRESS || exit 1
+        cd ..
+        echo "Unpacking $TOOLCHAIN"
+        tar xf archives/$TOOLCHAIN.$TOOLCHAIN_SUFFIX || exit 1
+        echo "$GITHUB_WORKSPACE/$TOOLCHAIN/bin" >> $GITHUB_PATH
+
+    # if we have an alternate toolchain, download it too
+    - name: fetch/extract alternate toolchain
+      if: env.TOOLCHAIN_ALT != ''
+      shell: bash
+      run: |
+        TOOLCHAIN_BASE_URL="https://newos.org/toolchains"
+        TOOLCHAIN_SUFFIX="tar.xz"
+        TOOLCHAIN_ALT_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN_ALT.$TOOLCHAIN_SUFFIX"
+        echo "Downloading alternate toolchain $TOOLCHAIN_ALT from $TOOLCHAIN_ALT_ADDRESS"
+        mkdir -p archives
+        cd archives
+        wget -v -N $TOOLCHAIN_ALT_ADDRESS || exit 1
+        cd ..
+        echo "Unpacking $TOOLCHAIN_ALT"
+        tar xf archives/$TOOLCHAIN_ALT.$TOOLCHAIN_SUFFIX || exit 1
+        echo "$GITHUB_WORKSPACE/$TOOLCHAIN_ALT/bin" >> $GITHUB_PATH
+
+    - name: initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: c-cpp
+        build-mode: manual
+        config-file: ./.github/codeql/codeql-config.yml
+
+    # Build every project for this arch so all of arch/, platform/ and target/
+    # actually gets compiled into the database.
+    #
+    # No flags on purpose:
+    #   -e  WERROR would abort extraction on a warning github-ci.yml already catches
+    #   -d  the module dep check belongs to github-ci.yml
+    #   -r/-u/-c  release/UBSAN/clang variants would just re-extract the same code
+    # Bare buildall builds each project once at DEBUG=2 with gcc, which is also what
+    # we want: DEBUG_ASSERT() compiles away at LK_DEBUGLEVEL <= 1, and a database
+    # built that way reports false null derefs after every assert based check.
+    #
+    # A single broken project should not cost the whole arch its analysis, so ignore
+    # buildall's exit status; a partial database still analyzes fine and the build
+    # workflows are the ones responsible for failing on build breakage.
+    - name: build
+      shell: bash
+      run: |
+        # Same unexport dance as github-ci.yml's build step: these are workflow
+        # bookkeeping variables, but TOOLCHAIN and TOOLCHAIN_PREFIX are also make
+        # variables LK reads. In particular arch/x86/rules.mk only defaults
+        # TOOLCHAIN_PREFIX per SUBARCH 'ifndef TOOLCHAIN_PREFIX', so leaking
+        # x86_64-elf- from the environment makes the 32 bit x86 projects compile
+        # with the 64 bit compiler and fail with "CPU you selected does not
+        # support x86-64 instruction set".
+        export -n TOOLCHAIN_PREFIX
+        export -n TOOLCHAIN
+        export -n TOOLCHAIN_ALT
+        export -n TOOLCHAIN_VER
+        export -n ARCH
+        ./scripts/buildall -a "${{ matrix.arch }}" || echo "::warning::buildall reported failures, analyzing what was built"
+
+    - name: perform CodeQL analysis
+      uses: github/codeql-action/analyze@v4
+      id: analyze
+      with:
+        category: "/language:c-cpp/arch:${{ matrix.arch }}"
+        # Do not publish from here; the SARIF still needs filtering. 'failure-only'
+        # is the documented value for post-processing before upload, and still
+        # uploads debug information if the analysis itself fails.
+        upload: failure-only
+
+    # Drop results in vendored third party code. CodeQL's paths-ignore does not
+    # apply to a compiled language that was actually built, so filter the SARIF
+    # instead of relying on the config file.
+    - name: filter external/ out of the results
+      shell: bash
+      run: |
+        set -euo pipefail
+        shopt -s nullglob
+        sarifs=( "${{ steps.analyze.outputs.sarif-output }}"/*.sarif )
+        if [ ${#sarifs[@]} -eq 0 ]; then
+            echo "::error::no SARIF files in ${{ steps.analyze.outputs.sarif-output }}"
+            exit 1
+        fi
+        ./scripts/filter-sarif.py --prefix external/ "${sarifs[@]}"
+
+    - name: upload SARIF
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: ${{ steps.analyze.outputs.sarif-output }}
+        category: "/language:c-cpp/arch:${{ matrix.arch }}"
+
+  # The buildless languages.
+  #
+  # These were GitHub's "default setup" until this workflow landed. Default setup
+  # and an advanced workflow cannot coexist -- not even for disjoint languages.
+  # Deselecting just c-cpp from default setup is not enough; while default setup is
+  # enabled *at all*, every advanced upload is rejected server side with
+  #
+  #   CodeQL analyses from advanced configurations cannot be processed when the
+  #   default setup is enabled
+  #
+  # so default setup has to be turned off wholesale and these three come along with
+  # c-cpp. None of them needs a build. Do not drop 'actions': that extractor is the
+  # one that found the missing workflow permissions across all five workflows here.
+  analyze-other:
+    name: analyze (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - actions
+          - python
+          - rust
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v6
+
+    - name: initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+        build-mode: none
+        config-file: ./.github/codeql/codeql-config.yml
+
+    - name: perform CodeQL analysis
+      uses: github/codeql-action/analyze@v4
+      with:
+        category: "/language:${{ matrix.language }}"
+
+# vim: ts=2 sw=2 expandtab

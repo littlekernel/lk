@@ -1,0 +1,31 @@
+# Shared CodeQL configuration for the LK workflows.
+#
+# Deliberately minimal: start with no query filters and add entries only when a
+# rule proves itself noisy against this codebase. See .github/workflows/codeql.yml
+# for the analysis itself.
+
+name: "LK CodeQL config"
+
+# Vendored third party code. See external/README:
+#   "source modules that are composed of software originating from external to
+#    the lk project"
+#
+# Note this only takes effect for a language analyzed without a build, which here
+# means the rust job. CodeQL ignores paths-ignore for a compiled language when the
+# code is actually built, so the C/C++ job filters external/ out of the SARIF after
+# the fact instead. It is listed here anyway to keep the intent in one place.
+paths-ignore:
+  - external/**
+
+# Nothing excluded yet. A bare 'query-filters:' key parses as null rather than an
+# empty list and is rejected by the config validator, so keep the whole block
+# commented until there is something real to put in it. Candidates seen in this
+# repo's alert history, to be revisited once there is a baseline from a real build:
+#
+# query-filters:
+#   - exclude:
+#       id: cpp/integer-multiplication-cast-to-long   # 7 historical hits, the LK u32 * u32 idiom
+#   - exclude:
+#       id: cpp/comparison-with-wider-type            # 2 historical hits
+
+# vim: ts=2 sw=2 expandtab
