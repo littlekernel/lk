@@ -23,7 +23,10 @@ int riscv_spin_trylock(spin_lock_t *lock) {
         : "memory"
     );
 
-    return !old;
+    // the convention (see spin_trylock() in kernel/spinlock.h) is 0 on
+    // success, non-0 on failure: return the previous lock value, matching
+    // the other architectures
+    return (int)old;
 }
 
 void riscv_spin_lock(spin_lock_t *lock) {
