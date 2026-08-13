@@ -1001,6 +1001,9 @@ void dump_thread(const thread_t *t) {
 #endif
     dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
     dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
+#if THREAD_LINEBUFFER_SIZE > 0
+    dprintf(INFO, "\tlinebuffer pos %zu, owner %p\n", t->linebuffer_pos, t->linebuffer_owner);
+#endif
 #if WITH_KERNEL_VM
     dprintf(INFO, "\taspace %p\n", t->aspace);
 #endif
