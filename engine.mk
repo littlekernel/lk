@@ -389,8 +389,17 @@ GLOBAL_DEFINES += CONSOLE_SERIALIZE_OUTPUT=$(CONSOLE_SERIALIZE_OUTPUT)
 # Size of the asynchronous console output ring, or 0 for synchronous writes.
 # With a ring the print lock is only held for a memcpy and a dedicated thread
 # does the slow uart work with interrupts on. Costs the ring plus a thread, so
-# it is opt in. Must be a power of two.
-CONSOLE_RING_SIZE ?= 0
+# it defaults on only for targets that can afford the memory: anything with an
+# mmu or smp. Small embedded targets (cortex-m and friends) keep the synchronous
+# path. Any layer may override by setting CONSOLE_RING_SIZE explicitly
+# (0 disables). Must be a power of two.
+ifeq ($(CONSOLE_RING_SIZE),)
+ifneq ($(filter true,$(call TOBOOL,$(WITH_KERNEL_VM)) $(call TOBOOL,$(WITH_SMP))),)
+CONSOLE_RING_SIZE := 8192
+else
+CONSOLE_RING_SIZE := 0
+endif
+endif
 GLOBAL_DEFINES += CONSOLE_RING_SIZE=$(CONSOLE_RING_SIZE)
 
 # add some automatic configuration defines

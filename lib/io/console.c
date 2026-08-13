@@ -158,6 +158,13 @@ static thread_t *ring_drain_thread;
  *
  * From a plain interrupt handler this is fine: thread_lock isn't held, and
  * asking for no reschedule keeps it safe.
+ *
+ * TODO: the skip-and-poll dance is an interim workaround. Note the check is
+ * also conservative: thread_lock_held() reports "held by any cpu" (no owner
+ * tracking), so under smp contention we skip wakes we could have sent. Once
+ * the planned thread_lock/preemption rework makes signaling safe from these
+ * contexts, signal unconditionally here and turn the drain thread's timed
+ * wait into a plain event_wait().
  */
 static void console_ring_wake(void) {
     if (unlikely(thread_lock_held())) {
