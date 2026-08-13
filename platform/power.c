@@ -9,6 +9,7 @@
 #include <lk/err.h>
 #include <lk/compiler.h>
 #include <lk/console_cmd.h>
+#include <lib/io.h>
 #include <platform.h>
 #include <platform/debug.h>
 #include <kernel/thread.h>
@@ -25,6 +26,15 @@ void platform_halt_default(platform_halt_action suggested_action,
                            platform_reboot_hook prh,
                            platform_shutdown_hook psh) {
     const char *reason_string = platform_halt_reason_string(reason);
+
+    /* We're going down, one way or another: push out anything still queued in
+     * the console ring and the caller's line buffer, and take everything from
+     * here out the polled path. Without this the tail of the output leading up
+     * to a reboot/poweroff is lost, and on the spin-forever path below (ints
+     * off) anything left in the ring would never drain at all.
+     */
+    console_set_panic_mode(true);
+
     switch (suggested_action) {
         case HALT_ACTION_SHUTDOWN:
             if (psh) {
