@@ -21,6 +21,7 @@ Welcome to the LK (Little Kernel) documentation. LK is a small operating system 
 - [FVP Base - Internal Overview](fvp-base/internal.md) - Boot sequence, memory layout, and peripheral details
 
 ### Development and Testing
+- [Booting via UEFI (x86-64)](uefi_boot.md) - The in-kernel EFI stub and testing with QEMU + OVMF
 - [Network Setup for QEMU](lk_tap.md) - Setting up tun/tap networking for QEMU testing
 - [GDB Debug Support for GBL](gdb_debug_support_for_gbl.md) - Debugging GBL using GDB with UEFI debug support protocol
 
