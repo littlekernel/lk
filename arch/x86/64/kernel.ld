@@ -30,6 +30,7 @@ SECTIONS
 
     .text : AT(%MEMBASE% + %KERNEL_LOAD_OFFSET%) {
         __code_start = .;
+        KEEP(*(.text.boot.header))
         KEEP(*(.text.boot))
         *(.text* .sram.text)
         *(.gnu.linkonce.t.*)
@@ -55,6 +56,14 @@ SECTIONS
     .data : ALIGN(4096) {
         __data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
+        /* The EFI stub (arch/x86/64/efi) is compiled -fpie and must not generate
+         * GOT entries; collect any that appear so the assert below catches
+         * them. Deliberately inside .data: a separate .got output section
+         * trips lld's relro layout checks, and folding it into .rodata would
+         * make that section writable and perturb lld's orphan placement. */
+        __got_start = .;
+        *(.got*)
+        __got_end = .;
     }
 
     .ctors : ALIGN(4) {
@@ -96,4 +105,16 @@ SECTIONS
     _end_of_ram = . + (4*1024*1024);
 
     /DISCARD/ : { *(.comment .note .eh_frame) }
+
+    /* PE/COFF header fields consumed by arch/x86/64/efi-header.S, resolved at
+     * link time. File offsets in the flat lk.bin equal RVAs; the header block
+     * occupies [0, 0x1000) and .text.boot starts at 0x1000. */
+    __pe_entry_rva      = ABSOLUTE(efi_entry - __code_start);
+    __pe_text_size      = ABSOLUTE(__data_start - __code_start - 0x1000);
+    __pe_data_rva       = ABSOLUTE(__data_start - __code_start);
+    __pe_data_raw_size  = ABSOLUTE(__data_end - __data_start);
+    __pe_data_virt_size = ABSOLUTE(__bss_end - __data_start);
+    __pe_size_of_image  = ABSOLUTE((__bss_end - __code_start + 0xfff) & ~(0xfff));
 }
+
+ASSERT(__got_end == __got_start, "unexpected GOT entries; the EFI stub must be GOT-free")

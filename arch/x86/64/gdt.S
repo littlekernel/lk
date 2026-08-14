@@ -22,6 +22,14 @@ DATA(_gdtr_phys)
     .int PHYS(_gdt)
 END_DATA(_gdtr_phys)
 
+/* same, in the 10-byte form lgdt expects in 64-bit mode; used by the EFI
+ * stub's handoff trampoline (arch/x86/64/efi/efi-entry.S) */
+.balign 8
+DATA(_gdtr_phys64)
+    .short _gdt_end - _gdt - 1
+    .quad PHYS(_gdt)
+END_DATA(_gdtr_phys64)
+
 .balign 8
 DATA(_gdtr)
     .short _gdt_end - _gdt - 1
