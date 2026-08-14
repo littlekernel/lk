@@ -130,6 +130,32 @@ static uacpi_status find_rsdp_multiboot(uacpi_phys_addr *out_rsdp_address) {
     return UACPI_STATUS_NOT_FOUND;
 }
 
+#if ARCH_X86_64
+#include <lk/efi_boot_info.h>
+
+/* on a UEFI boot the stub records the RSDP address from the EFI
+ * configuration table; pure UEFI machines have no BIOS-area copy to scan */
+static uacpi_status find_rsdp_efi(uacpi_phys_addr *out_rsdp_address) {
+    if (lk_efi_boot_info.magic != LK_EFI_BOOT_MAGIC || lk_efi_boot_info.rsdp_phys == 0) {
+        return UACPI_STATUS_NOT_FOUND;
+    }
+
+    const paddr_t rsdp_phys = (paddr_t)lk_efi_boot_info.rsdp_phys;
+    const uint8_t *rsdp_map = map_region(rsdp_phys, PAGE_SIZE, "uacpi rsdp map (efi)");
+    if (!rsdp_map) {
+        return UACPI_STATUS_NOT_FOUND;
+    }
+
+    uacpi_status ret = UACPI_STATUS_NOT_FOUND;
+    if (validate_rsdp(rsdp_map)) {
+        *out_rsdp_address = rsdp_phys;
+        ret = UACPI_STATUS_OK;
+    }
+    vmm_free_region(vmm_get_kernel_aspace(), ROUNDDOWN((vaddr_t)rsdp_map, PAGE_SIZE));
+    return ret;
+}
+#endif
+
 static uacpi_status find_rsdp_bios(uacpi_phys_addr *out_rsdp_address) {
     const paddr_t range_start = 0xe0000;
     const paddr_t range_end = 0x100000;
@@ -160,6 +186,11 @@ uacpi_status uacpi_kernel_get_rsdp(uacpi_phys_addr *out_rsdp_address) {
         return UACPI_STATUS_INVALID_ARGUMENT;
     }
 #if ARCH_X86
+#if ARCH_X86_64
+    if (find_rsdp_efi(out_rsdp_address) == UACPI_STATUS_OK) {
+        return UACPI_STATUS_OK;
+    }
+#endif
     uacpi_status ret = find_rsdp_multiboot(out_rsdp_address);
     if (ret == UACPI_STATUS_OK) {
         return UACPI_STATUS_OK;

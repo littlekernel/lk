@@ -19,6 +19,7 @@
 #include <inttypes.h>
 #include <kernel/vm.h>
 #include <lib/cmdline.h>
+#include <lk/efi_boot_info.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/trace.h>
@@ -76,6 +77,55 @@ static pmm_arena_t mem_arena[NUM_ARENAS];
  * to be preserved. */
 static char cmdline_copy[256];
 
+/* validate and record a run of usable physical memory as a pmm arena.
+ * shared by the multiboot and EFI memory map parsers. */
+static void add_arena_range(uint64_t base, uint64_t length, size_t *found_mem_arenas) {
+    if (*found_mem_arenas >= countof(mem_arena)) {
+        return;
+    }
+
+    /* do some sanity checks to cut out small arenas */
+    if (length < PAGE_SIZE * 2) {
+        return;
+    }
+
+    /* align the base and length */
+    uint64_t oldbase = base;
+    base = PAGE_ALIGN(base);
+    if (base > oldbase) {
+        length -= base - oldbase;
+    }
+    length = ROUNDDOWN(length, PAGE_SIZE);
+
+    /* ignore memory < 1MB */
+    if (base < 1 * MB) {
+        /* skip everything < 1MB */
+        return;
+    }
+
+    /* ignore everything that extends past the size PHYSMAP maps into the kernel.
+     * see arch/x86/arch.c mmu_initial_mappings
+     */
+    if (base >= PHYSMAP_SIZE) {
+        return;
+    }
+    uint64_t end = base + length;
+    if (end > PHYSMAP_SIZE) {
+        end = PHYSMAP_SIZE;
+        DEBUG_ASSERT(end > base);
+        length = end - base;
+        dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", PHYSMAP_SIZE);
+    }
+
+    /* initialize a new pmm arena */
+    mem_arena[*found_mem_arenas].name = "memory";
+    mem_arena[*found_mem_arenas].base = base;
+    mem_arena[*found_mem_arenas].size = length;
+    mem_arena[*found_mem_arenas].priority = 1;
+    mem_arena[*found_mem_arenas].flags = PMM_ARENA_FLAG_KMAP;
+    (*found_mem_arenas)++;
+}
+
 /* parse an array of multiboot mmap entries */
 static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap_length,
                                      size_t *found_mem_arenas) {
@@ -86,47 +136,7 @@ static status_t parse_multiboot_mmap(const memory_map_t *mmap, const size_t mmap
 
         dprintf(SPEW, "\ttype %u addr %#" PRIx64 " len %#" PRIx64 "\n", mmap[i].type, base, length);
         if (mmap[i].type == MB_MMAP_TYPE_AVAILABLE) {
-
-            /* do some sanity checks to cut out small arenas */
-            if (length < PAGE_SIZE * 2) {
-                continue;
-            }
-
-            /* align the base and length */
-            uint64_t oldbase = base;
-            base = PAGE_ALIGN(base);
-            if (base > oldbase) {
-                length -= base - oldbase;
-            }
-            length = ROUNDDOWN(length, PAGE_SIZE);
-
-            /* ignore memory < 1MB */
-            if (base < 1 * MB) {
-                /* skip everything < 1MB */
-                continue;
-            }
-
-            /* ignore everything that extends past the size PHYSMAP maps into the kernel.
-             * see arch/x86/arch.c mmu_initial_mappings
-             */
-            if (base >= PHYSMAP_SIZE) {
-                continue;
-            }
-            uint64_t end = base + length;
-            if (end > PHYSMAP_SIZE) {
-                end = PHYSMAP_SIZE;
-                DEBUG_ASSERT(end > base);
-                length = end - base;
-                dprintf(INFO, "PC: trimmed memory to %" PRIu64 " bytes\n", PHYSMAP_SIZE);
-            }
-
-            /* initialize a new pmm arena */
-            mem_arena[*found_mem_arenas].name = "memory";
-            mem_arena[*found_mem_arenas].base = base;
-            mem_arena[*found_mem_arenas].size = length;
-            mem_arena[*found_mem_arenas].priority = 1;
-            mem_arena[*found_mem_arenas].flags = PMM_ARENA_FLAG_KMAP;
-            (*found_mem_arenas)++;
+            add_arena_range(base, length, found_mem_arenas);
             if (*found_mem_arenas == countof(mem_arena)) {
                 break;
             }
@@ -389,6 +399,107 @@ static status_t platform_parse_multiboot_info(size_t *found_mem_arenas,
     return NO_ERROR;
 }
 
+/* Parse the boot information left in lk_efi_boot_info by the in-kernel UEFI
+ * stub (arch/x86/64/efi), if the kernel was entered that way. */
+static status_t platform_parse_efi_boot_info(size_t *found_mem_arenas,
+                                             bool *have_framebuffer_console) {
+#if ARCH_X86_64
+    const struct lk_efi_boot_info *info = &lk_efi_boot_info;
+    if (info->magic != LK_EFI_BOOT_MAGIC) {
+        return ERR_NOT_FOUND;
+    }
+
+    dprintf(INFO, "PC: EFI boot info found, version %u\n", info->version);
+    dprintf(SPEW, "\timage was loaded at %#" PRIx64 ", system table %#" PRIx64
+            ", rsdp %#" PRIx64 "\n",
+            info->image_base, info->efi_system_table, info->rsdp_phys);
+
+    efi64_system_table = info->efi_system_table;
+
+    /* Walk the EFI memory map. Boot services memory and the loader ranges
+     * (including the allocation covering this very image; the VM wire
+     * reserves the kernel's pages) are all reclaimable. EFI maps are heavily
+     * fragmented, so coalesce adjacent usable runs before adding arenas or
+     * NUM_ARENAS would overflow. */
+    uint64_t run_base = 0;
+    uint64_t run_len = 0;
+    for (uint32_t i = 0; i < info->mmap_entries; i++) {
+        const struct lk_efi_memory_descriptor *desc =
+            (const struct lk_efi_memory_descriptor *)(info->mmap +
+                                                      (size_t)i * info->mmap_desc_size);
+
+        bool usable;
+        switch (desc->type) {
+            case LK_EFI_MEM_LOADER_CODE:
+            case LK_EFI_MEM_LOADER_DATA:
+            case LK_EFI_MEM_BOOT_SERVICES_CODE:
+            case LK_EFI_MEM_BOOT_SERVICES_DATA:
+            case LK_EFI_MEM_CONVENTIONAL:
+                usable = true;
+                break;
+            default:
+                usable = false;
+                break;
+        }
+
+        const uint64_t base = desc->physical_start;
+        const uint64_t len = desc->number_of_pages * LK_EFI_PAGE_SIZE;
+        dprintf(SPEW, "\ttype %u addr %#" PRIx64 " len %#" PRIx64 " attr %#" PRIx64 "\n",
+                desc->type, base, len, desc->attributes);
+
+        if (usable && run_len > 0 && base == run_base + run_len) {
+            /* extends the current run */
+            run_len += len;
+        } else if (usable) {
+            /* starts a new run */
+            if (run_len > 0) {
+                add_arena_range(run_base, run_len, found_mem_arenas);
+            }
+            run_base = base;
+            run_len = len;
+        } else if (run_len > 0) {
+            /* ends the current run */
+            add_arena_range(run_base, run_len, found_mem_arenas);
+            run_len = 0;
+        }
+    }
+    if (run_len > 0) {
+        add_arena_range(run_base, run_len, found_mem_arenas);
+    }
+
+    /* command line from EFI LoadOptions; the buffer is persistent .data so
+     * it can be handed to cmdline directly */
+    if (info->cmdline[0] != '\0') {
+        dprintf(INFO, "PC: EFI command line: '%s'\n", info->cmdline);
+        status_t err = cmdline_init(info->cmdline, strlen(info->cmdline));
+        if (err != NO_ERROR && err != ERR_ALREADY_STARTED) {
+            dprintf(INFO, "PC: failed to initialize cmdline library: %d\n", err);
+        }
+    }
+
+    /* GOP framebuffer */
+    if (info->fb_present) {
+        const struct fb_console_boot_info fb_info = {
+            .framebuffer_addr = info->fb_base,
+            .framebuffer_pitch = info->fb_pitch,
+            .framebuffer_width = info->fb_width,
+            .framebuffer_height = info->fb_height,
+            .framebuffer_bpp = info->fb_bpp,
+        };
+        dprintf(SPEW, "\tframebuffer at %#" PRIx64 " pitch %u width %u height %u bpp %u\n",
+                info->fb_base, info->fb_pitch, info->fb_width, info->fb_height, info->fb_bpp);
+        fb_console_init(&fb_info);
+        *have_framebuffer_console = true;
+    }
+
+    return NO_ERROR;
+#else
+    (void)found_mem_arenas;
+    (void)have_framebuffer_console;
+    return ERR_NOT_FOUND;
+#endif
+}
+
 void platform_early_init(void) {
     /* get the debug output working */
     platform_init_debug_early();
@@ -396,10 +507,12 @@ void platform_early_init(void) {
     /* initialize the interrupt controller */
     platform_init_interrupts();
 
-    /* parse the multiboot info to find memory and console information */
+    /* look for boot info from the UEFI stub first, fall back to multiboot */
     size_t found_arenas = 0;
     bool have_framebuffer_console = false;
-    platform_parse_multiboot_info(&found_arenas, &have_framebuffer_console);
+    if (platform_parse_efi_boot_info(&found_arenas, &have_framebuffer_console) != NO_ERROR) {
+        platform_parse_multiboot_info(&found_arenas, &have_framebuffer_console);
+    }
 
     /* try to get the vga console working only if we don't have a framebuffer console */
     if (!have_framebuffer_console) {
