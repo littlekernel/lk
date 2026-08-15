@@ -526,6 +526,17 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
     return NO_ERROR;
 }
 
+// Compute a bar's size from the value read back after writing all 1s to it. The size is the
+// lowest set bit of the masked readback, which unlike inverting the readback stays correct on
+// devices that hardwire the top bits of the register to zero (common on 16 bit io decoders).
+static uint64_t bar_size_from_probe(uint64_t probe, uint64_t mask) {
+    probe &= mask;
+    if (probe == 0) {
+        return 0;
+    }
+    return probe & ~(probe - 1);
+}
+
 status_t device::load_bars() {
     size_t num_bars;
 
@@ -546,7 +557,17 @@ status_t device::load_bars() {
 
     uint16_t command;
     pci_read_config_half(loc(), PCI_CONFIG_COMMAND, &command);
-    pci_write_config_half(loc(), PCI_CONFIG_COMMAND, command & ~(PCI_COMMAND_IO_EN | PCI_COMMAND_MEM_EN));
+    status_t err = pci_write_config_half(loc(), PCI_CONFIG_COMMAND,
+                                         command & ~(PCI_COMMAND_IO_EN | PCI_COMMAND_MEM_EN));
+    if (err != NO_ERROR) {
+        // Sizing a bar requires writing to it. Without working config writes the probe below
+        // would read back the untouched address and compute a nonsense size from it, so fail
+        // here instead of handing garbage to a driver.
+        char str[14];
+        printf("PCI: cannot write config space for device %s, unable to probe bars\n",
+               pci_loc_string(loc(), str));
+        return err;
+    }
 
     for (size_t i = 0; i < num_bars; i++) {
         bars_[i] = {};
@@ -560,12 +581,11 @@ status_t device::load_bars() {
 
             // probe size by writing all 1s and seeing what bits are masked
             uint32_t size = 0;
-            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffff);
+            pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, 0xffffffff);
             pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
 
-            // mask out bottom bits, invert and add 1 to compute size
-            bars_[i].size = ((size & ~0b11) ^ 0xffff) + 1;
+            bars_[i].size = bar_size_from_probe(size, ~static_cast<uint64_t>(0b11));
 
             bars_[i].valid = (bars_[i].size != 0);
         } else if ((bar_addr & 0b110) == 0b000) {
@@ -581,8 +601,7 @@ status_t device::load_bars() {
             pci_read_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, &size);
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
 
-            // mask out bottom bits, invert and add 1 to compute size
-            bars_[i].size = (~(size & ~0b1111)) + 1;
+            bars_[i].size = bar_size_from_probe(size, ~static_cast<uint64_t>(0b1111));
 
             bars_[i].valid = (bars_[i].size != 0);
         } else if ((bar_addr & 0b110) == 0b100) {
@@ -610,8 +629,7 @@ status_t device::load_bars() {
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4, bars_[i].addr);
             pci_write_config_word(loc_, PCI_CONFIG_BASE_ADDRESSES + i * 4 + 4, bars_[i].addr >> 32);
 
-            // mask out bottom bits, invert and add 1 to compute size
-            bars_[i].size = (~(size & ~static_cast<uint64_t>(0b1111))) + 1;
+            bars_[i].size = bar_size_from_probe(size, ~static_cast<uint64_t>(0b1111));
 
             bars_[i].valid = (bars_[i].size != 0);
 
