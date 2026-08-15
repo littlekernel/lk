@@ -191,14 +191,15 @@ status_t elf_load(elf_handle_t *handle) {
     }
 
     // allocate and read in the program headers
-    handle->pheaders = calloc(1, handle->eheader.e_phnum * handle->eheader.e_phentsize);
+    const size_t phdr_size = (size_t)handle->eheader.e_phnum * handle->eheader.e_phentsize;
+    handle->pheaders = calloc(1, phdr_size);
     if (!handle->pheaders) {
         LTRACEF("failed to allocate memory for program headers\n");
         return ERR_NO_MEMORY;
     }
 
-    readerr = handle->read_hook(handle, handle->pheaders, handle->eheader.e_phoff, handle->eheader.e_phnum * handle->eheader.e_phentsize);
-    if (readerr < (ssize_t)(handle->eheader.e_phnum * handle->eheader.e_phentsize)) {
+    readerr = handle->read_hook(handle, handle->pheaders, handle->eheader.e_phoff, phdr_size);
+    if (readerr < (ssize_t)phdr_size) {
         LTRACEF("failed to read program headers\n");
         return ERR_NO_MEMORY;
     }
