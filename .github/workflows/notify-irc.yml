@@ -1,6 +1,9 @@
 name: "Push Notification"
 on: [push, pull_request, create]
 
+# Only talks to IRC; never touches the repo or the API.
+permissions: {}
+
 jobs:
   test:
     runs-on: ubuntu-latest

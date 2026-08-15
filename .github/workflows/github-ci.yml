@@ -12,6 +12,10 @@ on:
       - '**.md'   # Skip builds when only markdown files change
       - 'docs/**' # Skip builds for docs directory changes
 
+# These jobs only build the tree; they never write back to the repo.
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-24.04
