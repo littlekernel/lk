@@ -5,6 +5,14 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+
+/*
+ * NOTE: this module does not currently build and is not referenced by any
+ * project. The flash_nor API it was written against no longer exists in the
+ * tree. See TODO.md in this directory for the details and a sketch of the port
+ * onto lib/bio that would make it buildable and testable again.
+ */
+
 #include <assert.h>
 #include <dev/flash_nor.h>
 #include <lib/norfs.h>
