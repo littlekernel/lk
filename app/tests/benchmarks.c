@@ -177,8 +177,23 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
     ulong count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
         for (uint j = 0; j < BUFSIZE / sizeof(*buf) / 8; j++) {
+#if ARM_ISA_ARMV6M
+            /* Thumb1 only has the writeback form of stm, and the register list
+             * is limited to r0-r7, so store the same 8 words as two 4 register
+             * stores. The base register must stay out of the list, which is why
+             * it is pinned to r0 here: with writeback, a base register inside
+             * the list is UNPREDICTABLE unless it is the lowest one.
+             */
+            register uint32_t *ptr asm("r0") = &buf[j * 8];
+            __asm__ volatile(
+                ".syntax unified\n"
+                "stmia  %0!, {r4-r7}\n"
+                "stmia  %0!, {r4-r7}\n"
+                : "+r"(ptr) :: "memory");
+#else
             __asm__ volatile(
                 "stm    %0, {r0-r7};" ::"r"(&buf[j * 8]) : "memory");
+#endif
         }
     }
     count = arch_cycle_count() - count;
