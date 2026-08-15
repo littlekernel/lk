@@ -279,6 +279,17 @@ handler_return virtio_pci_bus::virtio_pci_irq(void *arg) {
     return ret;;
 }
 
+void virtio_pci_bus::unmap_bars() {
+    for (auto &bar_map : bar_map_) {
+#if WITH_KERNEL_VM
+        if (bar_map.mapped) {
+            vmm_free_region(vmm_get_kernel_aspace(), reinterpret_cast<vaddr_t>(bar_map.vaddr));
+        }
+#endif
+        bar_map = {};
+    }
+}
+
 status_t virtio_pci_bus::init(virtio_device *dev, pci_location_t loc, size_t index) {
     LTRACE_ENTRY;
 
@@ -373,8 +384,10 @@ common:
             err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, bars[i].size, reinterpret_cast<void **>(&bar_map.vaddr), 0,
                                      bars[i].addr, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
             if (err != NO_ERROR) {
-                printf("error mapping bar %d\n", i);
-                continue;
+                printf("virtio-pci: error %d mapping bar %d (addr %#" PRIx64 " size %#zx)\n",
+                       err, i, bars[i].addr, bars[i].size);
+                unmap_bars();
+                return err;
             }
             bar_map.mapped = true;
             LTRACEF("bar %d mapped at %p\n", i, bar_map.vaddr);

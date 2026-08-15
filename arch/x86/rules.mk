@@ -92,6 +92,16 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/pv.c \
 	$(LOCAL_DIR)/thread.c \
 
+ifeq ($(SUBARCH),x86-64)
+# the PE/COFF header that makes lk.bin double as a UEFI application, plus the
+# EFI boot stub. The header is inert data on multiboot boots, so it is always
+# built.
+MODULE_SRCS += \
+	$(SUBARCH_DIR)/efi-header.S
+MODULE_DEPS += \
+	$(SUBARCH_DIR)/efi
+endif
+
 # legacy x86's dont have fpu support
 ifneq ($(CPU),legacy)
 GLOBAL_DEFINES += \
@@ -164,6 +174,17 @@ CLANG_ARCH_TRIPLE ?= i386-elf
 endif
 
 LINKER_SCRIPT += $(SUBARCH_BUILDDIR)/kernel.ld
+
+ifeq ($(SUBARCH),x86-64)
+# lk.bin already carries a PE/COFF header (arch/x86/64/efi-header.S), so the
+# UEFI application is a plain copy with the conventional extension
+OUTEFI := $(basename $(OUTBIN)).efi
+$(OUTEFI): $(OUTBIN)
+	@echo generating $@
+	$(NOECHO)cp $< $@
+EXTRA_BUILDDEPS += $(OUTEFI)
+GENERATED += $(OUTEFI)
+endif
 
 # potentially generated files that should be cleaned out with clean make rule
 GENERATED += $(SUBARCH_BUILDDIR)/kernel.ld

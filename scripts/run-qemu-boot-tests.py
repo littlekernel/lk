@@ -49,6 +49,13 @@ class QEMUTestRunner:
                 'script': 'do-qemux86',
                 'args': '-6s4',
                 'timeout': 90
+            },
+            # same kernel booted through OVMF via the EFI stub; the extra
+            # timeout headroom covers the firmware and EFI shell startup delay
+            'x86-64-uefi': {
+                'script': 'do-qemux86',
+                'args': '-us4',
+                'timeout': 120
             }
         }
 
@@ -317,7 +324,7 @@ class QEMUTestRunner:
 
 def main():
     parser = argparse.ArgumentParser(description='Run LK QEMU tests for multiple architectures')
-    parser.add_argument('--arch', choices=['arm', 'arm64', 'm68k', 'riscv32', 'riscv64', 'x86', 'x86-64'], action='append',
+    parser.add_argument('--arch', choices=['arm', 'arm64', 'm68k', 'riscv32', 'riscv64', 'x86', 'x86-64', 'x86-64-uefi'], action='append',
                        help='Architecture to test (can be specified multiple times)')
     parser.add_argument('--lk-root', default='.',
                        help='Path to LK root directory (default: current directory)')

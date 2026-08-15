@@ -25,69 +25,10 @@
 _start:
     jmp real_start
 
-.align 8
-/* flags for multiboot header */
-/* NOTE: This MB2 header only advertises the legacy i386 handoff path.
- * GRUB UEFI/PXE may require EFI amd64 MB2 entry tags and a 64-bit EFI-aware
- * entry stub; use MB1 on that path until LK grows that support.
- */
-.type multiboot2_header, STT_OBJECT
-multiboot2_header:
-    .long MULTIBOOT2_HEADER_MAGIC               /* Multiboot header magic */
-    .long MULTIBOOT2_ARCHITECTURE_I386          /* i386 */
-    .long header_end - multiboot2_header        /* length */
+/* NOTE: the PE/COFF header and the multiboot 1/2 headers live in
+ * efi-header.S, which owns the first 4KB of the image. */
 
-    /* checksum */
-    .long -(MULTIBOOT2_HEADER_MAGIC + MULTIBOOT2_ARCHITECTURE_I386 + (header_end - multiboot2_header))
-
-.align 8
-address_tag_start:
-    .short MULTIBOOT2_HEADER_TAG_ADDRESS        /* MULTIBOOT_HEADER_TAG_ADDRESS */
-    .short MULTIBOOT2_HEADER_TAG_OPTIONAL       /* MULTIBOOT_HEADER_TAG_OPTIONAL */
-    .long address_tag_end - address_tag_start
-    .long PHYS(multiboot2_header)               /* Header address */
-    .long PHYS(_start)                          /* Load start */
-    .long PHYS(__data_end)                      /* DATA END */
-    .long PHYS(__bss_end)                       /* BSS END */
-address_tag_end:
-
-.align 8
-entry_address_tag_start:
-    .short MULTIBOOT2_HEADER_TAG_ENTRY_ADDRESS  /* Entry address tag */
-    .short MULTIBOOT2_HEADER_TAG_OPTIONAL       /* Optional flag */
-    .long entry_address_tag_end - entry_address_tag_start
-    .long PHYS(real_start)                      /* Real start address */
-entry_address_tag_end:
-
-/* Header end */
-.align 8
-    .short MULTIBOOT2_HEADER_TAG_END            /* End flag */
-    .short 0
-    .long 8                                     /* align 8? */
-header_end:
-
-#define MULTIBOOT_HEADER_FLAGS (MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO | MULTIBOOT_AOUT_KLUDGE)
-
-.type multiboot_header,STT_OBJECT
-multiboot_header:
-    /* magic */
-    .int MULTIBOOT_HEADER_MAGIC
-    /* flags */
-    .int MULTIBOOT_HEADER_FLAGS
-    /* checksum */
-    .int -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_HEADER_FLAGS)
-
-    /* header_addr */
-    .int PHYS(multiboot_header)
-    /* load_addr */
-    .int PHYS(_start)
-    /* load_end_addr */
-    .int PHYS(__data_end)
-    /* bss_end_addr */
-    .int PHYS(__bss_end)
-    /* entry_addr */
-    .int PHYS(real_start)
-
+.global real_start
 real_start:
     movl $0, PHYS(_multiboot1_info)
     movl $0, PHYS(_multiboot2_info)

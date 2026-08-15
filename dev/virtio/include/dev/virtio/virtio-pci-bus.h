@@ -46,6 +46,9 @@ public:
 private:
     static handler_return virtio_pci_irq(void *arg);
 
+    // tear down any bar mappings made by init()
+    void unmap_bars();
+
     enum class irq_mode : uint8_t {
         Legacy,
         Msi,
