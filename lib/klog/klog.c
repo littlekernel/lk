@@ -520,15 +520,15 @@ usage:
             printf("error allocating memory for klog read\n");
             return -1;
         }
-        size_t count = klog_read(buf, len, buf_id);
+        ssize_t count = klog_read(buf, len, buf_id);
         if (count > 0) {
-            printf("read %zu byte(s): \"", count);
-            for (size_t i = 0; i < count; i++)
+            printf("read %ld byte(s): \"", count);
+            for (ssize_t i = 0; i < count; i++)
                 putchar(buf[i]);
             putchar('\"');
             putchar('\n');
         } else {
-            printf("read returned error: %d\n", count);
+            printf("read returned error: %ld\n", count);
         }
         free(buf);
     } else if (!strcmp(argv[1].str, "getc")) {
