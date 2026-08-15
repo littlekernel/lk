@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <array>
 #include <lib/unittest.h>
+#include <memory>
 #include <rand.h>
 
 namespace {
@@ -195,28 +196,28 @@ bool sort_larger_random() {
     // a few hundred pseudo-random elements, checked for sortedness and
     // content preservation via a sum
     constexpr int kN = 384;
-    static int buf[kN];
+    auto buf = std::make_unique<std::array<int, kN>>();
     int64_t sum_before = 0;
     for (int i = 0; i < kN; i++) {
-        buf[i] = static_cast<int>(rand() & 0xffff);
-        sum_before += buf[i];
+        (*buf)[i] = rand();
+        sum_before += (*buf)[i];
     }
 
-    std::sort(buf, buf + kN);
+    std::sort((*buf).begin(), (*buf).end());
 
     int64_t sum_after = 0;
     for (int i = 0; i < kN; i++) {
-        sum_after += buf[i];
+        sum_after += (*buf)[i];
     }
-    EXPECT_TRUE(std::is_sorted(buf, buf + kN), "");
+    EXPECT_TRUE(std::is_sorted((*buf).begin(), (*buf).end()), "");
     EXPECT_TRUE(sum_before == sum_after, "sort must permute, not alter");
 
     // binary search over the sorted result agrees with linear search
     for (int probe = 0; probe < 8; probe++) {
-        const int v = buf[(probe * 53) % kN];
-        EXPECT_TRUE(std::binary_search(buf, buf + kN, v), "");
-        int *lb = std::lower_bound(buf, buf + kN, v);
-        EXPECT_TRUE(lb == std::find(buf, buf + kN, v), "");
+        const int v = (*buf)[(probe * 53) % kN];
+        EXPECT_TRUE(std::binary_search((*buf).begin(), (*buf).end(), v), "");
+        auto lb = std::lower_bound((*buf).begin(), (*buf).end(), v);
+        EXPECT_TRUE(lb == std::find((*buf).begin(), (*buf).end(), v), "");
     }
 
     END_TEST;
