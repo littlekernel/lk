@@ -756,7 +756,7 @@ status_t fat_dir_walk(fat_fs *fat, const char *path, dir_entry *out_entry, dir_e
         }
 
         // push path past the next /
-        while (*path == '/' && path != 0) {
+        while (*path == '/') {
             path++;
         }
 
