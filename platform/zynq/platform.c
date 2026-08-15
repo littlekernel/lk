@@ -492,7 +492,7 @@ usage:
     } else if (!strcmp(argv[1].str, "mio")) {
         printf("zynq mio:\n");
         for (size_t i = 0; i < ZYNQ_MIO_CNT; i++) {
-            printf("\t%02u: 0x%08x", i, *REG32((uintptr_t)&SLCR->MIO_PIN_00 + (i * 4)));
+            printf("\t%02zu: 0x%08x", i, *REG32((uintptr_t)&SLCR->MIO_PIN_00 + (i * 4)));
             if (i % 4 == 3 || i == 53) {
                 putchar('\n');
             }

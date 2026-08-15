@@ -102,7 +102,7 @@ struct gem_state gem;
 static void debug_rx_handler(pktbuf_t *p) {
     static uint32_t pkt = 0;
 
-    printf("[%10u] packet %u, %zu bytes:\n", (uint32_t)current_time(), ++pkt, p->dlen);
+    printf("[%10u] packet %u, %u bytes:\n", (uint32_t)current_time(), ++pkt, p->dlen);
     hexdump8(p->data, p->dlen);
     putchar('\n');
 }
