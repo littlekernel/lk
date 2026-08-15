@@ -294,14 +294,17 @@ ssize_t klog_read(char *buf, size_t len, int buf_id) {
     return offset;
 }
 
-char klog_getc(int buf_id) {
+int klog_getc(int buf_id) {
     char c = '\0';
-    int err = klog_read(&c, 1, buf_id);
+    ssize_t err = klog_read(&c, 1, buf_id);
+    if (err < 0) {
+        return err;
+    }
 
-    return (err < 0) ? err : c;
+    return (unsigned char)c;
 }
 
-char klog_getchar(void) {
+int klog_getchar(void) {
     return klog_getc(-1);
 }
 
@@ -534,7 +537,12 @@ usage:
     } else if (!strcmp(argv[1].str, "getc")) {
         if (argc < 3) goto notenoughargs;
         int buf_id = argv[2].i;
-        printf("read: '%c'\n", klog_getc(buf_id));
+        int c = klog_getc(buf_id);
+        if (c < 0) {
+            printf("getc returned error: %d\n", c);
+        } else {
+            printf("read: '%c'\n", c);
+        }
     } else if (!strcmp(argv[1].str, "printftest")) {
         klog_printf("a plain string\n");
         klog_printf("numbers: %d %d %d %u\n", 1, 2, 3, 99);

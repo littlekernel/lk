@@ -41,8 +41,14 @@ int klog_get_buffer(int buffer, iovec_t *vec);
  * Read functions actively remove data from the klog on read
  */
 ssize_t klog_read(char *buf, size_t len, int buf_id);
-char klog_getc(int buf_id);
-char klog_getchar(void);
+
+/*
+ * Return the next byte as an unsigned char converted to int, or a negative
+ * status_t on error. Follows the getchar() convention so that a 0xff data byte
+ * is distinguishable from an error.
+ */
+int klog_getc(int buf_id);
+int klog_getchar(void);
 bool klog_has_data(void);
 
 void klog_putchar(char c);
