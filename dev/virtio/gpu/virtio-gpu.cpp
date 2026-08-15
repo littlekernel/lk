@@ -365,7 +365,7 @@ status_t virtio_gpu_start(virtio_device *dev) {
     }
 
     /* attach a backing store to the resource */
-    size_t len = gdev->pmode.r.width * gdev->pmode.r.height * 4;
+    size_t len = (size_t)gdev->pmode.r.width * gdev->pmode.r.height * 4;
 #if WITH_KERNEL_VM
     gdev->fb = pmm_alloc_kpages(ROUNDUP(len, PAGE_SIZE) / PAGE_SIZE, NULL);
 #else
