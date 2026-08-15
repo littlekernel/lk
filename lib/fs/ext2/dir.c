@@ -30,7 +30,7 @@ static int ext2_dir_lookup(ext2_t *ext2, struct ext2_inode *dir_inode, const cha
     file_blocknum = 0;
     for (;;) {
         /* read in the offset */
-        err = ext2_read_inode(ext2, dir_inode, buf, file_blocknum * EXT2_BLOCK_SIZE(ext2->sb), EXT2_BLOCK_SIZE(ext2->sb));
+        err = ext2_read_inode(ext2, dir_inode, buf, (off_t)file_blocknum * EXT2_BLOCK_SIZE(ext2->sb), EXT2_BLOCK_SIZE(ext2->sb));
         if (err <= 0) {
             free(buf);
             return -1;

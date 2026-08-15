@@ -348,7 +348,7 @@ static void spifs_add_ascending(spifs_t *spifs, spifs_file_t *target) {
 }
 
 static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr) {
-    off_t block_addr = page_addr * spifs->blocks_per_page;
+    off_t block_addr = (off_t)page_addr * spifs->blocks_per_page;
 
     ssize_t bytes = bio_read_block(spifs->dev, spifs->page, block_addr,
                                    spifs->blocks_per_page);
@@ -361,7 +361,7 @@ static status_t spifs_read_page(spifs_t *spifs, uint32_t page_addr) {
 }
 
 static status_t spifs_write_page(spifs_t *spifs, uint32_t page_addr) {
-    off_t block_addr = page_addr * spifs->blocks_per_page;
+    off_t block_addr = (off_t)page_addr * spifs->blocks_per_page;
     off_t device_addr = block_addr * spifs->dev->block_size;
 
     // Device requires erase before write?

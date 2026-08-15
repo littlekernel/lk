@@ -211,7 +211,7 @@ static void get_inode_addr(ext2_t *ext2, inodenum_t num, blocknum_t *block, size
     *block = ext2->gd[group].bg_inode_table;
 
     // add the offset of the inode within the group
-    size_t offset = (num % EXT2_INODES_PER_GROUP(ext2->sb)) * EXT2_INODE_SIZE(ext2->sb);
+    size_t offset = (size_t)(num % EXT2_INODES_PER_GROUP(ext2->sb)) * EXT2_INODE_SIZE(ext2->sb);
     *block_offset = offset % EXT2_BLOCK_SIZE(ext2->sb);
     *block += offset / EXT2_BLOCK_SIZE(ext2->sb);
 }
