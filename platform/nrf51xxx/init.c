@@ -18,7 +18,9 @@
 void platform_early_init(void) {
     // Crank up the clock before initing timers.
     SystemInit();
-    arm_cm_systick_init(32768);
+    // The systick counter runs off the core clock, which is a fixed 16MHz on
+    // the nrf51. Note this is not the 32768Hz LFCLK the RTC peripherals use.
+    arm_cm_systick_init(16000000);
 }
 
 void platform_init(void) {

@@ -48,7 +48,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/uart.c \
 	$(LOCAL_DIR)/vectab.c \
 	$(LOCAL_DIR)/gpio.c \
-    $(LOCAL_DIR)/timer.c \
 
 
 LINKER_SCRIPT += \
@@ -56,6 +55,7 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	platform/nrf51 \
+	arch/arm/arm-m/systick \
 	lib/cbuf
 
 include make/module.mk
