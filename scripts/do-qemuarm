@@ -25,9 +25,10 @@ readonly HOST_OS_ARCH
 
 function HELP {
     echo "help:"
-    echo "-p <project>      : specify the project to build (default qemu-virt-arm32-test, qemu-virt-arm64-test or lm3s6965evb-test)"
+    echo "-p <project>      : specify the project to build (default qemu-virt-arm32-test, qemu-virt-arm64-test, lm3s6965evb-test or microbit-v1-test)"
     echo "-6                : 64bit arm (default is 32bit)"
     echo "-3                : cortex-m3 based platform (most other options ignored)"
+    echo "-0                : cortex-m0 based platform, BBC micro:bit v1 (most other options ignored)"
     echo "-P <page size>    : set the page size (default: 4K, valid: 4k/4096, 16k/16384, 64k/65536)"
     echo "-v                : boot kernel at EL2"
     echo "-k                : use KVM or HVF acceleration if present (only on 64bit)"
@@ -60,6 +61,7 @@ CMDLINE=""
 DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
+DO_CORTEX_M0=0
 DO_KVM=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
@@ -77,7 +79,7 @@ GIC_VERSION=""
 NETDEV=""
 DO_NETDEV_OVERRIDE=0
 
-while getopts A:cCd:gG:hkm:MntN:36vp:P:s:f:X FLAG; do
+while getopts A:cCd:gG:hkm:MntN:036vp:P:s:f:X FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) DO_CMPCTMALLOC=1;;
@@ -93,6 +95,7 @@ while getopts A:cCd:gG:hkm:MntN:36vp:P:s:f:X FLAG; do
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
         N) NETDEV=$OPTARG; DO_NETDEV_OVERRIDE=1;;
+        0) DO_CORTEX_M0=1;;
         3) DO_CORTEX_M3=1;;
         6) DO_64BIT=1;;
         v) DO_VIRT=1;;
@@ -111,8 +114,14 @@ done
 shift $((OPTIND-1))
 
 # validate option combinations
-if (( DO_CORTEX_M3 )); then
-    # Cortex-M3 platform is very limited and doesn't support most features
+if (( DO_CORTEX_M0 && DO_CORTEX_M3 )); then
+    echo "Error: Cannot use both -0 (Cortex-M0) and -3 (Cortex-M3) together"
+    exit 1
+fi
+
+if (( DO_CORTEX_M0 || DO_CORTEX_M3 )); then
+    # the Cortex-M platforms are very limited and don't support most features
+    if (( DO_CORTEX_M0 )); then CORTEX_M_OPT="-0 (Cortex-M0)"; else CORTEX_M_OPT="-3 (Cortex-M3)"; fi
     INVALID_OPTS=()
     if (( DO_64BIT )); then INVALID_OPTS+=("-6 (64-bit)"); fi
     if (( DO_KVM )); then INVALID_OPTS+=("-k (KVM/HVF)"); fi
@@ -124,7 +133,7 @@ if (( DO_CORTEX_M3 )); then
     if [[ "$PAGE_SIZE" != "4096" ]]; then INVALID_OPTS+=("-P (page size)"); fi
 
     if (( ${#INVALID_OPTS[@]} > 0 )); then
-        echo "Warning: -3 (Cortex-M3) does not support: ${INVALID_OPTS[*]}"
+        echo "Warning: $CORTEX_M_OPT does not support: ${INVALID_OPTS[*]}"
         echo "These options will be ignored."
     fi
 fi
@@ -164,8 +173,23 @@ if [ -n "$GIC_VERSION" ]; then
     GIC_STRING=",gic_version=$GIC_VERSION"
 fi
 
-# pick the appropriate qemu and project
-if (( DO_64BIT )); then
+# pick the appropriate qemu and project.
+# the cortex-m machines are checked first, so that the options warned about
+# above really are ignored.
+if (( DO_CORTEX_M3 )); then
+    QEMU="qemu-system-arm"
+    CPU="cortex-m3"
+    MACHINE="lm3s6965evb"
+    _PROJECT="lm3s6965evb-test"
+elif (( DO_CORTEX_M0 )); then
+    # the 'microbit' machine models a BBC micro:bit v1: an nrf51822 with 16k of
+    # RAM. Only enough of the SOC is modelled, and only enough RAM to boot to a
+    # shell, so this is a basic cortex-m0 smoke test and not much else.
+    QEMU="qemu-system-arm"
+    CPU="cortex-m0"
+    MACHINE="microbit"
+    _PROJECT="microbit-v1-test"
+elif (( DO_64BIT )); then
     QEMU="qemu-system-aarch64"
     CPU="cortex-a76" # default to something recent that modern qemu supports
     MACHINE="virt"
@@ -195,11 +219,6 @@ if (( DO_64BIT )); then
     else
         _PROJECT="qemu-virt-arm64-test"
     fi
-elif (( DO_CORTEX_M3 )); then
-    QEMU="qemu-system-arm"
-    CPU="cortex-m3"
-    MACHINE="lm3s6965evb"
-    _PROJECT="lm3s6965evb-test"
 else
     QEMU="qemu-system-arm"
     CPU="cortex-a15"
@@ -291,7 +310,7 @@ if (( DO_V9P )); then
     ARGS+=("-device" "${VIRTIO_9P_DEVICE},fsdev=v9p0,mount_tag=V9P0")
 fi
 
-if (( ! DO_CORTEX_M3 )); then
+if (( ! DO_CORTEX_M0 && ! DO_CORTEX_M3 )); then
     ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
 fi
 
