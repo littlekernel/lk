@@ -167,6 +167,9 @@ __NO_INLINE static void bench_memcpy(void) {
 }
 
 #if ARCH_ARM
+/* derives ARM_ARCH_* and ARM_ARCH_LEVEL from the compiler's builtin defines */
+#include <arch/arm/cores.h>
+
 __NO_INLINE static void arm_bench_cset_stm(void) {
     uint32_t *buf = memalign(CACHE_LINE, BUFSIZE);
     if (!buf) {
@@ -177,7 +180,7 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
     ulong count = arch_cycle_count();
     for (uint i = 0; i < ITER; i++) {
         for (uint j = 0; j < BUFSIZE / sizeof(*buf) / 8; j++) {
-#if ARM_ISA_ARMV6M
+#if ARM_ARCH_6M
             /* Thumb1 only has the writeback form of stm, and the register list
              * is limited to r0-r7, so store the same 8 words as two 4 register
              * stores. The base register must stay out of the list, which is why
@@ -209,7 +212,8 @@ __NO_INLINE static void arm_bench_cset_stm(void) {
     free(buf);
 }
 
-#if (__CORTEX_M >= 0x03)
+/* needs the 3 operand data processing instructions, which thumb1 does not have */
+#if ARM_ARCH_7M
 __NO_INLINE static void arm_bench_multi_issue(void) {
     ulong cycles;
     uint32_t a = 0, b = 0, c = 0, d = 0, e = 0, f = 0, g = 0, h = 0;
@@ -234,7 +238,7 @@ __NO_INLINE static void arm_bench_multi_issue(void) {
            cycles_per_iter / 1000, cycles_per_iter % 1000);
 #undef ITER
 }
-#endif // __CORTEX_M
+#endif // ARM_ARCH_7M
 #endif // ARCH_ARM
 
 #if WITH_LIB_LIBM
@@ -293,7 +297,7 @@ int benchmarks(int argc, const console_cmd_args *argv) {
 #if ARCH_ARM
     arm_bench_cset_stm();
 
-#if (__CORTEX_M >= 0x03)
+#if ARM_ARCH_7M
     arm_bench_multi_issue();
 #endif
 #endif
