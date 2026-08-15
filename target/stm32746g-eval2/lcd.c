@@ -350,7 +350,8 @@ uint8_t BSP_LCD_Init(void) {
     BSP_LCD_SelectLayer(0);
 
     /* clear it out */
-    memset((void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress, 0, BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BSP_LCD_PixelSize());
+    memset((void *)hLtdcEval.LayerCfg[ActiveLayer].FBStartAdress, 0,
+           (size_t)BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * BSP_LCD_PixelSize());
 
     /* turn the display on */
     BSP_LCD_DisplayOn();
