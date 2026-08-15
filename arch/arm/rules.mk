@@ -23,6 +23,7 @@ GLOBAL_DEFINES += \
 HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
+ARM_WITHOUT_LOCK_FREE_ATOMICS := true
 endif
 ifeq ($(ARM_CPU),cortex-m0plus)
 GLOBAL_DEFINES += \
@@ -34,6 +35,7 @@ GLOBAL_DEFINES += \
 HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
+ARM_WITHOUT_LOCK_FREE_ATOMICS := true
 endif
 ifeq ($(ARM_CPU),cortex-m3)
 GLOBAL_DEFINES += \
@@ -242,6 +244,18 @@ endif
 
 ifneq ($(HANDLED_CORE),true)
 $(error $(LOCAL_DIR)/rules.mk doesnt have logic for arm core $(ARM_CPU))
+endif
+
+# Cores with no atomic read-modify-write instruction (armv6-m has no
+# ldrex/strex) make the compiler emit calls into libatomic, which no bare metal
+# toolchain ships. Provide the routines ourselves.
+ifeq ($(ARM_WITHOUT_LOCK_FREE_ATOMICS),true)
+MODULE_DEPS += lib/atomic_fallback
+ifeq ($(TOOLCHAIN),clang)
+# clang reports a max lock free size of 0 bytes for these cores and warns at
+# every atomic access, including the ones it is about to turn into a call.
+GLOBAL_COMPILEFLAGS += -Wno-atomic-alignment
+endif
 endif
 
 THUMBCFLAGS :=
