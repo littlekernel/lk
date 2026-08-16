@@ -268,6 +268,19 @@ status_t pci_bus_mgr_assign_resources_mode(enum pci_assign_mode mode) {
     return final_err;
 }
 
+void pci_bus_mgr_dump() {
+    if (!initialized) {
+        printf("PCI: bus manager not initialized\n");
+        return;
+    }
+
+    for_every_root([](root *r) -> status_t {
+        r->dump(1);
+        r->allocator().dump();
+        return NO_ERROR;
+    });
+}
+
 // for every bus in the system, pass the visit routine to the device
 status_t pci_bus_mgr_visit_devices(pci_visit_routine routine, void *cookie) {
     auto v = [&](device *d) -> status_t {

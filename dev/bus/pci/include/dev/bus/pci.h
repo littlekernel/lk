@@ -164,6 +164,8 @@ ssize_t pci_read_vendor_capability(const pci_location_t loc, size_t index, void 
 const char *pci_loc_string(pci_location_t loc, char out_str[14]);
 
 // debug printing routines
+// dump every root, bus and device the bus manager found, with the resources it decided on
+void pci_bus_mgr_dump(void);
 void pci_dump_bar(const pci_bar_t *bar, int index);
 void pci_dump_bars(pci_bar_t bar[6], size_t count);
 const char *pci_resource_type_to_str(enum pci_resource_type);

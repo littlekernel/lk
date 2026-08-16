@@ -271,6 +271,7 @@ int pci_cmd(int argc, const console_cmd_args *argv) {
         printf("pci commands:\n");
 usage:
         printf("%s list\n", argv[0].str);
+        printf("%s roots\n", argv[0].str);
         printf("%s config dump <bus> <dev> <fn>\n", argv[0].str);
         printf("%s config hexdump <bus> <dev> <fn>\n", argv[0].str);
         printf("%s config <rb|rh|rw> <bus> <dev> <fn> <offset>\n", argv[0].str);
@@ -280,6 +281,8 @@ usage:
 
     if (!strcmp(argv[1].str, "list")) {
         pci_list();
+    } else if (!strcmp(argv[1].str, "roots")) {
+        pci_bus_mgr_dump();
     } else if (!strcmp(argv[1].str, "config")) {
         if (pci_config(argc, argv)) {
             goto usage;
