@@ -8,6 +8,8 @@
 
 #include "device.h"
 #include "resource.h"
+#include "root.h"
+#include "bus.h"
 #include "arch/mmu.h"
 
 #include <assert.h>
@@ -304,8 +306,31 @@ status_t device::allocate_irq(uint *irq) {
         return err;
     }
 
-    if (interrupt_pin == 0) {
+    if (interrupt_pin == 0 || interrupt_pin > 4) {
         return ERR_NO_RESOURCES;
+    }
+
+    // If the root knows how to route legacy interrupts (ACPI _PRT and the like), swizzle the pin
+    // up through any bridges to the root bus and ask it. Each PCI-PCI bridge rotates INTA-D by
+    // the device number of the device below it (PCI-PCI bridge spec 9.1).
+    root *r = bus_->get_root();
+    if (r && r->has_intx_route()) {
+        pci_location_t root_loc = loc();
+        unsigned int pin = interrupt_pin;
+        for (bus *b = bus_; b && !b->is_root_bus(); b = b->get_bridge()->parent_bus()) {
+            pin = ((pin - 1 + root_loc.dev) % 4) + 1;
+            root_loc = b->get_bridge()->loc();
+        }
+
+        char str[14];
+        LTRACEF("device %s INT%c swizzled to root bus device %u INT%c\n",
+                pci_loc_string(loc(), str), 'A' + interrupt_pin - 1, root_loc.dev, 'A' + pin - 1);
+
+        err = r->route_intx(root_loc, pin, irq);
+        if (err == NO_ERROR) {
+            return NO_ERROR;
+        }
+        LTRACEF("root failed to route interrupt (%d), falling back to config space line\n", err);
     }
 
     // Prefer the already-routed legacy IRQ line from PCI config space.

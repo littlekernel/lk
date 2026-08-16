@@ -18,6 +18,7 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <platform/interrupts.h>
 #include <platform/pc.h>
 #include <stdio.h>
 #include <string.h>
@@ -61,6 +62,38 @@ static bool pc_pci_init_ecam(void) {
     return have_backend;
 }
 
+// route a legacy interrupt pin of a device on the root bus (already swizzled) via _PRT
+static status_t pc_pci_intx_route(void *cookie, pci_location_t loc, unsigned int pin,
+                                  unsigned int *vector) {
+    struct acpi_pci_root *root = cookie;
+    char str[14];
+
+    struct acpi_pci_irq irq;
+    status_t err = acpi_pci_root_route_intx(root, loc.dev, pin, &irq);
+    if (err != NO_ERROR) {
+        dprintf(INFO, "PCI: no _PRT route for %s INT%c (%d)\n", pci_loc_string(loc, str),
+                'A' + pin - 1, err);
+        return err;
+    }
+
+    if (pc_using_ioapic()) {
+        err = pc_route_gsi(irq.gsi, irq.level_triggered, irq.active_low, vector);
+    } else {
+        // in PIC mode the _PRT hands out 8259 irq numbers
+        err = platform_pci_int_line_to_vector(irq.gsi, loc, vector);
+    }
+    if (err != NO_ERROR) {
+        printf("PCI: failed to route %s INT%c gsi %u: %d\n", pci_loc_string(loc, str),
+               'A' + pin - 1, irq.gsi, err);
+        return err;
+    }
+
+    dprintf(INFO, "PCI: routed %s INT%c -> gsi %u -> vector %#x (%s/%s)\n", pci_loc_string(loc, str),
+            'A' + pin - 1, irq.gsi, *vector, irq.level_triggered ? "level" : "edge",
+            irq.active_low ? "low" : "high");
+    return NO_ERROR;
+}
+
 // one host bridge found in the namespace
 static void pc_pci_add_acpi_root(struct acpi_pci_root *root, void *cookie) {
     size_t *count = cookie;
@@ -69,17 +102,25 @@ static void pc_pci_add_acpi_root(struct acpi_pci_root *root, void *cookie) {
         acpi_pci_root_dump(root);
     }
 
+    // pull in the routing table now so problems show up at boot. a root without one (nothing
+    // below it uses INTx) is fine.
+    status_t err = acpi_pci_root_load_prt(root);
+    if (err != NO_ERROR && err != ERR_NOT_FOUND) {
+        printf("PCI: root %04x:%02x: failed to load _PRT (%d), INTx routing will use config space\n",
+               root->segment, root->bus_start, err);
+    }
+
     struct pci_root_desc desc = {
         .segment = root->segment,
         .bus_start = root->bus_start,
         .bus_end = root->bus_end,
         .windows = root->windows,
         .num_windows = root->num_windows,
-        .intx_route = NULL,
+        .intx_route = (err == NO_ERROR) ? pc_pci_intx_route : NULL,
         .intx_cookie = root,
     };
 
-    status_t err = pci_bus_mgr_add_root(&desc);
+    err = pci_bus_mgr_add_root(&desc);
     if (err != NO_ERROR) {
         printf("PCI: failed to add ACPI root %04x:%02x, error %d\n", root->segment,
                root->bus_start, err);
@@ -111,6 +152,10 @@ void pc_pci_init(bool have_acpi) {
     if (have_acpi) {
         status_t err = acpi_init_namespace();
         if (err == NO_ERROR && have_backend) {
+            // tell the firmware which interrupt controller we're using before asking it how
+            // interrupts are routed
+            acpi_pci_set_interrupt_model(pc_using_ioapic());
+
             // 3. root busses from the host bridge devices in the namespace
             size_t count = 0;
             err = acpi_pci_enumerate_roots(pc_pci_add_acpi_root, &count);
