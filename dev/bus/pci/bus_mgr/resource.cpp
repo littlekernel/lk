@@ -329,11 +329,16 @@ status_t resource_allocator::allocate_mmio(bool can_be_64bit, bool prefetchable,
         }
     }
 
-    for (size_t i = 0; i < count; i++) {
-        // avoid handing out address 0, it reads as unassigned
-        status_t err = candidates[i].pool->alloc(size, align, 1, candidates[i].max_addr, out);
-        if (err == NO_ERROR) {
-            return NO_ERROR;
+    // prefer to stay out of the low 16MB (legacy VGA/ISA holes on a pc show up as windows
+    // there), and never hand out address 0, which reads as unassigned. two passes: first with
+    // the preferred minimum across every pool, then anything at all.
+    static const uint64_t mmio_min[] = { 0x1000000, 1 };
+    for (auto min : mmio_min) {
+        for (size_t i = 0; i < count; i++) {
+            status_t err = candidates[i].pool->alloc(size, align, min, candidates[i].max_addr, out);
+            if (err == NO_ERROR) {
+                return NO_ERROR;
+            }
         }
     }
 

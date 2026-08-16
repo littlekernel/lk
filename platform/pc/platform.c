@@ -580,52 +580,13 @@ void platform_init(void) {
 #endif
 
 #if WITH_DEV_BUS_PCI
-    bool pci_initted = false;
+    // pci and, if present, the acpi namespace
 #if WITH_LIB_ACPI
-    if (found_acpi) {
-        // TODO: handle interrupt source overrides from the MADT table
-
-        // try to find the mcfg table and register every ecam aperture it describes
-        const struct acpi_mcfg *table =
-            (const struct acpi_mcfg *)acpi_get_table_by_sig(ACPI_MCFG_SIGNATURE);
-        if (table && table->hdr.length >= sizeof(*table)) {
-            size_t count = (table->hdr.length - sizeof(*table)) / sizeof(struct acpi_mcfg_allocation);
-            for (size_t i = 0; i < count; i++) {
-                const struct acpi_mcfg_allocation *entry = &table->entries[i];
-                printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n", entry->segment,
-                       entry->start_bus, entry->end_bus, entry->address);
-
-                // try to initialize pci based on the MCFG ecam aperture
-                status_t err = pci_init_ecam(entry->address, entry->segment, entry->start_bus,
-                                             entry->end_bus);
-                if (err == NO_ERROR) {
-                    pci_initted = true;
-                } else {
-                    printf("PCI MCFG: failed to init ecam entry %zu, error %d\n", i, err);
-                }
-            }
-            if (pci_initted) {
-                pci_bus_mgr_init();
-            }
-        }
-    }
+    pc_pci_init(found_acpi);
+#else
+    pc_pci_init(false);
 #endif
-
-    // fall back to legacy pci if we couldn't find the pcie aperture
-    if (!pci_initted) {
-        status_t err = pci_init_legacy();
-        if (err == NO_ERROR) {
-            pci_bus_mgr_init();
-            pci_initted = true;
-        }
-    }
-
-    if (pci_initted) {
-        virtio_pci_init();
-    }
-#endif
-
-#if WITH_LIB_ACPI
+#elif WITH_LIB_ACPI
     if (found_acpi) {
         acpi_init_namespace();
     }

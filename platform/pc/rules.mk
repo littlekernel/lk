@@ -29,6 +29,7 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/keyboard.c \
     $(LOCAL_DIR)/mp.c \
     $(LOCAL_DIR)/mp-boot.S \
+    $(LOCAL_DIR)/pci.c \
     $(LOCAL_DIR)/pic.c \
     $(LOCAL_DIR)/pit.c \
     $(LOCAL_DIR)/platform.c \

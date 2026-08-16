@@ -37,3 +37,6 @@ uint64_t pit_measure_freq(void);
 
 // secondary cpus
 void platform_start_secondary_cpus(void);
+
+// pci (and the acpi namespace, which needs pci config access up first)
+void pc_pci_init(bool have_acpi);
