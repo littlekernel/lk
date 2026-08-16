@@ -9,11 +9,12 @@
 
 #include <sys/types.h>
 #include <stdio.h>
+#include <lk/cpp.h>
+#include <lk/list.h>
 #include <dev/bus/pci.h>
 
 namespace pci {
 
-// TODO: move into separate file
 struct resource_range {
     pci_resource_type type;
     uint64_t base;
@@ -25,36 +26,84 @@ struct resource_range {
     }
 };
 
-struct resource_range_set {
-    resource_range io;
-    resource_range mmio;
-    resource_range mmio64;
-    resource_range mmio_prefetchable;
-    resource_range mmio64_prefetchable;
+// A pool of free address ranges of one kind, kept as a sorted, non overlapping list.
+// Ranges can be added, carved out (reserved) and allocated from with alignment.
+class range_pool {
+public:
+    range_pool() = default;
+    ~range_pool();
 
-    void dump() const {
-        printf("resource range set:\n");
-        io.dump();
-        mmio.dump();
-        mmio64.dump();
-        mmio_prefetchable.dump();
-        mmio64_prefetchable.dump();
-    }
+    DISALLOW_COPY_ASSIGN_AND_MOVE(range_pool);
+
+    // add [base, base + size) to the pool, merging with neighbors
+    status_t add(uint64_t base, uint64_t size);
+
+    // remove [base, base + size) from the pool. It's fine if parts (or all) of it are not
+    // in the pool to begin with.
+    status_t reserve(uint64_t base, uint64_t size);
+
+    // find the lowest free range of size bytes aligned to 1 << align_log2, with
+    // min_addr <= address and address + size - 1 <= max_addr
+    status_t alloc(uint64_t size, uint8_t align_log2, uint64_t min_addr, uint64_t max_addr,
+                   uint64_t *out);
+
+    bool empty() const { return list_is_empty(const_cast<list_node *>(&free_)); }
+
+    // total free bytes
+    uint64_t free_bytes() const;
+
+    void dump(const char *name) const;
+
+private:
+    struct range {
+        list_node node;
+        uint64_t base;
+        uint64_t size;
+        uint64_t end() const { return base + size - 1; }
+    };
+
+    list_node free_ = LIST_INITIAL_VALUE(free_);
 };
 
+// The set of pools a bus (or root) may hand out addresses from.
 class resource_allocator {
 public:
-    resource_allocator() = default;
+    // A root allocator holds the windows of a host bridge, where the prefetchable attribute is
+    // only a hint, so non prefetchable requests may fall back to prefetchable windows there.
+    // Below a bridge that is not allowed.
+    explicit resource_allocator(bool is_root = false) : is_root_(is_root) {}
     ~resource_allocator() = default;
 
-    status_t set_range(const resource_range &range, bool prefetchable = false);
+    DISALLOW_COPY_ASSIGN_AND_MOVE(resource_allocator);
+
+    // add a window to the appropriate pool
+    status_t add_range(pci_resource_type type, bool prefetchable, uint64_t base, uint64_t size);
+    status_t add_range(const resource_range &range, bool prefetchable = false) {
+        return add_range(range.type, prefetchable, range.base, range.size);
+    }
+
+    // carve an already assigned range out of every pool that may hold it
+    status_t reserve(pci_resource_type type, uint64_t base, uint64_t size);
+
     status_t allocate_io(uint32_t size, uint8_t align, uint32_t *out);
     status_t allocate_mmio(bool can_be_64bit, bool prefetchable, uint64_t size, uint8_t align, uint64_t *out);
 
-private:
-    resource_range &type_to_range(pci_resource_type type, bool prefetchable);
+    // does the allocator have any space of this kind at all
+    bool has_range(pci_resource_type type, bool prefetchable) const;
 
-    resource_range_set ranges_ = {};
+    void dump() const;
+
+private:
+    range_pool &type_to_pool(pci_resource_type type, bool prefetchable);
+    const range_pool &type_to_pool(pci_resource_type type, bool prefetchable) const;
+
+    const bool is_root_;
+
+    range_pool io_;
+    range_pool mmio_;
+    range_pool mmio64_;
+    range_pool mmio_prefetchable_;
+    range_pool mmio64_prefetchable_;
 };
 
 } // namespace pci

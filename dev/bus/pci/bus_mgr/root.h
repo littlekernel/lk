@@ -34,7 +34,7 @@ public:
     status_t probe();
 
     // hand out resources to the devices under this root
-    status_t assign_resources();
+    status_t assign_resources(pci_assign_mode mode);
 
     // add a window this root decodes
     status_t add_window(const pci_root_window &window);
@@ -63,7 +63,7 @@ private:
     pci_root_desc desc_;
     bus *bus_ = nullptr;
     uint8_t highest_bus_;
-    resource_allocator allocator_;
+    resource_allocator allocator_{true};
 };
 
 } // namespace pci

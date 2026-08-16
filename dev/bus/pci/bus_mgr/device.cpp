@@ -7,6 +7,7 @@
  */
 
 #include "device.h"
+#include "resource.h"
 #include "arch/mmu.h"
 
 #include <assert.h>
@@ -712,7 +713,32 @@ status_t device::compute_bar_sizes(bar_sizes *sizes) {
     return NO_ERROR;
 }
 
-status_t device::get_bar_alloc_requests(list_node *bar_alloc_requests) {
+status_t device::reserve_assigned_resources(resource_allocator &allocator) {
+    char str[14];
+    LTRACEF("device at %s\n", pci_loc_string(loc(), str));
+
+    // any bar with a non zero address was set up by firmware, keep it out of the allocator
+    for (auto i = 0; i < 6; i++) {
+        const auto &bar = bars_[i];
+        if (!bar.valid || bar.addr == 0) {
+            continue;
+        }
+
+        pci_resource_type type;
+        if (bar.io) {
+            type = PCI_RESOURCE_IO_RANGE;
+        } else if (bar.size_64) {
+            type = PCI_RESOURCE_MMIO64_RANGE;
+        } else {
+            type = PCI_RESOURCE_MMIO_RANGE;
+        }
+        allocator.reserve(type, bar.addr, bar.size);
+    }
+
+    return NO_ERROR;
+}
+
+status_t device::get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assign_mode mode) {
     char str[14];
     LTRACEF("device at %s\n", pci_loc_string(loc(), str));
 
@@ -726,6 +752,11 @@ status_t device::get_bar_alloc_requests(list_node *bar_alloc_requests) {
             continue;
         }
 
+        // firmware already assigned this one and we were asked to keep those
+        if (mode == PCI_ASSIGN_UNASSIGNED && bar.addr != 0) {
+            continue;
+        }
+
         auto request = new bar_alloc_request;
         *request = {};
         request->bridge = false;
@@ -733,9 +764,10 @@ status_t device::get_bar_alloc_requests(list_node *bar_alloc_requests) {
         request->bar_num = i;
 
         if (bar.io) {
-            // io case
-            request->size = ROUNDUP(bar.size, 16);
-            request->align = 4;
+            // io case. bars are naturally aligned to their size, minimum 16 bytes.
+            auto size = ROUNDUP(bar.size, 16);
+            request->size = size;
+            request->align = __builtin_ctz(size);
             request->type = PCI_RESOURCE_IO_RANGE;
         } else if (bar.size_64) {
             // 64bit mmio

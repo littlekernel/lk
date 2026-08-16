@@ -41,11 +41,7 @@ status_t root::add_window(const pci_root_window &window) {
     }
 
     // TODO: carry the translation offset through to the devices that map the BARs
-    resource_range r = {};
-    r.type = window.type;
-    r.base = window.base;
-    r.size = window.size;
-    return allocator_.set_range(r);
+    return allocator_.add_range(window.type, window.prefetchable, window.base, window.size);
 }
 
 void root::note_bus_seen(uint8_t bus) {
@@ -87,12 +83,16 @@ status_t root::probe() {
     return NO_ERROR;
 }
 
-status_t root::assign_resources() {
+status_t root::assign_resources(pci_assign_mode mode) {
     if (!bus_) {
         return ERR_NOT_READY;
     }
 
-    return bus_->allocate_resources(allocator_);
+    if (LOCAL_TRACE) {
+        allocator_.dump();
+    }
+
+    return bus_->allocate_resources(allocator_, mode);
 }
 
 status_t root::route_intx(pci_location_t root_level_loc, unsigned int pin, unsigned int *vector) {

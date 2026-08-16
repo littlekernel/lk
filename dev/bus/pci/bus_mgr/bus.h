@@ -32,7 +32,7 @@ public:
     static status_t probe(pci_location_t loc, bridge *bridge, root *r, bus **out_bus);
 
     // allocate resources for devices on this bus and recursively all of its children
-    status_t allocate_resources(resource_allocator &allocator);
+    status_t allocate_resources(resource_allocator &allocator, pci_assign_mode mode);
 
     pci_location_t loc() const { return loc_; }
     uint bus_num() const { return loc().bus; }

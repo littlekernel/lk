@@ -38,9 +38,10 @@ public:
     void add_bus(bus *b) { secondary_bus_ = b; }
 
     status_t compute_bar_sizes(bar_sizes *sizes) override;
-    status_t get_bar_alloc_requests(list_node *bar_alloc_requests) override;
+    status_t reserve_assigned_resources(resource_allocator &allocator) override;
+    status_t get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assign_mode mode) override;
     status_t assign_resource(bar_alloc_request *request, uint64_t address) override;
-    status_t assign_child_resources() override;
+    status_t assign_child_resources(pci_assign_mode mode) override;
 
     void dump(size_t indent = 0) override;
 

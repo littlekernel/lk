@@ -109,7 +109,18 @@ status_t pci_bus_mgr_add_root(const struct pci_root_desc *desc);
 // register their own roots pass windows in the descriptor instead.
 status_t pci_bus_mgr_add_resource(enum pci_resource_type, uint64_t mmio_base, uint64_t len);
 
+// How to assign resources to devices
+enum pci_assign_mode {
+    // firmware assigned nothing: assign every BAR and bridge window from the root windows
+    PCI_ASSIGN_ALL = 0,
+    // keep everything firmware assigned (non zero BARs, open bridge windows) and only assign
+    // BARs still at zero from the space left over in the root windows
+    PCI_ASSIGN_UNASSIGNED,
+};
+
 // Assign resources to devices on all roots
+status_t pci_bus_mgr_assign_resources_mode(enum pci_assign_mode mode);
+// same as pci_bus_mgr_assign_resources_mode(PCI_ASSIGN_ALL)
 status_t pci_bus_mgr_assign_resources(void);
 
 // Probe all roots. Must be called after pci_init_*() and any pci_bus_mgr_add_root() calls.

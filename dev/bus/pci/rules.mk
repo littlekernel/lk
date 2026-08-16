@@ -18,6 +18,8 @@ MODULE_SRCS += $(LOCAL_DIR)/backend/type1.cpp
 
 MODULE_DEPS += lib/libcpp
 
+MODULE_OPTIONS += test
+
 MODULE_CPPFLAGS += -Wno-invalid-offsetof
 MODULE_COMPILEFLAGS += -Wmissing-declarations
 

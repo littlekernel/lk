@@ -235,7 +235,11 @@ status_t pci_bus_mgr_init() {
 }
 
 status_t pci_bus_mgr_assign_resources() {
-    LTRACE_ENTRY;
+    return pci_bus_mgr_assign_resources_mode(PCI_ASSIGN_ALL);
+}
+
+status_t pci_bus_mgr_assign_resources_mode(enum pci_assign_mode mode) {
+    LTRACEF("mode %d\n", mode);
 
     if (!initialized) {
         return ERR_NOT_READY;
@@ -243,7 +247,7 @@ status_t pci_bus_mgr_assign_resources() {
 
     status_t final_err = NO_ERROR;
     for_every_root([&](root *r) -> status_t {
-        status_t err = r->assign_resources();
+        status_t err = r->assign_resources(mode);
         if (err != NO_ERROR) {
             printf("PCI: error %d assigning resources to devices on root %04x:%02x\n", err,
                    r->segment(), r->bus_start());
