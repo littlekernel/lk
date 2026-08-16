@@ -585,12 +585,13 @@ void platform_init(void) {
     if (found_acpi) {
         // TODO: handle interrupt source overrides from the MADT table
 
-        // try to find the mcfg table
+        // try to find the mcfg table and register every ecam aperture it describes
         const struct acpi_mcfg *table =
             (const struct acpi_mcfg *)acpi_get_table_by_sig(ACPI_MCFG_SIGNATURE);
-        if (table) {
-            if (table->hdr.length >= sizeof(*table) + sizeof(struct acpi_mcfg_allocation)) {
-                const struct acpi_mcfg_allocation *entry = &table->entries[0];
+        if (table && table->hdr.length >= sizeof(*table)) {
+            size_t count = (table->hdr.length - sizeof(*table)) / sizeof(struct acpi_mcfg_allocation);
+            for (size_t i = 0; i < count; i++) {
+                const struct acpi_mcfg_allocation *entry = &table->entries[i];
                 printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n", entry->segment,
                        entry->start_bus, entry->end_bus, entry->address);
 
@@ -598,9 +599,13 @@ void platform_init(void) {
                 status_t err = pci_init_ecam(entry->address, entry->segment, entry->start_bus,
                                              entry->end_bus);
                 if (err == NO_ERROR) {
-                    pci_bus_mgr_init();
                     pci_initted = true;
+                } else {
+                    printf("PCI MCFG: failed to init ecam entry %zu, error %d\n", i, err);
                 }
+            }
+            if (pci_initted) {
+                pci_bus_mgr_init();
             }
         }
     }

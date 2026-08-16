@@ -32,6 +32,14 @@ void pci_list() {
 
         for (int bus = 0; bus <= pci_get_last_bus(); bus++) {
             state.bus = bus;
+            state.dev = 0;
+            state.fn = 0;
+
+            // skip busses that no config accessor covers
+            uint16_t probe;
+            if (pci_read_config_half(state, PCI_CONFIG_VENDOR_ID, &probe) == ERR_NOT_FOUND) {
+                continue;
+            }
             busses++;
 
             for (int dev = 0; dev < 32; dev++) {
