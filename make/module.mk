@@ -6,6 +6,8 @@
 # MODULE_SRCS : list of source files, local path (required)
 # MODULE_FLOAT_SRCS : list of source files compiled with floating point support (if available)
 # MODULE_DEPS : other modules that this one depends on
+# MODULE_WEAK_DEPS : modules whose headers this one uses only when they happen to be in the
+#   build (code guarded by WITH_<module>); recorded as a dependency but does not pull them in
 # MODULE_DEFINES : #defines local to this module
 # MODULE_OPTFLAGS : OPTFLAGS local to this module
 # MODULE_COMPILEFLAGS : COMPILEFLAGS local to this module
@@ -61,6 +63,12 @@ endif
 
 # add the listed module deps to the global list
 MODULES += $(MODULE_DEPS)
+
+# weak deps are only recorded (see MODULE_WEAK_DEPS in the module's module_config.h and
+# scripts/check-module-deps.py); a module in both lists is a mistake
+ifneq ($(filter $(MODULE_WEAK_DEPS),$(MODULE_DEPS)),)
+$(error MODULE $(MODULE) lists $(filter $(MODULE_WEAK_DEPS),$(MODULE_DEPS)) in both MODULE_DEPS and MODULE_WEAK_DEPS)
+endif
 
 # parse options
 MODULE_OPTIONS_COPY := $(sort $(MODULE_OPTIONS))
@@ -123,6 +131,7 @@ MODULE_DEFINES += MODULE_OPTFLAGS=\"$(subst $(SPACE),_,$(MODULE_OPTFLAGS))\"
 MODULE_DEFINES += MODULE_INCLUDES=\"$(subst $(SPACE),_,$(MODULE_INCLUDES))\"
 MODULE_DEFINES += MODULE_SRCDEPS=\"$(subst $(SPACE),_,$(MODULE_SRCDEPS))\"
 MODULE_DEFINES += MODULE_DEPS=\"$(subst $(SPACE),_,$(MODULE_DEPS))\"
+MODULE_DEFINES += MODULE_WEAK_DEPS=\"$(subst $(SPACE),_,$(MODULE_WEAK_DEPS))\"
 MODULE_DEFINES += MODULE_SRCS=\"$(subst $(SPACE),_,$(MODULE_SRCS))\"
 MODULE_DEFINES += MODULE_FLOAT_SRCS=\"$(subst $(SPACE),_,$(MODULE_FLOAT_SRCS))\"
 MODULE_DEFINES += MODULE_ARM_OVERRIDE_SRCS=\"$(subst $(SPACE),_,$(MODULE_ARM_OVERRIDE_SRCS))\"
@@ -182,6 +191,7 @@ MODULE :=
 MODULE_SRCDIR :=
 MODULE_BUILDDIR :=
 MODULE_DEPS :=
+MODULE_WEAK_DEPS :=
 MODULE_SRCS :=
 MODULE_FLOAT_SRCS :=
 MODULE_OBJS :=

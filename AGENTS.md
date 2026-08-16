@@ -47,6 +47,9 @@ include make/module.mk
 
 - `MODULE := $(LOCAL_DIR)` is required - sets module name to directory path
 - `MODULE_DEPS` creates dependency tree, automatically included in build
+- `MODULE_WEAK_DEPS` lists modules whose headers this one uses only under `#if WITH_<MODULE>`
+  (e.g. `lib/bio` uses `lib/partition` only when it is in the build). It records the
+  dependency without pulling the module in; a module may not appear in both lists.
 - `MODULE_OPTIONS`: `extra_warnings` adds strict checks, `float` enables FP compilation
 - Module include paths auto-added: `$(MODULE)/include/` becomes available globally
 - Always use `$(LOCAL_DIR)` prefix for source paths
