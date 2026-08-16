@@ -349,6 +349,22 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 4. Include new module in project/target/platform as needed
 5. Headers in `<module>/include/` are globally accessible
 
+Because every module's `include/` lands on one global `-I` list, the compiler will not
+catch a missing `MODULE_DEPS` entry: the header resolves as long as *some* other module in
+the project pulled its owner in, and the omission only shows up as a link error in a project
+where nothing else does. `scripts/check-module-deps.py` finds these after a build by resolving
+each module's `#include` lines against the other modules' `include/` dirs and checking the
+owner is in the transitive closure of the `MODULE_DEPS` and `MODULE_WEAK_DEPS` recorded in
+`build-*/…/module_config.h`. Fix a report with `MODULE_DEPS` when the include is
+unconditional and `MODULE_WEAK_DEPS` when it is guarded by `WITH_<MODULE>`:
+
+```bash
+scripts/check-module-deps.py build-qemu-virt-arm64-test   # detailed report for one build
+scripts/check-module-deps.py --edges                      # every build-* dir, one line per edge
+```
+
+It reads existing build output, so run it after `make <project>` or `scripts/buildall`.
+
 ### Adding Platform Support
 
 1. Create `platform/<name>/` directory
