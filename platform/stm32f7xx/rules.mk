@@ -69,4 +69,6 @@ MODULE_DEPS += \
 	lib/bio \
 	lib/cbuf
 
+MODULE_WEAK_DEPS += lib/minip
+
 include make/module.mk

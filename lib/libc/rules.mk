@@ -47,4 +47,6 @@ MODULE_OPTIONS := extra_warnings test
 
 include $(LOCAL_DIR)/string/rules.mk
 
+MODULE_WEAK_DEPS += lib/fs
+
 include make/module.mk

@@ -108,4 +108,6 @@ $(UF2BIN): $(OUTBIN) $(UF2CONV_TOOL)
 EXTRA_BUILDDEPS += $(UF2BIN)
 GENERATED += $(UF2BIN)
 
+MODULE_DEPS += lib/io
+
 include make/module.mk

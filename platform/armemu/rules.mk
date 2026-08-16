@@ -32,4 +32,6 @@ MEMSIZE := 0x400000	# 4MB
 LINKER_SCRIPT += \
 	$(BUILDDIR)/system-onesegment.ld
 
+MODULE_DEPS += lib/bio
+
 include make/module.mk

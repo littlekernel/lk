@@ -428,4 +428,9 @@ $(OUTELF).stack: $(OUTELF)
 EXTRA_BUILDDEPS += $(OUTELF).stack
 GENERATED += $(OUTELF).stack
 
+MODULE_WEAK_DEPS += \
+	dev/cache/pl310 \
+	dev/interrupt/arm_gic \
+	dev/timer/arm_cortex_a9
+
 include make/module.mk

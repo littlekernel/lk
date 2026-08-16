@@ -16,4 +16,6 @@ GLOBAL_DEFINES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/target.c
 
+MODULE_DEPS += lib/minip
+
 include make/module.mk

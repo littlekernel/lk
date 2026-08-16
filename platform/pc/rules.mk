@@ -57,4 +57,9 @@ RUST_CFLAGS := \
     # -Zfunction-return=thunk-extern
     # -Zpatchable-function-entry=16,16
 
+MODULE_WEAK_DEPS += \
+	dev/bus/pci \
+	dev/virtio \
+	lib/minip
+
 include make/module.mk

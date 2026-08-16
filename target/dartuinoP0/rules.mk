@@ -71,5 +71,9 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/display/memory_lcd_mono.c
 endif
 
+MODULE_WEAK_DEPS += \
+	lib/fs/spifs \
+	lib/minip
+
 include make/module.mk
 

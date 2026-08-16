@@ -4,7 +4,8 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_DEPS += \
 	lib/gfx \
-	lib/font
+	lib/font \
+	lib/io
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/gfxconsole.c

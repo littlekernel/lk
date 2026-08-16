@@ -38,5 +38,7 @@ MODULE_DEPS += \
 
 #    lib/gfxconsole
 
+MODULE_WEAK_DEPS += lib/minip
+
 include make/module.mk
 

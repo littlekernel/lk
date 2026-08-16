@@ -7,6 +7,7 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/aes_test.c
 
 MODULE_DEPS += \
+	lib/aes \
 	lib/unittest
 
 include make/module.mk

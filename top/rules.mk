@@ -19,4 +19,8 @@ MODULE_SRCS := \
 
 MODULE_OPTIONS := extra_warnings
 
+MODULE_WEAK_DEPS += \
+	lib/console \
+	lib/libcpp
+
 include make/module.mk

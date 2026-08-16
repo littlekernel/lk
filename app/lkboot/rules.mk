@@ -16,4 +16,6 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/inet.c \
 	$(LOCAL_DIR)/lkboot.c \
 
+MODULE_WEAK_DEPS += lib/minip
+
 include make/module.mk

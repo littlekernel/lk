@@ -11,6 +11,10 @@ MODULE_SRCS += \
 
 MODULE_OPTIONS := extra_warnings
 
+MODULE_WEAK_DEPS += \
+	dev/bus/pci \
+	lib/console
+
 include make/module.mk
 
 

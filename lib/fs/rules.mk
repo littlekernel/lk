@@ -8,4 +8,6 @@ MODULE_SRCS += $(LOCAL_DIR)/shell.c
 
 MODULE_OPTIONS := test
 
+MODULE_DEPS += lib/bio
+
 include make/module.mk

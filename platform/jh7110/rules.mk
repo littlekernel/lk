@@ -35,4 +35,6 @@ GLOBAL_DEFINES += PLATFORM_SUPPORTS_PANIC_SHELL=1
 # do not need to implement any cache ops
 GLOBAL_DEFINES += RISCV_NO_CACHE_OPS=1
 
+MODULE_WEAK_DEPS += lib/minip
+
 include make/module.mk

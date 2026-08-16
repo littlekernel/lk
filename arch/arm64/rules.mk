@@ -136,4 +136,6 @@ linkerscript.phony:
 
 MODULE_OPTIONS := extra_warnings
 
+MODULE_WEAK_DEPS += dev/interrupt/arm_gic
+
 include make/module.mk

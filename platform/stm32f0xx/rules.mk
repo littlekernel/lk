@@ -59,6 +59,7 @@ MODULE_DEPS += \
 	platform/stm32f0xx/STM32F0xx_HAL_Driver \
 	arch/arm/arm-m/systick \
 	dev/usb \
-	lib/cbuf
+	lib/cbuf \
+	lib/io
 
 include make/module.mk

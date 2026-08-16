@@ -7,6 +7,7 @@ MODULE_SRCS += $(LOCAL_DIR)/virtio-9p.cpp
 MODULE_SRCS += $(LOCAL_DIR)/protocol.cpp
 
 MODULE_DEPS += \
-	dev/virtio
+	dev/virtio \
+	lib/bio
 
 include make/module.mk

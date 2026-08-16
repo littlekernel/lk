@@ -14,4 +14,8 @@ GLOBAL_DEFINES += \
 MODULE_SRCS += \
 	$(LOCAL_DIR)/init.c
 
+MODULE_DEPS += lib/watchdog
+
+MODULE_WEAK_DEPS += lib/minip
+
 include make/module.mk

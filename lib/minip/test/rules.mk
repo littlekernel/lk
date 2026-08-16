@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += $(LOCAL_DIR)/pktbuf_tests.c
 
+MODULE_DEPS += lib/minip
 MODULE_DEPS += lib/unittest
 
 include make/module.mk

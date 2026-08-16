@@ -7,4 +7,6 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/power.c
 
+MODULE_WEAK_DEPS += lib/console
+
 include make/module.mk

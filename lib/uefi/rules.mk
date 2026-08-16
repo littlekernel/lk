@@ -10,6 +10,10 @@ MODULE_INCLUDES += \
 	lib/watchdog/include \
 
 MODULE_DEPS += \
+	lib/bio \
+	lib/cksum \
+	lib/fdt \
+	lib/fs \
 	lib/heap/dlmalloc \
 	lib/libcpp \
 
@@ -30,6 +34,5 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/debug_support.cpp \
 	$(LOCAL_DIR)/charset.cpp \
 	$(LOCAL_DIR)/variable_mem.cpp \
-
 
 include make/module.mk

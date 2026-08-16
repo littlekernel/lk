@@ -31,5 +31,7 @@ MODULE_DEPS += \
     lib/gfx \
     dev/usb/class/bulktest
 
+MODULE_WEAK_DEPS += lib/minip
+
 include make/module.mk
 

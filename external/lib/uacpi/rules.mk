@@ -20,4 +20,6 @@ MODULE_COMPILEFLAGS := \
     -Wno-double-promotion \
     -Wno-discarded-qualifiers
 
+MODULE_WEAK_DEPS += dev/bus/pci
+
 include make/module.mk

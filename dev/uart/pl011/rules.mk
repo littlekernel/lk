@@ -6,4 +6,8 @@ MODULE_SRCS += $(LOCAL_DIR)/uart.c
 
 MODULE_OPTIONS := extra_warnings
 
+MODULE_DEPS += \
+	lib/cbuf \
+	lib/io
+
 include make/module.mk

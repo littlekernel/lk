@@ -17,6 +17,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/usb.c
 
 MODULE_DEPS += \
+    app/cdcserialtest \
     dev/usb/class/cdcserial
 
 include make/module.mk

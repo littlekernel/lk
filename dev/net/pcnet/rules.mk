@@ -5,6 +5,8 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/pcnet.c
 
-MODULE_DEPS := lib/minip
+MODULE_DEPS := \
+	dev/bus/pci \
+	lib/minip
 
 include make/module.mk

@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += $(LOCAL_DIR)/cbuf_tests.c
 
+MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/unittest
 
 include make/module.mk

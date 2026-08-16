@@ -5,4 +5,6 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
     $(LOCAL_DIR)/virtio-rng.cpp
 
+MODULE_DEPS += dev/virtio
+
 include make/module.mk

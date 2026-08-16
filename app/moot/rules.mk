@@ -10,6 +10,10 @@ MODULE_SRCS += \
 
 
 MODULE_DEPS += \
-	lib/bootimage
+	lib/bio \
+	lib/bootimage \
+	lib/buildsig \
+	lib/fs \
+	lib/version
 
 include make/module.mk

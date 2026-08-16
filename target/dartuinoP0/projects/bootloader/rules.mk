@@ -7,6 +7,7 @@ MODULE_SRCS += \
 
 
 MODULE_DEPS += \
+	app/moot \
 	lib/fs
 
 include make/module.mk

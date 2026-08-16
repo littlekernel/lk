@@ -10,4 +10,8 @@ MODULE_SRCS += \
 
 MODULE_OPTIONS := test
 
+MODULE_WEAK_DEPS += \
+	lib/cksum \
+	lib/partition
+
 include make/module.mk
