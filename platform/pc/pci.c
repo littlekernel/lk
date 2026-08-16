@@ -76,11 +76,22 @@ static status_t pc_pci_intx_route(void *cookie, const struct pci_intx_path_entry
     }
     char str[14];
 
+    // the path from the root bus down to the device as "dd.f/dd.f/..." for the log
+    char path_str[64];
+    size_t pos = 0;
+    for (size_t i = 0; i < path_len && pos < sizeof(path_str); i++) {
+        pos += snprintf(path_str + pos, sizeof(path_str) - pos, "%s%02x.%x", i ? "/" : "",
+                        path[i].dev, path[i].fn);
+    }
+    if (path_len == 0) {
+        strlcpy(path_str, "?", sizeof(path_str));
+    }
+
     struct acpi_pci_irq irq;
     status_t err = acpi_pci_root_route_intx(root, path, path_len, pin, &irq);
     if (err != NO_ERROR) {
-        dprintf(INFO, "PCI: root %04x:%02x: no _PRT route for device %02x.%x INT%c (%zu hops) (%d)\n",
-                root->segment, root->bus_start, loc.dev, loc.fn, 'A' + pin - 1, path_len, err);
+        dprintf(INFO, "PCI: root %04x:%02x: no _PRT route for %s INT%c (%d)\n",
+                root->segment, root->bus_start, path_str, 'A' + pin - 1, err);
         return err;
     }
 
@@ -96,8 +107,8 @@ static status_t pc_pci_intx_route(void *cookie, const struct pci_intx_path_entry
         return err;
     }
 
-    dprintf(INFO, "PCI: routed root %04x:%02x device %02x.%x INT%c (%zu hops) -> gsi %u -> vector %#x (%s/%s)\n",
-            root->segment, root->bus_start, loc.dev, loc.fn, 'A' + pin - 1, path_len, irq.gsi,
+    dprintf(INFO, "PCI: routed root %04x:%02x path %s INT%c -> gsi %u -> vector %#x (%s/%s)\n",
+            root->segment, root->bus_start, path_str, 'A' + pin - 1, irq.gsi,
             *vector, irq.level_triggered ? "level" : "edge", irq.active_low ? "low" : "high");
     return NO_ERROR;
 }
