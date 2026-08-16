@@ -59,3 +59,11 @@ typedef struct pc_irq_route {
 } pc_irq_route_t;
 
 status_t pc_get_legacy_irq_route(uint source_irq, pc_irq_route_t *route);
+
+// true once the ioapic has taken over legacy interrupt delivery from the 8259
+bool pc_using_ioapic(void);
+
+// route a global system interrupt through the ioapic to a vector, allocating one from the
+// dynamic range or sharing the one an earlier caller got for the same gsi. the entry starts
+// out masked; unmask_interrupt() on the vector enables it.
+status_t pc_route_gsi(unsigned int gsi, bool level_triggered, bool active_low, unsigned int *vector);

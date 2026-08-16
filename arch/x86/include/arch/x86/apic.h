@@ -27,6 +27,10 @@ void lapic_enable_on_local_cpu(void);
 
 // read the apic id of the local apic on the current cpu, assumes lapic is present
 uint32_t lapic_get_apic_id(void);
+// is there a local apic on this cpu at all
+bool lapic_is_present(void);
+// mask the LINT0 (ExtINT) input, used once the ioapic takes over legacy interrupts
+void lapic_mask_lint0(void);
 
 // true once the local apics have been switched into x2apic mode
 bool lapic_is_x2apic(void);
@@ -46,6 +50,11 @@ typedef struct ioapic_redir_state {
 	bool level_triggered;
 	bool active_low;
 } ioapic_redir_state_t;
+
+// number of ioapics initialized so far
+size_t ioapic_count(void);
+// mask every redirection entry on every ioapic
+void ioapic_mask_all(void);
 
 status_t ioapic_get_redir_state(uint gsi, ioapic_redir_state_t *state);
 status_t ioapic_set_redir_state(uint gsi, const ioapic_redir_state_t *state);

@@ -210,17 +210,33 @@ status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base) 
 
     ioapic->num_redir_entries = max_redir + 1;
 
-    if (LOCAL_TRACE) {
-        for (uint i = 0; i < ioapic->num_redir_entries; i++) {
-            // read and dump the current entry
-            uint32_t lo = ioapic_read(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2);
+    // mask every redirection entry: nothing should be delivered until something asks for it,
+    // regardless of what state firmware left the table in
+    for (uint i = 0; i < ioapic->num_redir_entries; i++) {
+        uint32_t lo = ioapic_read(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2);
+        if (LOCAL_TRACE) {
             uint32_t hi = ioapic_read(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2 + 1);
             dprintf(INFO, "X86:     redir %2u hi %#x lo %#x\n", i, hi, lo);
         }
+        ioapic_write(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2, lo | (1u << 16));
     }
 
     // add it to the global list of ioapics
     num_ioapics++;
 
     return NO_ERROR;
+}
+
+size_t ioapic_count(void) {
+    return num_ioapics;
+}
+
+void ioapic_mask_all(void) {
+    for (size_t i = 0; i < num_ioapics; ++i) {
+        struct ioapic *ioapic = &ioapics[i];
+        for (uint n = 0; n < ioapic->num_redir_entries; ++n) {
+            uint32_t lo = ioapic_read(ioapic, IOAPIC_REDIR_TABLE_BASE + n * 2);
+            ioapic_write(ioapic, IOAPIC_REDIR_TABLE_BASE + n * 2, lo | (1u << 16));
+        }
+    }
 }

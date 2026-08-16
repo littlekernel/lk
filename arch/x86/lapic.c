@@ -309,6 +309,21 @@ bool lapic_is_x2apic(void) {
     return lapic_x2apic;
 }
 
+bool lapic_is_present(void) {
+    return lapic_present;
+}
+
+void lapic_mask_lint0(void) {
+    if (!lapic_present) {
+        return;
+    }
+
+    // LINT0 is the 8259's ExtINT input in virtual wire mode. once the ioapic delivers the
+    // legacy interrupts there is nothing useful on it, so mask it. LINT1 is left alone since
+    // firmware typically routes NMI through it.
+    lapic_write(LAPIC_LINT0, lapic_read(LAPIC_LINT0) | (1u << 16));
+}
+
 uint32_t lapic_get_apic_id(void) {
     if (!lapic_present) {
         return -1;
