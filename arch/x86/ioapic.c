@@ -40,7 +40,10 @@ struct ioapic {
     uint gsi_base;
     uint num_redir_entries;
 
-    // TODO: spinlock for this ioapic
+    // TODO: spinlock for this ioapic. Today every register access is serialized by the
+    // caller: platform/pc/interrupts.c takes its own spinlock around all routing and
+    // mask/unmask paths, and init runs single threaded. A per-ioapic lock belongs here if
+    // this ever grows callers outside that file.
 };
 
 static struct ioapic *ioapics = NULL;
