@@ -17,18 +17,12 @@ namespace pci {
 
 // global state
 class bus;
-extern bus *root;
+class root;
+extern list_node root_list;
 extern list_node bus_list;
 void add_to_bus_list(bus *b);
 
-// set the last bus seen
-void set_last_bus(uint8_t bus);
-uint8_t get_last_bus();
-
-// allocate the next bus (used when assigning busses to bridges)
-uint8_t allocate_next_bus();
-
-// get a pointer to a bus based on number
-bus *lookup_bus(uint8_t bus_num);
+// get a pointer to a bus based on segment and number
+bus *lookup_bus(uint16_t segment, uint8_t bus_num);
 
 } // namespace pci

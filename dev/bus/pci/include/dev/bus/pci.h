@@ -63,17 +63,56 @@ status_t pci_write_config_word(pci_location_t state, uint32_t reg, uint32_t valu
 typedef void(*pci_visit_routine)(pci_location_t loc, void *cookie);
 status_t pci_bus_mgr_visit_devices(pci_visit_routine routine, void *cookie);
 
-// must be called before pci_bus_mgr_init if available
 enum pci_resource_type {
     PCI_RESOURCE_IO_RANGE = 0,
     PCI_RESOURCE_MMIO_RANGE,
     PCI_RESOURCE_MMIO64_RANGE,
 };
+
+// An address window decoded by a PCI root (host bridge). Addresses are on the PCI side of the
+// bridge; the cpu side address is base + translation_offset.
+struct pci_root_window {
+    enum pci_resource_type type;
+    uint64_t base;
+    uint64_t size;
+    uint64_t translation_offset;
+    bool prefetchable;
+};
+
+// Route a legacy interrupt pin of a device on a root bus to a platform interrupt vector.
+// root_level_loc is the device on the root bus (after swizzling through any bridges), pin is
+// 1..4 for INTA..INTD.
+typedef status_t (*pci_root_intx_route_fn)(void *cookie, pci_location_t root_level_loc,
+                                           unsigned int pin, unsigned int *vector);
+
+// Description of a PCI root (host bridge)
+struct pci_root_desc {
+    uint16_t segment;
+    uint8_t bus_start;
+    uint8_t bus_end;
+
+    // windows the root decodes, may be NULL/0
+    const struct pci_root_window *windows;
+    size_t num_windows;
+
+    // optional legacy interrupt routing hook
+    pci_root_intx_route_fn intx_route;
+    void *intx_cookie;
+};
+
+// Register a PCI root. Must be called after pci_init_*() and before pci_bus_mgr_init().
+// If no roots are registered when pci_bus_mgr_init() runs, a default root covering segment 0,
+// bus 0 through the last bus the config accessors can reach, is created.
+status_t pci_bus_mgr_add_root(const struct pci_root_desc *desc);
+
+// Add a window to the default root. Must be called before pci_bus_mgr_init(); platforms that
+// register their own roots pass windows in the descriptor instead.
 status_t pci_bus_mgr_add_resource(enum pci_resource_type, uint64_t mmio_base, uint64_t len);
 
+// Assign resources to devices on all roots
 status_t pci_bus_mgr_assign_resources(void);
 
-// must be called after pci_init_*();
+// Probe all roots. Must be called after pci_init_*() and any pci_bus_mgr_add_root() calls.
 status_t pci_bus_mgr_init(void);
 
 // Look for the Nth match of device id and vendor id.

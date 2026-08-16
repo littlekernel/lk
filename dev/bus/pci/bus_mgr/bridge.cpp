@@ -29,6 +29,7 @@
 #include "bridge.h"
 #include "bus.h"
 #include "resource.h"
+#include "root.h"
 
 namespace pci {
 
@@ -81,9 +82,17 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     // probe the bridge's capabilities
     br->probe_capabilities();
 
+    root *r = parent_bus->get_root();
+    DEBUG_ASSERT(r);
+
     if (br->secondary_bus() == 0) {
         // allocate a new secondary bus
-        uint8_t new_secondary_bus = allocate_next_bus();
+        uint8_t new_secondary_bus;
+        err = r->allocate_next_bus(&new_secondary_bus);
+        if (err != NO_ERROR) {
+            TRACEF("out of bus numbers assigning secondary bus to bridge at %s\n", pci_loc_string(loc, str));
+            return err;
+        }
 
         // we do not yet know the range of busses we will find downstream, lower level bridges will have to
         // back patch us as they find new children.
@@ -100,9 +109,12 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
         }
     }
 
-    // sanity check that we don't have overlapping busses
-    if (br->secondary_bus() < get_last_bus()) {
-        TRACEF("secondary bus %u of bridge we've already seen (last bus seen %u)\n", br->secondary_bus(), get_last_bus());
+    // sanity check that the secondary bus is inside the root's range and isn't one we've
+    // already probed (a firmware numbering bug or a bridge with garbage in its registers)
+    if (br->secondary_bus() < r->bus_start() || br->secondary_bus() > r->bus_end() ||
+        lookup_bus(loc.segment, br->secondary_bus())) {
+        TRACEF("secondary bus %u of bridge at %s is out of range or already seen\n",
+               br->secondary_bus(), pci_loc_string(loc, str));
         return ERR_NO_RESOURCES;
     }
 
@@ -113,7 +125,7 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     bus_location.bus = br->secondary_bus();
 
     bus *new_bus;
-    err = bus::probe(bus_location, br.get(), &new_bus);
+    err = bus::probe(bus_location, br.get(), r, &new_bus);
     if (err != NO_ERROR) {
         return err;
     }

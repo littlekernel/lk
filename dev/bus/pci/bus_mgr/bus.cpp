@@ -25,10 +25,11 @@
 #include "device.h"
 #include "bus_mgr.h"
 #include "resource.h"
+#include "root.h"
 
 namespace pci {
 
-bus::bus(pci_location_t loc, bridge *b, bool root_bus) : loc_(loc), b_(b), root_bus_(root_bus) {}
+bus::bus(pci_location_t loc, bridge *b, root *r) : loc_(loc), b_(b), root_(r) {}
 
 void bus::add_device(device *d) {
     // TODO: assert that no two devices have the same address
@@ -36,17 +37,19 @@ void bus::add_device(device *d) {
 }
 
 // walk all devices on a bus recursively walking into any bridge and scanning those busses
-status_t bus::probe(pci_location_t loc, bridge *br, bus **out_bus, bool root_bus) {
+status_t bus::probe(pci_location_t loc, bridge *br, root *r, bus **out_bus) {
     char str[14];
     LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    DEBUG_ASSERT(r);
 
     status_t err;
 
     // create a bus to hold any devices we find
-    bus *b = new bus(loc, br, root_bus);
+    bus *b = new bus(loc, br, r);
 
     // mark this as at least the last we've seen
-    set_last_bus(b->bus_num());
+    r->note_bus_seen(b->bus_num());
 
     // probe all functions on all 32 devices on this bus.
     // add any devices found to this bus
@@ -238,7 +241,7 @@ status_t bus::allocate_resources(resource_allocator &allocator) {
 
         // root busses dont need to worry about allocating from a prefetchable pool
         // in our resource allocator, so ask for non prefetchable memory
-        const bool prefetchable = root_bus_ ? false : r->prefetchable;
+        const bool prefetchable = is_root_bus() ? false : r->prefetchable;
 
         auto err = allocator.allocate_mmio(can_be_64bit, prefetchable, r->size, r->align, &addr);
         if (err != NO_ERROR) {

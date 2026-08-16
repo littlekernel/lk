@@ -267,43 +267,84 @@ status_t fdtwalk_setup_pci(const void *fdt) {
     size_t count = countof(pcie_info);
     status_t err = fdt_walk_find_pcie_info(fdt, pcie_info, &count);
     LTRACEF("fdt_walk_find_pcie_info returns %d, count %zu\n", err, count);
-    if (err == NO_ERROR) {
-        for (size_t i = 0; i < count; i++) {
-            LTRACEF("ecam base %#" PRIx64 ", len %#" PRIx64 ", bus_start %hhu, bus_end %hhu\n", pcie_info[i].ecam_base,
-                    pcie_info[i].ecam_len, pcie_info[i].bus_start, pcie_info[i].bus_end);
-
-            // currently can only handle the first segment
-            if (i > 0) {
-                printf("skipping pci segment %zu, not supported (yet)\n", i);
-                continue;
-            }
-
-            if (pcie_info[i].ecam_len > 0) {
-                dprintf(INFO, "PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_info[i].ecam_base);
-                err = pci_init_ecam(pcie_info[i].ecam_base, 0, pcie_info[i].bus_start, pcie_info[i].bus_end);
-                if (err == NO_ERROR) {
-                    // add some additional resources to the pci bus manager in case it needs to configure
-                    if (pcie_info[i].io_len > 0) {
-                        // we can only deal with a mapping of io base 0 to the mmio base
-                        DEBUG_ASSERT(pcie_info[i].io_base == 0);
-                        pci_bus_mgr_add_resource(PCI_RESOURCE_IO_RANGE, pcie_info[i].io_base, pcie_info[i].io_len);
-
-                        // TODO: set the mmio base somehow so pci knows what to do with it
-                    }
-                    if (pcie_info[i].mmio_len > 0) {
-                        pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO_RANGE, pcie_info[i].mmio_base, pcie_info[i].mmio_len);
-                    }
-                    if (sizeof(void *) >= 8) {
-                        if (pcie_info[i].mmio64_len > 0) {
-                            pci_bus_mgr_add_resource(PCI_RESOURCE_MMIO64_RANGE, pcie_info[i].mmio64_base, pcie_info[i].mmio64_len);
-                        }
-                    }
-                }
-            }
-        }
+    if (err != NO_ERROR) {
+        return err;
     }
 
-    return err;
+    size_t roots_added = 0;
+    for (size_t i = 0; i < count; i++) {
+        const struct fdt_walk_pcie_info *info = &pcie_info[i];
+        LTRACEF("ecam base %#" PRIx64 ", len %#" PRIx64 ", bus_start %hhu, bus_end %hhu\n", info->ecam_base,
+                info->ecam_len, info->bus_start, info->bus_end);
+
+        if (info->ecam_len == 0) {
+            continue;
+        }
+
+        // each pcie node gets its own segment: they each have a private ecam aperture and
+        // bus number space. (the device tree may carry a linux,pci-domain property that
+        // would be the authoritative number, which is not parsed yet)
+        const uint16_t segment = i;
+
+        dprintf(INFO, "PCIE: initializing pcie segment %u with ecam at %#" PRIx64 " found in FDT\n",
+                segment, info->ecam_base);
+        err = pci_init_ecam(info->ecam_base, segment, info->bus_start, info->bus_end);
+        if (err != NO_ERROR) {
+            printf("PCIE: failed to initialize ecam for segment %u, error %d\n", segment, err);
+            continue;
+        }
+
+        // describe the root to the bus manager, with the windows it can hand out
+        struct pci_root_window windows[3];
+        size_t num_windows = 0;
+        if (info->io_len > 0) {
+            // we can only deal with a mapping of io base 0 to the mmio base
+            DEBUG_ASSERT(info->io_base == 0);
+            windows[num_windows++] = (struct pci_root_window){
+                .type = PCI_RESOURCE_IO_RANGE,
+                .base = info->io_base,
+                .size = info->io_len,
+                .translation_offset = info->io_base_mmio - info->io_base,
+                .prefetchable = false,
+            };
+        }
+        if (info->mmio_len > 0) {
+            windows[num_windows++] = (struct pci_root_window){
+                .type = PCI_RESOURCE_MMIO_RANGE,
+                .base = info->mmio_base,
+                .size = info->mmio_len,
+                .translation_offset = 0,
+                .prefetchable = false,
+            };
+        }
+        if (sizeof(void *) >= 8 && info->mmio64_len > 0) {
+            windows[num_windows++] = (struct pci_root_window){
+                .type = PCI_RESOURCE_MMIO64_RANGE,
+                .base = info->mmio64_base,
+                .size = info->mmio64_len,
+                .translation_offset = 0,
+                .prefetchable = false,
+            };
+        }
+
+        struct pci_root_desc desc = {
+            .segment = segment,
+            .bus_start = info->bus_start,
+            .bus_end = info->bus_end,
+            .windows = windows,
+            .num_windows = num_windows,
+            .intx_route = NULL,
+            .intx_cookie = NULL,
+        };
+        err = pci_bus_mgr_add_root(&desc);
+        if (err != NO_ERROR) {
+            printf("PCIE: failed to add root for segment %u, error %d\n", segment, err);
+            continue;
+        }
+        roots_added++;
+    }
+
+    return (roots_added > 0) ? NO_ERROR : ERR_NOT_FOUND;
 }
 #endif
 
