@@ -24,6 +24,7 @@
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <platform/interrupts.h>
+#include <platform/pc.h>
 #include <platform/pc/hpet.h>
 #include <platform/pc/timer.h>
 #include <platform/time.h>
@@ -286,9 +287,9 @@ static void lapic_init_percpu(uint level) {
 
     LTRACEF("lapic svr %#x\n", lapic_read(LAPIC_SVR));
 
-    register_int_handler_msi(LAPIC_INT_SPURIOUS, &lapic_spurious_handler, NULL, false);
-    register_int_handler_msi(LAPIC_INT_GENERIC, &lapic_generic_handler, NULL, false);
-    register_int_handler_msi(LAPIC_INT_RESCHEDULE, &lapic_reschedule_handler, NULL, false);
+    register_int_handler_lapic(LAPIC_INT_SPURIOUS, &lapic_spurious_handler, NULL, false);
+    register_int_handler_lapic(LAPIC_INT_GENERIC, &lapic_generic_handler, NULL, true);
+    register_int_handler_lapic(LAPIC_INT_RESCHEDULE, &lapic_reschedule_handler, NULL, true);
 }
 LK_INIT_HOOK_FLAGS(lapic_init_percpu, lapic_init_percpu, LK_INIT_LEVEL_VM,
                    LK_INIT_FLAG_SECONDARY_CPUS);
@@ -359,7 +360,7 @@ static void lapic_timer_init_percpu(uint level) {
     }
 
     // register the timer interrupt vector
-    register_int_handler_msi(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, false);
+    register_int_handler_lapic(LAPIC_INT_TIMER, &lapic_timer_handler, NULL, true);
 }
 LK_INIT_HOOK_FLAGS(lapic_timer_init_percpu, lapic_timer_init_percpu, LK_INIT_LEVEL_VM + 1,
                    LK_INIT_FLAG_SECONDARY_CPUS);

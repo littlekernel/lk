@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#include <platform/interrupts.h>
 #include <platform/pc/iomap.h>
 
 /* NOTE: keep arch/x86/crt0.S in sync with these definitions */
@@ -42,6 +43,10 @@
 /* PIC remap bases */
 #define INT_PIC1_BASE 0x20
 #define INT_PIC2_BASE 0x28
+
+/* register a handler for a vector the local apic raises itself (timer, ipis, spurious).
+ * eoi is false for the spurious vector, which must not be acked. */
+void register_int_handler_lapic(unsigned int vector, int_handler handler, void *arg, bool eoi);
 
 typedef struct pc_irq_route {
 	uint source_irq;

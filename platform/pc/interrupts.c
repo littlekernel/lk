@@ -83,7 +83,7 @@ static spin_lock_t lock;
 
 // which piece of hardware delivers a given vector, and therefore how to mask it and where
 // the end-of-interrupt has to go (the 8259 wants its own EOI, everything else acks the lapic)
-#define INTC_TYPE_INTERNAL 0 // cpu-internal (ipis, lapic timer); nothing to mask or ack
+#define INTC_TYPE_INTERNAL 0 // raised inside the lapic itself (timer, ipis, spurious); nothing to mask, acked at the lapic
 #define INTC_TYPE_PIC      1 // delivered by the 8259 pair
 #define INTC_TYPE_MSI      2 // written directly to the lapic by a device (MSI/MSI-X)
 #define INTC_TYPE_IOAPIC   3 // delivered by an ioapic redirection entry
@@ -105,6 +105,7 @@ struct int_vector {
         uint type      : 2;  // INTC_TYPE_*, decides the mask/unmask and EOI path
         uint edge      : 1;  // edge vs level triggered, decides when to EOI relative to the handler
         uint gsi_valid : 1;  // gsi below holds the ioapic input this vector is routed from
+        uint no_eoi    : 1;  // never ack this vector (the lapic spurious vector)
         uint gsi       : 16;
     } flags;
 };
@@ -239,7 +240,7 @@ static void pc_dump_legacy_irq_route(uint source_irq) {
 
 static const char *intc_type_name(uint type) {
     switch (type) {
-        case INTC_TYPE_INTERNAL: return "internal";
+        case INTC_TYPE_INTERNAL: return "lapic";
         case INTC_TYPE_PIC:      return "pic";
         case INTC_TYPE_MSI:      return "msi";
         case INTC_TYPE_IOAPIC:   return "ioapic";
@@ -467,6 +468,20 @@ status_t unmask_interrupt(unsigned int vector) {
 // The common interrupt dispatch routine, called from the assembly glue for every hardware
 // vector. Responsible for calling the handler(s) and issuing the end-of-interrupt to
 // whichever controller delivered it (the lapic for ioapic/MSI vectors, the 8259 otherwise).
+// Send the end-of-interrupt to whichever controller delivered this vector. Only the 8259 wants
+// its own EOI; everything else (ioapic, msi, lapic-internal) is in service at the lapic. The
+// spurious vector is the one exception: it never sets an ISR bit and must not be acked.
+static void eoi_vector(const struct int_vector *v, unsigned int vector) {
+    if (v->flags.no_eoi) {
+        return;
+    }
+    if (v->flags.type == INTC_TYPE_PIC) {
+        pic_eoi(vector);
+    } else {
+        lapic_eoi(vector);
+    }
+}
+
 enum handler_return platform_irq(x86_iframe_t *frame);
 enum handler_return platform_irq(x86_iframe_t *frame) {
     // get the current vector
@@ -479,11 +494,7 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
     // edge triggered interrupts are acked up front: the edge was already consumed, and acking
     // early lets a new edge that arrives while the handler runs be delivered rather than lost
     if (handler->flags.edge) {
-        if (handler->flags.type == INTC_TYPE_MSI || handler->flags.type == INTC_TYPE_IOAPIC) {
-            lapic_eoi(vector);
-        } else {
-            pic_eoi(vector);
-        }
+        eoi_vector(handler, vector);
     }
 
     // call the registered interrupt handler(s)
@@ -500,11 +511,7 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
     // level triggered interrupts are acked after the handler: the line stays asserted until
     // the handler quiesces the device, and an earlier EOI would just re-deliver it immediately
     if (!handler->flags.edge) {
-        if (handler->flags.type == INTC_TYPE_MSI || handler->flags.type == INTC_TYPE_IOAPIC) {
-            lapic_eoi(vector);
-        } else {
-            pic_eoi(vector);
-        }
+        eoi_vector(handler, vector);
     }
 
     return ret;
@@ -573,6 +580,17 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
 
 void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {
     register_int_handler_etc(vector, handler, arg, edge, INTC_TYPE_MSI);
+}
+
+// Vectors the local apic raises on its own (timer, ipis, spurious). There is no controller to
+// mask and nothing external to quiesce, so treat them as edge triggered and ack up front,
+// except for the spurious vector which is never in service and must not be acked at all.
+void register_int_handler_lapic(unsigned int vector, int_handler handler, void *arg, bool eoi) {
+    register_int_handler_etc(vector, handler, arg, true, INTC_TYPE_INTERNAL);
+
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
+    int_table[vector].flags.no_eoi = !eoi;
+    spin_unlock_irqrestore(&lock, state);
 }
 
 void platform_mask_irqs(void) {
