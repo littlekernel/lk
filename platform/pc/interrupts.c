@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2009 Corey Tabaka
  * Copyright (c) 2015 Intel Corporation
+ * Copyright (c) 2026 Travis Geiselbrecht
  *
  * Use of this source code is governed by a MIT-style
  * license that can be found in the LICENSE file or at
@@ -18,6 +19,7 @@
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <lk/console_cmd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <platform/interrupts.h>
@@ -235,6 +237,103 @@ static void pc_dump_legacy_irq_route(uint source_irq) {
            route.masked ? 1 : 0);
 }
 
+static const char *intc_type_name(uint type) {
+    switch (type) {
+        case INTC_TYPE_INTERNAL: return "internal";
+        case INTC_TYPE_PIC:      return "pic";
+        case INTC_TYPE_MSI:      return "msi";
+        case INTC_TYPE_IOAPIC:   return "ioapic";
+    }
+    return "?";
+}
+
+// what a vector number means independent of what has been registered on it
+static const char *vector_range_name(uint vector) {
+    if (vector < INT_BASE) return "cpu exception";
+    if (vector >= INT_PIC1_BASE && vector < INT_PIC1_BASE + 8) return "isa irq 0-7";
+    if (vector >= INT_PIC2_BASE && vector < INT_PIC2_BASE + 8) return "isa irq 8-15";
+    if (vector >= INT_DYNAMIC_START && vector <= INT_DYNAMIC_END) return "dynamic";
+    return "lapic";
+}
+
+// two table entries are the same for the purposes of collapsing a run of vectors into one line
+static bool int_vector_same(const struct int_vector *a, const struct int_vector *b) {
+    return a->handler == b->handler && a->arg == b->arg &&
+           a->extra_handlers == b->extra_handlers &&
+           a->flags.allocated == b->flags.allocated && a->flags.type == b->flags.type &&
+           a->flags.edge == b->flags.edge && a->flags.gsi_valid == b->flags.gsi_valid &&
+           a->flags.gsi == b->flags.gsi;
+}
+
+// Dump the whole vector table 0-255. Runs of vectors whose entries are identical (which in
+// practice means runs of unallocated dynamic vectors, or the unused tail of a fixed range)
+// are collapsed into a single line so the interesting entries stand out.
+static void dump_vector_table(void) {
+    printf("vector     range          alloc type     trig  gsi   handler(s)\n");
+
+    uint start = 0;
+    struct int_vector cur;
+    {
+        arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
+        cur = int_table[0];
+        spin_unlock_irqrestore(&lock, state);
+    }
+
+    for (uint i = 1; i <= INT_VECTORS; i++) {
+        struct int_vector next = {};
+        bool same = false;
+        if (i < INT_VECTORS) {
+            arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
+            next = int_table[i];
+            spin_unlock_irqrestore(&lock, state);
+            // don't merge across the named ranges so the range column stays meaningful
+            same = int_vector_same(&cur, &next) &&
+                   vector_range_name(start) == vector_range_name(i);
+        }
+        if (same) {
+            continue;
+        }
+
+        // print the run [start, i)
+        char vec_str[16];
+        if (i - 1 == start) {
+            snprintf(vec_str, sizeof(vec_str), "0x%02x", start);
+        } else {
+            snprintf(vec_str, sizeof(vec_str), "0x%02x-0x%02x", start, i - 1);
+        }
+        char gsi_str[8];
+        if (cur.flags.gsi_valid) {
+            snprintf(gsi_str, sizeof(gsi_str), "%u", cur.flags.gsi);
+        } else {
+            snprintf(gsi_str, sizeof(gsi_str), "-");
+        }
+
+        printf("%-10s %-14s %-5s %-8s %-5s %-5s ",
+               vec_str, vector_range_name(start),
+               cur.flags.allocated ? "yes" : "no",
+               cur.flags.allocated ? intc_type_name(cur.flags.type) : "-",
+               cur.flags.allocated ? (cur.flags.edge ? "edge" : "level") : "-",
+               gsi_str);
+        if (cur.handler) {
+            printf("%p(%p)", cur.handler, cur.arg);
+            for (struct int_handler_entry *e = cur.extra_handlers; e; e = e->next) {
+                printf(" %p(%p)", e->handler, e->arg);
+            }
+        } else {
+            printf("-");
+        }
+        printf("\n");
+
+        start = i;
+        cur = next;
+    }
+}
+
+static int cmd_vectors(int argc, const console_cmd_args *argv) {
+    dump_vector_table();
+    return 0;
+}
+
 static int cmd_ioapic(int argc, const console_cmd_args *argv) {
     if (argc == 1) {
         ioapic_dump_redir_table();
@@ -272,7 +371,12 @@ static int cmd_ioapic(int argc, const console_cmd_args *argv) {
         return 0;
     }
 
-    printf("usage: %s [irq <legacy_irq> | gsi <gsi>]\n", argv[0].str);
+    if (!strcmp(argv[1].str, "vectors")) {
+        dump_vector_table();
+        return 0;
+    }
+
+    printf("usage: %s [irq <legacy_irq> | gsi <gsi> | vectors]\n", argv[0].str);
     return -1;
 }
 
@@ -803,7 +907,8 @@ void platform_init_interrupts_postvm(void) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("ioapic", "dump ioapic redirection state; ioapic irq <n>; ioapic gsi <n>",
+STATIC_COMMAND("ioapic", "dump ioapic redirection state; ioapic irq <n>; ioapic gsi <n>; ioapic vectors",
                &cmd_ioapic)
+STATIC_COMMAND("vectors", "dump the cpu interrupt vector table", &cmd_vectors)
 STATIC_COMMAND("irqroute", "show legacy irq to gsi/ioapic route", &cmd_irqroute)
 STATIC_COMMAND_END(pc_interrupts);
