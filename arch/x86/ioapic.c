@@ -205,16 +205,21 @@ status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base) 
     ioapic->gsi_base = gsi_base;
 
     // probe the capabilities of the ioapic
+    // The id register is only 4 bits wide on many chipsets, so it may not match the (8 bit)
+    // id the MADT hands us; the MADT id is what we key everything on, this is informational.
     const uint32_t id = ioapic_read(ioapic, IOAPIC_ID) >> 24;
     uint32_t version = ioapic_read(ioapic, IOAPIC_VERSION);
     const uint32_t max_redir = (version >> 16) & 0xff;
-    dprintf(INFO, "X86: ioapic %d id %#x version %#x max redir %u\n", index, id, version & 0xff,
-            max_redir);
+    dprintf(INFO, "X86: ioapic %d madt id %u id reg %#x version %#x max redir %u\n", index,
+            apic_id, id, version & 0xff, max_redir);
 
     ioapic->num_redir_entries = max_redir + 1;
 
-    // mask every redirection entry: nothing should be delivered until something asks for it,
-    // regardless of what state firmware left the table in
+    // Reset every redirection entry to a known masked state: nothing should be delivered
+    // until something asks for it, regardless of what firmware left in the table. Real
+    // hardware often powers up with random junk in unused entries (and firmware only bothers
+    // to program the ones it uses), so don't just set the mask bit, rewrite the whole entry.
+    // Mask first so the destination/vector rewrite can't race an incoming interrupt.
     for (uint i = 0; i < ioapic->num_redir_entries; i++) {
         uint32_t lo = ioapic_read(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2);
         if (LOCAL_TRACE) {
@@ -222,6 +227,8 @@ status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base) 
             dprintf(INFO, "X86:     redir %2u hi %#x lo %#x\n", i, hi, lo);
         }
         ioapic_write(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2, lo | (1u << 16));
+        ioapic_write(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2 + 1, 0);
+        ioapic_write(ioapic, IOAPIC_REDIR_TABLE_BASE + i * 2, (1u << 16));
     }
 
     // add it to the global list of ioapics
