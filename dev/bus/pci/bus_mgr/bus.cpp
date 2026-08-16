@@ -48,8 +48,10 @@ status_t bus::probe(pci_location_t loc, bridge *br, root *r, bus **out_bus) {
     // create a bus to hold any devices we find
     bus *b = new bus(loc, br, r);
 
-    // mark this as at least the last we've seen
+    // mark this as at least the last we've seen, and make it findable right away so a bridge
+    // below us pointing back at this bus is caught instead of recursed into
     r->note_bus_seen(b->bus_num());
+    b->add_to_global_list();
 
     // probe all functions on all 32 devices on this bus.
     // add any devices found to this bus

@@ -44,9 +44,10 @@ public:
     uint8_t highest_bus() const { return highest_bus_; }
     status_t allocate_next_bus(uint8_t *out);
 
-    // route a legacy interrupt pin (1..4) of a device on the root bus, after swizzling
+    // route a legacy interrupt pin (1..4) of the device at the end of path
     bool has_intx_route() const { return desc_.intx_route != nullptr; }
-    status_t route_intx(pci_location_t root_level_loc, unsigned int pin, unsigned int *vector);
+    status_t route_intx(const pci_intx_path_entry *path, size_t path_len, unsigned int pin,
+                        unsigned int *vector);
 
     uint16_t segment() const { return desc_.segment; }
     uint8_t bus_start() const { return desc_.bus_start; }

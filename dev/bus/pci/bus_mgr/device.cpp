@@ -310,27 +310,31 @@ status_t device::allocate_irq(uint *irq) {
         return ERR_NO_RESOURCES;
     }
 
-    // If the root knows how to route legacy interrupts (ACPI _PRT and the like), swizzle the pin
-    // up through any bridges to the root bus and ask it. Each PCI-PCI bridge rotates INTA-D by
-    // the device number of the device below it (PCI-PCI bridge spec 9.1).
+    // If the root knows how to route legacy interrupts (ACPI _PRT and the like), describe where
+    // we sit relative to the root bus and ask it.
     root *r = bus_->get_root();
     if (r && r->has_intx_route()) {
-        pci_location_t root_loc = loc();
-        unsigned int pin = interrupt_pin;
-        for (bus *b = bus_; b && !b->is_root_bus(); b = b->get_bridge()->parent_bus()) {
-            pin = ((pin - 1 + root_loc.dev) % 4) + 1;
-            root_loc = b->get_bridge()->loc();
+        // count the hops from the root bus down to us, then fill in the path top down
+        size_t depth = 1;
+        for (bus *b = bus_; !b->is_root_bus(); b = b->get_bridge()->parent_bus()) {
+            depth++;
         }
+        constexpr size_t max_depth = 32; // no sane topology nests bridges this deep
+        if (depth <= max_depth) {
+            pci_intx_path_entry path[max_depth];
+            size_t i = depth;
+            path[--i] = { loc().dev, loc().fn };
+            for (bus *b = bus_; !b->is_root_bus(); b = b->get_bridge()->parent_bus()) {
+                path[--i] = { b->get_bridge()->loc().dev, b->get_bridge()->loc().fn };
+            }
+            DEBUG_ASSERT(i == 0);
 
-        char str[14];
-        LTRACEF("device %s INT%c swizzled to root bus device %u INT%c\n",
-                pci_loc_string(loc(), str), 'A' + interrupt_pin - 1, root_loc.dev, 'A' + pin - 1);
-
-        err = r->route_intx(root_loc, pin, irq);
-        if (err == NO_ERROR) {
-            return NO_ERROR;
+            err = r->route_intx(path, depth, interrupt_pin, irq);
+            if (err == NO_ERROR) {
+                return NO_ERROR;
+            }
+            LTRACEF("root failed to route interrupt (%d), falling back to config space line\n", err);
         }
-        LTRACEF("root failed to route interrupt (%d), falling back to config space line\n", err);
     }
 
     // Prefer the already-routed legacy IRQ line from PCI config space.
@@ -825,7 +829,7 @@ status_t device::assign_resource(bar_alloc_request *request, uint64_t address) {
         request->dump();
     }
 
-    DEBUG_ASSERT(IS_ALIGNED(address, (1UL << request->align)));
+    DEBUG_ASSERT(IS_ALIGNED(address, (1ULL << request->align)));
 
     // Note: When assigning the resource, we don't bother setting the bottom bits
     // as those are hardwired per the spec.

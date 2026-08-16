@@ -134,9 +134,6 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     DEBUG_ASSERT(new_bus);
     br->add_bus(new_bus);
 
-    // add the bus to the global bus list
-    new_bus->add_to_global_list();
-
     *out_bridge = br.release();
 
     return NO_ERROR;
@@ -334,15 +331,15 @@ status_t bridge::reserve_assigned_resources(resource_allocator &allocator) {
 
     // any window firmware left open is claimed by whatever is downstream
     auto io = io_range();
-    if (io.limit > io.base) {
+    if (window_open(io)) {
         allocator.reserve(PCI_RESOURCE_IO_RANGE, io.base, io.limit - io.base + 1);
     }
     auto mmio = mem_range();
-    if (mmio.limit > mmio.base) {
+    if (window_open(mmio)) {
         allocator.reserve(PCI_RESOURCE_MMIO_RANGE, mmio.base, mmio.limit - mmio.base + 1);
     }
     auto pref = prefetch_range();
-    if (pref.limit > pref.base) {
+    if (window_open(pref)) {
         allocator.reserve(PCI_RESOURCE_MMIO64_RANGE, pref.base, pref.limit - pref.base + 1);
     }
 
@@ -365,16 +362,16 @@ status_t bridge::get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assig
     // fitted into it when we recurse. only closed windows get a request.
     if (mode == PCI_ASSIGN_UNASSIGNED) {
         auto io = io_range();
-        if (io.limit > io.base) {
+        if (window_open(io)) {
             bus_sizes.io_size = 0;
         }
         auto mmio = mem_range();
-        if (mmio.limit > mmio.base) {
+        if (window_open(mmio)) {
             bus_sizes.mmio_size = 0;
             bus_sizes.mmio64_size = 0;
         }
         auto pref = prefetch_range();
-        if (pref.limit > pref.base) {
+        if (window_open(pref)) {
             bus_sizes.prefetchable_size = 0;
             bus_sizes.prefetchable64_size = 0;
         }
@@ -424,7 +421,7 @@ status_t bridge::assign_resource(bar_alloc_request *request, uint64_t address) {
         return device::assign_resource(request, address);
     }
 
-    DEBUG_ASSERT(IS_ALIGNED(address, (1UL << request->align)));
+    DEBUG_ASSERT(IS_ALIGNED(address, (1ULL << request->align)));
 
     // this is an allocation for one of the bridge resources
     uint32_t temp;
@@ -494,17 +491,17 @@ status_t bridge::assign_child_resources(pci_assign_mode mode) {
     resource_allocator allocator;
 
     auto io = io_range();
-    if (io.limit > io.base) {
+    if (window_open(io)) {
         allocator.add_range(PCI_RESOURCE_IO_RANGE, false, io.base, io.limit - io.base + 1);
     }
 
     auto mmio = mem_range();
-    if (mmio.limit > mmio.base) {
+    if (window_open(mmio)) {
         allocator.add_range(PCI_RESOURCE_MMIO_RANGE, false, mmio.base, mmio.limit - mmio.base + 1);
     }
 
     auto pref = prefetch_range();
-    if (pref.limit > pref.base) {
+    if (window_open(pref)) {
         // add_range sorts out whether the window is 32 or 64 bit based on where it ends
         allocator.add_range(PCI_RESOURCE_MMIO64_RANGE, true, pref.base, pref.limit - pref.base + 1);
     }

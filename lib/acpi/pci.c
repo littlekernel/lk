@@ -214,30 +214,49 @@ status_t acpi_pci_enumerate_roots(acpi_pci_root_callback callback, void *cookie)
     }
 
     // sort by segment and starting bus, then make sure roots that only told us their base bus
-    // don't run into the next one
+    // don't run into the next one, and drop any that start on a bus a previous root owns
     qsort(ectx.roots, ectx.count, sizeof(ectx.roots[0]), compare_roots);
-    for (size_t i = 0; i + 1 < ectx.count; i++) {
+    for (size_t i = 0; i < ectx.count; i++) {
         struct acpi_pci_root *r = ectx.roots[i];
-        struct acpi_pci_root *next = ectx.roots[i + 1];
-        if (r->segment == next->segment && r->bus_end >= next->bus_start) {
-            r->bus_end = next->bus_start - 1;
+        struct acpi_pci_root *prev = NULL;
+        for (size_t j = i; j > 0 && !prev; j--) {
+            prev = ectx.roots[j - 1];
+        }
+
+        if (prev && prev->segment == r->segment && prev->bus_end >= r->bus_start) {
+            if (r->bus_start == prev->bus_start) {
+                // two roots claiming the same starting bus, keep the first
+                printf("ACPI PCI: dropping root %04x:%02x that duplicates a previous one\n",
+                       r->segment, r->bus_start);
+                acpi_pci_root_free(r);
+                ectx.roots[i] = NULL;
+                continue;
+            }
+            // trim the previous root, it either guessed (no bus range in _CRS) or firmware is
+            // inconsistent, either way this one starts here
+            prev->bus_end = r->bus_start - 1;
         }
     }
 
     for (size_t i = 0; i < ectx.count; i++) {
         struct acpi_pci_root *r = ectx.roots[i];
-        if (r->bus_end < r->bus_start) {
-            // two roots claiming the same bus, drop the later one
-            printf("ACPI PCI: dropping root %04x:%02x that overlaps a previous one\n", r->segment,
-                   r->bus_start);
-            free(r);
-            continue;
+        if (r) {
+            callback(r, cookie);
         }
-        callback(r, cookie);
     }
     free(ectx.roots);
 
     return NO_ERROR;
+}
+
+void acpi_pci_root_free(struct acpi_pci_root *root) {
+    if (!root) {
+        return;
+    }
+    if (root->prt) {
+        uacpi_free_pci_routing_table(root->prt);
+    }
+    free(root);
 }
 
 void acpi_pci_root_dump(const struct acpi_pci_root *root) {
@@ -434,21 +453,11 @@ static status_t link_resolve(uacpi_namespace_node *link, unsigned int index,
     return ERR_NOT_FOUND;
 }
 
-status_t acpi_pci_root_route_intx(struct acpi_pci_root *root, unsigned int dev,
-                                  unsigned int pin, struct acpi_pci_irq *out) {
-    LTRACEF("root %04x:%02x dev %u pin %u\n", root->segment, root->bus_start, dev, pin);
-
-    if (pin < 1 || pin > 4 || dev >= 32 || !out) {
-        return ERR_INVALID_ARGS;
-    }
-
-    status_t err = acpi_pci_root_load_prt(root);
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    for (size_t i = 0; i < root->prt->num_entries; i++) {
-        const uacpi_pci_routing_table_entry *entry = &root->prt->entries[i];
+// look up (dev, pin) in a routing table, resolving links. returns ERR_NOT_FOUND if not listed.
+static status_t prt_lookup(const uacpi_pci_routing_table *prt, unsigned int dev, unsigned int pin,
+                           struct acpi_pci_irq *out) {
+    for (size_t i = 0; i < prt->num_entries; i++) {
+        const uacpi_pci_routing_table_entry *entry = &prt->entries[i];
 
         // address is device << 16 | function, function is always 0xffff (all)
         if ((entry->address >> 16) != dev) {
@@ -467,6 +476,94 @@ status_t acpi_pci_root_route_intx(struct acpi_pci_root *root, unsigned int dev,
         }
 
         return link_resolve(entry->source, entry->index, out);
+    }
+
+    return ERR_NOT_FOUND;
+}
+
+// find the child device node of parent whose _ADR names dev/fn
+struct adr_lookup {
+    uint64_t adr;
+    uacpi_namespace_node *found;
+};
+
+static uacpi_iteration_decision adr_lookup_callback(void *user, uacpi_namespace_node *node,
+                                                    uacpi_u32 depth) {
+    struct adr_lookup *lookup = user;
+
+    uacpi_u64 adr;
+    if (uacpi_eval_adr(node, &adr) != UACPI_STATUS_OK) {
+        return UACPI_ITERATION_DECISION_CONTINUE;
+    }
+    // _ADR may name a specific function or all of them
+    if (adr == lookup->adr || adr == (lookup->adr | 0xffff)) {
+        lookup->found = node;
+        return UACPI_ITERATION_DECISION_BREAK;
+    }
+    return UACPI_ITERATION_DECISION_CONTINUE;
+}
+
+static uacpi_namespace_node *find_child_by_adr(uacpi_namespace_node *parent, unsigned int dev,
+                                               unsigned int fn) {
+    struct adr_lookup lookup = { .adr = ((uint64_t)dev << 16) | fn, .found = NULL };
+    uacpi_namespace_for_each_child(parent, adr_lookup_callback, NULL, UACPI_OBJECT_DEVICE_BIT, 1,
+                                   &lookup);
+    return lookup.found;
+}
+
+status_t acpi_pci_root_route_intx(struct acpi_pci_root *root, const struct pci_intx_path_entry *path,
+                                  size_t path_len, unsigned int pin, struct acpi_pci_irq *out) {
+    LTRACEF("root %04x:%02x path len %zu pin %u\n", root->segment, root->bus_start, path_len, pin);
+
+    if (pin < 1 || pin > 4 || path_len == 0 || !path || !out) {
+        return ERR_INVALID_ARGS;
+    }
+    for (size_t i = 0; i < path_len; i++) {
+        if (path[i].dev >= 32 || path[i].fn >= 8) {
+            return ERR_INVALID_ARGS;
+        }
+    }
+
+    status_t err = acpi_pci_root_load_prt(root);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    // walk down from the root to find the device node that owns each bus on the path:
+    // bus_node[i] is the node whose _PRT governs the bus path[i] sits on. once a bridge has no
+    // node of its own nothing below it can either.
+    uacpi_namespace_node *bus_node[path_len];
+    bus_node[0] = root->node;
+    for (size_t i = 1; i < path_len; i++) {
+        bus_node[i] = bus_node[i - 1] ? find_child_by_adr(bus_node[i - 1], path[i - 1].dev, path[i - 1].fn)
+                                      : NULL;
+    }
+
+    // then walk back up: a bridge's own _PRT beats swizzling (ACPI 6.x 6.2.13), and the root's
+    // _PRT is the last resort
+    unsigned int dev = path[path_len - 1].dev;
+    for (size_t i = path_len; i-- > 0;) {
+        if (i == 0) {
+            return prt_lookup(root->prt, dev, pin, out);
+        }
+
+        if (bus_node[i]) {
+            uacpi_pci_routing_table *prt = NULL;
+            uacpi_status st = uacpi_get_pci_routing_table(bus_node[i], &prt);
+            if (st == UACPI_STATUS_OK) {
+                err = prt_lookup(prt, dev, pin, out);
+                uacpi_free_pci_routing_table(prt);
+                if (err == NO_ERROR) {
+                    return NO_ERROR;
+                }
+                LTRACEF("bridge level %zu has a _PRT but no entry for dev %u pin %u\n", i, dev, pin);
+            }
+        }
+
+        // no help at this level, swizzle up through the bridge: each PCI-PCI bridge rotates
+        // INTA-D by the device number below it (PCI-PCI bridge spec 9.1)
+        pin = ((pin - 1 + dev) % 4) + 1;
+        dev = path[i - 1].dev;
     }
 
     return ERR_NOT_FOUND;

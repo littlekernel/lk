@@ -172,17 +172,23 @@ bool allocator_mmio_fallback() {
     EXPECT_EQ(NO_ERROR, alloc.add_range(PCI_RESOURCE_MMIO64_RANGE, true, 0x8000000000ULL, 0x100000));
 
     uint64_t addr;
-    // 64bit prefetchable request lands in the 64bit prefetchable window
-    EXPECT_EQ(NO_ERROR, alloc.allocate_mmio(true, true, 0x4000, 14, &addr));
-    EXPECT_EQ(0x8000000000ULL, addr);
+    if (sizeof(paddr_t) >= 8) {
+        // 64bit prefetchable request lands in the 64bit prefetchable window
+        EXPECT_EQ(NO_ERROR, alloc.allocate_mmio(true, true, 0x4000, 14, &addr));
+        EXPECT_EQ(0x8000000000ULL, addr);
+    } else {
+        // a 32bit kernel can't go above 4GB, so it falls back to the plain 32bit window
+        EXPECT_EQ(NO_ERROR, alloc.allocate_mmio(true, true, 0x4000, 14, &addr));
+        EXPECT_EQ(0x10000000ULL, addr);
+    }
 
     // 32bit prefetchable request has no 32bit prefetchable window: falls back to plain mmio
     EXPECT_EQ(NO_ERROR, alloc.allocate_mmio(false, true, 0x1000, 12, &addr));
-    EXPECT_EQ(0x10000000ULL, addr);
+    EXPECT_EQ((sizeof(paddr_t) >= 8) ? 0x10000000ULL : 0x10004000ULL, addr);
 
     // 64bit non prefetchable request: no 64bit non prefetchable window, uses the 32bit one
     EXPECT_EQ(NO_ERROR, alloc.allocate_mmio(true, false, 0x1000, 12, &addr));
-    EXPECT_EQ(0x10001000ULL, addr);
+    EXPECT_EQ((sizeof(paddr_t) >= 8) ? 0x10001000ULL : 0x10005000ULL, addr);
 
     // non prefetchable requests do NOT spill into the prefetchable window below a bridge
     EXPECT_EQ(ERR_NO_RESOURCES, alloc.allocate_mmio(true, false, 0x200000, 21, &addr));
@@ -190,8 +196,13 @@ bool allocator_mmio_fallback() {
     // but on a root they do
     resource_allocator root(true);
     EXPECT_EQ(NO_ERROR, root.add_range(PCI_RESOURCE_MMIO64_RANGE, true, 0x8000000000ULL, 0x100000));
-    EXPECT_EQ(NO_ERROR, root.allocate_mmio(true, false, 0x1000, 12, &addr));
-    EXPECT_EQ(0x8000000000ULL, addr);
+    if (sizeof(paddr_t) >= 8) {
+        EXPECT_EQ(NO_ERROR, root.allocate_mmio(true, false, 0x1000, 12, &addr));
+        EXPECT_EQ(0x8000000000ULL, addr);
+    } else {
+        // unreachable above 4GB on a 32bit kernel
+        EXPECT_EQ(ERR_NO_RESOURCES, root.allocate_mmio(true, false, 0x1000, 12, &addr));
+    }
 
     // a 32bit request can't go above 4GB even on a root
     EXPECT_EQ(ERR_NO_RESOURCES, root.allocate_mmio(false, false, 0x1000, 12, &addr));

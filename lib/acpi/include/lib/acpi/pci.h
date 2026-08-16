@@ -58,10 +58,15 @@ status_t acpi_pci_set_interrupt_model(bool ioapic);
 // Evaluate and cache the root's _PRT. Returns ERR_NOT_FOUND if the root has none.
 status_t acpi_pci_root_load_prt(struct acpi_pci_root *root);
 
-// Route pin (1..4 for INTA..INTD) of device dev on the root bus to a global system interrupt,
-// resolving interrupt link devices as needed. Loads the _PRT on first use.
-status_t acpi_pci_root_route_intx(struct acpi_pci_root *root, unsigned int dev,
-                                  unsigned int pin, struct acpi_pci_irq *out);
+// Route pin (1..4 for INTA..INTD) of the device at the end of path (see pci_intx_path_entry) to
+// a global system interrupt. Bridges on the path that have their own device node with a _PRT
+// are consulted first, otherwise the pin is swizzled up to the parent, ending at the root's
+// _PRT. Interrupt link devices are resolved as needed. Loads the root's _PRT on first use.
+status_t acpi_pci_root_route_intx(struct acpi_pci_root *root, const struct pci_intx_path_entry *path,
+                                  size_t path_len, unsigned int pin, struct acpi_pci_irq *out);
+
+// Release a root the callback decided not to keep
+void acpi_pci_root_free(struct acpi_pci_root *root);
 
 // Debug dump of a root
 void acpi_pci_root_dump(const struct acpi_pci_root *root);

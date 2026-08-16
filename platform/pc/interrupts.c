@@ -74,9 +74,19 @@ static struct int_vector int_table[INT_VECTORS];
 // true once the ioapic has taken over from the 8259
 static bool use_ioapic = false;
 
-// gsi -> vector for everything routed through the ioapic, 0 means unrouted
-#define MAX_GSI 256
-static uint8_t gsi_to_vector[MAX_GSI];
+// the largest gsi the vector table can record
+#define MAX_GSI (1u << 16)
+
+// find the vector a gsi is routed to, 0 if none. lock must be held.
+static uint vector_for_gsi(uint gsi) {
+    for (uint i = INT_BASE; i < INT_VECTORS; i++) {
+        if (int_table[i].flags.type == INTC_TYPE_IOAPIC && int_table[i].flags.gsi_valid &&
+            int_table[i].flags.gsi == gsi) {
+            return i;
+        }
+    }
+    return 0;
+}
 
 #if WITH_LIB_ACPI
 struct irq_override_lookup {
@@ -351,36 +361,31 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     ASSERT(vector < INT_VECTORS);
 
     // vectors the ioapic delivers were set up (trigger mode, gsi) when they were routed, keep
-    // that. level triggered ones are shareable, so a second registration chains rather than
-    // replacing the first.
-    struct int_handler_entry *entry = NULL;
-    if (int_table[vector].flags.type == INTC_TYPE_IOAPIC && !int_table[vector].flags.edge) {
-        entry = malloc(sizeof(*entry));
-        ASSERT(entry);
-        entry->handler = handler;
-        entry->arg = arg;
-    }
+    // that. level triggered ioapic vectors and 8259 vectors (pci lines share those in PIC mode)
+    // are shareable, so a second registration chains rather than replacing the first.
+    struct int_handler_entry *entry = malloc(sizeof(*entry));
+    ASSERT(entry);
+    entry->handler = handler;
+    entry->arg = arg;
 
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
-    if (int_table[vector].flags.type == INTC_TYPE_IOAPIC) {
-        if (int_table[vector].handler && handler && entry) {
-            // shared: append to the chain
-            entry->next = int_table[vector].extra_handlers;
-            int_table[vector].extra_handlers = entry;
-            entry = NULL;
-        } else {
-            int_table[vector].handler = handler;
-            int_table[vector].arg = arg;
-        }
-        int_table[vector].flags.allocated = true;
+    const bool shareable = (int_table[vector].flags.type == INTC_TYPE_IOAPIC && !int_table[vector].flags.edge) ||
+                           int_table[vector].flags.type == INTC_TYPE_PIC;
+    if (int_table[vector].handler && handler && shareable) {
+        // shared: append to the chain
+        entry->next = int_table[vector].extra_handlers;
+        int_table[vector].extra_handlers = entry;
+        entry = NULL;
     } else {
         int_table[vector].handler = handler;
         int_table[vector].arg = arg;
-        int_table[vector].flags.allocated = true;
-        int_table[vector].flags.edge = false;
-        int_table[vector].flags.type = INTC_TYPE_PIC;
+        if (int_table[vector].flags.type != INTC_TYPE_IOAPIC) {
+            int_table[vector].flags.edge = false;
+            int_table[vector].flags.type = INTC_TYPE_PIC;
+        }
     }
+    int_table[vector].flags.allocated = true;
 
     spin_unlock_irqrestore(&lock, state);
 
@@ -433,9 +438,6 @@ static status_t route_gsi_locked(uint gsi, uint vector, bool level, bool active_
     int_table[vector].flags.edge = !level;
     int_table[vector].flags.gsi_valid = true;
     int_table[vector].flags.gsi = gsi;
-    if (gsi < MAX_GSI) {
-        gsi_to_vector[gsi] = vector;
-    }
 
     return NO_ERROR;
 }
@@ -454,7 +456,7 @@ status_t pc_route_gsi(unsigned int gsi, bool level_triggered, bool active_low, u
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
     status_t err = NO_ERROR;
-    uint v = gsi_to_vector[gsi];
+    uint v = vector_for_gsi(gsi);
     if (v != 0) {
         // already routed, share the vector. a level triggered request wins over an edge one
         // (a pci line sharing a wire with something we thought was an isa irq), and vice

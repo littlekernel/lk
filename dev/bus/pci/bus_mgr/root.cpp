@@ -40,8 +40,22 @@ status_t root::add_window(const pci_root_window &window) {
         return ERR_INVALID_ARGS;
     }
 
+    // a 32bit kernel can't map anything above 4GB, clip the window to what it can reach
+    uint64_t base = window.base;
+    uint64_t size = window.size;
+    if (sizeof(paddr_t) < 8) {
+        const uint64_t limit = 1ULL << 32;
+        if (base >= limit) {
+            LTRACEF("dropping window above 4GB on a 32bit build\n");
+            return NO_ERROR;
+        }
+        if (base + size > limit) {
+            size = limit - base;
+        }
+    }
+
     // TODO: carry the translation offset through to the devices that map the BARs
-    return allocator_.add_range(window.type, window.prefetchable, window.base, window.size);
+    return allocator_.add_range(window.type, window.prefetchable, base, size);
 }
 
 void root::note_bus_seen(uint8_t bus) {
@@ -78,7 +92,6 @@ status_t root::probe() {
     // if we found anything there should be at least an empty bus device
     DEBUG_ASSERT(b);
     bus_ = b;
-    b->add_to_global_list();
 
     return NO_ERROR;
 }
@@ -95,11 +108,12 @@ status_t root::assign_resources(pci_assign_mode mode) {
     return bus_->allocate_resources(allocator_, mode);
 }
 
-status_t root::route_intx(pci_location_t root_level_loc, unsigned int pin, unsigned int *vector) {
+status_t root::route_intx(const pci_intx_path_entry *path, size_t path_len, unsigned int pin,
+                          unsigned int *vector) {
     if (!desc_.intx_route) {
         return ERR_NOT_SUPPORTED;
     }
-    return desc_.intx_route(desc_.intx_cookie, root_level_loc, pin, vector);
+    return desc_.intx_route(desc_.intx_cookie, path, path_len, pin, vector);
 }
 
 void root::dump(size_t indent) {

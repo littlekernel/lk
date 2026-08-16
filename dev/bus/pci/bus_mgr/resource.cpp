@@ -295,6 +295,11 @@ status_t resource_allocator::allocate_io(uint32_t size, uint8_t align, uint32_t 
 status_t resource_allocator::allocate_mmio(bool can_be_64bit, bool prefetchable, uint64_t size, uint8_t align, uint64_t *out) {
     LTRACEF("size %#llx align %u prefetchable %d can_be_64 %d\n", size, align, prefetchable, can_be_64bit);
 
+    // a 32bit kernel can't reach anything above 4GB
+    if (sizeof(paddr_t) < 8) {
+        can_be_64bit = false;
+    }
+
     // build the list of pools to try, in order of preference: prefetchable pools first if the
     // request is, falling back to non prefetchable pools. non prefetchable requests only fall
     // back to prefetchable pools on a root allocator, where the attribute is only a hint.

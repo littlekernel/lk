@@ -50,8 +50,9 @@ static bool pc_pci_init_ecam(void) {
         printf("PCI MCFG: segment %#hx bus [%hhu...%hhu] address %#llx\n", entry->segment,
                entry->start_bus, entry->end_bus, entry->address);
 
-        status_t err = pci_init_ecam(entry->address, entry->segment, entry->start_bus,
-                                     entry->end_bus);
+        // the MCFG base is where bus 0 of the segment would be, even if the entry starts higher
+        paddr_t base = entry->address + ((paddr_t)entry->start_bus << 20);
+        status_t err = pci_init_ecam(base, entry->segment, entry->start_bus, entry->end_bus);
         if (err == NO_ERROR) {
             have_backend = true;
         } else {
@@ -62,17 +63,24 @@ static bool pc_pci_init_ecam(void) {
     return have_backend;
 }
 
-// route a legacy interrupt pin of a device on the root bus (already swizzled) via _PRT
-static status_t pc_pci_intx_route(void *cookie, pci_location_t loc, unsigned int pin,
-                                  unsigned int *vector) {
+// route a legacy interrupt pin of a device below one of the ACPI roots via _PRT
+static status_t pc_pci_intx_route(void *cookie, const struct pci_intx_path_entry *path,
+                                  size_t path_len, unsigned int pin, unsigned int *vector) {
     struct acpi_pci_root *root = cookie;
+
+    // the device itself, for the log
+    pci_location_t loc = { .segment = root->segment, .bus = 0, .dev = 0, .fn = 0 };
+    if (path_len > 0) {
+        loc.dev = path[path_len - 1].dev;
+        loc.fn = path[path_len - 1].fn;
+    }
     char str[14];
 
     struct acpi_pci_irq irq;
-    status_t err = acpi_pci_root_route_intx(root, loc.dev, pin, &irq);
+    status_t err = acpi_pci_root_route_intx(root, path, path_len, pin, &irq);
     if (err != NO_ERROR) {
-        dprintf(INFO, "PCI: no _PRT route for %s INT%c (%d)\n", pci_loc_string(loc, str),
-                'A' + pin - 1, err);
+        dprintf(INFO, "PCI: root %04x:%02x: no _PRT route for device %02x.%x INT%c (%zu hops) (%d)\n",
+                root->segment, root->bus_start, loc.dev, loc.fn, 'A' + pin - 1, path_len, err);
         return err;
     }
 
@@ -88,9 +96,9 @@ static status_t pc_pci_intx_route(void *cookie, pci_location_t loc, unsigned int
         return err;
     }
 
-    dprintf(INFO, "PCI: routed %s INT%c -> gsi %u -> vector %#x (%s/%s)\n", pci_loc_string(loc, str),
-            'A' + pin - 1, irq.gsi, *vector, irq.level_triggered ? "level" : "edge",
-            irq.active_low ? "low" : "high");
+    dprintf(INFO, "PCI: routed root %04x:%02x device %02x.%x INT%c (%zu hops) -> gsi %u -> vector %#x (%s/%s)\n",
+            root->segment, root->bus_start, loc.dev, loc.fn, 'A' + pin - 1, path_len, irq.gsi,
+            *vector, irq.level_triggered ? "level" : "edge", irq.active_low ? "low" : "high");
     return NO_ERROR;
 }
 
@@ -110,6 +118,19 @@ static void pc_pci_add_acpi_root(struct acpi_pci_root *root, void *cookie) {
                root->segment, root->bus_start, err);
     }
 
+    // don't hand out bus numbers the config accessors can't reach (a legacy BIOS reporting a
+    // small last bus, an MCFG covering less than the namespace claims)
+    int last_bus = pci_get_last_bus();
+    if (last_bus >= 0 && root->bus_end > last_bus) {
+        if (root->bus_start > last_bus) {
+            printf("PCI: ACPI root %04x:%02x is beyond the reach of config space, skipping\n",
+                   root->segment, root->bus_start);
+            acpi_pci_root_free(root);
+            return;
+        }
+        root->bus_end = last_bus;
+    }
+
     struct pci_root_desc desc = {
         .segment = root->segment,
         .bus_start = root->bus_start,
@@ -124,6 +145,7 @@ static void pc_pci_add_acpi_root(struct acpi_pci_root *root, void *cookie) {
     if (err != NO_ERROR) {
         printf("PCI: failed to add ACPI root %04x:%02x, error %d\n", root->segment,
                root->bus_start, err);
+        acpi_pci_root_free(root);
         return;
     }
     (*count)++;

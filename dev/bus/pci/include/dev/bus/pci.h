@@ -79,11 +79,20 @@ struct pci_root_window {
     bool prefetchable;
 };
 
-// Route a legacy interrupt pin of a device on a root bus to a platform interrupt vector.
-// root_level_loc is the device on the root bus (after swizzling through any bridges), pin is
-// 1..4 for INTA..INTD.
-typedef status_t (*pci_root_intx_route_fn)(void *cookie, pci_location_t root_level_loc,
-                                           unsigned int pin, unsigned int *vector);
+// One hop on the way from a root bus down to a device: the device/function number, on the bus
+// above it, of a bridge (or, for the last hop, of the device itself).
+struct pci_intx_path_entry {
+    uint8_t dev;
+    uint8_t fn;
+};
+
+// Route a legacy interrupt pin (1..4 for INTA..INTD) of a device to a platform interrupt vector.
+// path describes where the device sits: path[0] is on the root bus, path[path_len - 1] is the
+// device, everything in between is a PCI-PCI bridge. The router applies whatever routing
+// information it has at each level (ACPI _PRT on the host bridge or on individual bridges),
+// swizzling the pin across bridges it knows nothing about per the PCI-PCI bridge spec.
+typedef status_t (*pci_root_intx_route_fn)(void *cookie, const struct pci_intx_path_entry *path,
+                                           size_t path_len, unsigned int pin, unsigned int *vector);
 
 // Description of a PCI root (host bridge)
 struct pci_root_desc {
