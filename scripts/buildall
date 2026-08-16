@@ -203,7 +203,9 @@ fi
 # Check that every module declares the modules whose headers it includes.
 # This reads the build directories just produced, so it runs after the builds
 # and is not meaningful for projects that failed to build.
-if (( DEPCHECK )); then
+if (( DEPCHECK )) && (( ${#BUILDDIRS[@]} == 0 )); then
+    echo "no projects built, skipping module header dependency check"
+elif (( DEPCHECK )); then
     echo "checking module header dependencies"
     # the report is short and is the point, so show it even with -q
     "$DIR"/check-module-deps.py --strict "${BUILDDIRS[@]}" 2>&1 | tee -a buildall.log
