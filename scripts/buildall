@@ -114,9 +114,13 @@ _PROJECTS=$(echo project/*.mk | xargs -n1 basename | sed 's/\.mk//')
 # filter projects based on the ARCH variable.
 if [ "$ARCH" != "all" ]; then
     for p in $_PROJECTS; do
-        # Look for ARCH = <arch> in the output of make list-arch
-        PROJECT_ARCH="$(PROJECT=$p make list-arch | grep 'ARCH' | tail -1 | cut -d ' ' -f 3)"
-        if [ "$PROJECT_ARCH" == "$ARCH" ]; then
+        # Look for ARCH = <arch> and SUBARCH = <subarch> in the output of make list-arch.
+        # Accept either the bare arch or arch+subarch, so -a riscv32 / -a riscv64 pick out
+        # the riscv projects of that width and -a riscv takes both.
+        LIST_ARCH="$(PROJECT=$p make list-arch)"
+        PROJECT_ARCH="$(echo "$LIST_ARCH" | grep '^ARCH = ' | tail -1 | cut -d ' ' -f 3)"
+        PROJECT_SUBARCH="$(echo "$LIST_ARCH" | grep '^SUBARCH = ' | tail -1 | cut -d ' ' -f 3)"
+        if [ "$PROJECT_ARCH" == "$ARCH" ] || [ "$PROJECT_ARCH$PROJECT_SUBARCH" == "$ARCH" ]; then
             PROJECTS+="$p "
         else
             if (( !QUIET )); then

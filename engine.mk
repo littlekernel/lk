@@ -202,8 +202,11 @@ $(error couldn't find arch or platform doesn't define arch)
 endif
 
 # list the architecture specified in the project/target/platform rules.mk and early terminate.
+# SUBARCH is only meaningful for some arches (riscv's 32/64, arm's arm/arm-m) and may be
+# empty; the arch rules.mk has not been included yet so arch level defaults do not apply.
 ifeq ($(MAKECMDGOALS), list-arch)
 $(info ARCH = $(ARCH))
+$(info SUBARCH = $(SUBARCH))
 .PHONY: list-arch
 list-arch:
 else
