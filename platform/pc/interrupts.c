@@ -457,6 +457,7 @@ status_t pc_route_gsi(unsigned int gsi, bool level_triggered, bool active_low, u
 
     status_t err = NO_ERROR;
     uint v = vector_for_gsi(gsi);
+    const bool shared = (v != 0);
     if (v != 0) {
         // already routed, share the vector. a level triggered request wins over an edge one
         // (a pci line sharing a wire with something we thought was an isa irq), and vice
@@ -487,8 +488,9 @@ status_t pc_route_gsi(unsigned int gsi, bool level_triggered, bool active_low, u
     spin_unlock_irqrestore(&lock, state);
 
     if (err == NO_ERROR) {
-        LTRACEF("gsi %u -> vector %#x (%s/%s)\n", gsi, v, level_triggered ? "level" : "edge",
-                active_low ? "low" : "high");
+        dprintf(SPEW, "PC: ioapic: gsi %u -> vector %#x (%s/%s)%s\n", gsi, v,
+                level_triggered ? "level" : "edge", active_low ? "low" : "high",
+                shared ? " [shared]" : "");
         *vector = v;
     }
     return err;
@@ -622,7 +624,11 @@ static void ioapic_takeover(void) {
         return;
     }
 
-    dprintf(INFO, "PC: routing legacy interrupts through the ioapic\n");
+    const struct acpi_madt *madt = (const struct acpi_madt *)acpi_get_table_by_sig(ACPI_MADT_SIGNATURE);
+    const bool pcat_compat = madt && (madt->flags & ACPI_PCAT_COMPAT);
+
+    dprintf(INFO, "PC: routing legacy interrupts through %zu ioapic(s), pcat compat %d\n",
+            ioapic_count(), pcat_compat);
 
     // nothing gets through the PIC anymore
     pic_mask_interrupts();
@@ -630,8 +636,7 @@ static void ioapic_takeover(void) {
 
     // on systems that boot in PIC mode, tell the interrupt mode configuration register to
     // route through the ioapic instead of the 8259
-    const struct acpi_madt *madt = (const struct acpi_madt *)acpi_get_table_by_sig(ACPI_MADT_SIGNATURE);
-    if (madt && (madt->flags & ACPI_PCAT_COMPAT)) {
+    if (pcat_compat) {
         outp(0x22, 0x70);
         outp(0x23, 0x01);
     }
@@ -664,9 +669,10 @@ static void ioapic_takeover(void) {
                     route->gsi, err);
             continue;
         }
-        LTRACEF("isa irq %u -> gsi %u -> vector %#x (%s/%s)\n", irq, route->gsi, vector,
-                route->route_level_triggered ? "level" : "edge",
-                route->route_active_low ? "low" : "high");
+        dprintf(SPEW, "PC: ioapic: isa irq %2u -> gsi %2u -> vector %#x (%s/%s)%s\n", irq,
+                route->gsi, vector, route->route_level_triggered ? "level" : "edge",
+                route->route_active_low ? "low" : "high",
+                route->has_override ? " [madt override]" : "");
     }
     use_ioapic = true;
     spin_unlock_irqrestore(&lock, state);
