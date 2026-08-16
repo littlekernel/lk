@@ -441,7 +441,7 @@ status_t bridge::assign_child_resources() {
     if (io.limit > io.base) {
         resource_range r;
         r.base = io.base;
-        r.size = io.limit + io.base + 1;
+        r.size = io.limit - io.base + 1;
         r.type = PCI_RESOURCE_IO_RANGE;
         allocator.set_range(r);
     }
@@ -462,7 +462,7 @@ status_t bridge::assign_child_resources() {
         r.size = pref.limit - pref.base + 1;
 
         // if the prefetch window is completely < 4GB, set it up as a 32bit mmio prefetchable
-        if (pref.base < (1ULL << 32) || (pref.base + pref.limit < (1ULL << 32))) {
+        if (pref.limit < (1ULL << 32)) {
             r.type = PCI_RESOURCE_MMIO_RANGE;
         } else {
             r.type = PCI_RESOURCE_MMIO64_RANGE;

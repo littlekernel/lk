@@ -280,7 +280,7 @@ status_t fdtwalk_setup_pci(const void *fdt) {
 
             if (pcie_info[i].ecam_len > 0) {
                 dprintf(INFO, "PCIE: initializing pcie with ecam at %#" PRIx64 " found in FDT\n", pcie_info[i].ecam_base);
-                err = pci_init_ecam(pcie_info[i].ecam_base, pcie_info[i].ecam_len, pcie_info[i].bus_start, pcie_info[i].bus_end);
+                err = pci_init_ecam(pcie_info[i].ecam_base, 0, pcie_info[i].bus_start, pcie_info[i].bus_end);
                 if (err == NO_ERROR) {
                     // add some additional resources to the pci bus manager in case it needs to configure
                     if (pcie_info[i].io_len > 0) {

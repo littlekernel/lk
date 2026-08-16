@@ -31,9 +31,14 @@ private:
     // allocate vm resources for the object
     status_t initialize();
 
+    bool location_to_offset(pci_location_t state, uint32_t reg, size_t *offset) const;
+    template <typename T> int read_config(pci_location_t state, uint32_t reg, T *value);
+    template <typename T> int write_config(pci_location_t state, uint32_t reg, T value);
+
     paddr_t base_;
-    uint16_t start_bus_;
-    uint16_t end_bus_;
+    uint16_t segment_;
+    uint8_t start_bus_;
+    uint8_t end_bus_;
 
     // vm region where the ecam is mapped
     uint8_t *ecam_ptr_ = nullptr;
