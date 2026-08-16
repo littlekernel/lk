@@ -583,36 +583,3 @@ uacpi_status uacpi_kernel_schedule_work(uacpi_work_type type, uacpi_work_handler
 uacpi_status uacpi_kernel_wait_for_work_completion(void) {
     return UACPI_STATUS_OK;
 }
-
-static int cmd_uacpi(int argc, const console_cmd_args *argv) {
-    printf("Initializing uACPI...\n");
-    uacpi_status status = uacpi_initialize(0);
-    if (status != UACPI_STATUS_OK) {
-        printf("uacpi_initialize failed: %s (%d)\n", uacpi_status_to_string(status), status);
-        return -1;
-    }
-
-    printf("Loading tables...\n");
-    status = uacpi_namespace_load();
-    if (status != UACPI_STATUS_OK) {
-        printf("uacpi_namespace_load failed: %s (%d)\n", uacpi_status_to_string(status), status);
-        uacpi_state_reset();
-        return -1;
-    }
-
-    printf("Initializing namespace...\n");
-    status = uacpi_namespace_initialize();
-    if (status != UACPI_STATUS_OK) {
-        printf("uacpi_namespace_initialize failed: %s (%d)\n", uacpi_status_to_string(status),
-               status);
-        uacpi_state_reset();
-        return -1;
-    }
-
-    printf("uACPI Initialized successfully.\n");
-    return 0;
-}
-
-STATIC_COMMAND_START
-STATIC_COMMAND("uacpi", "Initialize and test uACPI", &cmd_uacpi)
-STATIC_COMMAND_END(uacpi);
