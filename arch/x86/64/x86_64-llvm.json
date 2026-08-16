@@ -8,5 +8,6 @@
     "target-pointer-width": 64,
     "emit-debug-gdb-scripts": false,
     "frame-pointer": "may-omit",
+    "relocation-model": "static",
     "stack-probes": {"kind": "none"}
 }
