@@ -144,7 +144,9 @@ jobs:
         export -n ARCH
         # DEBUG is passed through to the build script
         # UBSAN is passed through to the build script
-        ./scripts/buildall -e -a "${{ matrix.arch }}"
+        # -d fails the run if any module includes headers of a module it does not
+        # declare in MODULE_DEPS / MODULE_WEAK_DEPS (scripts/check-module-deps.py)
+        ./scripts/buildall -e -d -a "${{ matrix.arch }}"
 
     # upload artifacts
     #- uses: actions/upload-artifact@v2

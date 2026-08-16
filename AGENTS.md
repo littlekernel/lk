@@ -99,6 +99,7 @@ make spotless
 scripts/buildall -q -e -r  # quiet, warnings-as-errors, release builds
 scripts/buildall -c -q     # build all with Clang
 scripts/buildall -l -q     # build all with Clang + LLD
+scripts/buildall -e -d     # also fail on undeclared module header deps (what CI runs)
 
 Output will be written to buildall.log. To run the build with full output during the build, omit the -q flag.
 ```
@@ -364,6 +365,8 @@ scripts/check-module-deps.py --edges                      # every build-* dir, o
 ```
 
 It reads existing build output, so run it after `make <project>` or `scripts/buildall`.
+`scripts/buildall -d` runs it (with `--strict`) over the build directories it just produced,
+and CI passes `-d`, so an undeclared dependency fails the gcc CI matrix.
 
 ### Adding Platform Support
 

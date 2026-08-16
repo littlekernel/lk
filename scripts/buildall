@@ -30,6 +30,7 @@ function HELP {
     echo "help:"
     echo "-a <arch> : build for <arch> (default: all)"
     echo "-c        : also build with Clang"
+    echo "-d        : check module header dependencies (scripts/check-module-deps.py) after building"
     echo "-l        : also build with Clang + LLD"
     echo "-e        : build with WERROR=1"
     echo "-j <jobs> : parallel jobs for make"
@@ -44,6 +45,7 @@ function HELP {
 
 RELEASE=0
 WERROR=0
+DEPCHECK=0
 QUIET=0
 UBSAN=0
 CLANG=0
@@ -51,10 +53,11 @@ CLANG_LLD=0
 ARCH="all"
 JOBS=""
 
-while getopts a:cej:lrqu FLAG; do
+while getopts a:cdej:lrqu FLAG; do
     case $FLAG in
         a) ARCH="$OPTARG";;
         c) CLANG=1;;
+        d) DEPCHECK=1;;
         e) WERROR=1;;
         h) HELP;;
         j) JOBS="-j$OPTARG";;
@@ -126,6 +129,7 @@ else
 fi
 
 echo projects to build: "$PROJECTS"
+BUILDDIRS=()
 echo build log written to buildall.log
 
 if (( WERROR )); then
@@ -163,6 +167,7 @@ for tc in "${TOOLCHAINS[@]}"; do
     for p in $PROJECTS; do
         echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
         log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=2 PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+        BUILDDIRS+=("build-$p$BUILDDIR_SUFFIX")
     done
 done
 
@@ -190,8 +195,21 @@ for tc in "${TOOLCHAINS[@]}"; do
     for p in $PROJECTS; do
         echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
         log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=0 PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+        BUILDDIRS+=("build-$p$BUILDDIR_SUFFIX")
     done
 done
+fi
+
+# Check that every module declares the modules whose headers it includes.
+# This reads the build directories just produced, so it runs after the builds
+# and is not meaningful for projects that failed to build.
+if (( DEPCHECK )); then
+    echo "checking module header dependencies"
+    # the report is short and is the point, so show it even with -q
+    "$DIR"/check-module-deps.py --strict "${BUILDDIRS[@]}" 2>&1 | tee -a buildall.log
+    if (( PIPESTATUS[0] != 0 )); then
+        FAILED="$FAILED module-deps-check"
+    fi
 fi
 
 # Print out at the end which projects failed to build
