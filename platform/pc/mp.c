@@ -109,35 +109,57 @@ struct detected_cpus {
 };
 
 #if WITH_LIB_ACPI
-static void local_apic_callback(const struct acpi_entry_hdr *hdr, void *cookie) {
-    const struct acpi_madt_lapic *entry = (const struct acpi_madt_lapic *)hdr;
-    struct detected_cpus *cpus = cookie;
-
-    if ((entry->flags & ACPI_PIC_ENABLED) == 0) {
+static void add_detected_cpu(struct detected_cpus *cpus, uint32_t apic_id, uint32_t flags) {
+    if ((flags & ACPI_PIC_ENABLED) == 0) {
         return;
     }
 
-    if (entry->id == x86_get_apic_id()) {
+    if (apic_id == x86_get_apic_id()) {
         // skip the boot cpu
         return;
     }
-    if (cpus->num_detected < SMP_MAX_CPUS) {
-        cpus->apic_ids[cpus->num_detected++] = entry->id;
+
+    // Both entry types can describe the same cpu, firmware commonly lists every cpu
+    // twice, so don't start it twice.
+    for (uint32_t i = 0; i < cpus->num_detected; i++) {
+        if (cpus->apic_ids[i] == apic_id) {
+            return;
+        }
     }
+
+    // An id that doesn't fit in the xapic id register can only be reached in x2apic mode.
+    if (apic_id >= 255 && !lapic_is_x2apic()) {
+        dprintf(INFO, "PC: skipping cpu with apic id %#x, needs x2apic mode\n", apic_id);
+        return;
+    }
+
+    if (cpus->num_detected < SMP_MAX_CPUS) {
+        cpus->apic_ids[cpus->num_detected++] = apic_id;
+    }
+}
+
+static void local_apic_callback(const struct acpi_entry_hdr *hdr, void *cookie) {
+    const struct acpi_madt_lapic *entry = (const struct acpi_madt_lapic *)hdr;
+    add_detected_cpu(cookie, entry->id, entry->flags);
+}
+
+static void local_x2apic_callback(const struct acpi_entry_hdr *hdr, void *cookie) {
+    const struct acpi_madt_x2apic *entry = (const struct acpi_madt_x2apic *)hdr;
+    add_detected_cpu(cookie, entry->id, entry->flags);
 }
 #endif
 
 void platform_start_secondary_cpus(void) {
     struct detected_cpus cpus;
     cpus.num_detected = 1;
-    cpus.apic_ids[0] = 0; // the boot cpu
+    cpus.apic_ids[0] = x86_get_apic_id(); // the boot cpu
 
 #if WITH_LIB_ACPI
     acpi_process_madt_entries(ACPI_MADT_ENTRY_TYPE_LAPIC, &local_apic_callback, &cpus);
+    acpi_process_madt_entries(ACPI_MADT_ENTRY_TYPE_LOCAL_X2APIC, &local_x2apic_callback, &cpus);
 #endif
 
     // TODO: fall back to legacy methods if ACPI fails
-    // TODO: deal with cpu topology
 
     // start up the secondary cpus
     if (cpus.num_detected < 2) {
@@ -179,7 +201,7 @@ void platform_start_secondary_cpus(void) {
     }
 
     for (uint i = 1; i < cpus.num_detected; i++) {
-        dprintf(INFO, "PC: starting cpu %u\n", cpus.apic_ids[i]);
+        dprintf(INFO, "PC: starting cpu %u, apic id %#x\n", i, cpus.apic_ids[i]);
 
         args->cpu_num = i;
 

@@ -305,6 +305,10 @@ void lapic_enable_on_local_cpu(void) {
     write_msr(X86_MSR_IA32_APIC_BASE, apic_base);
 }
 
+bool lapic_is_x2apic(void) {
+    return lapic_x2apic;
+}
+
 uint32_t lapic_get_apic_id(void) {
     if (!lapic_present) {
         return -1;

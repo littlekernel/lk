@@ -80,6 +80,7 @@ MODULE_SRCS += \
 	$(SUBARCH_DIR)/ops.S \
 	$(SUBARCH_DIR)/spinlock.S \
 \
+	$(LOCAL_DIR)/apicid.c \
 	$(LOCAL_DIR)/arch.c \
 	$(LOCAL_DIR)/cache.c \
 	$(LOCAL_DIR)/clocks.c \

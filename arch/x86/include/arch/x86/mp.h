@@ -9,6 +9,7 @@
 
 #include <arch/defines.h>
 #include <arch/x86.h>
+#include <arch/x86/apicid.h>
 #include <sys/types.h>
 
 // per cpu pointer pointed to by gs:
@@ -20,6 +21,9 @@ typedef struct x86_percpu {
     uint32_t apic_id;
 
     struct thread *current_thread;
+
+    // what this cpu's cpuid says about where it sits, see apicid.h
+    struct x86_cpu_ids ids;
 
     // per cpu bootstrap stack
     uint8_t bootstrap_stack[PAGE_SIZE] __ALIGNED(sizeof(uintptr_t) * 2);

@@ -100,7 +100,10 @@ void x86_secondary_entry(uint cpu_num) {
     // Get us into thread context and run the initial secondary cpu init routines
     lk_secondary_cpu_entry_early();
 
-    dprintf(INFO, "X86: secondary cpu %u started, apic id %u\n", arch_curr_cpu_num(), apic_id);
+    const struct x86_cpu_ids *ids = x86_get_cpu_ids();
+    dprintf(INFO, "X86: secondary cpu %u started, apic id %u (package %u core %u smt %u, %s)\n",
+            arch_curr_cpu_num(), apic_id, ids->package_id, ids->core_id, ids->smt_id,
+            x86_core_type_name(ids->core_type));
 
     // Finish secondary cpu initialization and enter the scheduler
     lk_secondary_cpu_entry();

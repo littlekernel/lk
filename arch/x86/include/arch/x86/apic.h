@@ -28,6 +28,9 @@ void lapic_enable_on_local_cpu(void);
 // read the apic id of the local apic on the current cpu, assumes lapic is present
 uint32_t lapic_get_apic_id(void);
 
+// true once the local apics have been switched into x2apic mode
+bool lapic_is_x2apic(void);
+
 status_t lapic_set_oneshot_timer(platform_timer_callback callback, void *arg, lk_time_t interval);
 void lapic_cancel_timer(void);
 

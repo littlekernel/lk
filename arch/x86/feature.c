@@ -24,6 +24,7 @@
 #include <arch/x86/feature.h>
 
 #include <arch/x86.h>
+#include <arch/x86/apicid.h>
 #include <arch/x86/uarch.h>
 #include <assert.h>
 #include <lk/bits.h>
@@ -442,6 +443,7 @@ void x86_feature_early_init(void) {
         max_cpuid_leaf = X86_CPUID_MODEL_FEATURES;
         x86_model_detect();
         x86_uarch_early_init();
+        x86_apic_id_layout_init();
 #endif
         return;
     }
@@ -501,6 +503,7 @@ void x86_feature_early_init(void) {
 
     x86_model_detect();
     x86_uarch_early_init();
+    x86_apic_id_layout_init();
 }
 
 static void x86_feature_dump_cpuid(void) {
@@ -542,6 +545,13 @@ void x86_feature_init(void) {
             model->family, model->model, model->stepping, model->display_family,
             model->display_model, x86_get_uarch_info()->name, x86_get_cpu_level(),
             x86_hypervisor_name(x86_get_hypervisor()));
+
+    const struct x86_apic_id_layout *layout = x86_get_apic_id_layout();
+    const struct x86_cpu_ids *ids = x86_get_cpu_ids();
+    dprintf(INFO, "X86: apic id layout: %u smt bits, %u core bits (from %s)\n", layout->smt_bits,
+            layout->core_bits, layout->source);
+    dprintf(INFO, "X86: boot cpu apic id %#x: package %u core %u smt %u, %s\n", ids->apic_id,
+            ids->package_id, ids->core_id, ids->smt_id, x86_core_type_name(ids->core_type));
 
     if (has_cpuid) {
         dprintf(SPEW, "X86: max cpuid leaf %#x ext %#x hyp %#x, %u subleaves cached\n",

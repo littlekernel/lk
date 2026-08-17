@@ -12,6 +12,7 @@
 #include <arch/mmu.h>
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <arch/x86/apicid.h>
 #include <arch/x86/descriptor.h>
 #include <arch/x86/feature.h>
 #include <arch/x86/mmu.h>
@@ -82,6 +83,7 @@ void x86_early_init_percpu(void) {
     /* load the kernel's IDT */
     asm("lidt _idtr");
 
+    x86_cpu_ids_init_percpu();
     x86_mmu_early_init_percpu();
     x86_mtrr_early_init_percpu();
 #if X86_WITH_FPU
