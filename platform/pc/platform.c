@@ -547,17 +547,20 @@ static void platform_init_postvm(uint level) {
     fb_console_init_postvm();
 
 #if WITH_LIB_ACPI
-    // Look for the root ACPI table
+    // Look for the root ACPI table. Failing to find one is not fatal: the interrupt and
+    // timer init below both cope with there being no ACPI, and returning early here would
+    // leave the system with no event timer at all.
     status_t err = acpi_init();
-    if (err != NO_ERROR) {
-        return;
-    }
-    found_acpi = true;
+    if (err == NO_ERROR) {
+        found_acpi = true;
 
-    if (LOCAL_TRACE) {
-        acpi_dump_tables(false);
+        if (LOCAL_TRACE) {
+            acpi_dump_tables(false);
+        }
+        acpi_dump_madt_table();
+    } else {
+        dprintf(INFO, "PC: no ACPI tables found\n");
     }
-    acpi_dump_madt_table();
 #endif
 
     platform_init_interrupts_postvm();
