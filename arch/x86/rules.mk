@@ -91,6 +91,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/mp.c \
 	$(LOCAL_DIR)/pv.c \
 	$(LOCAL_DIR)/thread.c \
+	$(LOCAL_DIR)/uarch.c \
 
 ifeq ($(SUBARCH),x86-64)
 # the PE/COFF header that makes lk.bin double as a UEFI application, plus the

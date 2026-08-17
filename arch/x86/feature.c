@@ -24,6 +24,7 @@
 #include <arch/x86/feature.h>
 
 #include <arch/x86.h>
+#include <arch/x86/uarch.h>
 #include <assert.h>
 #include <lk/bits.h>
 #include <lk/debug.h>
@@ -440,6 +441,7 @@ void x86_feature_early_init(void) {
         }
         max_cpuid_leaf = X86_CPUID_MODEL_FEATURES;
         x86_model_detect();
+        x86_uarch_early_init();
 #endif
         return;
     }
@@ -498,6 +500,7 @@ void x86_feature_early_init(void) {
     }
 
     x86_model_detect();
+    x86_uarch_early_init();
 }
 
 static void x86_feature_dump_cpuid(void) {
@@ -534,10 +537,11 @@ void x86_feature_init(void) {
     const struct x86_model_info *model = x86_get_model();
 
     dprintf(INFO, "X86: %s \"%s\"\n", vendor_string, brand_string);
-    dprintf(INFO, "X86: family %#x model %#x stepping %#x (display family %#x model %#x), "
+    dprintf(INFO, "X86: family %#x model %#x stepping %#x (display family %#x model %#x) %s, "
                   "cpu level %d, hypervisor %s\n",
             model->family, model->model, model->stepping, model->display_family,
-            model->display_model, x86_get_cpu_level(), x86_hypervisor_name(x86_get_hypervisor()));
+            model->display_model, x86_get_uarch_info()->name, x86_get_cpu_level(),
+            x86_hypervisor_name(x86_get_hypervisor()));
 
     if (has_cpuid) {
         dprintf(SPEW, "X86: max cpuid leaf %#x ext %#x hyp %#x, %u subleaves cached\n",
