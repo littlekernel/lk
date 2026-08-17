@@ -246,15 +246,28 @@ uint64_t pit_calibrate_tsc(void) {
         tsc_ticks[i] = tsc_end - tsc_start;
     }
 
-    // find the best time
+    // Each sample carries a roughly fixed error: the window starts before the tsc is
+    // sampled (the countdown is already running once the last port write lands), and it
+    // ends after the countdown expires (the readback poll only notices on its next pass).
+    // Both are close to constant per sample, so they shrink as a fraction of the window as
+    // the window grows -- which makes the longest window the most accurate sample and the
+    // raw-tick comparison this used to do, which always resolved to the *shortest* window,
+    // the least accurate one.
     uint best_index = 0;
-    for (uint i = 1; i < countof(tsc_ticks); i++) {
-        if (tsc_ticks[i] < tsc_ticks[best_index]) {
+    for (uint i = 0; i < countof(tsc_ticks); i++) {
+        const uint64_t implied = (tsc_ticks[i] * 1000) / countdown_ms[i];
+
+        // Print every sample. The trend across them says what any error is: a frequency
+        // that holds steady as the window grows means the PIT is ticking at the wrong rate,
+        // one that drifts means a fixed per-sample cost is being amortized away.
+        dprintf(SPEW, "PIT: sample %u: %ums window, %" PRIu64 " tsc ticks, implies %" PRIu64 "Hz\n",
+                i, countdown_ms[i], tsc_ticks[i], implied);
+
+        if (countdown_ms[i] > countdown_ms[best_index]) {
             best_index = i;
         }
     }
 
-    // calculate the tsc frequency
     tsc_freq = (tsc_ticks[best_index] * 1000) / countdown_ms[best_index];
     dprintf(INFO, "PIT: calibrated TSC frequency: %" PRIu64 "Hz\n", tsc_freq);
 
@@ -295,15 +308,21 @@ uint32_t pit_calibrate_lapic(uint32_t (*lapic_read_tick)(void)) {
         lapic_ticks[i] = tick_start - tick_end;
     }
 
-    // find the best time
+    // Same selection as pit_calibrate_tsc(): the longest window amortizes the fixed
+    // per-sample error best, so take it rather than comparing raw tick counts.
     uint best_index = 0;
-    for (uint i = 1; i < countof(lapic_ticks); i++) {
-        if (lapic_ticks[i] < lapic_ticks[best_index]) {
+    for (uint i = 0; i < countof(lapic_ticks); i++) {
+        const uint32_t implied = (lapic_ticks[i] * 1000) / countdown_ms[i];
+
+        dprintf(SPEW,
+                "PIT: sample %u: %ums window, %" PRIu64 " lapic ticks, implies %" PRIu32 "Hz\n", i,
+                countdown_ms[i], lapic_ticks[i], implied);
+
+        if (countdown_ms[i] > countdown_ms[best_index]) {
             best_index = i;
         }
     }
 
-    // calculate the tsc frequency
     uint32_t freq = (lapic_ticks[best_index] * 1000) / countdown_ms[best_index];
     dprintf(INFO, "PIT: calibrated local apic frequency: %" PRIu32 "Hz\n", freq);
 

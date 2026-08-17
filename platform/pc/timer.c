@@ -40,10 +40,17 @@ static enum clock_source {
     CLOCK_SOURCE_HPET,
 } clock_source = CLOCK_SOURCE_INITIAL;
 
+// Bounds on a believable TSC frequency, used to sanity check whatever the calibration
+// sources come back with. An invariant TSC only exists on parts that run at hundreds of
+// MHz or better, and nothing ships with a TSC anywhere near 10GHz.
+#define MIN_PLAUSIBLE_TSC_HZ (100ULL * 1000 * 1000)
+#define MAX_PLAUSIBLE_TSC_HZ (10ULL * 1000 * 1000 * 1000)
+
 static struct fp_32_64 tsc_to_timebase;
 static struct fp_32_64 tsc_to_timebase_hires;
 static struct fp_32_64 timebase_to_tsc;
 static bool use_lapic_timer = false;
+
 
 static const char *clock_source_name(void) {
     switch (clock_source) {
@@ -115,44 +122,63 @@ void platform_init_timer(void) {
         printf("pv_clock: Clocksource is %sstable\n", (pv_clock_stable ? "" : "not "));
     }
 
+    // Look for an HPET up front rather than only on the fallback path: its free-running
+    // counter is a much better reference to calibrate the TSC against than the PIT, and
+    // it can stand in as the clock source if the TSC turns out to be unusable.
+    const bool have_hpet = (hpet_init() == NO_ERROR);
+
     if (use_invariant_tsc) {
         // We're going to try to use the TSC as a time base, obtain the TSC frequency.
         uint64_t tsc_hz = 0;
 
+        // Best to worst: a hypervisor that just tells us, then a measurement against the
+        // HPET's free-running counter, then a measurement against the PIT.
+        // TODO: some x86 cores describe the TSC and lapic clocks in cpuid (leaf 0x15/0x16),
+        // which is exact and should be preferred over measuring anything at all.
         tsc_hz = pvclock_get_tsc_freq();
+        if (tsc_hz == 0 && have_hpet) {
+            tsc_hz = hpet_calibrate_tsc();
+        }
         if (tsc_hz == 0) {
-            // TODO: some x86 cores describe the TSC and lapic clocks in cpuid
-
-            // Calibrate the TSC against the PIT, which should always be present
             tsc_hz = pit_calibrate_tsc();
-            if (tsc_hz == 0) {
-                dprintf(CRITICAL, "PC: failed to calibrate TSC frequency\n");
-                goto out;
-            }
         }
 
-        dprintf(INFO, "PC: TSC frequency %" PRIu64 "Hz\n", tsc_hz);
+        // Every source above can lie -- an emulated or mis-clocked PIT most of all -- and
+        // a bad frequency here is invisible from inside the kernel, since it scales the
+        // conversion in both directions and stays self-consistent while every timer in the
+        // system runs at the wrong rate against the wall clock. Reject a result that can't
+        // be true rather than quietly building the whole timebase on it.
+        if (tsc_hz < MIN_PLAUSIBLE_TSC_HZ || tsc_hz > MAX_PLAUSIBLE_TSC_HZ) {
+            dprintf(CRITICAL, "PC: implausible TSC frequency %" PRIu64 "Hz, not using the TSC\n",
+                    tsc_hz);
+            // Fall back to another clock source, and keep the LAPIC timer off TSC deadline
+            // mode, which would otherwise convert its deadlines with a ratio we never set.
+            use_invariant_tsc = false;
+        } else {
+            dprintf(INFO, "PC: TSC frequency %" PRIu64 "Hz\n", tsc_hz);
 
-        // Compute the ratio of TSC to timebase
-        fp_32_64_div_32_64(&tsc_to_timebase, 1000, tsc_hz);
-        fp_32_64_div_32_64(&tsc_to_timebase_hires, 1000 * 1000, tsc_hz);
-        fp_32_64_div_64_32(&timebase_to_tsc, tsc_hz, 1000);
+            // Compute the ratio of TSC to timebase
+            fp_32_64_div_32_64(&tsc_to_timebase, 1000, tsc_hz);
+            fp_32_64_div_32_64(&tsc_to_timebase_hires, 1000 * 1000, tsc_hz);
+            fp_32_64_div_64_32(&timebase_to_tsc, tsc_hz, 1000);
 
-        char ratio_buf[32];
-        dprintf(SPEW, "PC: TSC to timebase ratio %s\n",
-                fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &tsc_to_timebase, 9));
-        dprintf(SPEW, "PC: TSC to hires timebase ratio %s\n",
-                fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &tsc_to_timebase_hires, 9));
-        dprintf(SPEW, "PC: timebase to TSC ratio %s\n",
-                fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &timebase_to_tsc, 9));
+            char ratio_buf[32];
+            dprintf(SPEW, "PC: TSC to timebase ratio %s\n",
+                    fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &tsc_to_timebase, 9));
+            dprintf(SPEW, "PC: TSC to hires timebase ratio %s\n",
+                    fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &tsc_to_timebase_hires, 9));
+            dprintf(SPEW, "PC: timebase to TSC ratio %s\n",
+                    fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &timebase_to_tsc, 9));
 
-        clock_source = CLOCK_SOURCE_TSC;
-    } else if (hpet_init() == NO_ERROR) {
-        // No invariant TSC to use as a time base, prefer the HPET's free-running
-        // counter over the interrupt-driven PIT if one is present.
+            clock_source = CLOCK_SOURCE_TSC;
+        }
+    }
+
+    if (clock_source != CLOCK_SOURCE_TSC && have_hpet) {
+        // No usable TSC to use as a time base, prefer the HPET's free-running
+        // counter over the interrupt-driven PIT.
         clock_source = CLOCK_SOURCE_HPET;
     }
-out:
 
     // Set up the local apic for event timer interrupts
     if (lapic_timer_init(use_invariant_tsc) == NO_ERROR) {

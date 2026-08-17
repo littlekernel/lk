@@ -34,8 +34,13 @@
 
 #define HPET_CONFIG_ENABLE_CNF (1u << 0)
 
+// The HPET spec caps the counter period at 100ns, i.e. the counter never ticks slower
+// than 10MHz. A period outside that range means we are not looking at a sane HPET.
+#define HPET_MAX_PERIOD_FS 0x05f5e100u
+
 static volatile uint32_t *hpet_regs;
 static bool hpet_counter_is_64bit;
+static uint64_t hpet_hz;
 static struct fp_32_64 hpet_to_ms;
 static struct fp_32_64 hpet_to_us;
 
@@ -65,6 +70,15 @@ static uint64_t hpet_read_counter(void) {
     return ((uint64_t)hi << 32) | lo;
 }
 
+// Difference between two counter reads, masked back down to the width of the counter so
+// that a single wrap during a measurement still yields the right delta. Callers are
+// responsible for keeping their measurement window short enough not to wrap twice.
+static uint64_t hpet_counter_delta(uint64_t start, uint64_t end) {
+    const uint64_t delta = end - start;
+
+    return hpet_counter_is_64bit ? delta : (delta & 0xffffffff);
+}
+
 lk_time_t hpet_current_time(void) {
     return u32_mul_u64_fp32_64(hpet_read_counter(), hpet_to_ms);
 }
@@ -73,7 +87,55 @@ lk_bigtime_t hpet_current_time_hires(void) {
     return u64_mul_u64_fp32_64(hpet_read_counter(), hpet_to_us);
 }
 
+bool hpet_is_available(void) {
+    return hpet_regs != NULL;
+}
+
+// Measure the TSC against the HPET's free-running counter.
+//
+// Unlike the PIT based calibration this samples both counters at the same two instants
+// instead of assuming that a programmed interval elapsed, so anything that stretches the
+// measurement window -- an SMI, a slow emulated register access, a preempted vcpu --
+// stretches the HPET delta and the TSC delta alike and the ratio between them survives.
+// That also means it does not care whether interrupts are enabled.
+uint64_t hpet_calibrate_tsc(void) {
+    if (!hpet_is_available()) {
+        return 0;
+    }
+
+    // 10ms is long enough that the cost of a counter read is noise and short enough to
+    // stay four orders of magnitude away from the ~5 minute wrap of a 32-bit counter.
+    const uint64_t window = hpet_hz / 100;
+
+    const uint64_t hpet_start = hpet_read_counter();
+    const uint64_t tsc_start = __builtin_ia32_rdtsc();
+
+    uint64_t hpet_delta;
+    do {
+        hpet_delta = hpet_counter_delta(hpet_start, hpet_read_counter());
+    } while (hpet_delta < window);
+
+    const uint64_t tsc_delta = __builtin_ia32_rdtsc() - tsc_start;
+
+    if (hpet_delta == 0) {
+        return 0;
+    }
+
+    // tsc_delta is tens of millions of ticks over this window and hpet_hz is tens of
+    // MHz, so the product stays well inside 64 bits.
+    const uint64_t tsc_freq = (tsc_delta * hpet_hz) / hpet_delta;
+
+    dprintf(INFO, "HPET: calibrated TSC frequency: %" PRIu64 "Hz\n", tsc_freq);
+
+    return tsc_freq;
+}
+
 status_t hpet_init(void) {
+    // Callers may probe for an HPET more than once; only set one up the first time.
+    if (hpet_is_available()) {
+        return NO_ERROR;
+    }
+
     const struct acpi_hpet *table =
         (const struct acpi_hpet *)acpi_get_table_by_sig(ACPI_HPET_SIGNATURE);
     if (!table) {
@@ -101,15 +163,16 @@ status_t hpet_init(void) {
 
     hpet_counter_is_64bit = (caps_low & HPET_CAPS_COUNT_SIZE_CAP) != 0;
 
-    if (period_fs == 0) {
-        dprintf(INFO, "PC: HPET reports a zero counter period, ignoring\n");
+    if (period_fs == 0 || period_fs > HPET_MAX_PERIOD_FS) {
+        dprintf(INFO, "PC: HPET reports an out of spec counter period %u, ignoring\n", period_fs);
         vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)hpet_regs);
         hpet_regs = NULL;
         return ERR_NOT_SUPPORTED;
     }
 
-    // period_fs is femtoseconds per tick, so frequency = 1e15 / period_fs.
-    uint64_t hpet_hz = 1000000000000000ULL / period_fs;
+    // period_fs is femtoseconds per tick, so frequency = 1e15 / period_fs. The period
+    // check above keeps this at 10MHz or better, which the calibration code relies on.
+    hpet_hz = 1000000000000000ULL / period_fs;
 
     fp_32_64_div_32_64(&hpet_to_ms, 1000, hpet_hz);
     fp_32_64_div_32_64(&hpet_to_us, 1000 * 1000, hpet_hz);
@@ -128,6 +191,14 @@ status_t hpet_init(void) {
 
 status_t hpet_init(void) {
     return ERR_NOT_SUPPORTED;
+}
+
+bool hpet_is_available(void) {
+    return false;
+}
+
+uint64_t hpet_calibrate_tsc(void) {
+    return 0;
 }
 
 lk_time_t hpet_current_time(void) {
