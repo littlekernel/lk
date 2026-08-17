@@ -259,29 +259,38 @@ const struct x86_uarch_info *x86_get_uarch_info(void) {
     return uarch_info;
 }
 
+const struct x86_uarch_info *x86_uarch_info_for(enum x86_uarch uarch) {
+    if ((size_t)uarch >= countof(uarch_table)) {
+        uarch = X86_UARCH_UNKNOWN;
+    }
+    return &uarch_table[uarch];
+}
+
+enum x86_uarch x86_uarch_lookup(enum x86_cpu_vendor vendor, uint32_t display_family,
+                                uint32_t display_model) {
+    for (size_t i = 0; i < countof(uarch_matches); i++) {
+        const struct uarch_match *m = &uarch_matches[i];
+        if (m->vendor == vendor && m->family == display_family && display_model >= m->model_lo &&
+            display_model <= m->model_hi) {
+            return m->uarch;
+        }
+    }
+    if (vendor == X86_CPU_VENDOR_INTEL) {
+        return X86_UARCH_INTEL_DEFAULT;
+    } else if (vendor == X86_CPU_VENDOR_AMD || vendor == X86_CPU_VENDOR_HYGON) {
+        return X86_UARCH_AMD_DEFAULT;
+    }
+    return X86_UARCH_UNKNOWN;
+}
+
 void x86_uarch_early_init(void) {
     static_assert(countof(uarch_table) == X86_UARCH_AMD_DEFAULT + 1, "uarch table incomplete");
 
     const enum x86_cpu_vendor vendor = x86_get_cpu_vendor();
     const struct x86_model_info *model = x86_get_model();
 
-    enum x86_uarch uarch = X86_UARCH_UNKNOWN;
-    for (size_t i = 0; i < countof(uarch_matches); i++) {
-        const struct uarch_match *m = &uarch_matches[i];
-        if (m->vendor == vendor && m->family == model->display_family &&
-            model->display_model >= m->model_lo && model->display_model <= m->model_hi) {
-            uarch = m->uarch;
-            break;
-        }
-    }
-    if (uarch == X86_UARCH_UNKNOWN) {
-        if (vendor == X86_CPU_VENDOR_INTEL) {
-            uarch = X86_UARCH_INTEL_DEFAULT;
-        } else if (vendor == X86_CPU_VENDOR_AMD || vendor == X86_CPU_VENDOR_HYGON) {
-            uarch = X86_UARCH_AMD_DEFAULT;
-        }
-    }
-
+    const enum x86_uarch uarch =
+        x86_uarch_lookup(vendor, model->display_family, model->display_model);
     uarch_info = &uarch_table[uarch];
     DEBUG_ASSERT(uarch_info->uarch == uarch);
     LTRACEF("vendor %d family %#x model %#x -> uarch %d '%s'\n", vendor, model->display_family,

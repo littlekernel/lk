@@ -25,9 +25,14 @@
 
 #include <arch/x86.h>
 #include <arch/x86/apicid.h>
+#include <arch/x86/clocks.h>
+#include <arch/x86/mp.h>
 #include <arch/x86/uarch.h>
 #include <assert.h>
+#include <inttypes.h>
+#include <kernel/mp.h>
 #include <lk/bits.h>
+#include <lk/console_cmd.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <stdlib.h>
@@ -601,3 +606,109 @@ bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num num, uint32_t subleaf,
     cpuid_c((uint32_t)num, subleaf, &leaf->a, &leaf->b, &leaf->c, &leaf->d);
     return true;
 }
+
+#if WITH_LIB_CONSOLE
+
+// The feature bits worth listing by name. Not every X86_FEATURE_* define, just the ones
+// somebody debugging a boot or a timer is likely to want to know about.
+#define F(name) { #name, X86_FEATURE_##name }
+static const struct {
+    const char *name;
+    struct x86_cpuid_bit bit;
+} named_features[] = {
+    // leaf 1
+    F(FPU), F(TSC), F(MSR), F(PAE), F(APIC), F(SEP), F(MTRR), F(PGE), F(CMOV), F(PAT), F(PSE36),
+    F(CLFLUSH), F(ACPI), F(MMX), F(FXSR), F(SSE), F(SSE2), F(HTT), F(SSE3), F(MON), F(VMX),
+    F(SSSE3), F(FMA), F(CMPXCHG16B), F(PCID), F(SSE4_1), F(SSE4_2), F(X2APIC), F(MOVBE),
+    F(POPCNT), F(TSC_DEADLINE), F(AESNI), F(XSAVE), F(OSXSAVE), F(AVX), F(F16C), F(RDRAND),
+    F(HYPERVISOR),
+    // leaf 6
+    F(DTS), F(TURBO), F(ARAT), F(HWP), F(HW_FEEDBACK), F(THREAD_DIR), F(MPERF),
+    // leaf 7
+    F(FSGSBASE), F(TSC_ADJUST), F(SGX), F(BMI1), F(HLE), F(AVX2), F(SMEP), F(BMI2), F(ERMS),
+    F(INVPCID), F(RTM), F(MPX), F(AVX512F), F(RDSEED), F(ADX), F(SMAP), F(CLFLUSHOPT), F(CLWB),
+    F(PT), F(SHA), F(UMIP), F(PKU), F(WAITPKG), F(LA57), F(RDPID), F(MD_CLEAR), F(SERIALIZE),
+    F(HYBRID), F(IBRS_IBPB), F(STIBP), F(L1D_FLUSH), F(ARCH_CAPABILITIES), F(SSBD),
+    F(AVX_VNNI), F(FRED), F(LKGS), F(WRMSRNS), F(LAM),
+    // hypervisor
+    F(KVM_CLOCKSOURCE), F(KVM_CLOCKSOURCE2), F(KVM_PV_EOI), F(KVM_PV_IPI),
+    F(KVM_CLOCKSOURCE_STABLE),
+    // extended
+    F(AHF64), F(LZCNT), F(PREFETCHW), F(AMD_TOPO), F(SSE4A), F(SYSCALL), F(NX), F(PG1G),
+    F(RDTSCP), F(LM), F(INVAR_TSC),
+};
+#undef F
+
+static void cpuinfo_print_cpus(void) {
+    const struct x86_apic_id_layout *layout = x86_get_apic_id_layout();
+    printf("apic id layout: %u smt bits, %u core bits, from %s", layout->smt_bits,
+           layout->core_bits, layout->source);
+    if (layout->llc_share_known) {
+        printf(", llc shared per %u apic ids", 1u << layout->llc_share_shift);
+    }
+    printf("\nsmt active: %s\n", x86_smt_active() ? "yes" : "no");
+
+    printf("%4s %-8s %4s %5s %4s %4s %s\n", "cpu", "apic", "pkg", "core", "smt", "llc", "type");
+    for (uint i = 0; i < SMP_MAX_CPUS; i++) {
+        if (!mp_is_cpu_active(i)) {
+            continue;
+        }
+        const struct x86_cpu_ids *ids = x86_get_cpu_ids_for_cpu(i);
+        if (!ids->valid) {
+            printf("%4u (no ids)\n", i);
+            continue;
+        }
+        printf("%4u 0x%-6x %4u %5u %4u %4u %s", i, ids->apic_id, ids->package_id, ids->core_id,
+               ids->smt_id, ids->llc_share_id, x86_core_type_name(ids->core_type));
+        if (ids->native_model_id) {
+            printf(" (native model %#x)", ids->native_model_id);
+        }
+        printf("\n");
+    }
+}
+
+static int cmd_cpuinfo(int argc, const console_cmd_args *argv) {
+    if (argc > 1 && !strcmp(argv[1].str, "raw")) {
+        x86_feature_dump_cpuid();
+        return 0;
+    }
+
+    const struct x86_model_info *model = x86_get_model();
+    printf("vendor: %s (%s)\n", vendor_string, x86_get_cpu_brand_string());
+    printf("family %#x model %#x stepping %#x, display family %#x model %#x, type %#x\n",
+           model->family, model->model, model->stepping, model->display_family,
+           model->display_model, model->processor_type);
+    printf("microarch: %s\n", x86_get_uarch_info()->name);
+    printf("cpu level: %d, cpuid %s\n", x86_get_cpu_level(), has_cpuid ? "present" : "absent");
+    printf("hypervisor: %s\n", x86_hypervisor_name(x86_get_hypervisor()));
+    if (has_cpuid) {
+        printf("max cpuid leaf %#x, ext %#x, hyp %#x, %u subleaves cached\n", max_cpuid_leaf,
+               max_cpuid_leaf_ext, max_cpuid_leaf_hyp, num_saved_subleaves);
+        printf("address widths: %u physical, %u virtual\n", x86_get_paddr_width(),
+               x86_get_vaddr_width());
+    }
+
+    printf("clocks: crystal %" PRIu64 "Hz, tsc %" PRIu64 "Hz (source %s), lapic timer %" PRIu64
+           "Hz, base %uMHz\n",
+           x86_cpu_crystal_hz(), x86_cpu_tsc_hz(), x86_cpu_tsc_freq_source_name(),
+           x86_cpu_lapic_timer_hz(), x86_cpu_base_mhz());
+
+    cpuinfo_print_cpus();
+
+    printf("features:");
+    for (size_t i = 0; i < countof(named_features); i++) {
+        if (x86_feature_test(named_features[i].bit)) {
+            printf(" %s", named_features[i].name);
+        }
+    }
+    printf("\n");
+
+    return 0;
+}
+
+STATIC_COMMAND_START
+STATIC_COMMAND("cpuinfo", "dump x86 cpu identification and features ('cpuinfo raw' for cpuid leaves)",
+               &cmd_cpuinfo)
+STATIC_COMMAND_END(cpuinfo);
+
+#endif // WITH_LIB_CONSOLE

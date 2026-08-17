@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <arch/x86/feature.h>
 #include <lk/compiler.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -118,6 +119,12 @@ const struct x86_uarch_info *x86_get_uarch_info(void);
 static inline enum x86_uarch x86_get_uarch(void) {
     return x86_get_uarch_info()->uarch;
 }
+
+// The table row for any microarch, and the raw match from vendor/family/model, exposed for
+// tests and diagnostics.
+const struct x86_uarch_info *x86_uarch_info_for(enum x86_uarch uarch);
+enum x86_uarch x86_uarch_lookup(enum x86_cpu_vendor vendor, uint32_t display_family,
+                                uint32_t display_model);
 
 // Called by feature.c once vendor and model are known.
 void x86_uarch_early_init(void);

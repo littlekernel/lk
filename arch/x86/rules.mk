@@ -2,7 +2,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_OPTIONS := extra_warnings
+MODULE_OPTIONS := extra_warnings test
 MODULE_DEPS := lib/fixed_point
 
 # x86 code always runs with the mmu enabled
