@@ -273,12 +273,19 @@ static int cmd_caltest(int argc, const console_cmd_args *argv) {
         printf("%-8s skipped, still in use for %s\n", "PIT",
                (clock_source == CLOCK_SOURCE_PIT) ? "timekeeping" : "event timers");
     } else {
-        // pit_calibrate_tsc() requires interrupts off, and spends ~30ms measuring.
+        // Both of these require interrupts off. pit_calibrate_tsc() spends ~30ms measuring,
+        // and pit_measure_freq() as long as a full 16 bit countdown actually takes.
         const arch_interrupt_saved_state_t state = arch_interrupt_save();
         const uint64_t pit_hz = pit_calibrate_tsc();
+
+        // Whether the number above can be believed at all comes down to whether the counter
+        // is really ticking at the rate it assumes, which this reports for itself.
+        if (hpet_is_available()) {
+            pit_measure_freq();
+        }
         arch_interrupt_restore(state);
 
-        // It leaves the PIT free running at 1KHz; put it back to stopped where we found it.
+        // They leave the PIT free running at 1KHz; put it back to stopped where we found it.
         pit_stop_timer();
 
         caltest_print_result("PIT", pit_hz);

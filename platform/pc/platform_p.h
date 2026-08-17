@@ -33,6 +33,7 @@ void pit_stop_timer(void);
 lk_time_t pit_current_time(void);
 lk_bigtime_t pit_current_time_hires(void);
 uint64_t pit_calibrate_tsc(void);
+uint64_t pit_measure_freq(void);
 
 // secondary cpus
 void platform_start_secondary_cpus(void);

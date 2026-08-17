@@ -23,5 +23,16 @@ bool hpet_is_available(void);
 // is available.
 uint64_t hpet_calibrate_tsc(void);
 
+// The counter's frequency in Hz, taken from its capability register rather than
+// measured. 0 if no HPET is available.
+uint64_t hpet_get_freq(void);
+
+// Raw main counter read, and the difference between two such reads masked back down to
+// the width of the counter. Together with hpet_get_freq() these let other code time
+// something against the HPET; keep the measurement window short enough not to wrap the
+// counter twice.
+uint64_t hpet_read_counter(void);
+uint64_t hpet_counter_delta(uint64_t start, uint64_t end);
+
 lk_time_t hpet_current_time(void);
 lk_bigtime_t hpet_current_time_hires(void);

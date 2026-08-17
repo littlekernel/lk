@@ -55,7 +55,7 @@ static void hpet_reg_write(size_t offset, uint32_t val) {
 // Read the 64-bit main counter with a low/high/low retry to avoid tearing across
 // the two 32-bit accesses, since this code has to work on non-64-bit-MMIO-capable
 // builds as well.
-static uint64_t hpet_read_counter(void) {
+uint64_t hpet_read_counter(void) {
     if (!hpet_counter_is_64bit) {
         return hpet_reg_read(HPET_REG_COUNTER_LOW);
     }
@@ -73,10 +73,14 @@ static uint64_t hpet_read_counter(void) {
 // Difference between two counter reads, masked back down to the width of the counter so
 // that a single wrap during a measurement still yields the right delta. Callers are
 // responsible for keeping their measurement window short enough not to wrap twice.
-static uint64_t hpet_counter_delta(uint64_t start, uint64_t end) {
+uint64_t hpet_counter_delta(uint64_t start, uint64_t end) {
     const uint64_t delta = end - start;
 
     return hpet_counter_is_64bit ? delta : (delta & 0xffffffff);
+}
+
+uint64_t hpet_get_freq(void) {
+    return hpet_hz;
 }
 
 lk_time_t hpet_current_time(void) {
@@ -198,6 +202,18 @@ bool hpet_is_available(void) {
 }
 
 uint64_t hpet_calibrate_tsc(void) {
+    return 0;
+}
+
+uint64_t hpet_read_counter(void) {
+    return 0;
+}
+
+uint64_t hpet_counter_delta(uint64_t start, uint64_t end) {
+    return 0;
+}
+
+uint64_t hpet_get_freq(void) {
     return 0;
 }
 
