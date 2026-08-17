@@ -90,10 +90,8 @@ pub struct LkAllocator;
 
 unsafe impl GlobalAlloc for LkAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let size = layout.size();
-
-        // TODO: What is the correct size?  Bindgen put u64 instead of size_t
-        unsafe { sys::malloc(size) as *mut u8 }
+        // bindgen maps size_t to usize, so this is correct on 32 and 64 bit targets
+        unsafe { sys::malloc(layout.size()) as *mut u8 }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
