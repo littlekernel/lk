@@ -83,6 +83,11 @@ enum x86_uarch {
     X86_UARCH_AMD_ZEN4,
     X86_UARCH_AMD_ZEN5,
 
+    // Centaur / VIA / Zhaoxin (all sign as CentaurHauls; newer Zhaoxin also as "  Shanghai  ")
+    X86_UARCH_VIA_C3,
+    X86_UARCH_VIA_NANO,
+    X86_UARCH_ZHAOXIN,
+
     // Fallbacks used when the vendor is known but the model isn't in the table
     X86_UARCH_INTEL_DEFAULT,
     X86_UARCH_AMD_DEFAULT,

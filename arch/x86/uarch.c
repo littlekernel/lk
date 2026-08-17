@@ -126,6 +126,12 @@ static const struct x86_uarch_info uarch_table[] = {
     [X86_UARCH_AMD_ZEN5] = { X86_UARCH_AMD_ZEN5, "Zen 5", 0,
                              X86_TSC_FREQ_AMD_PSTATE_FID, 0 },
 
+    // Centaur/VIA/Zhaoxin. Family 6 is the VIA C3 through Nano line, family 7 is Zhaoxin.
+    [X86_UARCH_VIA_C3] = { X86_UARCH_VIA_C3, "VIA C3/C7", 0, X86_TSC_FREQ_MEASURE,
+                           X86_UARCH_FLAG_TSC_NOT_CONSTANT },
+    [X86_UARCH_VIA_NANO] = { X86_UARCH_VIA_NANO, "VIA Nano", 0, X86_TSC_FREQ_MEASURE, 0 },
+    [X86_UARCH_ZHAOXIN] = { X86_UARCH_ZHAOXIN, "Zhaoxin", 0, X86_TSC_FREQ_MEASURE, 0 },
+
     // Vendor defaults: assume the newest known conventions, everything is verified
     // against real clocks before it's trusted anyway.
     [X86_UARCH_INTEL_DEFAULT] = { X86_UARCH_INTEL_DEFAULT, "Intel (unknown model)", 0,
@@ -251,6 +257,11 @@ static const struct uarch_match uarch_matches[] = {
     AMD(0x19, 0xa0, 0xaf, X86_UARCH_AMD_ZEN4),  // Bergamo
     AMD(0x1a, 0x00, 0xff, X86_UARCH_AMD_ZEN5),
     { X86_CPU_VENDOR_HYGON, 0x18, 0x00, 0xff, X86_UARCH_AMD_ZEN1 }, // Dhyana
+
+    { X86_CPU_VENDOR_CENTAUR, 0x6, 0x00, 0x0e, X86_UARCH_VIA_C3 },
+    { X86_CPU_VENDOR_CENTAUR, 0x6, 0x0f, 0xff, X86_UARCH_VIA_NANO },
+    { X86_CPU_VENDOR_CENTAUR, 0x7, 0x00, 0xff, X86_UARCH_ZHAOXIN },
+    { X86_CPU_VENDOR_ZHAOXIN, 0x7, 0x00, 0xff, X86_UARCH_ZHAOXIN },
 };
 
 static const struct x86_uarch_info *uarch_info = &uarch_table[X86_UARCH_UNKNOWN];
