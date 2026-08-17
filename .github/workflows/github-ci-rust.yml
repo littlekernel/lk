@@ -29,6 +29,9 @@ jobs:
           # from the source.
           - qemu-virt-arm64-test
           - pc-x86-64-test
+          - qemu-virt-riscv32-test
+          - qemu-virt-riscv64-test
+          - qemu-virt-riscv64-supervisor-test
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
@@ -92,5 +95,22 @@ jobs:
       shell: bash
       run: |
         ./scripts/unittest.exp
+
+    # Boot the riscv images under qemu and run the unit tests via lk.autorun. The rust
+    # init hook prints '*** INIT: lk init' early in boot, so also check for that to make
+    # sure the rust code actually made it into the image.
+    - name: riscv unittest
+      if: ${{ startsWith(matrix.project, 'qemu-virt-riscv') && matrix.debug == 2 }}
+      shell: bash
+      run: |
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-misc opensbi
+        case "$PROJECT" in
+          qemu-virt-riscv32-test) QEMU_ARGS="" ;;
+          qemu-virt-riscv64-test) QEMU_ARGS="-6" ;;
+          qemu-virt-riscv64-supervisor-test) QEMU_ARGS="-6S" ;;
+        esac
+        USE_RUST=1 timeout 300 ./scripts/do-qemuriscv $QEMU_ARGS -A 'lk.autorun=ut all;poweroff' | tee qemu.log
+        grep -q '\*\*\* INIT: lk init' qemu.log
+        grep -q 'SUCCESS! All test cases passed' qemu.log
 
 # vim: ts=2 sw=2 expandtab
