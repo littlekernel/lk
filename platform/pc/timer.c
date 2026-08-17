@@ -6,10 +6,12 @@
  * https://opensource.org/licenses/MIT
  */
 #include <arch/x86.h>
+#include <arch/interrupts.h>
 #include <arch/x86/apic.h>
 #include <arch/x86/feature.h>
 #include <arch/x86/pv.h>
 #include <inttypes.h>
+#include <lk/console_cmd.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
 #include <lib/fixed_point.h>
@@ -51,6 +53,11 @@ static struct fp_32_64 tsc_to_timebase_hires;
 static struct fp_32_64 timebase_to_tsc;
 static bool use_lapic_timer = false;
 
+#if !X86_LEGACY
+// The TSC frequency the timebase conversions above were built from, kept for the caltest
+// command to compare fresh measurements against. Zero if the TSC is not the time base.
+static uint64_t tsc_hz_in_use;
+#endif
 
 static const char *clock_source_name(void) {
     switch (clock_source) {
@@ -171,6 +178,7 @@ void platform_init_timer(void) {
                     fp_32_64_snprintf(ratio_buf, sizeof(ratio_buf), &timebase_to_tsc, 9));
 
             clock_source = CLOCK_SOURCE_TSC;
+            tsc_hz_in_use = tsc_hz;
         }
     }
 
@@ -219,3 +227,68 @@ void platform_stop_timer(void) {
         pit_cancel_timer();
     }
 }
+
+#if !X86_LEGACY
+
+// Print a measured TSC frequency next to how far it lands from the one the system is
+// actually running on, which is the number that matters when comparing sources.
+static void caltest_print_result(const char *name, uint64_t hz) {
+    if (hz == 0) {
+        printf("%-8s unavailable\n", name);
+        return;
+    }
+
+    if (tsc_hz_in_use == 0) {
+        printf("%-8s %" PRIu64 "Hz\n", name, hz);
+        return;
+    }
+
+    // Signed ppm difference from the frequency in use. The numerator peaks around 1e16
+    // for any believable pair of frequencies, so this stays inside 64 bits.
+    const int64_t ppm =
+        ((int64_t)hz - (int64_t)tsc_hz_in_use) * 1000000 / (int64_t)tsc_hz_in_use;
+
+    printf("%-8s %" PRIu64 "Hz (%+" PRId64 " ppm vs in use)\n", name, hz, ppm);
+}
+
+// Re-run every TSC calibration source available on this machine and print them side by
+// side. Useful for deciding whether a given source can be trusted on a given box, since
+// the sources are independent of each other and of whatever ran at boot.
+static int cmd_caltest(int argc, const console_cmd_args *argv) {
+    printf("clock source: %s\n", clock_source_name());
+    if (tsc_hz_in_use != 0) {
+        printf("TSC frequency in use: %" PRIu64 "Hz\n", tsc_hz_in_use);
+    } else {
+        printf("TSC frequency in use: none, the TSC is not the time base\n");
+    }
+
+    caltest_print_result("pvclock", pvclock_get_tsc_freq());
+
+    caltest_print_result("HPET", hpet_is_available() ? hpet_calibrate_tsc() : 0);
+
+    // Calibrating against the PIT reprograms it, which would wreck a timebase or an event
+    // timer still running on it. Those are exactly the cases where platform_init_timer()
+    // left the PIT running, so only touch it when it left the PIT stopped.
+    if (!use_lapic_timer || clock_source == CLOCK_SOURCE_PIT) {
+        printf("%-8s skipped, still in use for %s\n", "PIT",
+               (clock_source == CLOCK_SOURCE_PIT) ? "timekeeping" : "event timers");
+    } else {
+        // pit_calibrate_tsc() requires interrupts off, and spends ~30ms measuring.
+        const arch_interrupt_saved_state_t state = arch_interrupt_save();
+        const uint64_t pit_hz = pit_calibrate_tsc();
+        arch_interrupt_restore(state);
+
+        // It leaves the PIT free running at 1KHz; put it back to stopped where we found it.
+        pit_stop_timer();
+
+        caltest_print_result("PIT", pit_hz);
+    }
+
+    return 0;
+}
+
+STATIC_COMMAND_START
+STATIC_COMMAND("caltest", "re-run and compare the TSC calibration sources", &cmd_caltest)
+STATIC_COMMAND_END(caltest);
+
+#endif // !X86_LEGACY
