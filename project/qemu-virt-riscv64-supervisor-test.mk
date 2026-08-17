@@ -9,3 +9,9 @@ include project/virtual/fs.mk
 include project/virtual/minip.mk
 include project/target/qemu-virt-riscv.mk
 
+USE_RUST ?= 0
+
+ifeq ($(call TOBOOL,$(USE_RUST)),true)
+$(info "Including rust support")
+include project/virtual/rust.mk
+endif
