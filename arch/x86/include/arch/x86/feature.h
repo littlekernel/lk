@@ -30,6 +30,19 @@
 
 __BEGIN_CDECLS
 
+// CPU identification and feature detection.
+//
+// The boot cpu's cpuid leaves are snapshotted once, very early, and every question
+// below is answered from that snapshot. Feature bits, the vendor, model and
+// hypervisor are properties of the whole system; anything that varies per cpu
+// (apic ids, hybrid core types) is handled in arch/x86/mp.h from a live cpuid on
+// that cpu instead.
+//
+// On CPU=legacy builds the boot cpu may predate cpuid entirely. In that case the
+// detector probes for a 386/486 and an x87 and synthesizes a leaf 1 from what it
+// found, so x86_feature_test() (e.g. X86_FEATURE_FPU) works uniformly and callers
+// never need to know whether cpuid exists.
+
 void x86_feature_early_init(void);
 void x86_feature_init(void);
 
@@ -58,12 +71,50 @@ enum x86_cpu_vendor {
     X86_CPU_VENDOR_SIS,
     X86_CPU_VENDOR_TRANSMETA,
     X86_CPU_VENDOR_NSC,
+    X86_CPU_VENDOR_HYGON,
+    X86_CPU_VENDOR_ZHAOXIN,
+    X86_CPU_VENDOR_VIA,
 };
 extern enum x86_cpu_vendor __x86_cpu_vendor;
 
 static inline enum x86_cpu_vendor x86_get_cpu_vendor(void) {
     return __x86_cpu_vendor;
 }
+
+// The raw 12 character vendor string from cpuid leaf 0 ("GenuineIntel"), or "unknown"
+// on a cpu without cpuid.
+const char *x86_get_cpu_vendor_string(void);
+
+// The 48 character brand string from cpuid leaves 0x80000002-4 with leading spaces
+// stripped, or an empty string if the cpu doesn't provide one.
+const char *x86_get_cpu_brand_string(void);
+
+// Which hypervisor, if any, the cpuid hypervisor bit and 0x40000000 signature identify.
+enum x86_hypervisor {
+    X86_HYPERVISOR_NONE,
+    X86_HYPERVISOR_UNKNOWN, // hypervisor bit set, signature not recognized
+    X86_HYPERVISOR_KVM,
+    X86_HYPERVISOR_TCG, // qemu without acceleration
+    X86_HYPERVISOR_HYPERV,
+    X86_HYPERVISOR_VMWARE,
+    X86_HYPERVISOR_XEN,
+    X86_HYPERVISOR_VIRTUALBOX,
+    X86_HYPERVISOR_BHYVE,
+    X86_HYPERVISOR_ACRN,
+    X86_HYPERVISOR_PARALLELS,
+};
+extern enum x86_hypervisor __x86_hypervisor;
+
+static inline enum x86_hypervisor x86_get_hypervisor(void) {
+    return __x86_hypervisor;
+}
+
+// True if any hypervisor is present, including ones we don't recognize.
+static inline bool x86_is_virtualized(void) {
+    return __x86_hypervisor != X86_HYPERVISOR_NONE;
+}
+
+const char *x86_hypervisor_name(enum x86_hypervisor hyp);
 
 struct x86_model_info {
     uint8_t processor_type;
@@ -94,7 +145,11 @@ enum x86_cpuid_leaf_num {
     X86_CPUID_XSAVE = 0xd,
     X86_CPUID_PT = 0x14,
     X86_CPUID_TSC = 0x15,
-    __X86_MAX_SUPPORTED_CPUID = X86_CPUID_TSC,
+    X86_CPUID_FREQ = 0x16,
+    X86_CPUID_HYBRID = 0x1a,
+    X86_CPUID_TOPOLOGY_V2 = 0x1f,
+    X86_CPUID_AVX10 = 0x24,
+    __X86_MAX_SUPPORTED_CPUID = X86_CPUID_AVX10,
 
     X86_CPUID_HYP_BASE = 0x40000000,
     X86_CPUID_HYP_VENDOR = 0x40000000,
@@ -102,14 +157,15 @@ enum x86_cpuid_leaf_num {
     __X86_MAX_SUPPORTED_CPUID_HYP = X86_CPUID_KVM_FEATURES,
 
     X86_CPUID_EXT_BASE = 0x80000000,
+    X86_CPUID_EXT_FEATURES = 0x80000001,
     X86_CPUID_BRAND = 0x80000002,
+    X86_CPUID_EXT_APM = 0x80000007,
     X86_CPUID_ADDR_WIDTH = 0x80000008,
+    X86_CPUID_AMD_CACHE_TOPOLOGY = 0x8000001d,
     X86_CPUID_AMD_TOPOLOGY = 0x8000001e,
-    X86_CPUID_AMD_EXTENDED_TOPOLOGY = 0x80000025,
+    X86_CPUID_AMD_EXTENDED_TOPOLOGY = 0x80000026,
     __X86_MAX_SUPPORTED_CPUID_EXT = X86_CPUID_AMD_EXTENDED_TOPOLOGY,
 };
-
-#define __X86_MAX_SUPPORTED_CPUID7_SUBLEAF 4
 
 struct x86_cpuid_bit {
     enum x86_cpuid_leaf_num leaf_num;
@@ -135,16 +191,17 @@ struct x86_cpuid_leaf {
     uint32_t d;
 };
 
+// Subleaf 0 of every leaf in the three ranges above is cached in these arrays, indexed
+// by leaf number relative to the base of its range. The max_* variables hold the highest
+// leaf that is actually valid (0 for the hypervisor range when there is no hypervisor).
 extern struct x86_cpuid_leaf saved_cpuids[__X86_MAX_SUPPORTED_CPUID + 1];
 extern struct x86_cpuid_leaf
     saved_cpuids_hyp[__X86_MAX_SUPPORTED_CPUID_HYP - X86_CPUID_HYP_BASE + 1];
 extern struct x86_cpuid_leaf
     saved_cpuids_ext[__X86_MAX_SUPPORTED_CPUID_EXT - X86_CPUID_EXT_BASE + 1];
-extern struct x86_cpuid_leaf saved_cpuid7_subleaves[__X86_MAX_SUPPORTED_CPUID7_SUBLEAF + 1];
 extern uint32_t max_cpuid_leaf;
 extern uint32_t max_cpuid_leaf_hyp;
 extern uint32_t max_cpuid_leaf_ext;
-extern uint32_t max_cpuid_subleaf_7;
 
 /* Retrieve the specified subleaf.  This function is not cached.
  * Returns false if leaf num is invalid */
@@ -172,23 +229,13 @@ static inline const struct x86_cpuid_leaf *x86_get_cpuid_leaf(enum x86_cpuid_lea
     }
 }
 
-static inline const struct x86_cpuid_leaf *x86_get_cpuid_leaf_subleaf(enum x86_cpuid_leaf_num leaf,
-                                                                      uint32_t subleaf) {
-    // If not asking for a subleav, just get the main leaf
-    if (subleaf == 0) {
-        return x86_get_cpuid_leaf(leaf);
-    }
-
-    // Look for known subleaves from leaf 7
-    if (leaf == X86_CPUID_EXTENDED_FEATURE_FLAGS) {
-        if (unlikely(subleaf > max_cpuid_subleaf_7)) {
-            return NULL;
-        }
-        return &saved_cpuid7_subleaves[subleaf];
-    }
-
-    return NULL;
-}
+// Look up a cached (leaf, subleaf) pair. Subleaf 0 comes from the arrays above; the
+// leaves whose higher subleaves carry information (0x4, 0x7, 0xb, 0xd, 0x14, 0x1f, 0x24,
+// 0x8000001d, 0x80000026) have those subleaves cached at boot as well, up to the point
+// where the leaf's own enumeration says they stop. Returns NULL for anything else, so
+// callers that need an arbitrary subleaf must use the uncached x86_get_cpuid_subleaf().
+const struct x86_cpuid_leaf *x86_get_cpuid_leaf_subleaf(enum x86_cpuid_leaf_num leaf,
+                                                        uint32_t subleaf);
 
 static inline bool x86_feature_test(struct x86_cpuid_bit bit) {
     DEBUG_ASSERT(bit.word <= 3 && bit.bit <= 31);
