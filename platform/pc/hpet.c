@@ -134,6 +134,38 @@ uint64_t hpet_calibrate_tsc(void) {
     return tsc_freq;
 }
 
+// Same idea for a local apic timer counting down from its max: how many of its ticks
+// elapse over a fixed span of the HPET counter. Same two-instant sampling, so equally
+// indifferent to interrupts and slow register accesses.
+uint32_t hpet_calibrate_lapic(uint32_t (*lapic_read_tick)(void)) {
+    if (!hpet_is_available()) {
+        return 0;
+    }
+
+    const uint64_t window = hpet_hz / 100; // 10ms
+
+    const uint64_t hpet_start = hpet_read_counter();
+    const uint32_t tick_start = lapic_read_tick();
+
+    uint64_t hpet_delta;
+    do {
+        hpet_delta = hpet_counter_delta(hpet_start, hpet_read_counter());
+    } while (hpet_delta < window);
+
+    const uint32_t tick_end = lapic_read_tick();
+    const uint64_t lapic_delta = tick_start - tick_end;
+
+    if (hpet_delta == 0) {
+        return 0;
+    }
+
+    const uint32_t lapic_freq = (lapic_delta * hpet_hz) / hpet_delta;
+
+    dprintf(INFO, "HPET: calibrated local apic timer frequency: %" PRIu32 "Hz\n", lapic_freq);
+
+    return lapic_freq;
+}
+
 status_t hpet_init(void) {
     // Callers may probe for an HPET more than once; only set one up the first time.
     if (hpet_is_available()) {
@@ -202,6 +234,10 @@ bool hpet_is_available(void) {
 }
 
 uint64_t hpet_calibrate_tsc(void) {
+    return 0;
+}
+
+uint32_t hpet_calibrate_lapic(uint32_t (*lapic_read_tick)(void)) {
     return 0;
 }
 

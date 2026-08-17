@@ -89,9 +89,10 @@ enum x86_uarch {
 
 // Where the TSC's nominal frequency can be read from without measuring it.
 enum x86_tsc_freq_source {
-    X86_TSC_FREQ_MEASURE,    // nowhere, calibrate against another clock
-    X86_TSC_FREQ_CPUID_15,   // crystal * cpuid 0x15 ratio (Intel)
-    X86_TSC_FREQ_AMD_PSTATE, // decode the P0 P-state MSR (AMD Zen)
+    X86_TSC_FREQ_MEASURE,            // nowhere, calibrate against another clock
+    X86_TSC_FREQ_CPUID_15,           // crystal * cpuid 0x15 ratio (Intel)
+    X86_TSC_FREQ_AMD_PSTATE_FID_DID, // P0 P-state MSR, CpuFid/CpuDfsId encoding (Zen 1-3)
+    X86_TSC_FREQ_AMD_PSTATE_FID,     // P0 P-state MSR, CpuFid * 5MHz encoding (Zen 4+)
 };
 
 // The TSC counts at the current core clock rather than a fixed rate. Never a timebase.

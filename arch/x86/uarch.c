@@ -115,11 +115,16 @@ static const struct x86_uarch_info uarch_table[] = {
     [X86_UARCH_AMD_BULLDOZER] = { X86_UARCH_AMD_BULLDOZER, "Bulldozer", 0, X86_TSC_FREQ_MEASURE,
                                   0 },
     [X86_UARCH_AMD_JAGUAR] = { X86_UARCH_AMD_JAGUAR, "Jaguar", 0, X86_TSC_FREQ_MEASURE, 0 },
-    [X86_UARCH_AMD_ZEN1] = { X86_UARCH_AMD_ZEN1, "Zen", 0, X86_TSC_FREQ_AMD_PSTATE, 0 },
-    [X86_UARCH_AMD_ZEN2] = { X86_UARCH_AMD_ZEN2, "Zen 2", 0, X86_TSC_FREQ_AMD_PSTATE, 0 },
-    [X86_UARCH_AMD_ZEN3] = { X86_UARCH_AMD_ZEN3, "Zen 3", 0, X86_TSC_FREQ_AMD_PSTATE, 0 },
-    [X86_UARCH_AMD_ZEN4] = { X86_UARCH_AMD_ZEN4, "Zen 4", 0, X86_TSC_FREQ_AMD_PSTATE, 0 },
-    [X86_UARCH_AMD_ZEN5] = { X86_UARCH_AMD_ZEN5, "Zen 5", 0, X86_TSC_FREQ_AMD_PSTATE, 0 },
+    [X86_UARCH_AMD_ZEN1] = { X86_UARCH_AMD_ZEN1, "Zen", 0,
+                             X86_TSC_FREQ_AMD_PSTATE_FID_DID, 0 },
+    [X86_UARCH_AMD_ZEN2] = { X86_UARCH_AMD_ZEN2, "Zen 2", 0,
+                             X86_TSC_FREQ_AMD_PSTATE_FID_DID, 0 },
+    [X86_UARCH_AMD_ZEN3] = { X86_UARCH_AMD_ZEN3, "Zen 3", 0,
+                             X86_TSC_FREQ_AMD_PSTATE_FID_DID, 0 },
+    [X86_UARCH_AMD_ZEN4] = { X86_UARCH_AMD_ZEN4, "Zen 4", 0,
+                             X86_TSC_FREQ_AMD_PSTATE_FID, 0 },
+    [X86_UARCH_AMD_ZEN5] = { X86_UARCH_AMD_ZEN5, "Zen 5", 0,
+                             X86_TSC_FREQ_AMD_PSTATE_FID, 0 },
 
     // Vendor defaults: assume the newest known conventions, everything is verified
     // against real clocks before it's trusted anyway.

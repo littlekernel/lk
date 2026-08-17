@@ -23,6 +23,11 @@ bool hpet_is_available(void);
 // is available.
 uint64_t hpet_calibrate_tsc(void);
 
+// Measure a local apic timer's frequency in Hz against the HPET counter. The timer must
+// already be counting down; lapic_read_tick returns its current count. Returns 0 if no
+// HPET is available.
+uint32_t hpet_calibrate_lapic(uint32_t (*lapic_read_tick)(void));
+
 // The counter's frequency in Hz, taken from its capability register rather than
 // measured. 0 if no HPET is available.
 uint64_t hpet_get_freq(void);

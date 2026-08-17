@@ -9,6 +9,7 @@
 
 #include <arch/ops.h>
 #include <arch/x86.h>
+#include <arch/x86/clocks.h>
 #include <arch/x86/feature.h>
 #include <arch/x86/mp.h>
 #include <assert.h>
@@ -23,6 +24,7 @@
 #include <lk/reg.h>
 #include <lk/trace.h>
 #include <platform/interrupts.h>
+#include <platform/pc/hpet.h>
 #include <platform/pc/timer.h>
 #include <platform/time.h>
 #include <platform/timer.h>
@@ -264,6 +266,9 @@ void lapic_init_postvm(void) {
     if (eas) {
         dprintf(INFO, "X86: local apic EAS features %#x\n", lapic_read(LAPIC_EXT_FEATURES));
     }
+    if (x86_feature_test(X86_FEATURE_ARAT)) {
+        dprintf(INFO, "X86: local apic timer is always running (ARAT)\n");
+    }
 
     // Finish up some local initialization that all cpus will want to do
     lapic_init_percpu(0);
@@ -355,11 +360,24 @@ status_t lapic_timer_init(bool invariant_tsc_supported) {
         uint32_t val = (LAPIC_TIMER_MODE_ONESHOT << 17) | LAPIC_INT_TIMER;
         lapic_write(LAPIC_TIMER, val);
 
-        // calibrate the timer frequency
-        lapic_write(LAPIC_TICR, 0xffffffff); // countdown from the max count
-        uint32_t lapic_hz = pit_calibrate_lapic(&lapic_read_current_tick);
-        lapic_write(LAPIC_TICR, 0);
-        printf("X86: local apic timer frequency %uHz\n", lapic_hz);
+        // Find the timer frequency. Best to worst: the cpu enumerates it exactly, a
+        // measurement against the HPET's free-running counter, a measurement against
+        // the PIT (which on modern parts is emulated by firmware and not to be trusted).
+        uint32_t lapic_hz = x86_cpu_lapic_timer_hz();
+        const char *source = "cpuid";
+        if (lapic_hz == 0) {
+            lapic_write(LAPIC_TICR, 0xffffffff); // countdown from the max count
+            if (hpet_is_available()) {
+                lapic_hz = hpet_calibrate_lapic(&lapic_read_current_tick);
+                source = "HPET";
+            }
+            if (lapic_hz == 0) {
+                lapic_hz = pit_calibrate_lapic(&lapic_read_current_tick);
+                source = "PIT";
+            }
+            lapic_write(LAPIC_TICR, 0);
+        }
+        printf("X86: local apic timer frequency %uHz (from %s)\n", lapic_hz, source);
 
         fp_32_64_div_32_32(&timebase_to_lapic, lapic_hz, 1000);
         char ratio_buf[32];

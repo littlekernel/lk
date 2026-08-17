@@ -8,6 +8,7 @@
 #include <arch/x86.h>
 #include <arch/interrupts.h>
 #include <arch/x86/apic.h>
+#include <arch/x86/clocks.h>
 #include <arch/x86/feature.h>
 #include <arch/x86/pv.h>
 #include <inttypes.h>
@@ -32,8 +33,6 @@
 #define LOCAL_TRACE 0
 
 // Deals with all of the various clock sources and event timers on the PC platform.
-// TODO:
-//   cpuid leaves that describe clock rates
 
 static enum clock_source {
     CLOCK_SOURCE_INITIAL,
@@ -137,17 +136,66 @@ void platform_init_timer(void) {
     if (use_invariant_tsc) {
         // We're going to try to use the TSC as a time base, obtain the TSC frequency.
         uint64_t tsc_hz = 0;
+        const char *source = "none";
 
-        // Best to worst: a hypervisor that just tells us, then a measurement against the
-        // HPET's free-running counter, then a measurement against the PIT.
-        // TODO: some x86 cores describe the TSC and lapic clocks in cpuid (leaf 0x15/0x16),
-        // which is exact and should be preferred over measuring anything at all.
+        // Best to worst: a hypervisor that just tells us, then the cpu's own nominal
+        // frequency (exact, but computed from tables and decoders that could be wrong
+        // for a part we haven't seen), then a measurement against the HPET's
+        // free-running counter, then a measurement against the PIT.
+        //
+        // The cpuid answer and the HPET measurement are independent, so when both exist
+        // they are compared: agreement means the exact one is trusted, disagreement
+        // means something is misdescribed and the measurement wins, loudly.
         tsc_hz = pvclock_get_tsc_freq();
-        if (tsc_hz == 0 && have_hpet) {
-            tsc_hz = hpet_calibrate_tsc();
+        if (tsc_hz != 0) {
+            source = "pvclock";
+        } else {
+            const uint64_t cpu_hz = x86_cpu_tsc_hz();
+            const uint64_t hpet_hz = have_hpet ? hpet_calibrate_tsc() : 0;
+
+            if (cpu_hz != 0) {
+                dprintf(INFO, "PC: TSC frequency %" PRIu64 "Hz from %s\n", cpu_hz,
+                        x86_cpu_tsc_freq_source_name());
+            }
+
+            if (cpu_hz != 0 && hpet_hz != 0) {
+                const uint64_t diff = (cpu_hz > hpet_hz) ? (cpu_hz - hpet_hz) : (hpet_hz - cpu_hz);
+                if (diff * 100 <= hpet_hz) {
+                    tsc_hz = cpu_hz;
+                    source = "cpuid, verified against HPET";
+                } else {
+                    dprintf(CRITICAL,
+                            "PC: TSC frequency from cpuid (%" PRIu64 "Hz) disagrees with the HPET "
+                            "measurement (%" PRIu64 "Hz), using the measurement\n",
+                            cpu_hz, hpet_hz);
+                    tsc_hz = hpet_hz;
+                    source = "HPET";
+                }
+            } else if (cpu_hz != 0) {
+                tsc_hz = cpu_hz;
+                source = "cpuid";
+            } else if (hpet_hz != 0) {
+                tsc_hz = hpet_hz;
+                source = "HPET";
+            } else {
+                tsc_hz = pit_calibrate_tsc();
+                source = "PIT";
+            }
         }
-        if (tsc_hz == 0) {
-            tsc_hz = pit_calibrate_tsc();
+
+        // The base frequency the cpu advertises is a rounded marketing number, but the
+        // TSC on anything modern ticks within a few percent of it, so a large miss here
+        // is worth a warning even though it isn't proof.
+        const uint32_t base_mhz = x86_cpu_base_mhz();
+        if (base_mhz != 0 && tsc_hz != 0) {
+            const uint64_t base_hz = (uint64_t)base_mhz * 1000 * 1000;
+            const uint64_t diff = (tsc_hz > base_hz) ? (tsc_hz - base_hz) : (base_hz - tsc_hz);
+            if (diff * 10 > base_hz) {
+                dprintf(CRITICAL,
+                        "PC: TSC frequency %" PRIu64 "Hz is more than 10%% from the advertised "
+                        "base frequency of %uMHz\n",
+                        tsc_hz, base_mhz);
+            }
         }
 
         // Every source above can lie -- an emulated or mis-clocked PIT most of all -- and
@@ -162,7 +210,7 @@ void platform_init_timer(void) {
             // mode, which would otherwise convert its deadlines with a ratio we never set.
             use_invariant_tsc = false;
         } else {
-            dprintf(INFO, "PC: TSC frequency %" PRIu64 "Hz\n", tsc_hz);
+            dprintf(INFO, "PC: TSC frequency %" PRIu64 "Hz (from %s)\n", tsc_hz, source);
 
             // Compute the ratio of TSC to timebase
             fp_32_64_div_32_64(&tsc_to_timebase, 1000, tsc_hz);
@@ -263,6 +311,10 @@ static int cmd_caltest(int argc, const console_cmd_args *argv) {
     }
 
     caltest_print_result("pvclock", pvclock_get_tsc_freq());
+
+    printf("%-8s crystal %" PRIu64 "Hz, base %uMHz, source %s\n", "cpuid", x86_cpu_crystal_hz(),
+           x86_cpu_base_mhz(), x86_cpu_tsc_freq_source_name());
+    caltest_print_result("cpuid", x86_cpu_tsc_hz());
 
     caltest_print_result("HPET", hpet_is_available() ? hpet_calibrate_tsc() : 0);
 
