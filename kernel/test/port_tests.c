@@ -600,6 +600,12 @@ static bool two_threads_basic(void) {
     END_TEST;
 }
 
+/* Signalled by the watcher once it has accounted for both test packets. Reading
+ * a group port does not order packets across its members, so without this the
+ * QUIT command can be returned ahead of data packets that are still queued and
+ * end the watcher loop early. */
+static event_t group_basic_sync_evt;
+
 #define CMD_PORT_CTX ((void*) 0x77)
 #define TS1_PORT_CTX ((void*) 0x11)
 #define TS2_PORT_CTX ((void*) 0x12)
@@ -655,6 +661,11 @@ static int group_watcher_thread(void *arg) {
             } else {
                 printf("unknown context %p\n", pr.ctx);
                 return __LINE__;
+            }
+
+            if (ctx_count == 2) {
+                // both test packets seen; the parent may now send QUIT
+                event_signal(&group_basic_sync_evt, true);
             }
         }
 
@@ -737,13 +748,17 @@ static bool group_basic_body(group_state_t *gs, port_t cmd_port) {
         gs->sent[i] = true;
     }
 
-    thread_sleep(50);
-
+    /* No sleep here: a packet written before the watcher has re-armed its group
+     * stays queued on its port and is delivered once the port joins the group. */
     port_packet_t pp = {{0}};
     for (int i = 0; i < 2; ++i) {
         status_t st = port_write(gs->w_port[i], &pp, 1);
         ASSERT_GE(st, 0, "could not write test port");
     }
+
+    /* Wait for the watcher to count both packets before the caller sends QUIT. */
+    status_t st = event_wait_timeout(&group_basic_sync_evt, 5000);
+    ASSERT_EQ(NO_ERROR, st, "watcher did not see both test packets");
 
     END_TEST;
 }
@@ -753,6 +768,8 @@ static bool group_basic(void) {
 
     // we spin a thread that connects to a well known port, then we
     // send two ports that it will add to a group port.
+    event_init(&group_basic_sync_evt, false, EVENT_FLAG_AUTOUNSIGNAL);
+
     port_t cmd_port;
     status_t st = port_create("grp_ctrl", PORT_MODE_UNICAST, &cmd_port);
     ASSERT_GE(st, 0, "could not create control port");
@@ -799,6 +816,8 @@ static bool group_basic(void) {
     EXPECT_GE(st, 0, "could not close control port");
     st = port_destroy(cmd_port);
     EXPECT_GE(st, 0, "could not destroy control port");
+
+    event_destroy(&group_basic_sync_evt);
 
     EXPECT_TRUE(body_ok, "group watcher sequence failed");
 
