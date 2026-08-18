@@ -82,8 +82,8 @@ static void dump_history(console_t *con);
 /* a linear array of statically defined command blocks,
    defined in the linker script.
  */
-extern const console_cmd_block __start_commands __WEAK;
-extern const console_cmd_block __stop_commands __WEAK;
+extern const console_cmd_block __start_commands[] __WEAK;
+extern const console_cmd_block __stop_commands[] __WEAK;
 
 static int cmd_help(int argc, const console_cmd_args *argv);
 static int cmd_help_panic(int argc, const console_cmd_args *argv);
@@ -247,7 +247,7 @@ usage:
 #endif  // CONSOLE_ENABLE_REPEAT
 
 static const console_cmd *match_command(const char *command, const uint8_t availability_mask) {
-    for (const console_cmd_block *block = &__start_commands; block != &__stop_commands; block++) {
+    for (const console_cmd_block *block = __start_commands; block != __stop_commands; block++) {
         const console_cmd *curr_cmd = block->list;
         for (size_t i = 0; i < block->count; i++) {
             if ((availability_mask & curr_cmd[i].availability_mask) == 0) {
@@ -869,8 +869,8 @@ static int cmd_help_impl(uint8_t availability_mask) {
 
     // If we're not panicking and are free to allocate memory, sort the commands
     // alphabetically before printing.
-    const console_cmd_block *start = &__start_commands;
-    const console_cmd_block *end = &__stop_commands;
+    const console_cmd_block *start = __start_commands;
+    const console_cmd_block *end = __stop_commands;
     console_cmd_block *sorted = NULL;
     if ((availability_mask & CMD_AVAIL_PANIC) == 0) {
         size_t num_cmds = end - start;

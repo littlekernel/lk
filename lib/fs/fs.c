@@ -56,11 +56,11 @@ struct rootfs_dircookie {
 static void rootfs_mount_removed(struct fs_mount *removed);
 
 // defined by the linker, wrapping all structs in the "fs_impl" section
-extern const struct fs_impl __start_fs_impl __WEAK;
-extern const struct fs_impl __stop_fs_impl __WEAK;
+extern const struct fs_impl __start_fs_impl[] __WEAK;
+extern const struct fs_impl __stop_fs_impl[] __WEAK;
 
 static const struct fs_impl *find_fs(const char *name) {
-    for (const struct fs_impl *fs = &__start_fs_impl; fs != &__stop_fs_impl; fs++) {
+    for (const struct fs_impl *fs = __start_fs_impl; fs != __stop_fs_impl; fs++) {
         if (!strcmp(name, fs->name)) {
             return fs;
         }
@@ -69,7 +69,7 @@ static const struct fs_impl *find_fs(const char *name) {
 }
 
 void fs_dump_list(void) {
-    for (const struct fs_impl *fs = &__start_fs_impl; fs != &__stop_fs_impl; fs++) {
+    for (const struct fs_impl *fs = __start_fs_impl; fs != __stop_fs_impl; fs++) {
         puts(fs->name);
     }
 }
