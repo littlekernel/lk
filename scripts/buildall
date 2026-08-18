@@ -35,6 +35,7 @@ function HELP {
     echo "-e        : build with WERROR=1"
     echo "-j <jobs> : parallel jobs for make"
     echo "-r        : also build DEBUG=0"
+    echo "-D <level>: build at this DEBUG level only (repeatable); overrides -r"
     echo "-u        : also build with UBSAN=1"
     echo "-q        : hide output of build"
     echo "-h        : for help"
@@ -44,6 +45,7 @@ function HELP {
 }
 
 RELEASE=0
+DEBUG_LEVELS=()
 WERROR=0
 DEPCHECK=0
 QUIET=0
@@ -53,10 +55,11 @@ CLANG_LLD=0
 ARCH="all"
 JOBS=""
 
-while getopts a:cdej:lrqu FLAG; do
+while getopts a:cD:dej:lrqu FLAG; do
     case $FLAG in
         a) ARCH="$OPTARG";;
         c) CLANG=1;;
+        D) DEBUG_LEVELS+=("$OPTARG");;
         d) DEPCHECK=1;;
         e) WERROR=1;;
         h) HELP;;
@@ -72,6 +75,26 @@ while getopts a:cdej:lrqu FLAG; do
 done
 
 shift $((OPTIND-1))
+
+# Which DEBUG levels to build. Default is just the normal debug build; -r adds a
+# DEBUG=0 pass on top of it. -D selects levels explicitly, which is what lets a
+# CI job build exactly one configuration instead of the whole sequence.
+if (( ${#DEBUG_LEVELS[@]} == 0 )); then
+    DEBUG_LEVELS=(2)
+    if (( RELEASE )); then
+        DEBUG_LEVELS+=(0)
+    fi
+fi
+
+# The build directory suffix for a given debug level, keeping the historical
+# names: DEBUG=2 is unsuffixed and DEBUG=0 is "-release".
+function debug_suffix {
+    case "$1" in
+        2) echo "" ;;
+        0) echo "-release" ;;
+        *) echo "-debug$1" ;;
+    esac
+}
 
 # Automatically add any fetched toolchains under toolchain/*/bin to PATH
 if [ -d "$DIR/../toolchain" ]; then
@@ -148,7 +171,8 @@ if (( CLANG_LLD )); then
     TOOLCHAINS+=("clang-lld")
 fi
 
-# first build all of the regular debug builds
+# build every requested debug level with every requested toolchain
+for dbg in "${DEBUG_LEVELS[@]}"; do
 for tc in "${TOOLCHAINS[@]}"; do
     TC_ARGS=()
     TC_SUFFIX=""
@@ -165,44 +189,17 @@ for tc in "${TOOLCHAINS[@]}"; do
 
     export BUILDDIR_SUFFIX="${TC_SUFFIX}"
     if (( UBSAN )); then
-        export BUILDDIR_SUFFIX="${TC_SUFFIX}-ubsan"
+        BUILDDIR_SUFFIX="${BUILDDIR_SUFFIX}-ubsan"
     fi
+    BUILDDIR_SUFFIX="${BUILDDIR_SUFFIX}$(debug_suffix "$dbg")"
 
     for p in $PROJECTS; do
         echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
-        log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=2 PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+        log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=$dbg PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
         BUILDDIRS+=("build-$p$BUILDDIR_SUFFIX")
     done
 done
-
-# now build all of the release builds
-if (( RELEASE )); then
-for tc in "${TOOLCHAINS[@]}"; do
-    TC_ARGS=()
-    TC_SUFFIX=""
-    if [ "$tc" == "clang" ]; then
-        TC_ARGS=("TOOLCHAIN=clang")
-        TC_SUFFIX="-clang"
-    elif [ "$tc" == "clang-lld" ]; then
-        TC_ARGS=("TOOLCHAIN=clang" "LD=ld.lld")
-        TC_SUFFIX="-clang-lld"
-    else
-        TC_ARGS=("TOOLCHAIN=gcc")
-        TC_SUFFIX=""
-    fi
-
-    export BUILDDIR_SUFFIX="${TC_SUFFIX}-release"
-    if (( UBSAN )); then
-        export BUILDDIR_SUFFIX="${TC_SUFFIX}-ubsan-release"
-    fi
-
-    for p in $PROJECTS; do
-        echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
-        log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=0 PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
-        BUILDDIRS+=("build-$p$BUILDDIR_SUFFIX")
-    done
 done
-fi
 
 # Check that every module declares the modules whose headers it includes.
 # This reads the build directories just produced, so it runs after the builds
