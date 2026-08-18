@@ -33,8 +33,10 @@ static_assert(std::tuple_size<std::pair<int, long>>::value == 2);
 static_assert(std::is_same_v<std::tuple_element_t<1, std::pair<int, long>>, long>);
 static_assert(std::is_same_v<std::tuple_element_t<0, const std::pair<int, long>>, const int>);
 
-constexpr auto kMade = std::make_pair(3, 4.0f);
-static_assert(std::is_same_v<decltype(kMade), const std::pair<int, float>>);
+// Checked in an unevaluated operand rather than through a constexpr object: an
+// object of this type emits a floating point member, which arm64 rejects under
+// -mgeneral-regs-only once -fsanitize=undefined stops it being folded away.
+static_assert(std::is_same_v<decltype(std::make_pair(3, 4.0f)), std::pair<int, float>>);
 
 constexpr std::pair kCtad{5, 'a'};
 static_assert(std::is_same_v<decltype(kCtad), const std::pair<int, char>>);
@@ -113,11 +115,15 @@ bool pair_runtime() {
     EXPECT_EQ(43, pr.first, "structured binding must alias the pair");
     EXPECT_EQ('x', c, "");
 
-    // converting construction and assignment
-    std::pair<long, float> conv = std::pair<int, float>{1, 2.0f};
+    // converting construction and assignment. The point is that the source and
+    // destination pairs have different types, so use integral ones: emitting a
+    // floating point member is not allowed under -mgeneral-regs-only.
+    std::pair<long, int> conv = std::pair<int, char>{1, 2};
     EXPECT_EQ(1L, conv.first, "");
-    conv = std::pair<int, float>{3, 4.0f};
+    EXPECT_EQ(2, conv.second, "");
+    conv = std::pair<int, char>{3, 4};
     EXPECT_EQ(3L, conv.first, "");
+    EXPECT_EQ(4, conv.second, "");
 
     // member and free swap
     std::pair<int, int> x{1, 2}, y{3, 4};
