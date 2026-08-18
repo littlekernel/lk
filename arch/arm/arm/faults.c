@@ -118,7 +118,19 @@ void arm_undefined_handler(struct arm_iframe *frame) {
         frame->pc -= 4;
     }
 
-    __UNUSED uint32_t opcode = *(uint32_t *)frame->pc;
+    /* Read the faulting instruction. In thumb mode the pc is only 2 byte
+     * aligned, so read the two halfwords separately instead of doing an
+     * unaligned 32 bit load. The value assembled here is identical to what the
+     * single little endian load produced, so the 32 bit thumb halfword swap
+     * below still applies unchanged. */
+    __UNUSED uint32_t opcode;
+    if (in_thumb) {
+        uint32_t low = *(const uint16_t *)frame->pc;
+        uint32_t high = *(const uint16_t *)(frame->pc + 2);
+        opcode = (high << 16) | low;
+    } else {
+        opcode = *(const uint32_t *)frame->pc;
+    }
     //dprintf(CRITICAL, "undefined opcode 0x%x\n", opcode);
 
 #if ARM_WITH_VFP
