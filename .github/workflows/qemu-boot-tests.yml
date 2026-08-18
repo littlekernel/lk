@@ -54,7 +54,7 @@ jobs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y qemu-system-arm qemu-system-misc qemu-system-x86
+        sudo apt-get install -y --no-install-recommends qemu-system-arm qemu-system-misc qemu-system-x86
 
     # compute the toolchain prefix this project will need
     - name: compute toolchain
@@ -151,7 +151,7 @@ jobs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y qemu-system-arm qemu-system-misc dosfstools mtools
+        sudo apt-get install -y --no-install-recommends qemu-system-arm qemu-system-misc dosfstools mtools
 
     - name: compute toolchain
       shell: bash

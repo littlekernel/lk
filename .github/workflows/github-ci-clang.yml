@@ -91,7 +91,7 @@ jobs:
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
       shell: bash
       run: |
-        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm expect
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends qemu-system-arm expect
     - name: uefi unittest
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
       shell: bash
@@ -141,7 +141,7 @@ jobs:
     - name: qemu
       shell: bash
       run: |
-        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm expect
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends qemu-system-arm expect
 
     - name: uefi unittest
       shell: bash

@@ -84,7 +84,7 @@ jobs:
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
       shell: bash
       run: |
-        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-arm expect
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends qemu-system-arm expect
     - name: uefi unittest
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
       shell: bash
@@ -103,7 +103,7 @@ jobs:
       if: ${{ startsWith(matrix.project, 'qemu-virt-riscv') && matrix.debug == 2 }}
       shell: bash
       run: |
-        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y qemu-system-misc opensbi
+        env -i DEBIAN_FRONTEND=noninteractive sudo apt-get install -y --no-install-recommends qemu-system-misc opensbi
         case "$PROJECT" in
           qemu-virt-riscv32-test) QEMU_ARGS="" ;;
           qemu-virt-riscv64-test) QEMU_ARGS="-6" ;;
