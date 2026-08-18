@@ -100,8 +100,15 @@ scripts/buildall -q -e -r  # quiet, warnings-as-errors, release builds
 scripts/buildall -c -q     # build all with Clang
 scripts/buildall -l -q     # build all with Clang + LLD
 scripts/buildall -e -d     # also fail on undeclared module header deps (what CI runs)
+scripts/buildall -D 0 -u   # build one specific config: DEBUG=0 with UBSAN=1
 
 Output will be written to buildall.log. To run the build with full output during the build, omit the -q flag.
+
+Note `buildall` assigns `DEBUG` and `UBSAN` itself, so setting them in the environment
+has no effect. Select the configuration with flags instead: `-D <level>` builds exactly
+that debug level (repeatable), `-r` adds a `DEBUG=0` pass on top of the default one, and
+`-u` turns on UBSAN. Build directories are suffixed accordingly (`-release`, `-ubsan`),
+so several configurations can coexist in one tree.
 ```
 
 The file local.mk is silently included if it exists in the root directory. Additional variables can be defined in this file to customize the build instead of needing to pass them on the command line.
@@ -202,6 +209,11 @@ The do-qemu* scripts auto-build before launching QEMU.
 
 # Raise the per-architecture timeout (default 30s) for longer suites
 ./scripts/run-qemu-boot-tests.py --arch arm64 --timeout 600
+
+# Build with UBSAN=1 and fail if the run reports any undefined behavior.
+# This is what .github/workflows/github-ci-ubsan.yml does for the qemu projects;
+# UBSAN is a runtime sanitizer, so compiling with it and never booting finds nothing.
+./scripts/run-qemu-boot-tests.py --arch arm64 --ubsan
 ```
 
 ### Filesystem tests against a real disk image

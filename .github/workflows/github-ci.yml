@@ -24,7 +24,9 @@ jobs:
       matrix:
         toolchain-ver: [15.2.0, 11.3.0]
         debug: [2, 0]
-        ubsan: [1, 0]
+        # UBSAN is not an axis here. It lives in github-ci-ubsan.yml, which builds
+        # the qemu projects and actually runs the unit tests under it -- compiling
+        # with -fsanitize=undefined without running anything found nothing.
         arch:
           - arm
           - arm64
@@ -34,21 +36,13 @@ jobs:
           - riscv32
           - riscv64
           - x86
-        exclude:
-          # do not build ubsan for older 32bit arches where it is not well supported
-          - ubsan: 1
-            arch: m68k
-          - ubsan: 1
-            arch: mips
-          - ubsan: 1
-            arch: or1k
 
     env:
       ARCH: ${{ matrix.arch }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
       # ${{ matrix.toolchain-arch }}-${{ matrix.toolchain-ver }}-Linux-x86_64
-      DEBUG: ${{ matrix.debug }}
-      UBSAN: ${{ matrix.ubsan }}
+      # NOTE: DEBUG is deliberately not set here. buildall assigns it itself, so an
+      # inherited value is silently ignored; it is passed to it as -D instead.
       TOOLCHAIN: # compute below
       TOOLCHAIN_ALT: # compute below
     steps:
@@ -59,8 +53,7 @@ jobs:
         grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
         echo ARCH = $ARCH
         echo TOOLCHAIN_VER = $TOOLCHAIN_VER
-        echo DEBUG = $DEBUG
-        echo UBSAN = $UBSAN
+        echo DEBUG = ${{ matrix.debug }}
 
     # check out the source
     - name: checkout
@@ -142,11 +135,12 @@ jobs:
         export -n TOOLCHAIN_ALT
         export -n TOOLCHAIN_VER
         export -n ARCH
-        # DEBUG is passed through to the build script
-        # UBSAN is passed through to the build script
+        # -D builds exactly this DEBUG level, so each matrix job covers one distinct
+        # configuration. Passing DEBUG in the environment does nothing: buildall
+        # sets it itself.
         # -d fails the run if any module includes headers of a module it does not
         # declare in MODULE_DEPS / MODULE_WEAK_DEPS (scripts/check-module-deps.py)
-        ./scripts/buildall -e -d -a "${{ matrix.arch }}"
+        ./scripts/buildall -e -d -a "${{ matrix.arch }}" -D "${{ matrix.debug }}"
 
     # upload artifacts
     #- uses: actions/upload-artifact@v2

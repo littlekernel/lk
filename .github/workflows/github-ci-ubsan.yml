@@ -1,0 +1,115 @@
+name: LK CI (UBSAN)
+
+# Build the qemu projects with UBSAN=1 and actually run the unit tests under it.
+#
+# UBSAN used to be an axis on the gcc build matrix, which only ever compiled with
+# -fsanitize=undefined and never ran the result -- so it could not report anything.
+# It is a runtime sanitizer, so it belongs next to a qemu run. scripts/run-qemu-boot-tests.py
+# --ubsan builds with UBSAN=1, runs "ut all", and fails the job if the kernel reports
+# any undefined behavior, even when every test case passes.
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - 'wip/**'
+      - 'docs/**' # Skip tests for documentation branches
+    paths-ignore:
+      - '**.md'   # Skip tests when only markdown files change
+      - 'docs/**' # Skip tests for docs directory changes
+
+# These jobs only build and run the tree; they never write back to the repo.
+permissions:
+  contents: read
+
+jobs:
+  ubsan-test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm, arm64, m68k, riscv32, riscv64, x86, x86-64]
+        toolchain-ver: [15.2.0]
+
+    # arm64, riscv32, riscv64, x86 and x86-64 run clean and gate the build.
+    # arm reports an unaligned 32 bit read of a thumb opcode in
+    # arch/arm/arm/faults.c, and m68k reports a dozen unaligned accesses walking
+    # the bootinfo records in platform/qemu-virt-m68k/bootinfo.c. Both are real and
+    # pre-existing, so run them for visibility without gating until they are fixed.
+    # Spelled as an expression rather than an include: entry carrying a flag, so
+    # there is no dependence on how include merges into the matrix.
+    continue-on-error: ${{ matrix.arch == 'arm' || matrix.arch == 'm68k' }}
+
+    env:
+      ARCH: ${{ matrix.arch }}
+      TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
+
+    steps:
+    - name: banner
+      shell: bash
+      run: |
+        printf "Running UBSAN tests with %d processors\n" "$(nproc)"
+        grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
+        echo ARCH = $ARCH
+        echo TOOLCHAIN_VER = $TOOLCHAIN_VER
+
+    # check out the source
+    - name: checkout
+      uses: actions/checkout@v6
+
+    - name: install qemu
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu-system-arm qemu-system-misc qemu-system-x86
+
+    # compute the toolchain prefix this project will need
+    - name: compute toolchain
+      shell: bash
+      run: |
+        case "${{ matrix.arch }}" in
+            arm) TOOLCHAIN_PREFIX="arm-eabi-" ;;
+            arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
+            m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
+            riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
+            riscv64) TOOLCHAIN_PREFIX="riscv64-elf-" ;;
+            x86) TOOLCHAIN_PREFIX="i386-elf-" ;;
+            x86-64) TOOLCHAIN_PREFIX="x86_64-elf-" ;;
+            *) echo "Unknown architecture: ${{ matrix.arch }}" && exit 1 ;;
+        esac
+        echo "TOOLCHAIN_PREFIX=${TOOLCHAIN_PREFIX}" >> $GITHUB_ENV
+        echo "TOOLCHAIN=${TOOLCHAIN_PREFIX}${TOOLCHAIN_VER}-$(uname)-$(uname -m)" >> $GITHUB_ENV
+
+    # maintain a directory archives/ in the repo
+    # it will contain tarballs of various toolchains
+    - name: cache
+      uses: actions/cache@v5
+      id: cache
+      with:
+        path: archives
+        key: archives-${{ env.TOOLCHAIN }}
+
+    # download a toolchain from https://newos.org/toolchains
+    # if not already cached
+    - name: fetch/extract toolchain
+      shell: bash
+      run: |
+        TOOLCHAIN_BASE_URL="https://newos.org/toolchains"
+        TOOLCHAIN_SUFFIX="tar.xz"
+        TOOLCHAIN_ADDRESS="$TOOLCHAIN_BASE_URL/$TOOLCHAIN.$TOOLCHAIN_SUFFIX"
+        mkdir -p archives
+        cd archives
+        echo "Downloading toolchain $TOOLCHAIN from $TOOLCHAIN_ADDRESS"
+        wget -v -N $TOOLCHAIN_ADDRESS || exit 1
+        cd ..
+        echo "Unpacking $TOOLCHAIN"
+        tar xf archives/$TOOLCHAIN.$TOOLCHAIN_SUFFIX || exit 1
+        echo "$GITHUB_WORKSPACE/$TOOLCHAIN/bin" >> $GITHUB_PATH
+
+    # build with UBSAN=1 and run "ut all"; any UBSAN report fails the job
+    - name: run ubsan test
+      shell: bash
+      run: |
+        ./scripts/run-qemu-boot-tests.py --arch ${{ matrix.arch }} --ubsan
+
+# vim: ts=2 sw=2 expandtab
