@@ -12,6 +12,13 @@ MODULE_OPTIONS := extra_warnings
 # arch flags on the compile line.
 MODULE_COMPILEFLAGS := -fpie -mcmodel=small -fno-jump-tables -fvisibility=hidden
 
+# UBSAN is likewise incompatible with the stub: instrumentation calls into
+# __ubsan_handle_* in the kernel proper and emits absolute relocations for its
+# source location records, both of which break a relocatable, self-contained
+# stub. The reloc check below catches it, but opt out explicitly so a UBSAN=1
+# build works rather than failing at that check.
+MODULE_COMPILEFLAGS += -fno-sanitize=undefined
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/efi-entry.S \
 	$(LOCAL_DIR)/efi-stub.c
