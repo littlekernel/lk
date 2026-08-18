@@ -14,7 +14,7 @@
 
 #define LOCAL_TRACE 0
 
-extern uint8_t __bss_end;
+extern uint8_t __bss_end[];
 
 static const char *bootinfo_tag_to_string(enum BOOTINFO_TAGS tag) {
     switch (tag) {
@@ -61,7 +61,7 @@ static void dump_bootinfo_record(const struct bootinfo_item *item) {
 }
 
 void dump_all_bootinfo_records(void) {
-    const uint8_t *ptr = &__bss_end;
+    const uint8_t *ptr = __bss_end;
 
     printf("bootinfo records at %p:\n", ptr);
     for (;;) {
@@ -80,7 +80,7 @@ void dump_all_bootinfo_records(void) {
 // look for tags that qemu left at the end of the kernel that hold various
 // pieces of system configuration info.
 const void *bootinfo_find_record(uint16_t id, uint16_t *size_out) {
-    const uint8_t *ptr = &__bss_end;
+    const uint8_t *ptr = __bss_end;
 
     *size_out = 0;
     for (;;) {
