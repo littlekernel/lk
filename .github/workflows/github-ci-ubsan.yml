@@ -31,15 +31,6 @@ jobs:
         arch: [arm, arm64, m68k, riscv32, riscv64, x86, x86-64]
         toolchain-ver: [15.2.0]
 
-    # arm64, riscv32, riscv64, x86 and x86-64 run clean and gate the build.
-    # arm reports an unaligned 32 bit read of a thumb opcode in
-    # arch/arm/arm/faults.c, and m68k reports a dozen unaligned accesses walking
-    # the bootinfo records in platform/qemu-virt-m68k/bootinfo.c. Both are real and
-    # pre-existing, so run them for visibility without gating until they are fixed.
-    # Spelled as an expression rather than an include: entry carrying a flag, so
-    # there is no dependence on how include merges into the matrix.
-    continue-on-error: ${{ matrix.arch == 'arm' || matrix.arch == 'm68k' }}
-
     env:
       ARCH: ${{ matrix.arch }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
