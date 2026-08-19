@@ -1,0 +1,7 @@
+LOCAL_DIR := $(GET_LOCAL_DIR)
+
+TARGET := nucleo-h563zi
+
+MODULES += \
+
+include project/virtual/test.mk
