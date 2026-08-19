@@ -18,11 +18,11 @@ are cheap to work around up front and expensive to discover later.
 
 The table of contents is an array of 32 byte entries:
 
-| entry | contents |
-| --- | --- |
-| header | magic `SPFS` (0x53504653), version, entry count, generation |
+| entry    | contents |
+| -----    | -------- |
+| header   | magic `SPFS` (0x53504653), version, entry count, generation |
 | file × N | first page index, length, capacity, name[20] |
-| footer | reserved, CRC32 over the header and all entries |
+| footer   | reserved, CRC32 over the header and all entries |
 
 Two complete copies of the ToC exist, at the start and the end of the device.
 Every metadata change writes the copy that was *not* written last, with the
@@ -33,26 +33,56 @@ interrupted commit falls back to it.
 
 ## Device requirements
 
-spifs uses a "page" as its unit of allocation and of rewriting, and it derives
-that from the block device's erase geometry:
+spifs allocates and rewrites in units it calls **pages**. A page is not the
+device's block; it is the unit that has to be erased before it can be rewritten,
+and spifs works it out from what the block device declares about its erase
+geometry.
 
-| `bdev_t.geometry_count` | page size | behavior |
+A `bdev_t` describes that with `geometry_count`, the number of *erase regions* it
+has, and a `geometry[]` array of that length. A region is a span of the device
+with one uniform erase size — real NOR parts often have two or three, such as
+small sectors at the bottom of the device and large ones above. A device that
+needs no erase at all, like a RAM disk or a spinning disk, declares zero regions.
+Drivers set both fields in `bio_initialize_bdev()`.
+
+spifs handles only the two simplest cases:
+
+| `geometry_count` | page size | what happens on a page write |
 | --- | --- | --- |
-| 0 | `block_size` | overwrites a page in place, no erase |
-| 1 | `geometry->erase_size` | erases each page before rewriting it |
-| 2+ | — | `ERR_NOT_SUPPORTED`, non-uniform geometry is not handled |
+| 0 | `block_size` | written in place, no erase |
+| 1 | `geometry[0].erase_size` | erased, then written |
+| 2 or more | — | `ERR_NOT_SUPPORTED` at format and mount |
 
-Note `erase_size` is a **byte count** and `erase_shift` is its log2, per
-`lib/bio.h`. If you are writing a driver, set both, and set `erase_byte` *after*
-`bio_initialize_bdev()`, which zeroes it. `platform/zynq/spiflash.c` is the
-reference; two of the STM32 drivers get this wrong.
+Two things about that last row are easy to misread. It rejects *any* device with
+more than one region, even if every region happens to have the same erase size —
+the check is on the count, not on whether the geometry is actually uniform. And
+it is not a soft failure: a multi-region part cannot host spifs at all. To use
+one, carve out a subdevice that lies within a single region with
+`bio_publish_subdevice()`, which synthesizes a one-region geometry for the slice.
 
-Format rejects a device that does not satisfy:
+In the one-region case spifs reads only `erase_size`; it never looks at the
+region's `start` or `size`, and computes the page count as
+`total_size / page_size`. So it assumes the single region spans the whole device.
+A driver that declares one region covering only part of itself will produce a
+filesystem that runs off the end of it.
+
+Either way `bio_erase()` has to work, because file creation erases the new file's
+pages unconditionally. On a device with no geometry that lands on
+`bio_default_erase()`, which fills the range with `erase_byte`. That is also why
+a freshly created file reads back as `erase_byte` — 0xff on real NOR, but 0x00 on
+a plain `create_membdev()` device, which never sets it.
+
+If you are writing the driver: `erase_size` is a **byte count** and `erase_shift`
+is its log2 — set both, and set `erase_byte` *after* `bio_initialize_bdev()`,
+which zeroes it. `platform/zynq/spiflash.c` is the reference; two of the STM32
+drivers get this wrong.
+
+Format additionally rejects a device unless:
 
 - `page_size` is a power of two and a multiple of 32 (the ToC entry size)
 - `erase_size % block_size == 0`
 - `total_size % page_size == 0` — no partial page at the end
-- more than 4 ToC entries, i.e. room for at least one file
+- the ToC holds more than 4 entries, i.e. there is room for at least one file
 
 ## What it can do
 
@@ -108,6 +138,12 @@ With a ToC entry of 32 bytes:
 A 4KB erase page with the default `toc_pages = 1` gives 124 files. Raise
 `toc_pages` at format time if you need more; each extra page costs two pages of
 flash, one at each end.
+
+The page size drives this, so a device with no erase geometry gets a much smaller
+table: at a 512 byte block size the default is only 12 files. That is the usual
+surprise when a filesystem that behaved on real flash suddenly hits `ERR_TOO_BIG`
+on a RAM backed device, and vice versa — the same `toc_pages` means very
+different things on the two.
 
 Every mount holds one page-sized buffer on the heap, plus a small struct per
 open file.
