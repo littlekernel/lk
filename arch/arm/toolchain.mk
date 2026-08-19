@@ -93,6 +93,10 @@ ifeq ($(ARM_CPU),cortex-m4f)
 ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m4
 ARCH_arm_COMPILEFLAGS_FLOAT += -mfpu=fpv4-sp-d16 -mfloat-abi=softfp
 endif
+ifeq ($(ARM_CPU),cortex-m33f)
+ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m33
+ARCH_arm_COMPILEFLAGS_FLOAT += -mfpu=fpv5-sp-d16 -mfloat-abi=softfp
+endif
 ifeq ($(ARM_CPU),cortex-a7)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 ARCH_arm_COMPILEFLAGS_FLOAT += -mfpu=vfpv3 -mfloat-abi=softfp
