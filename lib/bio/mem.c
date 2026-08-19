@@ -8,6 +8,7 @@
 #include <lib/bio.h>
 #include <lk/err.h>
 #include <lk/debug.h>
+#include <lk/pow2.h>
 #include <lk/trace.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,16 @@ typedef struct mem_bdev {
 
     void *ptr;
 } mem_bdev_t;
+
+// A NOR-flash-like variant of the above. The erase geometry has to outlive the
+// device -- bio stores the pointer rather than copying the array -- so it is
+// embedded here. mem_bdev_t must stay first: the read/write hooks below are
+// shared with the plain device and cast bdev_t* straight to mem_bdev_t*.
+typedef struct nor_mem_bdev {
+    mem_bdev_t mem;
+
+    bio_erase_geometry_info_t geometry;
+} nor_mem_bdev_t;
 
 static ssize_t mem_bdev_read(bdev_t *bdev, void *buf, off_t offset, size_t len) {
     mem_bdev_t *mem = (mem_bdev_t *)bdev;
@@ -108,6 +119,37 @@ static status_t mem_bdev_write_async(struct bdev *bdev, const void *buf, off_t o
     return NO_ERROR;
 }
 
+// Erase for the NOR-like device. Real flash can only erase whole sectors, so an
+// unaligned request is rejected rather than quietly widened: over-erasing would
+// destroy a neighbouring page, and returning the rounded-up count would break
+// callers that compare the result against what they asked for.
+//
+// Note this models erase and program, not the bit-level behavior of NOR: a write
+// here is a plain memcpy, not an AND against what is already there. Nothing in
+// the tree reprograms an un-erased page, and some tests deliberately scribble
+// over metadata to check recovery, so keep it that way.
+static ssize_t mem_bdev_erase(struct bdev *bdev, off_t offset, size_t len) {
+    mem_bdev_t *mem = (mem_bdev_t *)bdev;
+
+    LTRACEF("bdev %s, offset %lld, len %zu\n", bdev->name, offset, len);
+
+    DEBUG_ASSERT(bdev->geometry_count == 1 && bdev->geometry);
+    const size_t erase_size = bdev->geometry->erase_size;
+
+    if (((size_t)offset & (erase_size - 1)) || (len & (erase_size - 1))) {
+        return ERR_INVALID_ARGS;
+    }
+
+    len = bio_trim_range(bdev, offset, len);
+    if (len == 0) {
+        return 0;
+    }
+
+    memset((uint8_t *)mem->ptr + (size_t)offset, bdev->erase_byte, len);
+
+    return (ssize_t)len;
+}
+
 static int mem_bdev_ioctl(struct bdev *bdev, int request, void *argp) {
     mem_bdev_t *mem = (mem_bdev_t *)bdev;
 
@@ -139,6 +181,18 @@ static int mem_bdev_ioctl(struct bdev *bdev, int request, void *argp) {
     }
 }
 
+/* hooks shared by both flavors; the caller has already run bio_initialize_bdev */
+static void mem_bdev_set_hooks(mem_bdev_t *mem, void *ptr) {
+    mem->ptr = ptr;
+    mem->dev.read = mem_bdev_read;
+    mem->dev.read_async = mem_bdev_read_async;
+    mem->dev.read_block = mem_bdev_read_block;
+    mem->dev.write = mem_bdev_write;
+    mem->dev.write_async = mem_bdev_write_async;
+    mem->dev.write_block = mem_bdev_write_block;
+    mem->dev.ioctl = mem_bdev_ioctl;
+}
+
 int create_membdev(const char *name, void *ptr, size_t len) {
     if (name == NULL || ptr == NULL) {
         return ERR_INVALID_ARGS;
@@ -154,17 +208,52 @@ int create_membdev(const char *name, void *ptr, size_t len) {
                         BIO_FLAGS_NONE);
 
     /* our bits */
-    mem->ptr = ptr;
-    mem->dev.read = mem_bdev_read;
-    mem->dev.read_async = mem_bdev_read_async;
-    mem->dev.read_block = mem_bdev_read_block;
-    mem->dev.write = mem_bdev_write;
-    mem->dev.write_async = mem_bdev_write_async;
-    mem->dev.write_block = mem_bdev_write_block;
-    mem->dev.ioctl = mem_bdev_ioctl;
+    mem_bdev_set_hooks(mem, ptr);
 
     /* register it */
     bio_register_device(&mem->dev);
+
+    return 0;
+}
+
+int create_nor_membdev(const char *name, void *ptr, size_t len,
+                       size_t erase_size, uint8_t erase_byte) {
+    if (name == NULL || ptr == NULL) {
+        return ERR_INVALID_ARGS;
+    }
+
+    /* the erase unit has to be a power of 2 and hold a whole number of blocks */
+    if (erase_size == 0 || !ispow2(erase_size) || erase_size < BLOCKSIZE) {
+        return ERR_INVALID_ARGS;
+    }
+
+    /* no partial erase unit at the end of the device */
+    if (len == 0 || (len & (erase_size - 1))) {
+        return ERR_INVALID_ARGS;
+    }
+
+    nor_mem_bdev_t *nor = malloc(sizeof(nor_mem_bdev_t));
+    if (nor == NULL) {
+        return ERR_NO_MEMORY;
+    }
+
+    /* one uniform erase region covering the whole device. erase_size is in
+     * bytes and erase_shift is its log2, per the contract in lib/bio.h. */
+    nor->geometry.start = 0;
+    nor->geometry.size = (off_t)len;
+    nor->geometry.erase_size = erase_size;
+    nor->geometry.erase_shift = log2_uint(erase_size);
+
+    bio_initialize_bdev(&nor->mem.dev, name, BLOCKSIZE, len / BLOCKSIZE, 1,
+                        &nor->geometry, BIO_FLAGS_NONE);
+
+    mem_bdev_set_hooks(&nor->mem, ptr);
+    nor->mem.dev.erase = mem_bdev_erase;
+
+    /* bio_initialize_bdev zeroes erase_byte, so this has to come after it */
+    nor->mem.dev.erase_byte = erase_byte;
+
+    bio_register_device(&nor->mem.dev);
 
     return 0;
 }

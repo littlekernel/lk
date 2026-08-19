@@ -184,6 +184,18 @@ status_t bio_publish_subdevice(const char *parent_dev,
 // Returns 0 on success or negative error.
 int create_membdev(const char *name, void *ptr, size_t len);
 
+// As above, but presents itself like a NOR flash part: it publishes a single
+// uniform erase region of erase_size bytes and erases to erase_byte. Intended
+// for exercising the erase-before-write paths of flash aware code without real
+// hardware. erase_size must be a power of 2 and at least the block size, and
+// len must be a whole number of erase units.
+//
+// Writes are a plain copy, not a bitwise AND against the existing contents, so
+// this models erase granularity rather than NOR programming at the bit level.
+// Returns 0 on success or negative error.
+int create_nor_membdev(const char *name, void *ptr, size_t len,
+                       size_t erase_size, uint8_t erase_byte);
+
 // Trim an (offset,len) range to device bounds. Returns the clamped length
 // (possibly zero). Does not perform I/O.
 size_t bio_trim_range(const bdev_t *dev, off_t offset, size_t len);

@@ -901,6 +901,174 @@ static bool subdev_offset_no_truncation(void) {
     END_TEST;
 }
 
+#define NOR_ERASE_SIZE ((size_t)4096)
+
+static bool nor_memdev_geometry(void) {
+    BEGIN_TEST;
+
+    void *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+
+    EXPECT_EQ(0, create_nor_membdev("test_nor_geo", mem, TEST_DEVICE_SIZE,
+                                    NOR_ERASE_SIZE, 0xff), "");
+
+    bdev_t *dev = bio_open("test_nor_geo");
+    ASSERT_NONNULL(dev, "failed to open nor device");
+
+    EXPECT_EQ(TEST_DEVICE_SIZE, dev->total_size, "");
+    EXPECT_EQ(BLOCK_SIZE, dev->block_size, "");
+    EXPECT_EQ(0xff, dev->erase_byte, "erase byte should survive bdev init");
+
+    // A single uniform region covering the whole device. erase_size is in bytes
+    // and erase_shift is its log2; conflating the two is a mistake real drivers
+    // have made, so pin both down here.
+    ASSERT_EQ((size_t)1, dev->geometry_count, "");
+    ASSERT_NONNULL(dev->geometry, "");
+    EXPECT_EQ(NOR_ERASE_SIZE, dev->geometry->erase_size, "");
+    EXPECT_EQ((size_t)12, dev->geometry->erase_shift, "");
+    EXPECT_EQ(NOR_ERASE_SIZE, (size_t)1 << dev->geometry->erase_shift, "");
+    EXPECT_EQ((off_t)0, dev->geometry->start, "");
+    EXPECT_EQ((off_t)TEST_DEVICE_SIZE, dev->geometry->size, "");
+
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(mem);
+
+    END_TEST;
+}
+
+static bool nor_memdev_erase(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+    memset(mem, 0xAA, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_nor_membdev("test_nor_erase", mem, TEST_DEVICE_SIZE,
+                                    NOR_ERASE_SIZE, 0xff), "");
+
+    bdev_t *dev = bio_open("test_nor_erase");
+    ASSERT_NONNULL(dev, "failed to open nor device");
+
+    // erase the second sector only
+    EXPECT_EQ((ssize_t)NOR_ERASE_SIZE,
+              bio_erase(dev, NOR_ERASE_SIZE, NOR_ERASE_SIZE), "");
+
+    uint8_t *buf = malloc(NOR_ERASE_SIZE);
+    ASSERT_NONNULL(buf, "");
+
+    // the erased sector reads back as the erase byte...
+    EXPECT_EQ((ssize_t)NOR_ERASE_SIZE,
+              bio_read(dev, buf, NOR_ERASE_SIZE, NOR_ERASE_SIZE), "");
+    for (size_t i = 0; i < NOR_ERASE_SIZE; i++) {
+        if (buf[i] != 0xff) {
+            UNITTEST_FAIL_TRACEF("erased byte %zu is %#x, expected 0xff\n", i, buf[i]);
+            all_ok = false;
+            break;
+        }
+    }
+
+    // ...and its neighbours are untouched
+    EXPECT_EQ((ssize_t)NOR_ERASE_SIZE, bio_read(dev, buf, 0, NOR_ERASE_SIZE), "");
+    for (size_t i = 0; i < NOR_ERASE_SIZE; i++) {
+        if (buf[i] != 0xAA) {
+            UNITTEST_FAIL_TRACEF("sector before erase: byte %zu is %#x\n", i, buf[i]);
+            all_ok = false;
+            break;
+        }
+    }
+    EXPECT_EQ((ssize_t)NOR_ERASE_SIZE,
+              bio_read(dev, buf, 2 * NOR_ERASE_SIZE, NOR_ERASE_SIZE), "");
+    for (size_t i = 0; i < NOR_ERASE_SIZE; i++) {
+        if (buf[i] != 0xAA) {
+            UNITTEST_FAIL_TRACEF("sector after erase: byte %zu is %#x\n", i, buf[i]);
+            all_ok = false;
+            break;
+        }
+    }
+
+    // real flash cannot erase part of a sector, so neither can this
+    EXPECT_EQ((ssize_t)ERR_INVALID_ARGS,
+              bio_erase(dev, 512, NOR_ERASE_SIZE), "unaligned offset");
+    EXPECT_EQ((ssize_t)ERR_INVALID_ARGS,
+              bio_erase(dev, 0, 512), "length below the erase unit");
+
+    free(buf);
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(mem);
+
+    END_TEST;
+}
+
+// A device with no erase geometry still supports bio_erase, via the default
+// hook, which fills with erase_byte. create_membdev leaves that at zero.
+static bool memdev_default_erase(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+    memset(mem, 0xAA, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_membdev("test_default_erase", mem, TEST_DEVICE_SIZE), "");
+
+    bdev_t *dev = bio_open("test_default_erase");
+    ASSERT_NONNULL(dev, "failed to open device");
+
+    EXPECT_EQ((size_t)0, dev->geometry_count, "");
+    EXPECT_EQ(0, dev->erase_byte, "");
+
+    const size_t len = 2 * BLOCK_SIZE;
+    EXPECT_EQ((ssize_t)len, bio_erase(dev, BLOCK_SIZE, len), "");
+
+    for (size_t i = 0; i < BLOCK_SIZE; i++) {
+        EXPECT_EQ(0xAA, mem[i], "before the erased range");
+    }
+    for (size_t i = BLOCK_SIZE; i < BLOCK_SIZE + len; i++) {
+        EXPECT_EQ(0, mem[i], "inside the erased range");
+    }
+    for (size_t i = BLOCK_SIZE + len; i < BLOCK_SIZE + len + BLOCK_SIZE; i++) {
+        EXPECT_EQ(0xAA, mem[i], "after the erased range");
+    }
+
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(mem);
+
+    END_TEST;
+}
+
+static bool nor_memdev_create_rejects_bad_args(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+
+    EXPECT_EQ(ERR_INVALID_ARGS,
+              create_nor_membdev(NULL, mem, TEST_DEVICE_SIZE, NOR_ERASE_SIZE, 0xff),
+              "null name");
+    EXPECT_EQ(ERR_INVALID_ARGS,
+              create_nor_membdev("test_nor_bad", NULL, TEST_DEVICE_SIZE, NOR_ERASE_SIZE, 0xff),
+              "null buffer");
+    EXPECT_EQ(ERR_INVALID_ARGS,
+              create_nor_membdev("test_nor_bad", mem, TEST_DEVICE_SIZE, 3000, 0xff),
+              "erase size not a power of 2");
+    EXPECT_EQ(ERR_INVALID_ARGS,
+              create_nor_membdev("test_nor_bad", mem, TEST_DEVICE_SIZE, 256, 0xff),
+              "erase size below the block size");
+    EXPECT_EQ(ERR_INVALID_ARGS,
+              create_nor_membdev("test_nor_bad", mem, TEST_DEVICE_SIZE - 512,
+                                 NOR_ERASE_SIZE, 0xff),
+              "size not a whole number of erase units");
+
+    bdev_t *dev = bio_open("test_nor_bad");
+    EXPECT_EQ(NULL, dev, "device with invalid args should not be registered");
+
+    free(mem);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(bio_tests)
 RUN_TEST(basic_read_write)
 RUN_TEST(block_read_write)
@@ -917,4 +1085,8 @@ RUN_TEST(subdev_offset_no_truncation)
 RUN_TEST(memdev_direct_ops_clamp)
 RUN_TEST(memdev_create_rejects_null_args)
 RUN_TEST(memdev_ioctl_memory_map)
+RUN_TEST(memdev_default_erase)
+RUN_TEST(nor_memdev_geometry)
+RUN_TEST(nor_memdev_erase)
+RUN_TEST(nor_memdev_create_rejects_bad_args)
 END_TEST_CASE(bio_tests)
