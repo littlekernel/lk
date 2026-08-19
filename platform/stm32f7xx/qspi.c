@@ -595,7 +595,7 @@ status_t qspi_flash_init(size_t flash_size) {
     device_state = QSPI_STATE_COMMAND;
 
     // Initialize the QSPI Flash and register it as a Block I/O device.
-    geometry.erase_size = log2_uint(N25QXXA_SUBSECTOR_SIZE);
+    geometry.erase_size = N25QXXA_SUBSECTOR_SIZE;
     geometry.erase_shift = log2_uint(N25QXXA_SUBSECTOR_SIZE);
     geometry.start = 0;
     geometry.size = flash_size;

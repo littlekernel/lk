@@ -449,8 +449,9 @@ static status_t get_device_page_info(bdev_t *dev, uint32_t *page_size, uint32_t 
             return NO_ERROR;
         }
         case 1: {
-            // Device has erase geometry.
-            size_t erase_size = valpow2(dev->geometry->erase_size);
+            // Device has erase geometry. erase_size is in bytes, per lib/bio.h;
+            // erase_shift is the log2 of it.
+            size_t erase_size = dev->geometry->erase_size;
             size_t block_size = dev->block_size;
 
             if (erase_size % block_size != 0) {
