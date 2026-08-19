@@ -6,7 +6,9 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/spifstest.c
 
 MODULE_DEPS += \
+    lib/bio \
     lib/fs/spifs \
-    lib/libm
+    lib/libm \
+    lib/unittest
 
 include make/module.mk
