@@ -825,6 +825,82 @@ static bool memdev_ioctl_memory_map(void) {
     END_TEST;
 }
 
+// A parent device large enough that a subdevice can start beyond the 4GB mark.
+// There is no backing store: the read hook only records the byte offset it was
+// handed, which is exactly the value the truncation bug used to corrupt.
+static bdev_t big_parent;
+static off_t big_parent_last_offset;
+
+static ssize_t big_parent_read(struct bdev *dev, void *buf, off_t offset, size_t len) {
+    big_parent_last_offset = offset;
+    memset(buf, 0, len);
+    return (ssize_t)len;
+}
+
+static ssize_t big_parent_write(struct bdev *dev, const void *buf, off_t offset, size_t len) {
+    big_parent_last_offset = offset;
+    return (ssize_t)len;
+}
+
+static ssize_t big_parent_erase(struct bdev *dev, off_t offset, size_t len) {
+    big_parent_last_offset = offset;
+    return (ssize_t)len;
+}
+
+// Regression test for subdev_byte_offset(): the block-to-byte multiply has to be
+// done at off_t width. bnum_t is 32 bits and so is size_t on a 32 bit build, so
+// computing 'offset * block_size' in 32 bits silently wraps, and every access to a
+// subdevice starting 4GB or more into its parent lands somewhere else entirely.
+// This passes trivially on a 64 bit build; the 32 bit ones are what it guards.
+static bool subdev_offset_no_truncation(void) {
+    BEGIN_TEST;
+
+    // 16M blocks of 512 bytes is an 8GB parent.
+    const bnum_t parent_blocks = 16 * 1024 * 1024;
+    bio_initialize_bdev(&big_parent, "big_parent", BLOCK_SIZE, parent_blocks,
+                        0, NULL, BIO_FLAGS_NONE);
+    big_parent.read = &big_parent_read;
+    big_parent.write = &big_parent_write;
+    big_parent.erase = &big_parent_erase;
+    bio_register_device(&big_parent);
+
+    // 9M blocks in is 4.5GB, which does not fit in 32 bits.
+    const bnum_t startblock = 9 * 1024 * 1024;
+    const off_t expected_base = (off_t)startblock * BLOCK_SIZE;
+    EXPECT_GT(expected_base, ((off_t)1 << 32), "test premise: base must exceed 32 bits");
+
+    EXPECT_EQ(NO_ERROR, bio_publish_subdevice("big_parent", "big_sub", startblock, 8), "");
+
+    bdev_t *sub = bio_open("big_sub");
+    ASSERT_NONNULL(sub, "failed to open sub device");
+    EXPECT_EQ((off_t)(8 * BLOCK_SIZE), sub->total_size, "");
+
+    // Every entry point that translates a byte offset goes through the same
+    // helper, so check more than one of them: re-inlining the multiply in any
+    // single path would otherwise slip past this test.
+    uint8_t buf[64];
+    big_parent_last_offset = -1;
+    ssize_t r = bio_read(sub, buf, 0, sizeof(buf));
+    EXPECT_EQ((ssize_t)sizeof(buf), r, "");
+    EXPECT_EQ_LL(expected_base, big_parent_last_offset, "read byte offset truncated");
+
+    big_parent_last_offset = -1;
+    r = bio_write(sub, buf, 0, sizeof(buf));
+    EXPECT_EQ((ssize_t)sizeof(buf), r, "");
+    EXPECT_EQ_LL(expected_base, big_parent_last_offset, "write byte offset truncated");
+
+    big_parent_last_offset = -1;
+    r = bio_erase(sub, 0, BLOCK_SIZE);
+    EXPECT_EQ((ssize_t)BLOCK_SIZE, r, "");
+    EXPECT_EQ_LL(expected_base, big_parent_last_offset, "erase byte offset truncated");
+
+    bio_close(sub);
+    bio_unregister_device(sub);
+    bio_unregister_device(&big_parent);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(bio_tests)
 RUN_TEST(basic_read_write)
 RUN_TEST(block_read_write)
@@ -837,6 +913,7 @@ RUN_TEST(subdev_write_propagates)
 RUN_TEST(subdev_block_ops)
 RUN_TEST(subdev_async)
 RUN_TEST(subdev_nested)
+RUN_TEST(subdev_offset_no_truncation)
 RUN_TEST(memdev_direct_ops_clamp)
 RUN_TEST(memdev_create_rejects_null_args)
 RUN_TEST(memdev_ioctl_memory_map)

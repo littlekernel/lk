@@ -379,7 +379,9 @@ static bool test_erase_block(bdev_t *device, uint32_t block_addr) {
         goto finish;
     }
 
-    err = bio_erase(device, block_addr * device->block_size, device->block_size);
+    // cast before the multiply: block_addr is 32 bits and so is size_t on a 32 bit
+    // build, so the product wraps past 4GB before widening to the off_t bio_erase takes
+    err = bio_erase(device, (off_t)block_addr * device->block_size, device->block_size);
     if (err <= 0) {
         LTRACEF("error erasing block %u\n", block_addr);
         goto finish;

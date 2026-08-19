@@ -28,10 +28,21 @@ typedef struct {
     bnum_t offset;
 } subdev_t;
 
+// Byte offset of this subdevice within its parent.
+//
+// The multiply has to be done at off_t width. bnum_t is uint32_t and block_size is
+// size_t, so on a 32 bit build 'subdev->offset * block_size' is a 32 bit multiply
+// that wraps for any subdevice starting 4GB or more into its parent, and the
+// truncated result is then widened to the off_t the bio_* calls take. This is the
+// same reason bio_publish_subdevice() below casts to uint64_t before shifting.
+static off_t subdev_byte_offset(const subdev_t *subdev) {
+    return (off_t)subdev->offset * subdev->dev.block_size;
+}
+
 static ssize_t subdev_read(struct bdev *_dev, void *buf, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_read(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len);
+    return bio_read(subdev->parent, buf, offset + subdev_byte_offset(subdev), len);
 }
 
 static ssize_t subdev_read_block(struct bdev *_dev, void *buf, bnum_t block, uint count) {
@@ -43,7 +54,7 @@ static ssize_t subdev_read_block(struct bdev *_dev, void *buf, bnum_t block, uin
 static ssize_t subdev_write(struct bdev *_dev, const void *buf, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_write(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len);
+    return bio_write(subdev->parent, buf, offset + subdev_byte_offset(subdev), len);
 }
 
 static ssize_t subdev_write_block(struct bdev *_dev, const void *buf, bnum_t block, uint count) {
@@ -55,14 +66,14 @@ static ssize_t subdev_write_block(struct bdev *_dev, const void *buf, bnum_t blo
 static ssize_t subdev_erase(struct bdev *_dev, off_t offset, size_t len) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_erase(subdev->parent, offset + subdev->offset * subdev->dev.block_size, len);
+    return bio_erase(subdev->parent, offset + subdev_byte_offset(subdev), len);
 }
 
 static status_t subdev_read_async(struct bdev *_dev, void *buf, off_t offset, size_t len,
                                    bio_async_callback_t callback, void *callback_context) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_read_async(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len,
+    return bio_read_async(subdev->parent, buf, offset + subdev_byte_offset(subdev), len,
                           callback, callback_context);
 }
 
@@ -70,7 +81,7 @@ static status_t subdev_write_async(struct bdev *_dev, const void *buf, off_t off
                                     bio_async_callback_t callback, void *callback_context) {
     subdev_t *subdev = (subdev_t *)_dev;
 
-    return bio_write_async(subdev->parent, buf, offset + subdev->offset * subdev->dev.block_size, len,
+    return bio_write_async(subdev->parent, buf, offset + subdev_byte_offset(subdev), len,
                            callback, callback_context);
 }
 
