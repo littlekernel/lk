@@ -892,16 +892,18 @@ static ssize_t spifs_read(filecookie *fcookie, void *buf, off_t off, size_t len)
 
     mutex_acquire(&spifs->lock);
 
-    uint32_t file_start = file->fs_handle->page_size * file->metadata.page_idx;
-    uint32_t file_end = file_start + file->metadata.length;
+    // cast before the multiply: page_size and page_idx are both 32 bits, so the
+    // product wraps before it is widened to the off_t bio_read() takes.
+    const off_t file_start = (off_t)file->fs_handle->page_size * file->metadata.page_idx;
+    const off_t file_end = file_start + file->metadata.length;
 
-    uint32_t read_start = file_start + off;
-    uint32_t read_end = read_start + len;
+    const off_t read_start = file_start + off;
+    const off_t read_end = read_start + (off_t)len;
 
     if (read_start >= file_end) {
         len = 0;
     } else if (read_end > file_end) {
-        len = file_end - read_start;
+        len = (size_t)(file_end - read_start);
     }
 
     DEBUG_ASSERT(file->fs_handle->dev);
@@ -935,11 +937,14 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
 
     bool dirty_toc = false;
 
-    uint32_t start_addr =
-        off + (file->metadata.page_idx * spifs->page_size);
+    // cast before the multiply, as in spifs_read(): the 32 bit product wraps on
+    // a device larger than 4GB. The page id and the offset within a page both
+    // stay 32 bit, since page_count is.
+    const off_t start_addr =
+        off + ((off_t)file->metadata.page_idx * spifs->page_size);
 
     uint32_t page_shift = log2_uint(spifs->page_size);
-    uint32_t target_page_id = divpow2(start_addr, page_shift);
+    uint32_t target_page_id = (uint32_t)(start_addr >> page_shift);
 
     // Are we growing the file?
     if (off + len > file->metadata.length) {
@@ -948,11 +953,11 @@ static ssize_t spifs_write(filecookie *fcookie, const void *buf, off_t off, size
     }
 
     // Leading Partial Page.
-    uint32_t page_offset = start_addr % spifs->page_size;
+    uint32_t page_offset = (uint32_t)start_addr & (spifs->page_size - 1);
     if (page_offset) {
-        uint32_t page_end = ROUNDUP(start_addr, spifs->page_size);
-
-        uint32_t n_bytes = MIN(len, page_end - start_addr);
+        // the rest of this page, which is what ROUNDUP(start_addr) - start_addr
+        // comes to whenever page_offset is non-zero
+        uint32_t n_bytes = MIN(len, spifs->page_size - page_offset);
 
         // read..
         err = spifs_read_page(spifs, target_page_id);
