@@ -484,7 +484,7 @@ static bool test_write_with_offset(const char *dev_name) {
 
     ssize_t bytes;
     for (size_t pos = 0; pos < repeats; pos++) {
-        bytes = fs_write_file(handle, test_message, pos * msg_len, msg_len);
+        bytes = fs_write_file(handle, test_message, (off_t)pos * msg_len, msg_len);
         if ((size_t)bytes != msg_len) {
             return false;
         }

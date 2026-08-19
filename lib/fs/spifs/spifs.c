@@ -775,7 +775,10 @@ static status_t spifs_create(fscookie *cookie, const char *name, filecookie **fc
     strlcpy(file->metadata.filename, name, MAX_FILENAME_LENGTH);
 
     // Erase the memory allocated to the file.
-    if (bio_erase(spifs->dev, open_run * spifs->page_size, capacity) !=
+    // cast before the multiply: open_run and page_size are both 32 bits, so the
+    // product wraps before it is widened to the off_t bio_erase() takes.
+    // spifs_write_page() already computes its device address this way.
+    if (bio_erase(spifs->dev, (off_t)open_run * spifs->page_size, capacity) !=
         (ssize_t)capacity) {
 
         free(file);
