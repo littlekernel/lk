@@ -138,7 +138,10 @@ def emit(out, syms, base, end):
         out.write('    ' + ' '.join('0x%08x,' % off for off in chunk) + '\n')
     out.write('};\n\n')
 
-    out.write('const char lk_symtab_names[%u] = \n' % pos)
+    # Left unsized: every name carries its own terminator, so the literal's
+    # implicit one is redundant, but spelling the size out as exactly the
+    # bytes needed makes the compiler warn that it has to drop it.
+    out.write('const char lk_symtab_names[] =\n')
     for _, name in syms:
         out.write('    "%s\\0"\n' % c_string(name))
     out.write('    ;\n')
