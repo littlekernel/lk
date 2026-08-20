@@ -5,8 +5,10 @@ MODULES += \
   app/stringtests \
   app/tests \
   lib/aes \
+  lib/backtrace \
   lib/cksum \
   lib/debugcommands \
+  lib/symtab \
   lib/unittest \
   lib/version \
 
