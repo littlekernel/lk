@@ -1,0 +1,2 @@
+TARGET := mps2
+MPS2_MACHINE := an500
