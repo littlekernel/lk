@@ -63,6 +63,16 @@ void uart_init(void) {
 
     uart0->ctrl |= UART_CTRL_RX_INTEN;
     NVIC_EnableIRQ(UARTRX0_IRQn);
+
+    /*
+     * A byte that arrived before the interrupt was enabled is sitting in the
+     * receiver with nothing to announce it, and would block everything behind
+     * it forever. Pend the interrupt by hand to go collect it, rather than
+     * reading it here, so the handler stays the only reader of the receiver.
+     */
+    if (uart0->state & UART_STATE_RXFULL) {
+        arm_cm_trigger_interrupt(UARTRX0_IRQn);
+    }
 }
 
 static cbuf_t *mps2_get_rxbuf(int port) {
