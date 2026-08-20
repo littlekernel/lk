@@ -7,6 +7,7 @@
  */
 
 #include <ctype.h>
+#include <lk/backtrace.h>
 #include <lk/debug.h>
 #include <stdlib.h>
 #include <printf.h>
@@ -26,6 +27,8 @@ void panic(const char *fmt, ...) {
     vprintf(fmt, ap);
     va_end(ap);
 
+    backtrace_print_current();
+
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
@@ -38,11 +41,14 @@ void assert_fail_msg(const char* file, int line, const char* expression, const c
     vprintf(fmt, ap);
     va_end(ap);
 
+    backtrace_print_current();
+
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 void assert_fail(const char* file, int line, const char* expression) {
     printf("ASSERT FAILED at (%s:%d): %s\n", file, line, expression);
+    backtrace_print_current();
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
