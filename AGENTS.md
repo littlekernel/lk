@@ -16,7 +16,7 @@ LK uses a 4-layer modular build system:
    - Defines memory layout: `MEMBASE`, `MEMSIZE`, `KERNEL_BASE`
    - GPIO configs, peripheral addresses for specific boards
 
-3. **Platform** (`platform/*/`) - SOC/system-level support (qemu-virt, stm32f4xx, etc.)
+3. **Platform** (`platform/*/`) - SOC/system-level support (qemu-virt, mps2, stm32f4xx, etc.)
    - Hardware initialization, device tree handling, platform-specific drivers
 
 4. **Architecture** (`arch/*/`) - CPU-specific low-level code (arm64, riscv, x86, etc.)
@@ -177,6 +177,11 @@ scripts/do-qemuarm -6 -P 64k
 # ARM64 with KVM/HVF acceleration (only if on ARM64 host)
 scripts/do-qemuarm -6 -k
 
+# Cortex-M, on the MPS2/MPS3 boards: an385 (M3), an386 (M4), an500 (M7),
+# an505 (M33), an547 (M55). See platform/mps2/README.md.
+scripts/do-qemuarm -B an385
+scripts/do-qemuarm -B an547
+
 # RISC-V 32-bit in machine mode
 scripts/do-qemuriscv
 
@@ -206,6 +211,10 @@ The do-qemu* scripts auto-build before launching QEMU.
 
 # For all architectures
 ./scripts/run-qemu-boot-tests.py
+
+# The cortex-m targets are per core generation rather than per architecture:
+# arm-m3, arm-m4, arm-m7, arm-m33 and arm-m55, running on the MPS2/MPS3 boards
+./scripts/run-qemu-boot-tests.py --arch arm-m55
 
 # Raise the per-architecture timeout (default 30s) for longer suites
 ./scripts/run-qemu-boot-tests.py --arch arm64 --timeout 600
@@ -441,6 +450,9 @@ and CI passes `-d`, so an undeclared dependency fails the gcc CI matrix.
   - Self-validating tests belong here, next to the code they exercise: `kernel/test/` covers the
     thread, mutex, semaphore, event and port primitives plus the platform clock invariants,
     `arch/test/` covers MMU and FPU context switching.
+  - `arch/arm/arm-m` is covered by the `platform/mps2` targets, which run the suite on a
+    Cortex-M3, M4, M7, M33 and M55 under QEMU. The other cortex-m projects in the tree are
+    build-only: they have no way to run a script at boot or to exit the emulator afterwards.
 - When a library adds its own unit tests, it should add a `test/` subdirectory with test source
   files and a `rules.mk` that defines a module for the tests. The module should have `MODULE_DEPS`
   on the library being tested. MODULE_OPTIONS of the parent module should have 'test' to ensure the

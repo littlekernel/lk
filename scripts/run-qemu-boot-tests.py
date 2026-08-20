@@ -24,6 +24,34 @@ class QEMUTestRunner:
                 'args': '-6s4',
                 'timeout': 90
             },
+            # The cortex-m boards qemu models for ARM's MPS2/MPS3 prototyping
+            # systems, one per core generation. These exercise arch/arm/arm-m,
+            # which nothing else here covers.
+            'arm-m3': {
+                'script': 'do-qemuarm',
+                'args': '-Ban385',
+                'timeout': 90
+            },
+            'arm-m4': {
+                'script': 'do-qemuarm',
+                'args': '-Ban386',
+                'timeout': 90
+            },
+            'arm-m7': {
+                'script': 'do-qemuarm',
+                'args': '-Ban500',
+                'timeout': 90
+            },
+            'arm-m33': {
+                'script': 'do-qemuarm',
+                'args': '-Ban505',
+                'timeout': 90
+            },
+            'arm-m55': {
+                'script': 'do-qemuarm',
+                'args': '-Ban547',
+                'timeout': 90
+            },
             'm68k': {
                 'script': 'do-qemum68k',
                 'args': '',
@@ -350,7 +378,7 @@ class QEMUTestRunner:
 
 def main():
     parser = argparse.ArgumentParser(description='Run LK QEMU tests for multiple architectures')
-    parser.add_argument('--arch', choices=['arm', 'arm64', 'm68k', 'riscv32', 'riscv64', 'x86', 'x86-64', 'x86-64-uefi'], action='append',
+    parser.add_argument('--arch', choices=['arm', 'arm64', 'arm-m3', 'arm-m4', 'arm-m7', 'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv64', 'x86', 'x86-64', 'x86-64-uefi'], action='append',
                        help='Architecture to test (can be specified multiple times)')
     parser.add_argument('--lk-root', default='.',
                        help='Path to LK root directory (default: current directory)')

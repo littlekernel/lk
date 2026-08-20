@@ -29,6 +29,8 @@ function HELP {
     echo "-6                : 64bit arm (default is 32bit)"
     echo "-3                : cortex-m3 based platform (most other options ignored)"
     echo "-0                : cortex-m0 based platform, BBC micro:bit v1 (most other options ignored)"
+    echo "-B <board>        : ARM MPS2/MPS3 cortex-m board (most other options ignored)"
+    echo "                    one of: an385 (M3), an386 (M4), an500 (M7), an505 (M33), an547 (M55)"
     echo "-P <page size>    : set the page size (default: 4K, valid: 4k/4096, 16k/16384, 64k/65536)"
     echo "-v                : boot kernel at EL2"
     echo "-k                : use KVM or HVF acceleration if present (only on 64bit)"
@@ -62,6 +64,7 @@ DO_64BIT=0
 DO_VIRT=0
 DO_CORTEX_M3=0
 DO_CORTEX_M0=0
+MPS_BOARD=""
 DO_KVM=0
 DO_DISPLAY=0
 DO_CMPCTMALLOC=0
@@ -79,9 +82,10 @@ GIC_VERSION=""
 NETDEV=""
 DO_NETDEV_OVERRIDE=0
 
-while getopts A:cCd:gG:hkm:MntN:036vp:P:s:f:X FLAG; do
+while getopts A:B:cCd:gG:hkm:MntN:036vp:P:s:f:X FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
+        B) MPS_BOARD=$OPTARG;;
         c) DO_CMPCTMALLOC=1;;
         C) DO_PCI_VIRTIO=1;;
         d)
@@ -114,14 +118,21 @@ done
 shift $((OPTIND-1))
 
 # validate option combinations
-if (( DO_CORTEX_M0 && DO_CORTEX_M3 )); then
-    echo "Error: Cannot use both -0 (Cortex-M0) and -3 (Cortex-M3) together"
+DO_MPS=0
+if [[ -n "$MPS_BOARD" ]]; then
+    DO_MPS=1
+fi
+
+if (( DO_CORTEX_M0 + DO_CORTEX_M3 + DO_MPS > 1 )); then
+    echo "Error: -0 (Cortex-M0), -3 (Cortex-M3) and -B (MPS2/MPS3) are mutually exclusive"
     exit 1
 fi
 
-if (( DO_CORTEX_M0 || DO_CORTEX_M3 )); then
+if (( DO_CORTEX_M0 || DO_CORTEX_M3 || DO_MPS )); then
     # the Cortex-M platforms are very limited and don't support most features
-    if (( DO_CORTEX_M0 )); then CORTEX_M_OPT="-0 (Cortex-M0)"; else CORTEX_M_OPT="-3 (Cortex-M3)"; fi
+    if (( DO_CORTEX_M0 )); then CORTEX_M_OPT="-0 (Cortex-M0)";
+    elif (( DO_MPS )); then CORTEX_M_OPT="-B (MPS2/MPS3)";
+    else CORTEX_M_OPT="-3 (Cortex-M3)"; fi
     INVALID_OPTS=()
     if (( DO_64BIT )); then INVALID_OPTS+=("-6 (64-bit)"); fi
     if (( DO_KVM )); then INVALID_OPTS+=("-k (KVM/HVF)"); fi
@@ -131,6 +142,11 @@ if (( DO_CORTEX_M0 || DO_CORTEX_M3 )); then
     if (( DO_DISPLAY )); then INVALID_OPTS+=("-g (display)"); fi
     if (( DO_V9P )); then INVALID_OPTS+=("-f (9p)"); fi
     if [[ "$PAGE_SIZE" != "4096" ]]; then INVALID_OPTS+=("-P (page size)"); fi
+    # the MPS machines have a fixed amount of ram and reject -m outright
+    if (( DO_MPS )); then
+        if [[ "$MEMSIZE" != "512" ]]; then INVALID_OPTS+=("-m (memory size)"); fi
+        if [[ "$SMP" != "1" ]]; then INVALID_OPTS+=("-s (cpus)"); fi
+    fi
 
     if (( ${#INVALID_OPTS[@]} > 0 )); then
         echo "Warning: $CORTEX_M_OPT does not support: ${INVALID_OPTS[*]}"
@@ -176,7 +192,24 @@ fi
 # pick the appropriate qemu and project.
 # the cortex-m machines are checked first, so that the options warned about
 # above really are ignored.
-if (( DO_CORTEX_M3 )); then
+if (( DO_MPS )); then
+    # ARM's MPS2/MPS3 prototyping boards, which qemu models with a range of
+    # cortex-m cores. See platform/mps2/README.md.
+    QEMU="qemu-system-arm"
+    case $MPS_BOARD in
+        an385) CPU="cortex-m3";  MACHINE="mps2-an385";;
+        an386) CPU="cortex-m4";  MACHINE="mps2-an386";;
+        an500) CPU="cortex-m7";  MACHINE="mps2-an500";;
+        an505) CPU="cortex-m33"; MACHINE="mps2-an505";;
+        an547) CPU="cortex-m55"; MACHINE="mps3-an547";;
+        *)
+            echo "Error: unknown MPS board '$MPS_BOARD'"
+            echo "Valid boards: an385 (M3), an386 (M4), an500 (M7), an505 (M33), an547 (M55)"
+            exit 1
+            ;;
+    esac
+    _PROJECT="${MACHINE}-test"
+elif (( DO_CORTEX_M3 )); then
     QEMU="qemu-system-arm"
     CPU="cortex-m3"
     MACHINE="lm3s6965evb"
@@ -263,12 +296,29 @@ fi
 # construct a list of args based on previous variables using arrays
 ARGS=()
 ARGS+=("-cpu" "$CPU")
-ARGS+=("-m" "$MEMSIZE")
-ARGS+=("-smp" "$SMP")
+if (( ! DO_MPS )); then
+    # the MPS machines have a fixed memory map and a single cpu, and error out
+    # if told otherwise
+    ARGS+=("-m" "$MEMSIZE")
+    ARGS+=("-smp" "$SMP")
+fi
 ARGS+=("-machine" "$MACHINE")
 ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
 
-if [[ -n "$CMDLINE" ]]; then
+if (( DO_MPS )); then
+    # These boards have no way to hand a command line to the guest and no way
+    # to power themselves off, so the platform uses semihosting for both. The
+    # kernel reads the command line back with SYS_GET_CMDLINE, which returns
+    # the arg= values joined with spaces.
+    #
+    # Note qemu's option parser splits on commas, so a command line containing
+    # one cannot be passed this way.
+    SEMIHOSTING="enable=on,target=native"
+    if [[ -n "$CMDLINE" ]]; then
+        SEMIHOSTING+=",arg=$CMDLINE"
+    fi
+    ARGS+=("-semihosting-config" "$SEMIHOSTING")
+elif [[ -n "$CMDLINE" ]]; then
     ARGS+=("-append" "$CMDLINE")
 fi
 
@@ -310,7 +360,7 @@ if (( DO_V9P )); then
     ARGS+=("-device" "${VIRTIO_9P_DEVICE},fsdev=v9p0,mount_tag=V9P0")
 fi
 
-if (( ! DO_CORTEX_M0 && ! DO_CORTEX_M3 )); then
+if (( ! DO_CORTEX_M0 && ! DO_CORTEX_M3 && ! DO_MPS )); then
     ARGS+=("-device" "${VIRTIO_RNG_DEVICE}")
 fi
 

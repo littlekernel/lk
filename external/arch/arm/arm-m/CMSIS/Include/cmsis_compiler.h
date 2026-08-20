@@ -48,6 +48,13 @@
 
 
 /*
+ * Any other Clang (not armclang)
+ */
+#elif defined ( __clang__ )
+  #include "cmsis_armclang.h"
+
+
+/*
  * GNU Compiler
  */
 #elif defined ( __GNUC__ )

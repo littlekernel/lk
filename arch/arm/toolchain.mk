@@ -81,17 +81,19 @@ ifeq ($(ARM_CPU),cortex-m55)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)
 endif
 ifeq ($(ARM_CPU),cortex-m7)
-# use cortex-m4 for now until better general toolchain support
-ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m4
+ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m7
 endif
 ifeq ($(ARM_CPU),cortex-m7-fpu-sp-d16)
-# use cortex-m4 for now until better general toolchain support
-ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m4
-ARCH_arm_COMPILEFLAGS_FLOAT += -mfpu=fpv4-sp-d16 -mfloat-abi=softfp
+ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m7
+ARCH_arm_COMPILEFLAGS_FLOAT += -mfpu=fpv5-sp-d16 -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),cortex-m4f)
 ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m4
 ARCH_arm_COMPILEFLAGS_FLOAT += -mfpu=fpv4-sp-d16 -mfloat-abi=softfp
+endif
+ifeq ($(ARM_CPU),cortex-m33f)
+ARCH_arm_COMPILEFLAGS += -mcpu=cortex-m33
+ARCH_arm_COMPILEFLAGS_FLOAT += -mfpu=fpv5-sp-d16 -mfloat-abi=softfp
 endif
 ifeq ($(ARM_CPU),cortex-a7)
 ARCH_arm_COMPILEFLAGS += -mcpu=$(ARM_CPU)

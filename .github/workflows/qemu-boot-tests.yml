@@ -25,6 +25,11 @@ jobs:
         arch:
           - arm
           - arm64
+          - arm-m3
+          - arm-m4
+          - arm-m7
+          - arm-m33
+          - arm-m55
           - m68k
           - riscv32
           - riscv64
@@ -61,7 +66,7 @@ jobs:
       shell: bash
       run: |
         case "${{ matrix.arch }}" in
-            arm) TOOLCHAIN_PREFIX="arm-eabi-" ;;
+            arm|arm-m*) TOOLCHAIN_PREFIX="arm-eabi-" ;;
             arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
             m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
             riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;

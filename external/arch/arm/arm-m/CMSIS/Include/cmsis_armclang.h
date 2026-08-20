@@ -27,6 +27,9 @@
 #ifndef __CMSIS_ARMCLANG_H
 #define __CMSIS_ARMCLANG_H
 
+/* LK: include lk's compiler.h first, which has some of the same #defines */
+#include <lk/compiler.h>
+
 #pragma clang system_header   /* treat file as system include file */
 
 /* CMSIS compiler specific defines */

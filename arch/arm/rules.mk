@@ -86,6 +86,20 @@ HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
 endif
+ifeq ($(ARM_CPU),cortex-m33f)
+GLOBAL_DEFINES += \
+	ARM_CPU_CORTEX_M33=1 \
+	ARM_CPU_CORTEX_M33F=1 \
+	ARM_ISA_ARMv8=1 \
+	ARM_ISA_ARMv8M=1 \
+	ARM_WITH_THUMB=1 \
+	ARM_WITH_THUMB2=1 \
+	ARM_WITH_VFP=1 \
+	ARM_WITH_VFP_SP_ONLY=1
+HANDLED_CORE := true
+ENABLE_THUMB := true
+SUBARCH := arm-m
+endif
 ifeq ($(ARM_CPU),cortex-m55)
 GLOBAL_DEFINES += \
 	ARM_CPU_CORTEX_M55=1 \
@@ -120,8 +134,7 @@ GLOBAL_DEFINES += \
 	ARM_WITH_THUMB2=1 \
 	ARM_WITH_CACHE=1 \
 	ARM_WITH_VFP=1 \
-	ARM_WITH_VFP_SP_ONLY=1 \
-	WITH_NO_FP=1
+	ARM_WITH_VFP_SP_ONLY=1
 HANDLED_CORE := true
 ENABLE_THUMB := true
 SUBARCH := arm-m
@@ -346,13 +359,20 @@ endif
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
-	$(LOCAL_DIR)/arm-m/arch.c \
 	$(LOCAL_DIR)/arm-m/cache.c \
 	$(LOCAL_DIR)/arm-m/exceptions.c \
 	$(LOCAL_DIR)/arm-m/spin_cycles.c \
 	$(LOCAL_DIR)/arm-m/start.c \
-	$(LOCAL_DIR)/arm-m/thread.c \
 	$(LOCAL_DIR)/arm-m/vectab.c
+
+# arch.c enables the FPU via CPACR and thread.c saves and restores the FP
+# context across a switch. Both are guarded by CMSIS's __FPU_USED, which is
+# only 1 when the file itself is compiled with the float switches, so these
+# two have to be built as float sources. The same applies to the arm32 files
+# above.
+MODULE_FLOAT_SRCS += \
+	$(LOCAL_DIR)/arm-m/arch.c \
+	$(LOCAL_DIR)/arm-m/thread.c
 
 # we're building for small binaries
 GLOBAL_DEFINES += \

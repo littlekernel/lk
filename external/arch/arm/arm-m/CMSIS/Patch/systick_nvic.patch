@@ -1,34 +1,37 @@
-From ca573f42e31400b1e8301e75a74424a9248a1f75 Mon Sep 17 00:00:00 2001
-From: Travis Geiselbrecht <travisg@gmail.com>
-Date: Tue, 11 Jun 2019 15:37:00 -0700
-Subject: [PATCH] reapply the systick patch to cmsis
-
-SysTick_Config() tries to set the systick priority to max. Comment out
-this line since arch/arm/arm-m/arch.c sets the priority to medium to
-compete with the rest of the exceptions in the system.
-
-Also include lk/compiler.h to avoid redundant cmsis macros.
----
- external/arch/arm/arm-m/CMSIS/Include/cmsis_gcc.h      | 3 +++
- external/arch/arm/arm-m/CMSIS/Include/core_armv81mml.h | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_armv8mbl.h  | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_armv8mml.h  | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm0.h       | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm0plus.h   | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm1.h       | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm23.h      | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm3.h       | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm33.h      | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm35p.h     | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm4.h       | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm55.h      | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_cm7.h       | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_sc000.h     | 2 +-
- external/arch/arm/arm-m/CMSIS/Include/core_sc300.h     | 2 +-
- 16 files changed, 18 insertions(+), 15 deletions(-)
-
+diff --git a/external/arch/arm/arm-m/CMSIS/Include/cmsis_armclang.h b/external/arch/arm/arm-m/CMSIS/Include/cmsis_armclang.h
+index 691141774..6420ea1b8 100644
+--- a/external/arch/arm/arm-m/CMSIS/Include/cmsis_armclang.h
++++ b/external/arch/arm/arm-m/CMSIS/Include/cmsis_armclang.h
+@@ -27,6 +27,9 @@
+ #ifndef __CMSIS_ARMCLANG_H
+ #define __CMSIS_ARMCLANG_H
+ 
++/* LK: include lk's compiler.h first, which has some of the same #defines */
++#include <lk/compiler.h>
++
+ #pragma clang system_header   /* treat file as system include file */
+ 
+ /* CMSIS compiler specific defines */
+diff --git a/external/arch/arm/arm-m/CMSIS/Include/cmsis_compiler.h b/external/arch/arm/arm-m/CMSIS/Include/cmsis_compiler.h
+index adbf296f1..8ac717085 100644
+--- a/external/arch/arm/arm-m/CMSIS/Include/cmsis_compiler.h
++++ b/external/arch/arm/arm-m/CMSIS/Include/cmsis_compiler.h
+@@ -47,6 +47,13 @@
+   #include "cmsis_armclang.h"
+ 
+ 
++/*
++ * Any other Clang (not armclang)
++ */
++#elif defined ( __clang__ )
++  #include "cmsis_armclang.h"
++
++
+ /*
+  * GNU Compiler
+  */
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/cmsis_gcc.h b/external/arch/arm/arm-m/CMSIS/Include/cmsis_gcc.h
-index 67bda4ef..dc3ae357 100644
+index 67bda4ef3..dc3ae357f 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/cmsis_gcc.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/cmsis_gcc.h
 @@ -25,6 +25,9 @@
@@ -42,10 +45,10 @@ index 67bda4ef..dc3ae357 100644
  #pragma GCC diagnostic push
  #pragma GCC diagnostic ignored "-Wsign-conversion"
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_armv81mml.h b/external/arch/arm/arm-m/CMSIS/Include/core_armv81mml.h
-index 4a15992f..7e95a520 100644
+index 94128a1a7..272787d1a 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_armv81mml.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_armv81mml.h
-@@ -4084,7 +4084,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
+@@ -4096,7 +4096,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
    }
  
    SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
@@ -55,7 +58,7 @@ index 4a15992f..7e95a520 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_armv8mbl.h b/external/arch/arm/arm-m/CMSIS/Include/core_armv8mbl.h
-index 932d3d18..eeb0342e 100644
+index 932d3d188..eeb0342e9 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_armv8mbl.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_armv8mbl.h
 @@ -2168,7 +2168,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -68,20 +71,20 @@ index 932d3d18..eeb0342e 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_armv8mml.h b/external/arch/arm/arm-m/CMSIS/Include/core_armv8mml.h
-index 2bd9e760..80bd6818 100644
+index c119fbf24..62b6af775 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_armv8mml.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_armv8mml.h
-@@ -3065,7 +3065,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
+@@ -3077,7 +3077,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
    }
  
    SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
 -  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
-+// LK NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
++// LK  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
    SysTick->VAL   = 0UL;                                             /* Load the SysTick Counter Value */
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm0.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm0.h
-index 6441ff34..f4d5d7e9 100644
+index 6441ff341..f4d5d7e98 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm0.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm0.h
 @@ -928,7 +928,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -94,7 +97,7 @@ index 6441ff34..f4d5d7e9 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm0plus.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm0plus.h
-index 4e7179a6..7c589dc1 100644
+index 4e7179a61..7c589dc1b 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm0plus.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm0plus.h
 @@ -1063,7 +1063,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -107,7 +110,7 @@ index 4e7179a6..7c589dc1 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm1.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm1.h
-index 76b45697..aebd6960 100644
+index 76b456974..aebd6960c 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm1.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm1.h
 @@ -955,7 +955,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -120,7 +123,7 @@ index 76b45697..aebd6960 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm23.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm23.h
-index 55fff995..717bc828 100644
+index 55fff9950..717bc8286 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm23.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm23.h
 @@ -2243,7 +2243,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -133,7 +136,7 @@ index 55fff995..717bc828 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm3.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm3.h
-index 74fb87e5..fd2bcfc8 100644
+index 74fb87e5c..fd2bcfc83 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm3.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm3.h
 @@ -1841,7 +1841,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -146,10 +149,10 @@ index 74fb87e5..fd2bcfc8 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm33.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm33.h
-index f9cf6ab1..e0ba8e0e 100644
+index 18a2e6fb0..0598b93bc 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm33.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm33.h
-@@ -3133,7 +3133,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
+@@ -3145,7 +3145,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
    }
  
    SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
@@ -159,10 +162,10 @@ index f9cf6ab1..e0ba8e0e 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm35p.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm35p.h
-index 552c2946..ab65cc51 100644
+index 3843d9542..a1f216a1b 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm35p.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm35p.h
-@@ -3133,7 +3133,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
+@@ -3145,7 +3145,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
    }
  
    SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
@@ -172,7 +175,7 @@ index 552c2946..ab65cc51 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm4.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm4.h
-index e21cd149..52ef4922 100644
+index e21cd1492..52ef49224 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm4.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm4.h
 @@ -2027,7 +2027,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -185,20 +188,20 @@ index e21cd149..52ef4922 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm55.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm55.h
-index 51b68e6d..e0af1db5 100644
+index faa30ce36..ee6f20892 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm55.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm55.h
-@@ -4145,7 +4145,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
+@@ -4685,7 +4685,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
    }
  
    SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
 -  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
-+// LK NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
++// LK  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
    SysTick->VAL   = 0UL;                                             /* Load the SysTick Counter Value */
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm7.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm7.h
-index 010506e9..3a45a63b 100644
+index 010506e9f..3a45a63bb 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_cm7.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm7.h
 @@ -2264,7 +2264,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -210,8 +213,21 @@ index 010506e9..3a45a63b 100644
    SysTick->VAL   = 0UL;                                             /* Load the SysTick Counter Value */
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
+diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_cm85.h b/external/arch/arm/arm-m/CMSIS/Include/core_cm85.h
+index 604631118..136787605 100644
+--- a/external/arch/arm/arm-m/CMSIS/Include/core_cm85.h
++++ b/external/arch/arm/arm-m/CMSIS/Include/core_cm85.h
+@@ -4540,7 +4540,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
+   }
+ 
+   SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
+-  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
++// LK  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
+   SysTick->VAL   = 0UL;                                             /* Load the SysTick Counter Value */
+   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
+                    SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_sc000.h b/external/arch/arm/arm-m/CMSIS/Include/core_sc000.h
-index dbc755ff..fe52f94c 100644
+index dbc755fff..fe52f94c3 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_sc000.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_sc000.h
 @@ -1006,7 +1006,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -224,7 +240,7 @@ index dbc755ff..fe52f94c 100644
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
 diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_sc300.h b/external/arch/arm/arm-m/CMSIS/Include/core_sc300.h
-index d6662103..ce1405f9 100644
+index d66621031..ce1405f9f 100644
 --- a/external/arch/arm/arm-m/CMSIS/Include/core_sc300.h
 +++ b/external/arch/arm/arm-m/CMSIS/Include/core_sc300.h
 @@ -1815,7 +1815,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
@@ -236,6 +252,16 @@ index d6662103..ce1405f9 100644
    SysTick->VAL   = 0UL;                                             /* Load the SysTick Counter Value */
    SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
                     SysTick_CTRL_TICKINT_Msk   |
--- 
-2.25.1
-
+diff --git a/external/arch/arm/arm-m/CMSIS/Include/core_starmc1.h b/external/arch/arm/arm-m/CMSIS/Include/core_starmc1.h
+index d86c8d385..a46f65ae4 100644
+--- a/external/arch/arm/arm-m/CMSIS/Include/core_starmc1.h
++++ b/external/arch/arm/arm-m/CMSIS/Include/core_starmc1.h
+@@ -3460,7 +3460,7 @@ __STATIC_INLINE uint32_t SysTick_Config(uint32_t ticks)
+   }
+ 
+   SysTick->LOAD  = (uint32_t)(ticks - 1UL);                         /* set reload register */
+-  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
++// LK  NVIC_SetPriority (SysTick_IRQn, (1UL << __NVIC_PRIO_BITS) - 1UL); /* set Priority for Systick Interrupt */
+   SysTick->VAL   = 0UL;                                             /* Load the SysTick Counter Value */
+   SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
+                    SysTick_CTRL_TICKINT_Msk   |

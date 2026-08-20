@@ -57,12 +57,17 @@
  * losing or mixing up whole registers across a context switch lands orders of
  * magnitude away (or on a NaN), so this still catches what the test is for.
  *
- * Note this tolerance was calibrated against the double precision path, which
- * is what every qemu target in CI exercises. The ARM_WITH_VFP_SP_ONLY path
- * carries only about 1e-7 relative precision to begin with, and test_results_32
- * has never been run on hardware, so expect to have to widen the tolerance and
- * regenerate that table the first time this runs on a single precision only
- * target. */
+ * Note this tolerance was calibrated against the double precision path. The
+ * ARM_WITH_VFP_SP_ONLY path is far tighter than it looks: for the magnitudes in
+ * test_results_32 (~4.8e4) one float ULP is ~3.9e-3 while mag * FLOAT_TOLERANCE
+ * is ~4.8e-5, so the comparison there is effectively exact. It passes anyway
+ * because both sides are the same single precision computation and qemu's FPU
+ * emulation is IEEE exact -- the ~1e-7 of drift single precision could in
+ * principle accumulate never materializes. The cortex-m targets in
+ * scripts/run-qemu-boot-tests.py (arm-m4, arm-m7, arm-m33) cover that path.
+ * test_results_32 still has not been checked on real silicon, where a non
+ * default FPSCR (flush to zero, alternative NaN handling) could drift, so
+ * expect to widen the tolerance the first time this runs on hardware. */
 #define FLOAT_TOLERANCE 1e-9
 
 static bool value_close(double got, double expected) {
@@ -184,7 +189,15 @@ static bool float_test(void) {
                 all_ok = false;
             }
         } else {
-            double result = val[i];
+            /* Both arms are compiled on every target -- the sizeof() above is a
+             * runtime branch on purpose, so the tables and comparisons for both
+             * widths keep getting type checked everywhere. That means this arm
+             * is still compiled when FLOAT is float, where reading val[i] widens
+             * to double. The cast says that is intentional; without it clang's
+             * -Wdouble-promotion fires on the single precision targets (gcc's
+             * version of the warning ignores assignment contexts, so it stays
+             * quiet either way). */
+            double result = (double)val[i];
             uint64_t result_u64;
             memcpy(&result_u64, &result, sizeof(result_u64));
             double expected;

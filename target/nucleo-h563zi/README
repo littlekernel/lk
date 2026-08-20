@@ -1,0 +1,82 @@
+
+Notes on the ST Nucleo-H563ZI Board
+-----------------------------------
+
+https://www.st.com/en/evaluation-tools/nucleo-h563zi.html
+
+Nucleo-144 form factor board built around an STM32H563ZIT6: a Cortex-M33
+(ARMv8-M, single precision FPU) with 2MB of flash and 640KB of SRAM. An
+ST-LINK V3EC is on board, so no external debugger is needed.
+
+Build and run with:
+
+    make nucleo-h563zi-test
+
+
+LK Debug/Console UART
+---------------------
+- USART3 is used, at 115200 8N1
+- TX is D8
+- RX is D9
+- both run to the on board ST-LINK's virtual com port, which shows up on the
+  host as something like /dev/ttyACM0. No wiring needed.
+
+
+LEDs and button
+---------------
+- LD1 (green)  is B0
+- LD2 (yellow) is F4
+- LD3 (red)    is G4
+- the user button is C13, and reads 1 while held
+
+The target is built with TARGET_HAS_DEBUG_LED, which means the kernel drives
+the first two of those itself and they are not free for general use: LED0 (LD1)
+follows whether a non-idle thread is running, out of thread.c's context switch,
+and LED1 (LD2) is toggled around interrupt handling by arch/arm/arm-m/arch.c,
+so it sits faintly lit whenever interrupts are busy. LD3 is untouched.
+
+
+Loading with probe-rs
+---------------------
+probe-rs is the easy path here, and it needs no config files. Note that
+upstream OpenOCD has no STM32H5 support at all (only ST's fork does), so
+probe-rs is the practical choice for this board.
+
+    probe-rs download --chip STM32H563ZI build-nucleo-h563zi-test/lk.elf
+    probe-rs reset --chip STM32H563ZI
+
+Then attach to the console with any terminal program, e.g.
+
+    screen /dev/ttyACM0 115200
+
+Other things worth knowing:
+
+    probe-rs list                       # check the probe is seen at all
+    probe-rs info --chip STM32H563ZI    # read the debug ports and core out
+    probe-rs attach --chip STM32H563ZI build-nucleo-h563zi-test/lk.elf
+    probe-rs gdb --chip STM32H563ZI     # gdb server on :1337
+
+If probe-rs reports no probes found while the board is plugged in and
+enumerating (0483:374e in lsusb), the host udev rules are probably missing or
+too old; see https://probe.rs/docs/getting-started/probe-setup/. Hand written
+ST-LINK rule sets predating the V3 are common, and they do not match the V3EC
+on this board.
+
+
+Clocking
+--------
+The platform currently runs from the reset HSI, which is 32MHz because the
+part comes out of reset with HSIDIV set to 2. The systick rate and the uart
+divisor are both derived from SystemCoreClock, so they follow whatever the
+clock setup leaves behind. The board can feed 8MHz into HSE from the ST-LINK
+MCO, and the part will run to 250MHz, but neither is set up yet.
+
+
+TrustZone
+---------
+The H563 has TrustZone, but LK does not use it: the build runs in secure state
+with TZEN left at its factory setting and no SAU configuration. The
+securefault decoding in arch/arm/arm-m/exceptions.c is compiled out, since it
+is gated on __ARM_FEATURE_CMSE == 3 and nothing passes -mcmse. If a board has
+been provisioned with TZEN enabled at some point, expect it not to boot as is;
+check the option bytes with STM32CubeProgrammer.
