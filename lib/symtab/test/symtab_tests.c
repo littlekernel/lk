@@ -21,18 +21,33 @@ __NO_INLINE static void symtab_test_target(void) {
     __asm__ __volatile__("nop; nop; nop; nop");
 }
 
-#define SYMTAB_TEST_TARGET_INTERIOR ((uintptr_t)&symtab_test_target + 2)
+/* The address the linker recorded for a function.
+ *
+ * On ARM a pointer to a Thumb function has bit 0 set to select the
+ * instruction set, but the symbol itself sits at the even address, and no pc
+ * ever has that bit set. Mask it off before comparing against the table.
+ */
+static inline uintptr_t func_addr(const void *f) {
+#if ARCH_ARM
+    return (uintptr_t)f & ~(uintptr_t)1;
+#else
+    return (uintptr_t)f;
+#endif
+}
+
+#define SYMTAB_TEST_TARGET (func_addr(&symtab_test_target))
+#define SYMTAB_TEST_TARGET_INTERIOR (SYMTAB_TEST_TARGET + 2)
 
 /* the address a function symbol starts at resolves to that function */
 static bool test_lookup_exact(void) {
     BEGIN_TEST;
 
     uintptr_t base = 0;
-    const char *name = symtab_lookup((uintptr_t)&symtab_test_target, &base);
+    const char *name = symtab_lookup(SYMTAB_TEST_TARGET, &base);
 
     ASSERT_NONNULL(name, "no symbol for a known function");
     EXPECT_EQ(0, strcmp(name, "symtab_test_target"), "wrong symbol name");
-    EXPECT_EQ((uintptr_t)&symtab_test_target, base, "wrong symbol base");
+    EXPECT_EQ(SYMTAB_TEST_TARGET, base, "wrong symbol base");
 
     END_TEST;
 }
@@ -46,7 +61,7 @@ static bool test_lookup_interior(void) {
 
     ASSERT_NONNULL(name, "no symbol for an address inside a function");
     EXPECT_EQ(0, strcmp(name, "symtab_test_target"), "wrong symbol name");
-    EXPECT_EQ((uintptr_t)&symtab_test_target, base, "wrong symbol base");
+    EXPECT_EQ(SYMTAB_TEST_TARGET, base, "wrong symbol base");
 
     END_TEST;
 }
@@ -55,7 +70,7 @@ static bool test_lookup_interior(void) {
 static bool test_lookup_no_base(void) {
     BEGIN_TEST;
 
-    const char *name = symtab_lookup((uintptr_t)&symtab_test_target, NULL);
+    const char *name = symtab_lookup(SYMTAB_TEST_TARGET, NULL);
     ASSERT_NONNULL(name, "no symbol for a known function");
 
     END_TEST;
@@ -80,7 +95,7 @@ static bool test_table_ordered(void) {
     BEGIN_TEST;
 
     uintptr_t base = 0;
-    ASSERT_NONNULL(symtab_lookup((uintptr_t)&symtab_test_target, &base), "no symbol");
+    ASSERT_NONNULL(symtab_lookup(SYMTAB_TEST_TARGET, &base), "no symbol");
 
     /* walking backwards from a known symbol must land on symbols at strictly
      * decreasing addresses
