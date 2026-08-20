@@ -87,18 +87,21 @@ void mps2_uart0_rx_irq(void) {
      */
     uart0->intstatus = UART_INT_RX;
 
+    /*
+     * Always empty the receiver, dropping the byte if there is nowhere to put
+     * it. Leaving it full is not an option to hold the sender off with: the
+     * receiver stops accepting bytes while it is full, and the status bit is
+     * only ever set as a byte arrives, so a full receiver with the bit already
+     * acked raises no further interrupts and the port never recovers.
+     */
     bool resched = false;
     while (uart0->state & UART_STATE_RXFULL) {
-        if (!cbuf_space_avail(&uart0_rx_buf)) {
-            /* Stop taking bytes out of the receiver until someone drains the
-             * buffer, rather than dropping them on the floor here. */
-            uart0->ctrl &= ~UART_CTRL_RX_INTEN;
-            break;
-        }
-
         char c = uart0->data;
-        cbuf_write_char(&uart0_rx_buf, c, false);
-        resched = true;
+
+        if (cbuf_space_avail(&uart0_rx_buf) > 0) {
+            cbuf_write_char(&uart0_rx_buf, c, false);
+            resched = true;
+        }
     }
 
     arm_cm_irq_exit(resched);
@@ -115,15 +118,11 @@ int uart_putc(int port, char c) {
 }
 
 int uart_getc(int port, bool wait) {
-    cmsdk_uart_t *uart = mps2_get_uart(port);
     cbuf_t *rxbuf = mps2_get_rxbuf(port);
 
     char c;
     if (cbuf_read_char(rxbuf, &c, wait) == 0) {
         return -1;
-    }
-    if (cbuf_space_avail(rxbuf) > RXBUF_SIZE / 2) {
-        uart->ctrl |= UART_CTRL_RX_INTEN;
     }
 
     return c;
