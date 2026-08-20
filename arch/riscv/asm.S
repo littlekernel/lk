@@ -84,6 +84,9 @@ END_FUNCTION(riscv_context_switch)
     STR    a1, RISCV_IFRAME_A(1)(sp)
     STR    a0, RISCV_IFRAME_A(0)(sp)
     STR    ra, RISCV_IFRAME_RA(sp)
+    // s0 is callee saved, so it is still the interrupted context's frame
+    // pointer here. Save it for the stack backtracer; no need to restore.
+    STR    s0, RISCV_IFRAME_S0(sp)
     csrr   t0, RISCV_CSR_XSTATUS
     STR    t0, RISCV_IFRAME_STATUS(sp)
     csrr   a0, RISCV_CSR_XCAUSE
