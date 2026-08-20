@@ -27,12 +27,6 @@ class QEMUTestRunner:
             # The cortex-m boards qemu models for ARM's MPS2/MPS3 prototyping
             # systems, one per core generation. These exercise arch/arm/arm-m,
             # which nothing else here covers.
-            #
-            # Only the M3 is clang clean. The cores with an FPU trip a
-            # double promotion warning in arch/test/float_tests.c that clang
-            # diagnoses and gcc does not, and the M55 hits a clang specific
-            # problem in CMSIS's core_cm55.h. Both predate these targets and
-            # affect the existing cortex-m projects the same way.
             'arm-m3': {
                 'script': 'do-qemuarm',
                 'args': '-Ban385',
@@ -41,26 +35,22 @@ class QEMUTestRunner:
             'arm-m4': {
                 'script': 'do-qemuarm',
                 'args': '-Ban386',
-                'timeout': 90,
-                'experimental_toolchains': ['clang', 'clang-lld']
+                'timeout': 90
             },
             'arm-m7': {
                 'script': 'do-qemuarm',
                 'args': '-Ban500',
-                'timeout': 90,
-                'experimental_toolchains': ['clang', 'clang-lld']
+                'timeout': 90
             },
             'arm-m33': {
                 'script': 'do-qemuarm',
                 'args': '-Ban505',
-                'timeout': 90,
-                'experimental_toolchains': ['clang', 'clang-lld']
+                'timeout': 90
             },
             'arm-m55': {
                 'script': 'do-qemuarm',
                 'args': '-Ban547',
-                'timeout': 90,
-                'experimental_toolchains': ['clang', 'clang-lld']
+                'timeout': 90
             },
             'm68k': {
                 'script': 'do-qemum68k',
