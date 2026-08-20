@@ -27,6 +27,13 @@ void backtrace_print_current(void);
  */
 void backtrace_print(uintptr_t pc, uintptr_t fp);
 
+/* Print a backtrace of a thread that is not currently running, whose pc and
+ * fp come from arch_thread_get_backtrace_regs(). Frames are bounds checked
+ * against that thread's stack rather than the caller's.
+ */
+struct thread;
+void backtrace_print_thread(const struct thread *t, uintptr_t pc, uintptr_t fp);
+
 /* Fill pcs with the return addresses of the frame described by pc and fp,
  * innermost first, and return how many were found. Mostly here so tests can
  * check the walk without parsing console output.

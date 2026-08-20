@@ -27,3 +27,7 @@ void backtrace_print(uintptr_t pc, uintptr_t fp) {
 void backtrace_print_current(void) {
     backtrace_print(0, 0);
 }
+
+void backtrace_print_thread(const struct thread *t, uintptr_t pc, uintptr_t fp) {
+    backtrace_print(pc, fp);
+}

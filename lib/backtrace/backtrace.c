@@ -46,9 +46,7 @@ static inline uintptr_t frame_record(uintptr_t fp) {
  * stack of the thread they interrupted, so the current thread's stack bounds
  * the frames of a fault as well as those of an ordinary call.
  */
-static void stack_bounds(uintptr_t fp, uintptr_t *lo, uintptr_t *hi) {
-    const thread_t *t = get_current_thread();
-
+static void stack_bounds(const thread_t *t, uintptr_t fp, uintptr_t *lo, uintptr_t *hi) {
     /* Early in boot, and on a stack that a corrupt thread pointer no longer
      * describes, fall back to trusting a window above where we started.
      */
@@ -87,7 +85,7 @@ static bool frame_valid(uintptr_t fp, uintptr_t prev_fp, uintptr_t lo, uintptr_t
     return true;
 }
 
-size_t backtrace_capture(uintptr_t pc, uintptr_t fp, uintptr_t *pcs, size_t max) {
+static size_t capture(const thread_t *t, uintptr_t pc, uintptr_t fp, uintptr_t *pcs, size_t max) {
     size_t count = 0;
 
     if (max == 0) {
@@ -102,7 +100,7 @@ size_t backtrace_capture(uintptr_t pc, uintptr_t fp, uintptr_t *pcs, size_t max)
     }
 
     uintptr_t lo, hi;
-    stack_bounds(fp, &lo, &hi);
+    stack_bounds(t, fp, &lo, &hi);
 
     uintptr_t prev_fp = 0;
     while (count < max && frame_valid(fp, prev_fp, lo, hi)) {
@@ -126,6 +124,10 @@ size_t backtrace_capture(uintptr_t pc, uintptr_t fp, uintptr_t *pcs, size_t max)
     return count;
 }
 
+size_t backtrace_capture(uintptr_t pc, uintptr_t fp, uintptr_t *pcs, size_t max) {
+    return capture(get_current_thread(), pc, fp, pcs, max);
+}
+
 static void print_frame(size_t index, uintptr_t pc, bool is_return_address) {
 #if WITH_LIB_SYMTAB
     /* A return address is the instruction after the call, which lands in the
@@ -145,7 +147,7 @@ static void print_frame(size_t index, uintptr_t pc, bool is_return_address) {
     printf("#%02zu %p\n", index, (void *)pc);
 }
 
-void backtrace_print(uintptr_t pc, uintptr_t fp) {
+static void print_backtrace(const thread_t *t, uintptr_t pc, uintptr_t fp) {
     /* If printing a frame faults, the fault handler will try to print a
      * backtrace of its own. Report the first one and let the second fail
      * quietly rather than recursing until the stack runs out.
@@ -158,7 +160,7 @@ void backtrace_print(uintptr_t pc, uintptr_t fp) {
     printing = true;
 
     uintptr_t pcs[MAX_FRAMES];
-    const size_t count = backtrace_capture(pc, fp, pcs, countof(pcs));
+    const size_t count = capture(t, pc, fp, pcs, countof(pcs));
 
     /* Without a pc to start from, every entry came out of a frame record. */
     const bool have_pc = (pc != 0);
@@ -174,6 +176,14 @@ void backtrace_print(uintptr_t pc, uintptr_t fp) {
     }
 
     printing = false;
+}
+
+void backtrace_print(uintptr_t pc, uintptr_t fp) {
+    print_backtrace(get_current_thread(), pc, fp);
+}
+
+void backtrace_print_thread(const struct thread *t, uintptr_t pc, uintptr_t fp) {
+    print_backtrace(t, pc, fp);
 }
 
 void backtrace_print_current(void) {

@@ -158,6 +158,16 @@ status_t thread_set_real_time(thread_t *t);
 
 void dump_thread(const thread_t *t);
 void arch_dump_thread(const thread_t *t);
+
+/* Recover the pc and frame pointer that a thread which is not currently
+ * running will resume with, from wherever the architecture saved them at its
+ * last context switch, so that its stack can be walked.
+ *
+ * Returns false if the architecture does not know how, which is the default.
+ * The thread must not be THREAD_RUNNING: its registers are in the cpu, not
+ * in the saved frame.
+ */
+bool arch_thread_get_backtrace_regs(const thread_t *t, uintptr_t *pc, uintptr_t *fp);
 void dump_all_threads(void);
 void dump_all_threads_unlocked(void);
 void dump_threads_stats(void);

@@ -80,6 +80,20 @@ void arch_context_switch(thread_t *oldthread, thread_t *newthread) {
     arm64_context_switch(&oldthread->arch.sp, newthread->arch.sp);
 }
 
+bool arch_thread_get_backtrace_regs(const thread_t *t, uintptr_t *pc, uintptr_t *fp) {
+    const struct context_switch_frame *frame = (const struct context_switch_frame *)t->arch.sp;
+    if (!frame) {
+        return false;
+    }
+
+    /* arm64_context_switch() saves the frame pointer and return address of
+     * the code that asked for the switch, which is where it will resume.
+     */
+    *pc = frame->lr;
+    *fp = frame->r29;
+    return true;
+}
+
 void arch_dump_thread(const thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");

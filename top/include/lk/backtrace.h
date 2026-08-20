@@ -23,8 +23,11 @@
 
 __BEGIN_CDECLS
 
+struct thread;
+
 static inline void backtrace_print_current(void) {}
 static inline void backtrace_print(uintptr_t pc, uintptr_t fp) {}
+static inline void backtrace_print_thread(const struct thread *t, uintptr_t pc, uintptr_t fp) {}
 
 __END_CDECLS
 

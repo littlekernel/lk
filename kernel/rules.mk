@@ -25,6 +25,6 @@ endif
 
 MODULE_OPTIONS := extra_warnings test
 
-MODULE_WEAK_DEPS += lib/evlog
+MODULE_WEAK_DEPS += lib/evlog lib/backtrace
 
 include make/module.mk

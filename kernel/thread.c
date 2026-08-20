@@ -23,6 +23,7 @@
 #include <kernel/mp.h>
 #include <kernel/timer.h>
 #include <lib/heap.h>
+#include <lk/backtrace.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/list.h>
@@ -978,6 +979,11 @@ static size_t thread_stack_used(const thread_t *t) {
 /**
  * @brief  Dump debugging info about the specified thread.
  */
+/* Architectures that can walk a stack override this. */
+__WEAK bool arch_thread_get_backtrace_regs(const thread_t *t, uintptr_t *pc, uintptr_t *fp) {
+    return false;
+}
+
 void dump_thread(const thread_t *t) {
     dprintf(INFO, "dump_thread: t %p (%s)\n", t, t->name);
 #if WITH_SMP
@@ -1007,6 +1013,16 @@ void dump_thread(const thread_t *t) {
     dprintf(INFO, "\n");
 #endif
     arch_dump_thread(t);
+
+    /* A running thread's registers are in the cpu rather than in its saved
+     * frame, so only a parked one can be walked from the outside.
+     */
+    if (t->state != THREAD_RUNNING) {
+        uintptr_t pc, fp;
+        if (arch_thread_get_backtrace_regs(t, &pc, &fp)) {
+            backtrace_print_thread(t, pc, fp);
+        }
+    }
 }
 
 void dump_all_threads_unlocked(void) {
