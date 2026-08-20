@@ -7,7 +7,6 @@
  */
 #include <arch/arm/cm.h>
 #include <lk/debug.h>
-#include <lk/err.h>
 #include <platform.h>
 #include <platform/mps2.h>
 

@@ -83,8 +83,7 @@ LINKER_SCRIPT += \
 
 MODULE_DEPS += \
 	arch/arm/arm-m/systick \
-	lib/cbuf \
-	lib/io
+	lib/cbuf
 
 ifeq ($(MPS2_WITH_SEMIHOSTING),1)
 MODULE_DEPS += \

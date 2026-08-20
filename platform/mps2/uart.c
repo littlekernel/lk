@@ -9,7 +9,6 @@
 #include <assert.h>
 #include <dev/uart.h>
 #include <lib/cbuf.h>
-#include <lib/io.h>
 #include <platform/mps2.h>
 #include <stdint.h>
 
