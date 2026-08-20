@@ -222,19 +222,27 @@ static inline struct list_node *list_next_wrap(struct list_node *list, struct li
     node != (list);\
     node = temp_node, temp_node = (node)->next)
 
+// The end of the list is the head itself, which is not embedded in a container.
+// Test for it with address arithmetic rather than &(entry)->member: the last
+// iteration holds a containerof() of the head, and taking a member address
+// through it is a member access on a pointer that need not be aligned for the
+// container type, which -fsanitize=alignment flags.
+#define __list_node_addr(entry, type, member) \
+    ((addr_t)(entry) + offsetof(type, member))
+
 // iterates over the list, entry should be the container structure type *
 #define list_for_every_entry(list, entry, type, member) \
     for((entry) = containerof((list)->next, type, member);\
-        &(entry)->member != (list);\
-        (entry) = containerof((entry)->member.next, type, member))
+        __list_node_addr(entry, type, member) != (addr_t)(list);\
+        (entry) = containerof(((struct list_node *)__list_node_addr(entry, type, member))->next, type, member))
 
 // iterates over the list in a safe way for deletion of current node
 // entry and temp_entry should be the container structure type *
 #define list_for_every_entry_safe(list, entry, temp_entry, type, member) \
     for(entry = containerof((list)->next, type, member),\
-        temp_entry = containerof((entry)->member.next, type, member);\
-        &(entry)->member != (list);\
-        entry = temp_entry, temp_entry = containerof((temp_entry)->member.next, type, member))
+        temp_entry = containerof(((struct list_node *)__list_node_addr(entry, type, member))->next, type, member);\
+        __list_node_addr(entry, type, member) != (addr_t)(list);\
+        entry = temp_entry, temp_entry = containerof(((struct list_node *)__list_node_addr(temp_entry, type, member))->next, type, member))
 
 static inline bool list_is_empty(struct list_node *list) {
     return (list->next == list) ? true : false;
