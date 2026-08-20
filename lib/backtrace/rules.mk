@@ -19,7 +19,14 @@ MODULE_WEAK_DEPS += \
 # target it covers, but reports that it cannot walk the stack.
 BACKTRACE_ARCHS := arm64 x86 riscv
 
-ifneq ($(filter $(ARCH),$(BACKTRACE_ARCHS)),)
+# Keeping a frame pointer in every function costs code size across the whole
+# image, not just in this module, which the targets LK_EMBEDDED marks cannot
+# spare. They get the same do nothing build as an unsupported architecture.
+ifeq (0,$(LK_EMBEDDED))
+BACKTRACE_ARCH := $(filter $(ARCH),$(BACKTRACE_ARCHS))
+endif
+
+ifneq ($(BACKTRACE_ARCH),)
 
 MODULE_SRCS += $(LOCAL_DIR)/backtrace.c
 

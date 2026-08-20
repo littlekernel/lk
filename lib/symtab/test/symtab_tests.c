@@ -38,6 +38,8 @@ static inline uintptr_t func_addr(const void *f) {
 #define SYMTAB_TEST_TARGET (func_addr(&symtab_test_target))
 #define SYMTAB_TEST_TARGET_INTERIOR (SYMTAB_TEST_TARGET + 2)
 
+#if SYMTAB_HAVE_TABLE
+
 /* the address a function symbol starts at resolves to that function */
 static bool test_lookup_exact(void) {
     BEGIN_TEST;
@@ -121,3 +123,25 @@ RUN_TEST(test_lookup_no_base)
 RUN_TEST(test_lookup_out_of_range)
 RUN_TEST(test_table_ordered)
 END_TEST_CASE(symtab_tests)
+
+#else /* !SYMTAB_HAVE_TABLE */
+
+/* Builds too small for a table link the empty one, where every lookup has to
+ * report that it knows nothing rather than reaching past the end of it.
+ */
+static bool test_no_table(void) {
+    BEGIN_TEST;
+
+    uintptr_t base = 0xdeadbeef;
+    EXPECT_NULL(symtab_lookup(SYMTAB_TEST_TARGET, &base), "found a symbol without a table");
+    EXPECT_NULL(symtab_lookup(0, NULL), "found a symbol without a table");
+    EXPECT_EQ((uintptr_t)0xdeadbeef, base, "base written on a failed lookup");
+
+    END_TEST;
+}
+
+BEGIN_TEST_CASE(symtab_tests)
+RUN_TEST(test_no_table)
+END_TEST_CASE(symtab_tests)
+
+#endif

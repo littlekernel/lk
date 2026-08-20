@@ -6,10 +6,11 @@
  * https://opensource.org/licenses/MIT
  */
 
-/* Stand in for architectures with no stack walker.
+/* Stand in for builds with no stack walker, either because the architecture
+ * has none or because the target cannot spare the frame pointers.
  *
  * Keeping the module buildable everywhere means a project fragment shared by
- * many targets can list it without knowing which architectures can honour it.
+ * many targets can list it without knowing which of them can honour it.
  */
 
 #include <lib/backtrace.h>
@@ -21,7 +22,7 @@ size_t backtrace_capture(uintptr_t pc, uintptr_t fp, uintptr_t *pcs, size_t max)
 }
 
 void backtrace_print(uintptr_t pc, uintptr_t fp) {
-    printf("backtrace: not supported on this architecture\n");
+    printf("backtrace: not available in this build\n");
 }
 
 void backtrace_print_current(void) {
