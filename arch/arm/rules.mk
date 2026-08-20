@@ -346,13 +346,20 @@ endif
 endif
 ifeq ($(SUBARCH),arm-m)
 MODULE_SRCS += \
-	$(LOCAL_DIR)/arm-m/arch.c \
 	$(LOCAL_DIR)/arm-m/cache.c \
 	$(LOCAL_DIR)/arm-m/exceptions.c \
 	$(LOCAL_DIR)/arm-m/spin_cycles.c \
 	$(LOCAL_DIR)/arm-m/start.c \
-	$(LOCAL_DIR)/arm-m/thread.c \
 	$(LOCAL_DIR)/arm-m/vectab.c
+
+# arch.c enables the FPU via CPACR and thread.c saves and restores the FP
+# context across a switch. Both are guarded by CMSIS's __FPU_USED, which is
+# only 1 when the file itself is compiled with the float switches, so these
+# two have to be built as float sources. The same applies to the arm32 files
+# above.
+MODULE_FLOAT_SRCS += \
+	$(LOCAL_DIR)/arm-m/arch.c \
+	$(LOCAL_DIR)/arm-m/thread.c
 
 # we're building for small binaries
 GLOBAL_DEFINES += \
