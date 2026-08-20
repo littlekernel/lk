@@ -163,28 +163,3 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
         : "memory");
     __UNREACHABLE;
 }
-
-void arch_stacktrace(uint64_t fp, uint64_t pc) {
-    struct arm64_stackframe frame;
-
-    if (!fp) {
-        frame.fp = (uint64_t)__builtin_frame_address(0);
-        frame.pc = (uint64_t)arch_stacktrace;
-    } else {
-        frame.fp = fp;
-        frame.pc = pc;
-    }
-
-    printf("stack trace:\n");
-    while (frame.fp) {
-        printf("0x%llx\n", frame.pc);
-
-        /* Stack frame pointer should be 16 bytes aligned */
-        if (frame.fp & 0xF) {
-            break;
-        }
-
-        frame.pc = *((uint64_t *)(frame.fp + 8));
-        frame.fp = *((uint64_t *)frame.fp);
-    }
-}
