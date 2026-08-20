@@ -11,6 +11,7 @@
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
+#include <platform.h>
 
 /* exceptions */
 #define INT_DIVIDE_0    0x00
@@ -59,14 +60,12 @@ static void dump_fault_frame(x86_iframe_t *frame) {
     }
 }
 
+__NO_RETURN
 static void exception_die(x86_iframe_t *frame, const char *msg) {
     dprintf(CRITICAL, "%s", msg);
     dump_fault_frame(frame);
 
-    for (;;) {
-        x86_cli();
-        x86_hlt();
-    }
+    platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
 static void x86_syscall_handler(x86_iframe_t *frame) {
