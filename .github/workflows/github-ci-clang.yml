@@ -38,6 +38,17 @@ jobs:
           # yet (m68k crashes the Clang integrated assembler on inline asm,
           # mips rejects the -march=m14k CPU name, and or1k's rules.mk
           # explicitly refuses TOOLCHAIN=clang).
+          #
+          # The Stellaris Cortex-M boards are left out for a different reason:
+          # their M4F has a single-precision-only FPU, so double math still
+          # lowers to __aeabi_d* calls, and the fallback above covers only
+          # 64-bit divide/mod -- not float. Ubuntu's libclang-rt ships no ARM
+          # baremetal multilib and this image has no cross-GCC, so LIBGCC comes
+          # out empty and those calls go unresolved at link time (on every
+          # Clang version, not just the old one). Building them here would need
+          # either a real arm-none-eabi libgcc installed in the job or soft
+          # float added to lib/libc; a normal build with a proper libgcc is
+          # fine, which is what the GCC matrix already covers.
           - qemu-virt-arm32-test
           - qemu-virt-arm64-test
           - qemu-virt-riscv32-test
@@ -45,7 +56,6 @@ jobs:
           - qemu-virt-riscv64-supervisor-test
           - pc-x86-test
           - pc-x86-64-test
-          - stellaris-launchpad-test
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
