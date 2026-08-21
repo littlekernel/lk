@@ -517,9 +517,10 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
     list_initialize(&page_list);
 
     size_t count = pmm_alloc_pages(size / PAGE_SIZE, &page_list);
-    DEBUG_ASSERT(count <= size);
+    DEBUG_ASSERT(count <= size / PAGE_SIZE);
     if (count < size / PAGE_SIZE) {
-        LTRACEF("failed to allocate enough pages (asked for %zu, got %zu)\n", size / PAGE_SIZE, count);
+        LTRACEF("failed to allocate enough pages (asked for %zu, got %zu)\n",
+                (size_t)(size / PAGE_SIZE), count);
         pmm_free(&page_list);
         err = ERR_NO_MEMORY;
         goto err;
