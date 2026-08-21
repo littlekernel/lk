@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: [arm, arm64, m68k, riscv32, riscv64, x86, x86-64]
+        arch: [arm, arm-m3, arm-m4, arm-m7, arm-m33, arm-m55, arm64, m68k, riscv32, riscv64, x86, x86-64]
         toolchain-ver: [15.2.0]
 
     env:
@@ -59,7 +59,7 @@ jobs:
       shell: bash
       run: |
         case "${{ matrix.arch }}" in
-            arm) TOOLCHAIN_PREFIX="arm-eabi-" ;;
+            arm|arm-m*) TOOLCHAIN_PREFIX="arm-eabi-" ;;
             arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
             m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
             riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
