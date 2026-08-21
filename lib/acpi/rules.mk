@@ -7,5 +7,6 @@ MODULE_OPTIONS := extra_warnings
 MODULE_DEPS := external/lib/uacpi
 
 MODULE_SRCS += $(LOCAL_DIR)/acpi.c
+MODULE_SRCS += $(LOCAL_DIR)/pci.c
 
 include make/module.mk

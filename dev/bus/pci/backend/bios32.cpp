@@ -104,7 +104,8 @@ static pci_bios_info *find_pci_bios_info(void) {
 /*
  * local BIOS32 PCI routines
  */
-static const char *pci_signature = "PCI ";
+// the signature PCI_BIOS_PRESENT leaves in edx: "PCI ", 'P' in dl
+static const uint32_t pci_signature = 0x20494350;
 
 // new C++ version
 pci_bios32 *pci_bios32::detect() {
@@ -179,7 +180,7 @@ pci_bios32 *pci_bios32::detect() {
         return nullptr;
     }
 
-    if (signature != *(uint32_t *)pci_signature) {
+    if (signature != pci_signature) {
         dprintf(INFO, "PCI_BIOS_PRESENT call returned edx=%#08x\n", signature);
         return nullptr;
     }

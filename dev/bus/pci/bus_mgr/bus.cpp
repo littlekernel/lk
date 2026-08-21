@@ -25,10 +25,11 @@
 #include "device.h"
 #include "bus_mgr.h"
 #include "resource.h"
+#include "root.h"
 
 namespace pci {
 
-bus::bus(pci_location_t loc, bridge *b, bool root_bus) : loc_(loc), b_(b), root_bus_(root_bus) {}
+bus::bus(pci_location_t loc, bridge *b, root *r) : loc_(loc), b_(b), root_(r) {}
 
 void bus::add_device(device *d) {
     // TODO: assert that no two devices have the same address
@@ -36,17 +37,21 @@ void bus::add_device(device *d) {
 }
 
 // walk all devices on a bus recursively walking into any bridge and scanning those busses
-status_t bus::probe(pci_location_t loc, bridge *br, bus **out_bus, bool root_bus) {
+status_t bus::probe(pci_location_t loc, bridge *br, root *r, bus **out_bus) {
     char str[14];
     LTRACEF("%s\n", pci_loc_string(loc, str));
+
+    DEBUG_ASSERT(r);
 
     status_t err;
 
     // create a bus to hold any devices we find
-    bus *b = new bus(loc, br, root_bus);
+    bus *b = new bus(loc, br, r);
 
-    // mark this as at least the last we've seen
-    set_last_bus(b->bus_num());
+    // mark this as at least the last we've seen, and make it findable right away so a bridge
+    // below us pointing back at this bus is caught instead of recursed into
+    r->note_bus_seen(b->bus_num());
+    b->add_to_global_list();
 
     // probe all functions on all 32 devices on this bus.
     // add any devices found to this bus
@@ -128,8 +133,17 @@ status_t bus::probe(pci_location_t loc, bridge *br, bus **out_bus, bool root_bus
     return NO_ERROR;
 }
 
-status_t bus::allocate_resources(resource_allocator &allocator) {
-    LTRACEF("bus %u\n", bus_num());
+status_t bus::allocate_resources(resource_allocator &allocator, pci_assign_mode mode) {
+    LTRACEF("bus %u mode %d\n", bus_num(), mode);
+
+    // when keeping what firmware set up, first pull everything already assigned on this
+    // bus out of the allocator so nothing new lands on top of it
+    if (mode == PCI_ASSIGN_UNASSIGNED) {
+        for_every_device([&](device *d) -> status_t {
+            d->reserve_assigned_resources(allocator);
+            return 0;
+        });
+    }
 
 #if 0
     {
@@ -154,7 +168,7 @@ status_t bus::allocate_resources(resource_allocator &allocator) {
     list_node alloc_requests;
     list_initialize(&alloc_requests);
     auto perdev = [&](device *d) -> status_t {
-        d->get_bar_alloc_requests(&alloc_requests);
+        d->get_bar_alloc_requests(&alloc_requests, mode);
         return 0;
     };
     for_every_device(perdev);
@@ -218,8 +232,10 @@ status_t bus::allocate_resources(resource_allocator &allocator) {
         uint32_t addr = 0;
         auto err = allocator.allocate_io(r->size, r->align, &addr);
         if (err != NO_ERROR) {
-            TRACEF("ERR: error allocating resource\n");
+            printf("PCI: bus %u: unable to allocate io resource:\n", bus_num());
             r->dump();
+            list_delete(&r->node);
+            delete r;
             continue;
         }
 
@@ -236,14 +252,14 @@ status_t bus::allocate_resources(resource_allocator &allocator) {
         auto type = r->type;
         const bool can_be_64bit = (type == PCI_RESOURCE_MMIO64_RANGE);
 
-        // root busses dont need to worry about allocating from a prefetchable pool
-        // in our resource allocator, so ask for non prefetchable memory
-        const bool prefetchable = root_bus_ ? false : r->prefetchable;
-
-        auto err = allocator.allocate_mmio(can_be_64bit, prefetchable, r->size, r->align, &addr);
+        // the allocator falls back to non prefetchable pools (and on a root, vice versa)
+        auto err = allocator.allocate_mmio(can_be_64bit, r->prefetchable, r->size, r->align, &addr);
         if (err != NO_ERROR) {
-            // failed with a 32bit alloc
-            panic("failed to allocate resource\n");
+            printf("PCI: bus %u: unable to allocate mmio resource:\n", bus_num());
+            r->dump();
+            list_delete(&r->node);
+            delete r;
+            continue;
         }
 
         DEBUG_ASSERT(r->dev);
@@ -254,8 +270,8 @@ status_t bus::allocate_resources(resource_allocator &allocator) {
     }
 
     // instruct all the devices on the bus that may have children (bridges) to assign resources
-    for_every_device([](device *d) -> status_t {
-        d->assign_child_resources();
+    for_every_device([mode](device *d) -> status_t {
+        d->assign_child_resources(mode);
         return 0;
     });
 

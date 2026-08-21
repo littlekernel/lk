@@ -15,6 +15,8 @@
 
 namespace pci {
 
+class resource_allocator;
+
 class bus;
 struct capability;
 
@@ -76,9 +78,12 @@ public:
 
         void dump();
     };
-    virtual status_t get_bar_alloc_requests(list_node *bar_alloc_requests);
+    // carve out of the allocator whatever firmware already assigned to this device
+    virtual status_t reserve_assigned_resources(resource_allocator &allocator);
+    // build the list of allocations this device still needs
+    virtual status_t get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assign_mode mode);
     virtual status_t assign_resource(bar_alloc_request *request, uint64_t address);
-    virtual status_t assign_child_resources() { return NO_ERROR; }
+    virtual status_t assign_child_resources(pci_assign_mode mode) { return NO_ERROR; }
 
     pci_location_t loc() const { return loc_; }
     const bus *get_bus() const { return bus_; }

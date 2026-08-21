@@ -14,6 +14,7 @@
 #include <string.h>
 #include <kernel/thread.h>
 #include <kernel/spinlock.h>
+#include <lk/list.h>
 #include <lk/trace.h>
 
 #include "pci_priv.h"
@@ -24,80 +25,147 @@
 
 namespace {
 SpinLock lock;
-pci_backend *pcib = nullptr;
+
+// Config space accessors, each covering a (segment, bus range). Legacy PC access methods cover
+// segment 0 entirely; each ECAM aperture (one per MCFG entry or per FDT pcie node) covers the
+// range it was registered with. Lookups walk the list, which is short.
+struct backend_entry {
+    list_node node;
+    pci_backend *backend;
+    uint16_t segment;
+    uint8_t start_bus;
+    uint8_t end_bus;
+};
+
+list_node backends = LIST_INITIAL_VALUE(backends);
+
+// find the backend that covers a location. lock must be held.
+pci_backend *backend_for(const pci_location_t loc) {
+    backend_entry *e;
+    list_for_every_entry(&backends, e, backend_entry, node) {
+        if (e->segment == loc.segment && loc.bus >= e->start_bus && loc.bus <= e->end_bus) {
+            return e->backend;
+        }
+    }
+    return nullptr;
+}
+
+// add a backend covering a range, failing if it overlaps an existing one
+status_t add_backend(pci_backend *backend, uint16_t segment, uint8_t start_bus, uint8_t end_bus) {
+    DEBUG_ASSERT(backend);
+    DEBUG_ASSERT(start_bus <= end_bus);
+
+    backend_entry *e = new backend_entry;
+    e->backend = backend;
+    e->segment = segment;
+    e->start_bus = start_bus;
+    e->end_bus = end_bus;
+
+    {
+        AutoSpinLock guard(&lock);
+
+        backend_entry *other;
+        list_for_every_entry(&backends, other, backend_entry, node) {
+            if (other->segment == segment && start_bus <= other->end_bus &&
+                end_bus >= other->start_bus) {
+                delete e;
+                return ERR_ALREADY_EXISTS;
+            }
+        }
+
+        list_add_tail(&backends, &e->node);
+    }
+    return NO_ERROR;
+}
+
 } // namespace
 
 /* user facing routines */
 int pci_get_last_bus() {
-    if (!pcib) {
+    AutoSpinLock guard(&lock);
+
+    if (list_is_empty(&backends)) {
         return ERR_NOT_CONFIGURED;
     }
 
-    return pcib->get_last_bus();
+    int last = 0;
+    backend_entry *e;
+    list_for_every_entry(&backends, e, backend_entry, node) {
+        if (e->end_bus > last) {
+            last = e->end_bus;
+        }
+    }
+    return last;
 }
 
 int pci_get_last_segment() {
-    // currently hard coded to 1 segment
-    return 0;
+    AutoSpinLock guard(&lock);
+
+    if (list_is_empty(&backends)) {
+        return ERR_NOT_CONFIGURED;
+    }
+
+    int last = 0;
+    backend_entry *e;
+    list_for_every_entry(&backends, e, backend_entry, node) {
+        if (e->segment > last) {
+            last = e->segment;
+        }
+    }
+    return last;
 }
 
 status_t pci_read_config_byte(const pci_location_t state, uint32_t reg, uint8_t *value) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
     AutoSpinLock guard(&lock);
 
-    int res = pcib->read_config_byte(state, reg, value);
+    pci_backend *pcib = backend_for(state);
+    if (!pcib) return list_is_empty(&backends) ? ERR_NOT_CONFIGURED : ERR_NOT_FOUND;
 
-    return res;
+    return pcib->read_config_byte(state, reg, value);
 }
 status_t pci_read_config_half(const pci_location_t state, uint32_t reg, uint16_t *value) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
     AutoSpinLock guard(&lock);
 
-    int res = pcib->read_config_half(state, reg, value);
+    pci_backend *pcib = backend_for(state);
+    if (!pcib) return list_is_empty(&backends) ? ERR_NOT_CONFIGURED : ERR_NOT_FOUND;
 
-    return res;
+    return pcib->read_config_half(state, reg, value);
 }
 
 status_t pci_read_config_word(const pci_location_t state, uint32_t reg, uint32_t *value) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
     AutoSpinLock guard(&lock);
 
-    int res = pcib->read_config_word(state, reg, value);
+    pci_backend *pcib = backend_for(state);
+    if (!pcib) return list_is_empty(&backends) ? ERR_NOT_CONFIGURED : ERR_NOT_FOUND;
 
-    return res;
+    return pcib->read_config_word(state, reg, value);
 }
 
 status_t pci_write_config_byte(const pci_location_t state, uint32_t reg, uint8_t value) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
     AutoSpinLock guard(&lock);
 
-    int res = pcib->write_config_byte(state, reg, value);
+    pci_backend *pcib = backend_for(state);
+    if (!pcib) return list_is_empty(&backends) ? ERR_NOT_CONFIGURED : ERR_NOT_FOUND;
 
-    return res;
+    return pcib->write_config_byte(state, reg, value);
 }
 
 status_t pci_write_config_half(const pci_location_t state, uint32_t reg, uint16_t value) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
     AutoSpinLock guard(&lock);
 
-    int res = pcib->write_config_half(state, reg, value);
+    pci_backend *pcib = backend_for(state);
+    if (!pcib) return list_is_empty(&backends) ? ERR_NOT_CONFIGURED : ERR_NOT_FOUND;
 
-    return res;
+    return pcib->write_config_half(state, reg, value);
 }
 
 status_t pci_write_config_word(const pci_location_t state, uint32_t reg, uint32_t value) {
-    if (!pcib) return ERR_NOT_CONFIGURED;
-
     AutoSpinLock guard(&lock);
 
-    int res = pcib->write_config_word(state, reg, value);
+    pci_backend *pcib = backend_for(state);
+    if (!pcib) return list_is_empty(&backends) ? ERR_NOT_CONFIGURED : ERR_NOT_FOUND;
 
-    return res;
+    return pcib->write_config_word(state, reg, value);
 }
 
 status_t pci_read_config(const pci_location_t loc, pci_config_t *config) {
@@ -258,40 +326,44 @@ status_t pci_read_config(const pci_location_t loc, pci_config_t *config) {
 status_t pci_init_legacy() {
     LTRACE_ENTRY;
 
-    DEBUG_ASSERT(pcib == nullptr);
-
-    // try a series of detection mechanisms based on legacy PCI access on x86 PCs
+    // try a series of detection mechanisms based on legacy PCI access on x86 PCs.
+    // these can only address segment 0.
+    pci_backend *pcib;
 
     // try to BIOS32 access first, if present
     if ((pcib = pci_bios32::detect())) {
         dprintf(INFO, "PCI: pci bios functions installed\n");
-        dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        return NO_ERROR;
-    }
-
-    // try type 1 access
-    if ((pcib = pci_type1::detect())) {
+    } else if ((pcib = pci_type1::detect())) {
+        // try type 1 access
         dprintf(INFO, "PCI: pci type1 functions installed\n");
-        dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        return NO_ERROR;
+    } else {
+        return ERR_NOT_FOUND;
     }
 
-    // if we couldn't find anything, leave pcib null
-    return ERR_NOT_FOUND;
+    dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
+
+    status_t err = add_backend(pcib, 0, 0, pcib->get_last_bus());
+    if (err != NO_ERROR) {
+        delete pcib;
+    }
+    return err;
 }
 
 status_t pci_init_ecam(paddr_t ecam_base, uint16_t segment, uint8_t start_bus, uint8_t end_bus) {
     LTRACEF("base %#lx, segment %hu, bus [%hhu...%hhu]\n", ecam_base, segment, start_bus, end_bus);
 
-    DEBUG_ASSERT(pcib == nullptr);
-
-    if ((pcib = pci_ecam::detect(ecam_base, segment, start_bus, end_bus))) {
-        dprintf(INFO, "PCI: pci ecam functions installed\n");
-        dprintf(INFO, "PCI: last pci bus is %d\n", pcib->get_last_bus());
-        return NO_ERROR;
+    pci_backend *pcib = pci_ecam::detect(ecam_base, segment, start_bus, end_bus);
+    if (!pcib) {
+        return ERR_NOT_FOUND;
     }
 
-    // if we couldn't find anything, leave pcib null
-    return ERR_NOT_FOUND;
+    dprintf(INFO, "PCI: pci ecam functions installed for segment %u bus [%u...%u]\n",
+            segment, start_bus, end_bus);
+
+    status_t err = add_backend(pcib, segment, start_bus, end_bus);
+    if (err != NO_ERROR) {
+        delete pcib;
+    }
+    return err;
 }
 

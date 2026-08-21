@@ -87,8 +87,8 @@ pci_type1 *pci_type1::detect() {
 
     auto t1 = new pci_type1;
 
-    /* we don't know how many busses there are */
-    t1->set_last_bus(32);
+    /* type 1 access can address all 256 busses of segment 0 */
+    t1->set_last_bus(255);
 
     return t1;
 }

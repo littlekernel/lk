@@ -38,9 +38,10 @@ public:
     void add_bus(bus *b) { secondary_bus_ = b; }
 
     status_t compute_bar_sizes(bar_sizes *sizes) override;
-    status_t get_bar_alloc_requests(list_node *bar_alloc_requests) override;
+    status_t reserve_assigned_resources(resource_allocator &allocator) override;
+    status_t get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assign_mode mode) override;
     status_t assign_resource(bar_alloc_request *request, uint64_t address) override;
-    status_t assign_child_resources() override;
+    status_t assign_child_resources(pci_assign_mode mode) override;
 
     void dump(size_t indent = 0) override;
 
@@ -58,6 +59,12 @@ public:
     range<uint32_t> io_range();
     range<uint32_t> mem_range();
     range<uint64_t> prefetch_range();
+
+    // is the window firmware/we programmed actually forwarding anything. limit < base is the
+    // architected 'closed', and base == limit == 0 is the reset state, which decodes as an
+    // open window at address 0 on paper but never means anything real.
+    template <typename T>
+    static bool window_open(const range<T> &r) { return r.limit > r.base && r.base != 0; }
 
 private:
     status_t compute_bar_sizes_no_local_bar(bar_sizes *sizes);

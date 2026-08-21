@@ -10,6 +10,7 @@ function HELP {
     echo "-u                  : boot via UEFI firmware (OVMF, implies -6)"
     echo "-l                  : legacy mode build (386 emulated machine)"
     echo "-m <memory in MB>   : memory size (default: 512 MB, 4 MB for legacy)"
+    echo "-M <machine>        : QEMU machine type (default: q35; pc for i440fx; ignored with -l)"
     echo "-s <number of cpus> : number of CPUs (default: 1)"
     echo "-X                  : print QEMU command and exit (dry run)"
     echo
@@ -46,8 +47,9 @@ SMP=1
 SUDO=""
 DO_DRYRUN=0
 DO_UEFI=0
+MACHINE_OVERRIDE=""
 
-while getopts A:6d:gf:klm:nN:s:tuhVX FLAG; do
+while getopts A:6d:gf:klm:M:nN:s:tuhVX FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         6) DO_64BIT=1;;
@@ -60,6 +62,7 @@ while getopts A:6d:gf:klm:nN:s:tuhVX FLAG; do
         k) DO_KVM=1;;
         l) DO_LEGACY=1;;
         m) MEMSIZE=$OPTARG;;
+        M) MACHINE_OVERRIDE=$OPTARG;;
         n) DO_NET=1;;
         t) DO_NET_TAP=1;;
         N) NETDEV=$OPTARG; DO_NETDEV_OVERRIDE=1;;
@@ -99,6 +102,8 @@ if (( DO_UEFI )); then
         "/usr/share/OVMF/OVMF_CODE.fd:/usr/share/OVMF/OVMF_VARS.fd" \
         "/usr/share/edk2/x64/OVMF_CODE.4m.fd:/usr/share/edk2/x64/OVMF_VARS.4m.fd" \
         "/usr/share/edk2/ovmf/OVMF_CODE.fd:/usr/share/edk2/ovmf/OVMF_VARS.fd" \
+        "/usr/share/qemu/edk2-x86_64-code.fd:/usr/share/qemu/edk2-i386-vars.fd" \
+        "/usr/local/share/qemu/edk2-x86_64-code.fd:/usr/local/share/qemu/edk2-i386-vars.fd" \
         ; do
         code="${pair%%:*}"
         vars="${pair##*:}"
@@ -130,6 +135,11 @@ else
     PROJECT="pc-x86-test"
     CPU=max
     MACHINE=q35
+fi
+
+# -M overrides the machine type for the non-legacy builds (e.g. pc for i440fx)
+if [[ -n "$MACHINE_OVERRIDE" ]] && (( ! DO_LEGACY )); then
+    MACHINE=$MACHINE_OVERRIDE
 fi
 
 if (( DO_LEGACY )); then

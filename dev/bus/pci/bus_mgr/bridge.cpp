@@ -29,6 +29,7 @@
 #include "bridge.h"
 #include "bus.h"
 #include "resource.h"
+#include "root.h"
 
 namespace pci {
 
@@ -81,9 +82,17 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     // probe the bridge's capabilities
     br->probe_capabilities();
 
+    root *r = parent_bus->get_root();
+    DEBUG_ASSERT(r);
+
     if (br->secondary_bus() == 0) {
         // allocate a new secondary bus
-        uint8_t new_secondary_bus = allocate_next_bus();
+        uint8_t new_secondary_bus;
+        err = r->allocate_next_bus(&new_secondary_bus);
+        if (err != NO_ERROR) {
+            TRACEF("out of bus numbers assigning secondary bus to bridge at %s\n", pci_loc_string(loc, str));
+            return err;
+        }
 
         // we do not yet know the range of busses we will find downstream, lower level bridges will have to
         // back patch us as they find new children.
@@ -100,9 +109,12 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
         }
     }
 
-    // sanity check that we don't have overlapping busses
-    if (br->secondary_bus() < get_last_bus()) {
-        TRACEF("secondary bus %u of bridge we've already seen (last bus seen %u)\n", br->secondary_bus(), get_last_bus());
+    // sanity check that the secondary bus is inside the root's range and isn't one we've
+    // already probed (a firmware numbering bug or a bridge with garbage in its registers)
+    if (br->secondary_bus() < r->bus_start() || br->secondary_bus() > r->bus_end() ||
+        lookup_bus(loc.segment, br->secondary_bus())) {
+        TRACEF("secondary bus %u of bridge at %s is out of range or already seen\n",
+               br->secondary_bus(), pci_loc_string(loc, str));
         return ERR_NO_RESOURCES;
     }
 
@@ -113,7 +125,7 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     bus_location.bus = br->secondary_bus();
 
     bus *new_bus;
-    err = bus::probe(bus_location, br.get(), &new_bus);
+    err = bus::probe(bus_location, br.get(), r, &new_bus);
     if (err != NO_ERROR) {
         return err;
     }
@@ -121,9 +133,6 @@ status_t bridge::probe(pci_location_t loc, bus *parent_bus, bridge **out_bridge)
     // add the bus to our list of children
     DEBUG_ASSERT(new_bus);
     br->add_bus(new_bus);
-
-    // add the bus to the global bus list
-    new_bus->add_to_global_list();
 
     *out_bridge = br.release();
 
@@ -313,16 +322,60 @@ status_t bridge::compute_bar_sizes(bar_sizes *bridge_sizes) {
     return compute_bar_sizes_no_local_bar(bridge_sizes);
 }
 
-status_t bridge::get_bar_alloc_requests(list_node *bar_alloc_requests) {
+status_t bridge::reserve_assigned_resources(resource_allocator &allocator) {
+    char str[14];
+    LTRACEF("bridge at %s\n", pci_loc_string(loc(), str));
+
+    // our own bars
+    device::reserve_assigned_resources(allocator);
+
+    // any window firmware left open is claimed by whatever is downstream
+    auto io = io_range();
+    if (window_open(io)) {
+        allocator.reserve(PCI_RESOURCE_IO_RANGE, io.base, (uint64_t)io.limit - io.base + 1);
+    }
+    auto mmio = mem_range();
+    if (window_open(mmio)) {
+        allocator.reserve(PCI_RESOURCE_MMIO_RANGE, mmio.base, (uint64_t)mmio.limit - mmio.base + 1);
+    }
+    auto pref = prefetch_range();
+    if (window_open(pref)) {
+        allocator.reserve(PCI_RESOURCE_MMIO64_RANGE, pref.base, pref.limit - pref.base + 1);
+    }
+
+    return NO_ERROR;
+}
+
+status_t bridge::get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assign_mode mode) {
     char str[14];
     LTRACEF("bridge at %s\n", pci_loc_string(loc(), str));
 
     // add our local bars to the list of requests
-    device::get_bar_alloc_requests(bar_alloc_requests);
+    device::get_bar_alloc_requests(bar_alloc_requests, mode);
 
     // accumulate the size of our children
     bar_sizes bus_sizes = {};
     compute_bar_sizes_no_local_bar(&bus_sizes);
+
+    // when keeping firmware assignments, windows that are already open are left alone. the
+    // children behind them either have their bars assigned inside the window or will be
+    // fitted into it when we recurse. only closed windows get a request.
+    if (mode == PCI_ASSIGN_UNASSIGNED) {
+        auto io = io_range();
+        if (window_open(io)) {
+            bus_sizes.io_size = 0;
+        }
+        auto mmio = mem_range();
+        if (window_open(mmio)) {
+            bus_sizes.mmio_size = 0;
+            bus_sizes.mmio64_size = 0;
+        }
+        auto pref = prefetch_range();
+        if (window_open(pref)) {
+            bus_sizes.prefetchable_size = 0;
+            bus_sizes.prefetchable64_size = 0;
+        }
+    }
 
     // TODO: test if bridge supports prefetchable and if so if it supports 64bit
 
@@ -368,7 +421,7 @@ status_t bridge::assign_resource(bar_alloc_request *request, uint64_t address) {
         return device::assign_resource(request, address);
     }
 
-    DEBUG_ASSERT(IS_ALIGNED(address, (1UL << request->align)));
+    DEBUG_ASSERT(IS_ALIGNED(address, (1ULL << request->align)));
 
     // this is an allocation for one of the bridge resources
     uint32_t temp;
@@ -430,7 +483,7 @@ status_t bridge::assign_resource(bar_alloc_request *request, uint64_t address) {
     return NO_ERROR;
 }
 
-status_t bridge::assign_child_resources() {
+status_t bridge::assign_child_resources(pci_assign_mode mode) {
     char str[14];
     LTRACEF("bridge at %s\n", pci_loc_string(loc(), str));
 
@@ -438,41 +491,23 @@ status_t bridge::assign_child_resources() {
     resource_allocator allocator;
 
     auto io = io_range();
-    if (io.limit > io.base) {
-        resource_range r;
-        r.base = io.base;
-        r.size = io.limit + io.base + 1;
-        r.type = PCI_RESOURCE_IO_RANGE;
-        allocator.set_range(r);
+    if (window_open(io)) {
+        allocator.add_range(PCI_RESOURCE_IO_RANGE, false, io.base, (uint64_t)io.limit - io.base + 1);
     }
 
     auto mmio = mem_range();
-    if (mmio.limit > mmio.base) {
-        resource_range r;
-        r.base = mmio.base;
-        r.size = mmio.limit - mmio.base + 1;
-        r.type = PCI_RESOURCE_MMIO_RANGE;
-        allocator.set_range(r);
+    if (window_open(mmio)) {
+        allocator.add_range(PCI_RESOURCE_MMIO_RANGE, false, mmio.base, (uint64_t)mmio.limit - mmio.base + 1);
     }
 
     auto pref = prefetch_range();
-    if (pref.limit > pref.base) {
-        resource_range r;
-        r.base = pref.base;
-        r.size = pref.limit - pref.base + 1;
-
-        // if the prefetch window is completely < 4GB, set it up as a 32bit mmio prefetchable
-        if (pref.base < (1ULL << 32) || (pref.base + pref.limit < (1ULL << 32))) {
-            r.type = PCI_RESOURCE_MMIO_RANGE;
-        } else {
-            r.type = PCI_RESOURCE_MMIO64_RANGE;
-        }
-
-        allocator.set_range(r, true);
+    if (window_open(pref)) {
+        // add_range sorts out whether the window is 32 or 64 bit based on where it ends
+        allocator.add_range(PCI_RESOURCE_MMIO64_RANGE, true, pref.base, pref.limit - pref.base + 1);
     }
 
     // recurse into the secondary bus with the allocator we've set up for it
-    secondary_bus_->allocate_resources(allocator);
+    secondary_bus_->allocate_resources(allocator, mode);
 
     // enable the bridge
     enable();

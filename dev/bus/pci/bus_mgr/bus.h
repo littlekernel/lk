@@ -18,19 +18,21 @@
 namespace pci {
 
 class resource_allocator;
+class root;
 
 // bus device holds a list of devices and a reference to its bridge device
 class bus {
 public:
-    bus(pci_location_t loc, bridge *b, bool root_bus = false);
+    bus(pci_location_t loc, bridge *b, root *r);
     ~bus() = default;
 
     DISALLOW_COPY_ASSIGN_AND_MOVE(bus);
 
-    static status_t probe(pci_location_t loc, bridge *bridge, bus **out_bus, bool root_bus = false);
+    // probe the bus at loc. bridge is the upstream bridge, or nullptr for the root bus of r.
+    static status_t probe(pci_location_t loc, bridge *bridge, root *r, bus **out_bus);
 
     // allocate resources for devices on this bus and recursively all of its children
-    status_t allocate_resources(resource_allocator &allocator);
+    status_t allocate_resources(resource_allocator &allocator, pci_assign_mode mode);
 
     pci_location_t loc() const { return loc_; }
     uint bus_num() const { return loc().bus; }
@@ -40,6 +42,8 @@ public:
 
     const bridge *get_bridge() const { return b_; }
     bridge *get_bridge() { return b_; }
+    root *get_root() const { return root_; }
+    bool is_root_bus() const { return b_ == nullptr; }
 
     template <typename F>
     status_t for_every_device(F func);
@@ -52,9 +56,9 @@ public:
 
 private:
     pci_location_t loc_ = {};
-    bridge *b_ = nullptr;
+    bridge *b_ = nullptr;   // upstream bridge, nullptr for a root bus
+    root *root_ = nullptr;  // the root this bus hangs off of
     list_node child_devices_ = LIST_INITIAL_VALUE(child_devices_);
-    const bool root_bus_ = false; // changes some of the allocation behavior
 };
 
 // call the provided functor on every device in this bus

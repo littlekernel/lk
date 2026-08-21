@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import shlex
 import subprocess
 import sys
 import os
@@ -78,6 +79,18 @@ class QEMUTestRunner:
                 'args': '-6s4',
                 'timeout': 90
             },
+            # same kernels on the i440fx/PIIX machine: no MCFG/ECAM (legacy
+            # config access), PIC-mode _PRT link devices, PIIX IDE
+            'x86-i440fx': {
+                'script': 'do-qemux86',
+                'args': '-M pc -s4',
+                'timeout': 90
+            },
+            'x86-64-i440fx': {
+                'script': 'do-qemux86',
+                'args': '-6 -M pc -s4',
+                'timeout': 90
+            },
             # same kernel booted through OVMF via the EFI stub; the extra
             # timeout headroom covers the firmware and EFI shell startup delay
             'x86-64-uefi': {
@@ -120,7 +133,7 @@ class QEMUTestRunner:
         # Create the QEMU commandline
         qemu_cmdline = [str(script_path)]
         if arch_config['args']:
-            qemu_cmdline.append(str(arch_config['args']))
+            qemu_cmdline.extend(shlex.split(str(arch_config['args'])))
         # Drive the test run from a shell script passed on the kernel command line.
         # Spaces are encoded as '+' so the value passes through the do-qemu* wrappers
         # unquoted. The sleep gives device probing a chance to settle and the poweroff
@@ -378,7 +391,10 @@ class QEMUTestRunner:
 
 def main():
     parser = argparse.ArgumentParser(description='Run LK QEMU tests for multiple architectures')
-    parser.add_argument('--arch', choices=['arm', 'arm64', 'arm-m3', 'arm-m4', 'arm-m7', 'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv64', 'x86', 'x86-64', 'x86-64-uefi'], action='append',
+    parser.add_argument('--arch', choices=['arm', 'arm64', 'arm-m3', 'arm-m4', 'arm-m7',
+                                          'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv64',
+                                          'x86', 'x86-64', 'x86-i440fx', 'x86-64-i440fx',
+                                          'x86-64-uefi'], action='append',
                        help='Architecture to test (can be specified multiple times)')
     parser.add_argument('--lk-root', default='.',
                        help='Path to LK root directory (default: current directory)')

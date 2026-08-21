@@ -32,6 +32,14 @@ void pci_list() {
 
         for (int bus = 0; bus <= pci_get_last_bus(); bus++) {
             state.bus = bus;
+            state.dev = 0;
+            state.fn = 0;
+
+            // skip busses that no config accessor covers
+            uint16_t probe;
+            if (pci_read_config_half(state, PCI_CONFIG_VENDOR_ID, &probe) == ERR_NOT_FOUND) {
+                continue;
+            }
             busses++;
 
             for (int dev = 0; dev < 32; dev++) {
@@ -258,22 +266,63 @@ error:
     return -2;
 }
 
+// run the legacy interrupt routing for one device, the same way a driver would, and report
+// what came out. note this really does allocate/route the vector (masked), it's not a dry run.
+static int pci_irq(int argc, const console_cmd_args *argv) {
+    if (argc < 5) {
+        return -1;
+    }
+
+    pci_location_t loc = {};
+    loc.segment = (argc >= 6) ? atoui(argv[5].str) : 0;
+    loc.bus = atoui(argv[2].str);
+    loc.dev = atoui(argv[3].str);
+    loc.fn = atoui(argv[4].str);
+
+    char str[14];
+    uint8_t line, pin;
+    if (pci_read_config_byte(loc, PCI_CONFIG_INTERRUPT_LINE, &line) != NO_ERROR ||
+        pci_read_config_byte(loc, PCI_CONFIG_INTERRUPT_PIN, &pin) != NO_ERROR) {
+        printf("%s: unable to read config space\n", pci_loc_string(loc, str));
+        return 0;
+    }
+    printf("%s: interrupt pin %u (INT%c) line %u\n", pci_loc_string(loc, str), pin,
+           (pin >= 1 && pin <= 4) ? 'A' + pin - 1 : '?', line);
+
+    uint irq;
+    status_t err = pci_bus_mgr_allocate_irq(loc, &irq);
+    if (err != NO_ERROR) {
+        printf("%s: routing failed: %d\n", pci_loc_string(loc, str), err);
+        return 0;
+    }
+    printf("%s: routed to vector %#x\n", pci_loc_string(loc, str), irq);
+    return 0;
+}
+
 int pci_cmd(int argc, const console_cmd_args *argv) {
     if (argc < 2) {
         printf("pci commands:\n");
 usage:
         printf("%s list\n", argv[0].str);
+        printf("%s roots\n", argv[0].str);
         printf("%s config dump <bus> <dev> <fn>\n", argv[0].str);
         printf("%s config hexdump <bus> <dev> <fn>\n", argv[0].str);
         printf("%s config <rb|rh|rw> <bus> <dev> <fn> <offset>\n", argv[0].str);
         printf("%s config <mb|mh|mw> <bus> <dev> <fn> <offset> <value>\n", argv[0].str);
+        printf("%s irq <bus> <dev> <fn> [segment]  (route the device's INTx, as a driver would)\n", argv[0].str);
         goto out;
     }
 
     if (!strcmp(argv[1].str, "list")) {
         pci_list();
+    } else if (!strcmp(argv[1].str, "roots")) {
+        pci_bus_mgr_dump();
     } else if (!strcmp(argv[1].str, "config")) {
         if (pci_config(argc, argv)) {
+            goto usage;
+        }
+    } else if (!strcmp(argv[1].str, "irq")) {
+        if (pci_irq(argc, argv)) {
             goto usage;
         }
     } else {

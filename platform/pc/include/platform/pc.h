@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#include <platform/interrupts.h>
 #include <platform/pc/iomap.h>
 
 /* NOTE: keep arch/x86/crt0.S in sync with these definitions */
@@ -43,6 +44,10 @@
 #define INT_PIC1_BASE 0x20
 #define INT_PIC2_BASE 0x28
 
+/* register a handler for a vector the local apic raises itself (timer, ipis, spurious).
+ * eoi is false for the spurious vector, which must not be acked. */
+void register_int_handler_lapic(unsigned int vector, int_handler handler, void *arg, bool eoi);
+
 typedef struct pc_irq_route {
 	uint source_irq;
 	uint gsi;
@@ -59,3 +64,11 @@ typedef struct pc_irq_route {
 } pc_irq_route_t;
 
 status_t pc_get_legacy_irq_route(uint source_irq, pc_irq_route_t *route);
+
+// true once the ioapic has taken over legacy interrupt delivery from the 8259
+bool pc_using_ioapic(void);
+
+// route a global system interrupt through the ioapic to a vector, allocating one from the
+// dynamic range or sharing the one an earlier caller got for the same gsi. the entry starts
+// out masked; unmask_interrupt() on the vector enables it.
+status_t pc_route_gsi(unsigned int gsi, bool level_triggered, bool active_low, unsigned int *vector);
