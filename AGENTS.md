@@ -9,7 +9,8 @@ LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on dive
 LK uses a 4-layer modular build system:
 
 1. **Project** (`project/*.mk`) - Top-level configuration defining which modules to include
-   - Example: `project/qemu-virt-arm64-test.mk` includes shell, filesystem, networking modules
+   - Example: `project/qemu-virt-arm64-test.mk` lists `app/shell` and `lib/uefi`, then pulls in
+     the shared `project/virtual/{test,fs,minip}.mk` fragments and the board's `project/target/*.mk`
    - Projects include other project fragments: `include project/virtual/test.mk`
 
 2. **Target** (`target/*.mk`) - Board-specific configuration combining platform + hardware details
@@ -50,7 +51,9 @@ include make/module.mk
 - `MODULE_WEAK_DEPS` lists modules whose headers this one uses only under `#if WITH_<MODULE>`
   (e.g. `lib/bio` uses `lib/partition` only when it is in the build). It records the
   dependency without pulling the module in; a module may not appear in both lists.
-- `MODULE_OPTIONS`: `extra_warnings` adds strict checks, `float` enables FP compilation
+- `MODULE_OPTIONS`: `extra_warnings` adds strict checks; `float` compiles the module with FPU
+  codegen and defines `LK_FLOAT_TU=1` (headers key off it); `test` adds `<module>/test` as a
+  submodule when `WITH_TESTS` is true
 - Module include paths auto-added: `$(MODULE)/include/` becomes available globally
 - Always use `$(LOCAL_DIR)` prefix for source paths
 - Must `include make/module.mk` at end of `rules.mk` to finalize the module definition
@@ -58,7 +61,7 @@ include make/module.mk
 - Modules are built as separate ELF .o files and linked into the final kernel image
 - Modules that include any `std::` header must declare `MODULE_DEPS += lib/libcpp` (see `dev/bus/pci/rules.mk`)
 - Modules commonly export their include name space that matches the name of the module.
-  - ie. lib/foo will export the include path `lib/foo.h` with any additioal headers under `lib/foo/`.
+  - i.e. `lib/foo` exports the include path `lib/foo.h` with any additional headers under `lib/foo/`.
 
 ## Critical Build Patterns
 
@@ -154,16 +157,19 @@ Build artifacts include object files, libraries, executables, and generated head
 - lk.elf.lst - disassembly of the kernel image
 - lk.elf.debug.lst - disassembly of the kernel image with debug information
 - lk.elf.map - linker map file
-- lk.elf.sym - symbol table for the kernel image
 - lk.elf.size - size information for the kernel image
 - lk.elf.sym - symbol table for the kernel image
-- lk.elf.sym.sorted - sorted symbol table for the kernel image, sorted by address
+- lk.elf.sym.sorted - symbol table for the kernel image, sorted by address
 - lk.elf.dump - equivalent of objdump -x on the lk.elf file
+- system-onesegment.ld (or the arch's equivalent) - the preprocessed linker script
+- `<module>/module_config.h` - per-module generated header recording its `MODULE_DEPS` and
+  `MODULE_WEAK_DEPS`, which `scripts/check-module-deps.py` reads
+- lk-symtab-pass1.elf / lk-symtab-pass2.elf - intermediate links when `lib/symtab` is in the build
 
 Each module is linked into an ELF intermediate file named `<module>.mod.o` via ld -r.
 The module and object file paths follow the same path structure as the source files.
 
-### Running Tests
+### Running under QEMU
 
 Scripts in `scripts/` launch QEMU with appropriate flags:
 
@@ -201,7 +207,8 @@ scripts/do-qemux86 -6 -k
 scripts/do-qemux86 -6 -n -d disk.img -g
 ```
 
-The do-qemu* scripts auto-build before launching QEMU.
+The do-qemu* scripts auto-build before launching QEMU. Note they default to `dlmalloc`
+(`-c` selects cmpctmalloc, `-M` miniheap), whereas a bare `make <project>` defaults to miniheap.
 
 ### Running all unit tests
 
@@ -216,7 +223,12 @@ The do-qemu* scripts auto-build before launching QEMU.
 # arm-m3, arm-m4, arm-m7, arm-m33 and arm-m55, running on the MPS2/MPS3 boards
 ./scripts/run-qemu-boot-tests.py --arch arm-m55
 
-# Raise the per-architecture timeout (default 30s) for longer suites
+# x86 has machine/firmware variants alongside the default q35 ones: x86-i440fx,
+# x86-64-i440fx and x86-64-uefi. m68k is also covered. See --help for the full list.
+./scripts/run-qemu-boot-tests.py --arch x86-64-uefi
+
+# Raise the per-architecture timeout for longer suites. The defaults (90s, 120s for
+# x86-64-uefi) are hang detectors, not performance targets; see the table in the script.
 ./scripts/run-qemu-boot-tests.py --arch arm64 --timeout 600
 
 # Build with UBSAN=1 and fail if the run reports any undefined behavior.
@@ -225,11 +237,40 @@ The do-qemu* scripts auto-build before launching QEMU.
 ./scripts/run-qemu-boot-tests.py --arch arm64 --ubsan
 ```
 
+### Running a script at boot (`lk.autorun`)
+
+If `app/shell` is in the build, the shell app looks for an `lk.autorun` kernel command line
+variable and runs its value as a shell script before dropping into the interactive shell.
+This is the preferred way to drive a target from a host script — start QEMU and tell it what
+to run, rather than adding a new command line variable per scenario.
+
+```bash
+# spaces encoded as '+', which avoids needing to quote anything along the way
+scripts/do-qemuarm -6 -A 'lk.autorun=sleep+5;ut+all;poweroff'
+
+# real spaces work too: the do-qemu* wrappers quote the value and lib/cmdline unquotes it
+# (don't add the quotes yourself, they'd end up quoted a second time)
+scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
+```
+
+- `+` decodes to a space in both forms, `++` decodes to a literal `+`.
+- Commands are separated with `;` or newlines (`\n` in the quoted form), same as any other
+  console script.
+- Ending the script with `poweroff` makes QEMU exit once the script is done, which is how
+  `scripts/run-qemu-boot-tests.py` drives its runs. Note `poweroff` is only registered when
+  `LK_DEBUGLEVEL > 1` (i.e. the default `DEBUG=2`).
+- The script is capped at 511 bytes. On PC targets `platform/pc` copies the multiboot command
+  line into a 256 byte buffer, which caps the *entire* command line there.
+- The script runs on the shell app's thread, whose stack size can be overridden with
+  `SHELL_STACK_SIZE` (`DEFAULT_STACK_SIZE` by default, ×4 under `UBSAN=1`). Commands like
+  `ut all` run close to the default stack size, so keep large buffers in tests on the heap,
+  not the stack. This is tightest on cortex-m, where `ARCH_DEFAULT_STACK_SIZE` is 1KB.
+
 ### Filesystem tests against a real disk image
 
 Most unit tests need nothing but the kernel. The FAT tests come in two tiers:
 the RAM backed ones format their own volume with `fs_format_device()` and run
-under the command above on every architecture, while the image based ones need a
+under `run-qemu-boot-tests.py` on every architecture, while the image based ones need a
 disk attached. `scripts/run-fat-tests.py` drives the latter end to end -- it
 builds the images, boots QEMU with one attached, and then verifies the result
 from the host with both `fsck.fat` and `mtools`:
@@ -273,7 +314,7 @@ For in-progress (WIP) work on a branch that is intended to be collapsed or merge
 
 - `WIP [fs][fat]: add mkdir support and tests`
 
-### Style  enforced by `.clang-format`
+### Style enforced by `.clang-format`
 
 - **4 space indentation**, no tabs, no trailing whitespace
 - **Pointer alignment right**: `void *ptr` not `void* ptr`
@@ -284,8 +325,8 @@ For in-progress (WIP) work on a branch that is intended to be collapsed or merge
 
 ### Compiler Warnings
 
-- Base flags: `-Wall -Werror=return-type -Wshadow -Wdouble-promotion`
-- C-specific: `-Werror-implicit-function-declaration -Wstrict-prototypes`
+- Base flags: `-Wextra -Wall -Werror=return-type -Wshadow -Wdouble-promotion`
+- C-specific: `--std=gnu11 -Werror-implicit-function-declaration -Wstrict-prototypes -Wwrite-strings`
 - C++: `--std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -nostdinc++`
   - `-nostdinc++` keeps the host toolchain's C++ headers out of the build; `std::` headers come from `lib/libcpp` only
 - All code compiled with `-ffreestanding` (no hosted environment assumptions)
@@ -352,7 +393,7 @@ Select heap implementation in project or via make:
 
 ```make
 # In project.mk or command line
-LK_HEAP_IMPLEMENTATION ?= miniheap   # default
+LK_HEAP_IMPLEMENTATION ?= miniheap   # default for make; the do-qemu* scripts pass dlmalloc
 # LK_HEAP_IMPLEMENTATION ?= dlmalloc      # Doug Lea's allocator
 # LK_HEAP_IMPLEMENTATION ?= cmpctmalloc   # compact allocator
 
@@ -368,7 +409,7 @@ Architectures with MMU set `WITH_KERNEL_VM ?= 1` in `arch/*/rules.mk`:
 - For ARM64 architecture:
   - Page size configurable: `ARM64_PAGE_SIZE` (4096, 16384, 65536) on ARM64 architecture
   - Different projects for different page sizes: `qemu-virt-arm64-64k-test`
-- All other architecture use 4KB pages by default.
+- All other architectures use 4KB pages by default.
 
 ### Global Defines
 
@@ -377,14 +418,11 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
 - Goes into `$(BUILDDIR)/config.h` (auto-generated, auto-included)
 - Example: `GLOBAL_DEFINES += WITH_SMP=1 SMP_MAX_CPUS=8`
 - Common defines: `MEMBASE`, `MEMSIZE`, `KERNEL_BASE`, `IS_64BIT`, `WITH_KERNEL_VM`
-- `LK_EMBEDDED` — boolean (0/1), always defined. Set `:= 1` (not `?=`) in the
-  platform/target rules.mk layer that decides `MEMSIZE`, when every build variant has
-  RAM well under ~1MB. Distinct from `ARCH_ARM_EMBEDDED`/`ARCH_RISCV_EMBEDDED`, which
-  reflect ISA/codegen choices (arch-scoped), not RAM budget — never derive one from
-  the other. Usage: bare `#if LK_EMBEDDED` / `#if !LK_EMBEDDED`, no `defined()`
-  needed. For thresholds finer than the binary tier, `MEMSIZE` is universally defined
-  (including x86, as a documented non-authoritative placeholder) and can be compared
-  numerically — see `lib/heap/test/heap_tests.c` for the pattern.
+- `LK_EMBEDDED` — boolean (0/1), always defined (default in `engine.mk`). Platforms with RAM
+  well under ~1MB set `LK_EMBEDDED := 1` in the `rules.mk` layer that decides `MEMSIZE`. Test
+  with a bare `#if LK_EMBEDDED`. It is a RAM-budget flag, unrelated to the ISA-level
+  `ARCH_ARM_EMBEDDED`/`ARCH_RISCV_EMBEDDED`. For finer thresholds compare `MEMSIZE`
+  numerically, as `lib/heap/test/heap_tests.c` does.
 - `UBSAN` — boolean (0/1), always defined, set from the `UBSAN=1` make variable. Use a
   bare `#if UBSAN` to compensate for instrumentation, which noticeably inflates stack
   frames; `app/shell/shell.c` uses it to grow the shell thread's stack.
@@ -433,7 +471,8 @@ and CI passes `-d`, so an undeclared dependency fails the gcc CI matrix.
   - `DEBUG=2`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS
   - `DEBUG=3`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS, some extra runtime checks.
 - 'DEBUG=2' is default
-- QEMU scripts support GDB: `scripts/do-qemuarm -6 -s -S` (wait for GDB on :1234)
+- The do-qemu* scripts have no GDB flag (`-s` is the CPU count). Use `-X` to print the QEMU
+  command line, then run it by hand with `-s -S` appended to wait for GDB on :1234.
 - Print output via `printf()` goes to console (UART or QEMU serial)
 - dprintf levels:
   - `dprintf(ALWAYS, "message")` - always printed
@@ -475,7 +514,7 @@ moved any text the table names, so a link order or relaxation surprise is loud.
   counts or need arguments, so they have no pass/fail criterion and are not unit tests.
 - `lib/unittest` contains a unit test framework that other libraries can use to define tests.
   - Tests are auto-discovered and run with `ut all` on the command line shell, or automatically
-    at boot time via the `lk.autorun` kernel command line variable (see below).
+    at boot time via the `lk.autorun` kernel command line variable (see above).
   - Self-validating tests belong here, next to the code they exercise: `kernel/test/` covers the
     thread, mutex, semaphore, event and port primitives plus the platform clock invariants,
     `arch/test/` covers MMU and FPU context switching.
@@ -486,38 +525,10 @@ moved any text the table names, so a link order or relaxation surprise is loud.
   files and a `rules.mk` that defines a module for the tests. The module should have `MODULE_DEPS`
   on the library being tested. MODULE_OPTIONS of the parent module should have 'test' to ensure the
   tests module is only built when `WITH_TESTS` is enabled.
-- `ut all` runs at boot in CI under a 60 second per architecture timeout on emulated targets, so
+- `ut all` runs at boot in CI under a per-architecture timeout (90s for most targets, set in
+  `scripts/run-qemu-boot-tests.py`) on emulated targets, so
   keep individual tests fast: prefer joins and events over fixed sleeps, and keep iteration counts
   low enough to stay well under a second on a slow emulator.
-
-### Running a script at boot (`lk.autorun`)
-
-If `app/shell` is in the build, the shell app looks for an `lk.autorun` kernel command line
-variable and runs its value as a shell script before dropping into the interactive shell.
-This is the preferred way to drive a target from a host script — start QEMU and tell it what
-to run, rather than adding a new command line variable per scenario.
-
-```bash
-# spaces encoded as '+', which avoids needing to quote anything along the way
-scripts/do-qemuarm -6 -A 'lk.autorun=sleep+5;ut+all;poweroff'
-
-# real spaces work too: the do-qemu* wrappers quote the value and lib/cmdline unquotes it
-# (don't add the quotes yourself, they'd end up quoted a second time)
-scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
-```
-
-- `+` decodes to a space in both forms, `++` decodes to a literal `+`.
-- Commands are separated with `;` or newlines (`\n` in the quoted form), same as any other
-  console script.
-- Ending the script with `poweroff` makes QEMU exit once the script is done, which is how
-  `scripts/run-qemu-boot-tests.py` drives its runs. Note `poweroff` is only registered when
-  `LK_DEBUGLEVEL > 1` (i.e. the default `DEBUG=2`).
-- The script is capped at 511 bytes. On PC targets `platform/pc` copies the multiboot command
-  line into a 256 byte buffer, which caps the *entire* command line there.
-- The script runs on the shell app's thread, whose stack size can be overridden with
-  `SHELL_STACK_SIZE` (`DEFAULT_STACK_SIZE` by default, ×4 under `UBSAN=1`). Commands like
-  `ut all` run close to the default stack size, so keep large buffers in tests on the heap,
-  not the stack. This is tightest on cortex-m, where `ARCH_DEFAULT_STACK_SIZE` is 1KB.
 
 ## Key Files Reference
 
@@ -531,4 +542,5 @@ scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
 - `top/` - Top level module in the system. Contains the kernel's lk_main() system init routines.
    Also contains top level lk/ include headers.
 
-For detailed architecture info, see `docs/` (threading, VMM, platform-specific guides).
+For longer documentation see `docs/index.md`, which indexes the threading/scheduler, blocking
+primitives, VMM, source tree layout, UEFI boot and QEMU networking guides.
