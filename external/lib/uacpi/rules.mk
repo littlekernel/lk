@@ -17,8 +17,14 @@ MODULE_COMPILEFLAGS := \
     -Wno-type-limits \
     -Wno-shadow \
     -Wno-strict-prototypes \
-    -Wno-double-promotion \
-    -Wno-discarded-qualifiers
+    -Wno-double-promotion
+
+# GCC and Clang spell the same pointer-qualifier-discard diagnostic differently.
+ifeq ($(TOOLCHAIN),clang)
+MODULE_COMPILEFLAGS += -Wno-incompatible-pointer-types-discards-qualifiers
+else
+MODULE_COMPILEFLAGS += -Wno-discarded-qualifiers
+endif
 
 MODULE_WEAK_DEPS += dev/bus/pci
 
