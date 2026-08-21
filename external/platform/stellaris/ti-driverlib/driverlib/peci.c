@@ -398,8 +398,8 @@ PECIDomainConfigGet(unsigned long ulBase, unsigned long ulDomain,
     // register.
     //
     ulTemp = HWREG(ulBase + PECI_O_M0D0C + (ulDomain * 4));
-    *pulHigh = ((ulTemp && PECI_M0D0C_HITHR_M) >> PECI_M0D0C_HITHR_S);
-    *pulLow = ((ulTemp && PECI_M0D0C_LOTHR_M) >> PECI_M0D0C_LOTHR_S);
+    *pulHigh = ((ulTemp & PECI_M0D0C_HITHR_M) >> PECI_M0D0C_HITHR_S);
+    *pulLow = ((ulTemp & PECI_M0D0C_LOTHR_M) >> PECI_M0D0C_LOTHR_S);
 }
 
 //*****************************************************************************
