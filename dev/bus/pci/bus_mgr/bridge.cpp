@@ -332,11 +332,11 @@ status_t bridge::reserve_assigned_resources(resource_allocator &allocator) {
     // any window firmware left open is claimed by whatever is downstream
     auto io = io_range();
     if (window_open(io)) {
-        allocator.reserve(PCI_RESOURCE_IO_RANGE, io.base, io.limit - io.base + 1);
+        allocator.reserve(PCI_RESOURCE_IO_RANGE, io.base, (uint64_t)io.limit - io.base + 1);
     }
     auto mmio = mem_range();
     if (window_open(mmio)) {
-        allocator.reserve(PCI_RESOURCE_MMIO_RANGE, mmio.base, mmio.limit - mmio.base + 1);
+        allocator.reserve(PCI_RESOURCE_MMIO_RANGE, mmio.base, (uint64_t)mmio.limit - mmio.base + 1);
     }
     auto pref = prefetch_range();
     if (window_open(pref)) {
@@ -492,12 +492,12 @@ status_t bridge::assign_child_resources(pci_assign_mode mode) {
 
     auto io = io_range();
     if (window_open(io)) {
-        allocator.add_range(PCI_RESOURCE_IO_RANGE, false, io.base, io.limit - io.base + 1);
+        allocator.add_range(PCI_RESOURCE_IO_RANGE, false, io.base, (uint64_t)io.limit - io.base + 1);
     }
 
     auto mmio = mem_range();
     if (window_open(mmio)) {
-        allocator.add_range(PCI_RESOURCE_MMIO_RANGE, false, mmio.base, mmio.limit - mmio.base + 1);
+        allocator.add_range(PCI_RESOURCE_MMIO_RANGE, false, mmio.base, (uint64_t)mmio.limit - mmio.base + 1);
     }
 
     auto pref = prefetch_range();

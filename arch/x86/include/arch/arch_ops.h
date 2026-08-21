@@ -68,9 +68,9 @@ static inline uint arch_curr_cpu_num(void) {
 
 #ifdef WITH_SMP
 // XXX probably too strict
-#define smp_mb()  mb
-#define smp_rmb() rmb
-#define smp_wmb() wmb
+#define smp_mb()  mb()
+#define smp_rmb() rmb()
+#define smp_wmb() wmb()
 #else
 #define smp_mb()  CF
 #define smp_wmb() CF

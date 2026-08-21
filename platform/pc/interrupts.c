@@ -559,6 +559,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     if (int_table[vector].handler && handler && shareable) {
         // shared: append to the chain
         entry->next = int_table[vector].extra_handlers;
+        smp_wmb();
         int_table[vector].extra_handlers = entry;
         entry = NULL;
     } else {

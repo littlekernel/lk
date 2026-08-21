@@ -707,7 +707,7 @@ status_t device::compute_bar_sizes(bar_sizes *sizes) {
         } else if (bar.size_64 && bar.prefetchable) {
             // 64bit mmio
             auto size = ROUNDUP(bar.size, PAGE_SIZE);
-            auto align = __builtin_ctz(size);
+            auto align = __builtin_ctzll(size);
             sizes->prefetchable64_size += size;
             if (sizes->prefetchable64_align < align) {
                 sizes->prefetchable64_align = align;
@@ -715,7 +715,7 @@ status_t device::compute_bar_sizes(bar_sizes *sizes) {
         } else if (bar.size_64) {
             // 64bit mmio
             auto size = ROUNDUP(bar.size, PAGE_SIZE);
-            auto align = __builtin_ctz(size);
+            auto align = __builtin_ctzll(size);
             sizes->mmio64_size += size;
             if (sizes->mmio64_align < align) {
                 sizes->mmio64_align = align;
@@ -723,7 +723,7 @@ status_t device::compute_bar_sizes(bar_sizes *sizes) {
         } else if (bar.prefetchable) {
             // 64bit prefetchable mmio
             auto size = ROUNDUP(bar.size, PAGE_SIZE);
-            auto align = __builtin_ctz(size);
+            auto align = __builtin_ctzll(size);
             sizes->prefetchable_size += size;
             if (sizes->prefetchable_align < align) {
                 sizes->prefetchable_align = align;
@@ -731,7 +731,7 @@ status_t device::compute_bar_sizes(bar_sizes *sizes) {
         } else {
             // 32bit mmio
             auto size = ROUNDUP(bar.size, PAGE_SIZE);
-            auto align = __builtin_ctz(size);
+            auto align = __builtin_ctzll(size);
             sizes->mmio_size += size;
             if (sizes->mmio_align < align) {
                 sizes->mmio_align = align;
@@ -796,12 +796,12 @@ status_t device::get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assig
             // io case. bars are naturally aligned to their size, minimum 16 bytes.
             auto size = ROUNDUP(bar.size, 16);
             request->size = size;
-            request->align = __builtin_ctz(size);
+            request->align = __builtin_ctzll(size);
             request->type = PCI_RESOURCE_IO_RANGE;
         } else if (bar.size_64) {
             // 64bit mmio
             auto size = ROUNDUP(bar.size, PAGE_SIZE);
-            auto align = __builtin_ctz(size);
+            auto align = __builtin_ctzll(size);
             request->size = size;
             request->align = align;
             request->type = PCI_RESOURCE_MMIO64_RANGE;
@@ -809,7 +809,7 @@ status_t device::get_bar_alloc_requests(list_node *bar_alloc_requests, pci_assig
         } else {
             // 32bit mmio
             auto size = ROUNDUP(bar.size, PAGE_SIZE);
-            auto align = __builtin_ctz(size);
+            auto align = __builtin_ctzll(size);
             request->size = size;
             request->align = align;
             request->type = PCI_RESOURCE_MMIO_RANGE;
