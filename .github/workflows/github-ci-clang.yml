@@ -45,6 +45,7 @@ jobs:
           - qemu-virt-riscv64-supervisor-test
           - pc-x86-test
           - pc-x86-64-test
+          - stellaris-launchpad-test
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
