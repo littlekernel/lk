@@ -123,7 +123,41 @@ static bool repin_runnable_thread(void) {
     END_TEST;
 }
 
+/* Repin the running thread itself -- this one -- to another cpu and yield,
+ * which is the idiom arch/x86/test uses to run cpuid on a specific cpu. The
+ * yield has to requeue us on the new cpu rather than the local one, and we
+ * must come back on the cpu we asked for, and then again on the original when
+ * the pin is restored.
+ */
+static bool repin_current_thread(void) {
+    BEGIN_TEST;
+
+    thread_t *self = get_current_thread();
+    const int old_pin = thread_pinned_cpu(self);
+    const uint local = arch_curr_cpu_num();
+    const int other = find_other_active_cpu(local);
+
+    if (other < 0) {
+        unittest_printf("[SKIPPED: needs more than one active cpu] ");
+        END_TEST;
+    }
+
+    thread_set_pinned_cpu(self, other);
+    thread_yield();
+    EXPECT_EQ(other, (int)arch_curr_cpu_num(), "a repinned thread must yield onto its new cpu");
+
+    /* and back, so the rest of the suite runs where it started */
+    thread_set_pinned_cpu(self, (int)local);
+    thread_yield();
+    EXPECT_EQ((int)local, (int)arch_curr_cpu_num(), "and back again");
+
+    thread_set_pinned_cpu(self, old_pin);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(sched_tests)
 RUN_TEST(pin_before_resume)
 RUN_TEST(repin_runnable_thread)
+RUN_TEST(repin_current_thread)
 END_TEST_CASE(sched_tests)

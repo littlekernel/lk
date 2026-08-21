@@ -289,8 +289,11 @@ status_t thread_set_real_time(thread_t *t) {
  * @brief  Pin a thread to a cpu, or -1 to unpin it
  *
  * A thread that is already runnable and sitting on the wrong cpu's run queue is
- * moved to the right one and that cpu is poked. A blocked or suspended thread
- * just records the pin; find_target_cpu() honors it when the thread next wakes.
+ * moved to the right one and that cpu is poked. A thread running on the wrong
+ * cpu is moved the next time that cpu reschedules, which is requested here if
+ * it is another cpu; a thread repinning itself follows up with thread_yield().
+ * A blocked or suspended thread just records the pin; find_target_cpu() honors
+ * it when the thread next wakes.
  */
 void thread_set_pinned_cpu(thread_t *t, int cpu) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
@@ -308,11 +311,16 @@ void thread_set_pinned_cpu(thread_t *t, int cpu) {
             run_queue_remove(queued_cpu, t);
             sched_poke_cpus(1U << sched_insert_runnable(t));
         }
-    } else if (t->state == THREAD_RUNNING) {
-        /* Moving a running thread means asking the cpu running it to reschedule
-         * and give it up, which nothing needs. Pinning it where it already runs
-         * is the only supported case -- and the only one anything does. */
-        DEBUG_ASSERT(cpu < 0 || cpu == thread_curr_cpu(t));
+    } else if (t->state == THREAD_RUNNING && cpu >= 0 && cpu != thread_curr_cpu(t)) {
+        /* It is running somewhere it is no longer allowed to be. The cpu running
+         * it has to give it up: its preempt path requeues it through
+         * sched_requeue_current(), which honors the pin. If that cpu is another
+         * one, poke it. If it is this one the caller is the thread itself, and
+         * moving it means a context switch the caller has to ask for --
+         * thread_yield() is the idiom (see arch/x86/test). */
+        if (t != get_current_thread()) {
+            sched_poke_cpus(1U << (uint)thread_curr_cpu(t));
+        }
     }
 
     THREAD_UNLOCK(state);
@@ -508,6 +516,29 @@ void sched_resched(void) {
     arch_context_switch(oldthread, newthread);
 }
 
+/* Put the current thread, which is giving up the cpu, back on a run queue.
+ *
+ * Normally that is the local cpu's queue, at the head if it still has quantum
+ * and at the tail if it was out or yielded. But if it has been pinned elsewhere
+ * since it was scheduled (thread_set_pinned_cpu() on a running thread), the
+ * local queue is the one place it must not go: nothing filters at pop time.
+ * Hand it to its cpu instead, through the pin-aware path, and poke that cpu.
+ *
+ * The other cpu cannot actually run it yet -- it needs the thread lock for
+ * that, and the lock is held across the context switch the caller is about to
+ * make -- so queueing a still-running thread there is safe.
+ */
+static void sched_requeue_current(thread_t *current_thread, bool at_head) {
+    const int pinned = thread_pinned_cpu(current_thread);
+    if (pinned >= 0 && (uint)pinned != arch_curr_cpu_num()) {
+        sched_poke_cpus(1U << sched_insert_runnable(current_thread));
+    } else if (at_head) {
+        sched_insert_runnable_head_on(arch_curr_cpu_num(), current_thread);
+    } else {
+        sched_insert_runnable_tail_on(arch_curr_cpu_num(), current_thread);
+    }
+}
+
 /**
  * @brief Yield the cpu to another thread
  *
@@ -532,7 +563,7 @@ void thread_yield(void) {
     /* we are yielding the cpu, so stick ourselves into the tail of the run queue and reschedule */
     current_thread->state = THREAD_READY;
     current_thread->remaining_quantum = 0;
-    sched_insert_runnable_tail_on(arch_curr_cpu_num(), current_thread);
+    sched_requeue_current(current_thread, false);
     sched_resched();
 
     THREAD_UNLOCK(state);
@@ -569,11 +600,8 @@ void thread_preempt(void) {
     /* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */
     current_thread->state = THREAD_READY;
     if (likely(!thread_is_idle(current_thread))) { /* idle thread doesn't go in the run queue */
-        if (current_thread->remaining_quantum > 0) {
-            sched_insert_runnable_head_on(arch_curr_cpu_num(), current_thread);
-        } else {
-            sched_insert_runnable_tail_on(arch_curr_cpu_num(), current_thread); /* if we're out of quantum, go to the tail of the queue */
-        }
+        /* back to the head if we have quantum left, the tail if we ran out */
+        sched_requeue_current(current_thread, current_thread->remaining_quantum > 0);
     }
     sched_resched();
 
@@ -717,7 +745,7 @@ void thread_set_priority(int priority) {
     current_thread->priority = priority;
 
     current_thread->state = THREAD_READY;
-    sched_insert_runnable_head_on(arch_curr_cpu_num(), current_thread);
+    sched_requeue_current(current_thread, true);
     sched_resched();
 
     THREAD_UNLOCK(state);
