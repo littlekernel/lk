@@ -12,6 +12,14 @@ MODULE_OPTIONS := extra_warnings
 # arch flags on the compile line.
 MODULE_COMPILEFLAGS := -fpie -mcmodel=small -fno-jump-tables -fvisibility=hidden
 
+# Under LTO the linker merges IR-level module flags (e.g. "Code Model") across
+# every participating object and errors on a mismatch, which this module's
+# -mcmodel=small override always trips against the rest of the kernel's
+# -mcmodel=kernel. The stub calls into nothing else in the kernel, so it has
+# nothing to gain from whole-program optimization anyway: keep it out of the
+# LTO merge and let it link in as an ordinary native object.
+MODULE_COMPILEFLAGS += -fno-lto
+
 # UBSAN is likewise incompatible with the stub: instrumentation calls into
 # __ubsan_handle_* in the kernel proper and emits absolute relocations for its
 # source location records, both of which break a relocatable, self-contained
