@@ -385,6 +385,9 @@ Architecture/platform rules set defines via `GLOBAL_DEFINES +=`:
   needed. For thresholds finer than the binary tier, `MEMSIZE` is universally defined
   (including x86, as a documented non-authoritative placeholder) and can be compared
   numerically — see `lib/heap/test/heap_tests.c` for the pattern.
+- `UBSAN` — boolean (0/1), always defined, set from the `UBSAN=1` make variable. Use a
+  bare `#if UBSAN` to compensate for instrumentation, which noticeably inflates stack
+  frames; `app/shell/shell.c` uses it to grow the shell thread's stack.
 
 ## Common Workflows
 
@@ -486,8 +489,9 @@ scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
 - The script is capped at 511 bytes. On PC targets `platform/pc` copies the multiboot command
   line into a 256 byte buffer, which caps the *entire* command line there.
 - The script runs on the shell app's thread, whose stack size can be overridden with
-  `SHELL_STACK_SIZE` (`DEFAULT_STACK_SIZE` by default). Commands like `ut all` run close
-  to the default stack size, so keep large buffers in tests on the heap, not the stack.
+  `SHELL_STACK_SIZE` (`DEFAULT_STACK_SIZE` by default, ×4 under `UBSAN=1`). Commands like
+  `ut all` run close to the default stack size, so keep large buffers in tests on the heap,
+  not the stack. This is tightest on cortex-m, where `ARCH_DEFAULT_STACK_SIZE` is 1KB.
 
 ## Key Files Reference
 

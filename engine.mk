@@ -137,6 +137,10 @@ GENERATED := $(CONFIGHEADER)
 # anything added to GLOBAL_DEFINES will be put into $(BUILDDIR)/config.h
 GLOBAL_DEFINES := LK=1
 
+# Always defined, so code can test it with a bare #if UBSAN. Instrumentation
+# inflates stack frames noticeably, which the tighter embedded configs care about.
+GLOBAL_DEFINES += UBSAN=$(if $(filter 1,$(UBSAN)),1,0)
+
 # Anything added to GLOBAL_SRCDEPS will become a dependency of every source file in the system.
 # Useful for header files that may be included by one or more source files.
 GLOBAL_SRCDEPS := $(CONFIGHEADER)
