@@ -78,14 +78,28 @@ static bool test_lookup_no_base(void) {
     END_TEST;
 }
 
+/* The low bound of the generated table, which is the address of its first
+ * symbol. Not in the header: it is the module's own data, and the test only
+ * needs it because "below the kernel" is not a fixed address.
+ */
+extern const uintptr_t lk_symtab_base;
+
 /* addresses outside the kernel's text resolve to nothing rather than to the
  * nearest symbol
  */
 static bool test_lookup_out_of_range(void) {
     BEGIN_TEST;
 
-    EXPECT_NULL(symtab_lookup(0, NULL), "symbol found for a null address");
     EXPECT_NULL(symtab_lookup(UINTPTR_MAX, NULL), "symbol found above the kernel");
+
+    /* Address zero is only outside the image when the image is not linked
+     * there. The cortex-m boards fetch their initial stack pointer and reset
+     * vector from zero, so the vector table is the first symbol and looking
+     * up zero correctly names it. Probe just under the table instead.
+     */
+    if (lk_symtab_base > 0) {
+        EXPECT_NULL(symtab_lookup(lk_symtab_base - 1, NULL), "symbol found below the kernel");
+    }
 
     END_TEST;
 }
