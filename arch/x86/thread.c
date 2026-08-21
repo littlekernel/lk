@@ -78,6 +78,28 @@ void arch_thread_initialize(thread_t *t) {
     t->arch.sp = (vaddr_t)frame;
 }
 
+bool arch_thread_get_backtrace_regs(const thread_t *t, uintptr_t *pc, uintptr_t *fp) {
+    if (!t->arch.sp) {
+        return false;
+    }
+
+    /* The context switch pushes the frame pointer and the address it will
+     * return to, which is where the thread resumes.
+     */
+#if ARCH_X86_32
+    const struct x86_32_context_switch_frame *frame =
+        (const struct x86_32_context_switch_frame *)t->arch.sp;
+    *pc = frame->eip;
+    *fp = frame->ebp;
+#else
+    const struct x86_64_context_switch_frame *frame =
+        (const struct x86_64_context_switch_frame *)t->arch.sp;
+    *pc = frame->rip;
+    *fp = frame->rbp;
+#endif
+    return true;
+}
+
 void arch_dump_thread(const thread_t *t) {
     if (t->state != THREAD_RUNNING) {
         dprintf(INFO, "\tarch: ");

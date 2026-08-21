@@ -23,8 +23,6 @@ __BEGIN_CDECLS
 
 extern bool arm64_cycle_counter_enabled;
 
-void arch_stacktrace(uint64_t fp, uint64_t pc);
-
 static inline void arch_enable_fiqs(void) {
     CF;
     __asm__ volatile("msr daifclr, #1" ::: "memory");

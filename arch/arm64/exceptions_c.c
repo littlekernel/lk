@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <stdio.h>
+#include <lk/backtrace.h>
 #include <lk/debug.h>
 #include <lk/bits.h>
 #include <arch/arch_ops.h>
@@ -150,7 +151,7 @@ static void dump_iframe(const struct arm64_iframe_long *iframe) {
     printf("x28 0x%16llx x29 0x%16llx lr  0x%16llx usp 0x%16llx\n", iframe->r[28], iframe->r[29], iframe->lr, iframe->usp);
     printf("elr 0x%16llx\n", iframe->elr);
     printf("spsr 0x%16llx\n", iframe->spsr);
-    arch_stacktrace(iframe->r[29], iframe->elr);
+    backtrace_print(iframe->elr, iframe->r[29]);
 }
 
 __WEAK void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit) {

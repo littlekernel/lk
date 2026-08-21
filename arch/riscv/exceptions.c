@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <assert.h>
+#include <lk/backtrace.h>
 #include <lk/compiler.h>
 #include <lk/trace.h>
 #include <arch/riscv.h>
@@ -90,6 +91,9 @@ static void dump_iframe(struct riscv_short_iframe *frame, bool kernel) {
         // gp/tp/sp are not modified when taking a kernel to kernel exception
         printf("gp %#16lx tp %#16lx (from registers)\n", gp, tp);
     }
+    printf("s0 %#16lx ra %#16lx\n", frame->s0, frame->ra);
+
+    backtrace_print(frame->epc, frame->s0);
 }
 
 __NO_RETURN __NO_INLINE

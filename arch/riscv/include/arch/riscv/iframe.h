@@ -17,6 +17,7 @@
 #define RISCV_IFRAME_TP     (18 * __riscv_xlen / 8)
 #define RISCV_IFRAME_GP     (19 * __riscv_xlen / 8)
 #define RISCV_IFRAME_SP     (20 * __riscv_xlen / 8)
+#define RISCV_IFRAME_S0     (21 * __riscv_xlen / 8)
 
 #define RISCV_IFRAME_LEN    (24 * __riscv_xlen / 8)
 
@@ -49,7 +50,9 @@ struct riscv_short_iframe {
     unsigned long  tp;
     unsigned long  gp;
     unsigned long  sp;
-    unsigned long  pad[3]; // always maintain a padding of a multiple of 16 bytes
+    // callee saved, but saved here as the frame pointer for stack backtraces
+    unsigned long  s0;
+    unsigned long  pad[2]; // always maintain a padding of a multiple of 16 bytes
 };
 
 static_assert(sizeof(struct riscv_short_iframe) % 16 == 0, "");
@@ -62,6 +65,7 @@ static_assert(offsetof(struct riscv_short_iframe, a0) == RISCV_IFRAME_A_BASE, ""
 static_assert(offsetof(struct riscv_short_iframe, t0) == RISCV_IFRAME_T_BASE, "");
 static_assert(offsetof(struct riscv_short_iframe, gp) == RISCV_IFRAME_GP, "");
 static_assert(offsetof(struct riscv_short_iframe, sp) == RISCV_IFRAME_SP, "");
+static_assert(offsetof(struct riscv_short_iframe, s0) == RISCV_IFRAME_S0, "");
 
 #endif // __ASSEMBLY__
 
