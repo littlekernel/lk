@@ -10,13 +10,18 @@ name: CodeQL
 
 on:
   pull_request:
+    paths-ignore:
+      - '**.md'   # Skip analysis when only documentation changes
+      - 'LICENSE'
+      - 'docs/**'
   push:
     branches-ignore:
       - 'wip/**'
       - 'docs/**' # Skip analysis for documentation branches
     paths-ignore:
-      - '**.md'   # Skip analysis when only markdown files change
-      - 'docs/**' # Skip analysis for docs directory changes
+      - '**.md'   # Skip analysis when only documentation changes
+      - 'LICENSE'
+      - 'docs/**'
   schedule:
     # weekly, monday 05:17 UTC
     - cron: '17 5 * * 1'

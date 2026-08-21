@@ -10,13 +10,18 @@ name: LK CI (UBSAN)
 
 on:
   pull_request:
+    paths-ignore:
+      - '**.md'   # Skip tests when only documentation changes
+      - 'LICENSE'
+      - 'docs/**'
   push:
     branches-ignore:
       - 'wip/**'
       - 'docs/**' # Skip tests for documentation branches
     paths-ignore:
-      - '**.md'   # Skip tests when only markdown files change
-      - 'docs/**' # Skip tests for docs directory changes
+      - '**.md'   # Skip tests when only documentation changes
+      - 'LICENSE'
+      - 'docs/**'
 
 # These jobs only build and run the tree; they never write back to the repo.
 permissions:

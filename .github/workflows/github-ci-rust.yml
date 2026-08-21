@@ -4,13 +4,18 @@ name: LK CI (Rust)
 
 on:
   pull_request:
+    paths-ignore:
+      - '**.md'   # Skip builds when only documentation changes
+      - 'LICENSE'
+      - 'docs/**'
   push:
     branches-ignore:
       - 'wip/**'
       - 'docs/**' # Skip builds for documentation branches
     paths-ignore:
-      - '**.md'   # Skip builds when only markdown files change
-      - 'docs/**' # Skip builds for docs directory changes
+      - '**.md'   # Skip builds when only documentation changes
+      - 'LICENSE'
+      - 'docs/**'
 
 # These jobs only build the tree; they never write back to the repo.
 permissions:
