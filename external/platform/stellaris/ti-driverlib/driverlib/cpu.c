@@ -50,23 +50,12 @@
 unsigned long __attribute__((naked))
 CPUcpsid(void)
 {
-    unsigned long ulRet;
-
     //
     // Read PRIMASK and disable interrupts.
     //
     __asm("    mrs     r0, PRIMASK\n"
           "    cpsid   i\n"
-          "    bx      lr\n"
-          : "=r" (ulRet));
-
-    //
-    // The return is handled in the inline assembly, but the compiler will
-    // still complain if there is not an explicit return here (despite the fact
-    // that this does not result in any code being produced because of the
-    // naked attribute).
-    //
-    return(ulRet);
+          "    bx      lr\n");
 }
 #endif
 #if defined(ewarm)
@@ -132,22 +121,11 @@ CPUcpsid(void)
 unsigned long __attribute__((naked))
 CPUprimask(void)
 {
-    unsigned long ulRet;
-
     //
     // Read PRIMASK and disable interrupts.
     //
     __asm("    mrs     r0, PRIMASK\n"
-          "    bx      lr\n"
-          : "=r" (ulRet));
-
-    //
-    // The return is handled in the inline assembly, but the compiler will
-    // still complain if there is not an explicit return here (despite the fact
-    // that this does not result in any code being produced because of the
-    // naked attribute).
-    //
-    return(ulRet);
+          "    bx      lr\n");
 }
 #endif
 #if defined(ewarm)
@@ -210,23 +188,12 @@ CPUprimask(void)
 unsigned long __attribute__((naked))
 CPUcpsie(void)
 {
-    unsigned long ulRet;
-
     //
     // Read PRIMASK and enable interrupts.
     //
     __asm("    mrs     r0, PRIMASK\n"
           "    cpsie   i\n"
-          "    bx      lr\n"
-          : "=r" (ulRet));
-
-    //
-    // The return is handled in the inline assembly, but the compiler will
-    // still complain if there is not an explicit return here (despite the fact
-    // that this does not result in any code being produced because of the
-    // naked attribute).
-    //
-    return(ulRet);
+          "    bx      lr\n");
 }
 #endif
 #if defined(ewarm)
@@ -388,22 +355,11 @@ CPUbasepriSet(unsigned long ulNewBasepri)
 unsigned long __attribute__((naked))
 CPUbasepriGet(void)
 {
-    unsigned long ulRet;
-
     //
     // Read BASEPRI
     //
     __asm("    mrs     r0, BASEPRI\n"
-          "    bx      lr\n"
-          : "=r" (ulRet));
-
-    //
-    // The return is handled in the inline assembly, but the compiler will
-    // still complain if there is not an explicit return here (despite the fact
-    // that this does not result in any code being produced because of the
-    // naked attribute).
-    //
-    return(ulRet);
+          "    bx      lr\n");
 }
 #endif
 #if defined(ewarm)
