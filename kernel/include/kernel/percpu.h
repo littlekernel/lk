@@ -91,8 +91,12 @@ __BEGIN_CDECLS
 #endif
 #endif
 
+// Only worth having with more than one cpu: on a UP build a spinlock is a
+// plain held flag, so arch_spin_lock_held() already answers "held by me" and
+// the per-cpu record would add nothing but code at every lock site (it
+// measured 3-8KB of text in a DEBUG=2 cortex-m build).
 #ifndef SPIN_LOCK_TRACK_HELD
-#if LK_DEBUGLEVEL > 1
+#if LK_DEBUGLEVEL > 1 && WITH_SMP
 #define SPIN_LOCK_TRACK_HELD 1
 #else
 #define SPIN_LOCK_TRACK_HELD 0
