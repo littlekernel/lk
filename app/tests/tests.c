@@ -18,4 +18,5 @@ STATIC_COMMAND("clock_tests", "clock benchmarks", &clock_bench)
 STATIC_COMMAND("bench", "miscellaneous benchmarks", &benchmarks)
 STATIC_COMMAND("fibo", "threaded fibonacci", &fibo)
 STATIC_COMMAND("mem_test", "test memory", &mem_test)
+STATIC_COMMAND("schedbench", "scheduler scalability benchmark", &schedbench)
 STATIC_COMMAND_END(tests);
