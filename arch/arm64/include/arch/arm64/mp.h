@@ -25,6 +25,8 @@ void arm64_set_secondary_cpu_count(int count);
 struct arm64_percpu {
     uint cpu_num;
     uint64_t mpidr;
+    // the kernel's struct percpu for this cpu, see arch_get_kernel_percpu()
+    void *kernel_percpu;
 } __CPU_ALIGN;
 
 static inline void arm64_set_percpu(struct arm64_percpu *pc) {
@@ -40,6 +42,11 @@ static inline struct arm64_percpu *arm64_get_percpu(void) {
 static inline uint arch_curr_cpu_num(void) {
     const struct arm64_percpu *pc = arm64_get_percpu();
     return pc->cpu_num;
+}
+
+#define ARCH_HAS_KERNEL_PERCPU_PTR 1
+static inline void *arch_get_kernel_percpu(void) {
+    return arm64_get_percpu()->kernel_percpu;
 }
 
 // Translate a CPU number back to the MPIDR of the CPU.

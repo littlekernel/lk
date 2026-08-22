@@ -10,6 +10,7 @@
 #include <arch/ops.h>
 #include <arch/riscv.h>
 #include <assert.h>
+#include <kernel/percpu.h>
 #include <lk/debug.h>
 #include <lk/init.h>
 #include <lk/main.h>
@@ -36,6 +37,7 @@ void riscv_configure_percpu_early(uint hart_id, uint __unused, uint cpu_num) {
     // set up the cpu number and hart id for the per cpu structure
     percpu[cpu_num].cpu_num = cpu_num;
     percpu[cpu_num].hart_id = hart_id;
+    percpu[cpu_num].kernel_percpu = percpu_get(cpu_num);
     wmb();
 
 #if WITH_SMP

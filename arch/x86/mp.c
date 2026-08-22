@@ -14,6 +14,7 @@
 #include <arch/x86/descriptor.h>
 #include <arch/x86/feature.h>
 #include <assert.h>
+#include <kernel/percpu.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/main.h>
@@ -47,6 +48,7 @@ void x86_configure_percpu_early(uint cpu_num, uint apic_id) {
     percpu->self = percpu;
     percpu->cpu_num = cpu_num;
     percpu->apic_id = apic_id;
+    percpu->kernel_percpu = percpu_get(cpu_num);
 
 #if ARCH_X86_64
     // use the 64-bit gs base msr to set up a pointer to the percpu struct

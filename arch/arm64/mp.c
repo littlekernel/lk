@@ -12,6 +12,7 @@
 #include <arch/ops.h>
 #include <assert.h>
 #include <inttypes.h>
+#include <kernel/percpu.h>
 #include <lk/err.h>
 #include <lk/init.h>
 #include <lk/main.h>
@@ -97,6 +98,7 @@ static void arm64_init_secondary_percpu(uint cpu_num) {
     arm64_set_percpu(percpu);
     percpu->cpu_num = cpu_num;
     percpu->mpidr = ARM64_READ_SYSREG(mpidr_el1);
+    percpu->kernel_percpu = percpu_get(cpu_num);
 }
 
 void arm64_set_secondary_cpu_count(int count) {
@@ -170,4 +172,5 @@ void arm64_init_boot_percpu(void) {
     arm64_set_percpu(&boot_percpu);
     boot_percpu.cpu_num = 0;
     boot_percpu.mpidr = ARM64_READ_SYSREG(mpidr_el1);
+    boot_percpu.kernel_percpu = percpu_get(0);
 }

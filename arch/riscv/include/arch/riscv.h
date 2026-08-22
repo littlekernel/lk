@@ -196,6 +196,8 @@ struct riscv_percpu {
     struct thread *curr_thread;
     unsigned int cpu_num;
     unsigned int hart_id;
+    // the kernel's struct percpu for this cpu, see arch_get_kernel_percpu()
+    void *kernel_percpu;
 } __ALIGNED(CACHE_LINE);
 
 // percpu pointer is held in the tp register while in the kernel

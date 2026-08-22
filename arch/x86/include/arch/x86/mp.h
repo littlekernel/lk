@@ -22,6 +22,9 @@ typedef struct x86_percpu {
 
     struct thread *current_thread;
 
+    // the kernel's struct percpu for this cpu, see arch_get_kernel_percpu()
+    void *kernel_percpu;
+
     // what this cpu's cpuid says about where it sits, see apicid.h
     struct x86_cpu_ids ids;
 
@@ -72,6 +75,10 @@ x86_percpu_t *x86_get_percpu_for_cpu(uint cpu_num);
 // get the current cpu number
 static inline uint x86_get_cpu_num(void) {
     return x86_read_gs_offset32(X86_PERCPU_FIELD_OFFSET(cpu_num));
+}
+
+static inline void *x86_get_kernel_percpu(void) {
+    return x86_read_gs_offset_ptr(X86_PERCPU_FIELD_OFFSET(kernel_percpu));
 }
 
 // get the current apic id

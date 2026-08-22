@@ -23,6 +23,17 @@ static inline uint arch_curr_cpu_num(void);
 /* Use to align structures on cache lines to avoid cpu aliasing. */
 #define __CPU_ALIGN __ALIGNED(CACHE_LINE)
 
+/* Optional: an arch that keeps a per-cpu pointer in a register (or segment)
+ * can define ARCH_HAS_KERNEL_PERCPU_PTR to 1 and provide
+ *
+ *   static inline void *arch_get_kernel_percpu(void);
+ *
+ * returning the local cpu's struct percpu (kernel/percpu.h), which the arch
+ * stores alongside its own per-cpu data when it sets that up. It lets
+ * percpu_local() be a single load instead of a cpu number lookup and an index
+ * computation, and it is on the path of every spin_lock() in a debug build.
+ * Without it the kernel indexes percpu_array by arch_curr_cpu_num(). */
+
 void arch_disable_cache(uint flags);
 void arch_enable_cache(uint flags);
 

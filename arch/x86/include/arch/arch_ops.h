@@ -35,6 +35,11 @@ static inline void arch_set_current_thread(struct thread *t) {
 static inline uint arch_curr_cpu_num(void) {
     return x86_get_cpu_num();
 }
+
+#define ARCH_HAS_KERNEL_PERCPU_PTR 1
+static inline void *arch_get_kernel_percpu(void) {
+    return x86_get_kernel_percpu();
+}
 #else
 /* use a global pointer to store the current_thread */
 extern struct thread *_current_thread;

@@ -187,8 +187,20 @@ static inline struct percpu *percpu_get(uint cpu) {
 // The local cpu's state. Only meaningful with interrupts disabled (or
 // preemption otherwise off), as the caller could be migrated right after
 // reading the cpu number.
+//
+// This is on the path of every spin_lock() in a debug build and of every
+// context switch, so it is worth a single load: an arch that keeps a per-cpu
+// pointer in a register stores the struct percpu pointer next to its own data
+// and hands it back through arch_get_kernel_percpu() (see arch/ops.h). With
+// one cpu it is a constant.
 static inline struct percpu *percpu_local(void) {
+#if !WITH_SMP
+    return &percpu_array[0];
+#elif ARCH_HAS_KERNEL_PERCPU_PTR
+    return (struct percpu *)arch_get_kernel_percpu();
+#else
     return &percpu_array[arch_curr_cpu_num()];
+#endif
 }
 
 __END_CDECLS

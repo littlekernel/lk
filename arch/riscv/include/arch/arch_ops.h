@@ -41,6 +41,13 @@ static inline uint arch_curr_cpu_num(void) {
 #endif
 }
 
+#if WITH_SMP
+#define ARCH_HAS_KERNEL_PERCPU_PTR 1
+static inline void *arch_get_kernel_percpu(void) {
+    return riscv_get_percpu()->kernel_percpu;
+}
+#endif
+
 #define mb()        __asm__ volatile("fence iorw,iorw" ::: "memory");
 #define wmb()       __asm__ volatile("fence ow,ow" ::: "memory");
 #define rmb()       __asm__ volatile("fence ir,ir" ::: "memory");
