@@ -10,21 +10,14 @@
  * @file
  * @brief  Spinlock ownership tracking
  *
- * Backing storage for the debug-only record of which locks each cpu holds. The
+ * The out of line failure paths of the debug-only record of which locks each
+ * cpu holds. The record lives in struct percpu (kernel/percpu.h) and the
  * interesting part is all in <kernel/spinlock.h>; see the comment there for why
- * this is a separate per-cpu array rather than an owner field inside the lock
- * word.
+ * it is a per-cpu record rather than an owner field inside the lock word.
  */
 #include <kernel/spinlock.h>
 
 #if SPIN_LOCK_TRACK_HELD
-
-/* Deliberately plain bss with no initializer and no init routine: spinlocks are
- * taken long before any init hook runs, so anything needing to be called first
- * would either fault or silently mistrack the whole of early boot. Zeroed bss is
- * already the correct starting state.
- */
-struct spin_lock_held_state spin_lock_held_state[SMP_MAX_CPUS];
 
 void spin_lock_held_overflow(void) {
     panic("spinlock: cpu %u nested more than %d spinlocks deep\n",

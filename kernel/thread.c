@@ -39,10 +39,6 @@
 #include <kernel/vm.h>
 #endif
 
-#if THREAD_STATS
-struct thread_stats thread_stats[SMP_MAX_CPUS];
-#endif
-
 #define STACK_DEBUG_BYTE (0x99)
 #define STACK_DEBUG_WORD (0x99999999)
 

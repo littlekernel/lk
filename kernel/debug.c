@@ -72,19 +72,20 @@ static int cmd_threadstats(int argc, const console_cmd_args *argv) {
         if (!mp_is_cpu_active(i))
             continue;
 
+        const struct thread_stats *stats = &percpu_get(i)->stats;
         printf("thread stats (cpu %d):\n", i);
-        printf("\ttotal idle time: %lld\n", thread_stats[i].idle_time);
-        printf("\ttotal busy time: %lld\n", current_time_hires() - thread_stats[i].idle_time);
-        printf("\treschedules: %lu\n", thread_stats[i].reschedules);
+        printf("\ttotal idle time: %lld\n", stats->idle_time);
+        printf("\ttotal busy time: %lld\n", current_time_hires() - stats->idle_time);
+        printf("\treschedules: %lu\n", stats->reschedules);
 #if WITH_SMP
-        printf("\treschedule_ipis: %lu\n", thread_stats[i].reschedule_ipis);
+        printf("\treschedule_ipis: %lu\n", stats->reschedule_ipis);
 #endif
-        printf("\tcontext_switches: %lu\n", thread_stats[i].context_switches);
-        printf("\tpreempts: %lu\n", thread_stats[i].preempts);
-        printf("\tyields: %lu\n", thread_stats[i].yields);
-        printf("\tinterrupts: %lu\n", thread_stats[i].interrupts);
-        printf("\ttimer interrupts: %lu\n", thread_stats[i].timer_ints);
-        printf("\ttimers: %lu\n", thread_stats[i].timers);
+        printf("\tcontext_switches: %lu\n", stats->context_switches);
+        printf("\tpreempts: %lu\n", stats->preempts);
+        printf("\tyields: %lu\n", stats->yields);
+        printf("\tinterrupts: %lu\n", stats->interrupts);
+        printf("\ttimer interrupts: %lu\n", stats->timer_ints);
+        printf("\ttimers: %lu\n", stats->timers);
     }
 
     dump_threads_stats();
@@ -100,12 +101,13 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
         if (!mp_is_cpu_active(i))
             continue;
 
-        lk_bigtime_t idle_time = thread_stats[i].idle_time;
+        const struct thread_stats *stats = &percpu_get(i)->stats;
+        lk_bigtime_t idle_time = stats->idle_time;
 
         /* if the cpu is currently idle, add the time since it went idle up until now to the idle counter */
         bool is_idle = !!mp_is_cpu_idle(i);
         if (is_idle) {
-            idle_time += current_time_hires() - thread_stats[i].last_idle_timestamp;
+            idle_time += current_time_hires() - stats->last_idle_timestamp;
         }
 
         lk_bigtime_t delta_time = idle_time - last_idle_time[i];
@@ -124,16 +126,16 @@ static enum handler_return threadload(struct timer *t, lk_time_t now, void *arg)
                "tmrs %lu\n",
                i,
                busypercent / 100, busypercent % 100,
-               thread_stats[i].context_switches - old_stats[i].context_switches,
-               thread_stats[i].preempts - old_stats[i].preempts,
+               stats->context_switches - old_stats[i].context_switches,
+               stats->preempts - old_stats[i].preempts,
 #if WITH_SMP
-               thread_stats[i].reschedule_ipis - old_stats[i].reschedule_ipis,
+               stats->reschedule_ipis - old_stats[i].reschedule_ipis,
 #endif
-               thread_stats[i].interrupts - old_stats[i].interrupts,
-               thread_stats[i].timer_ints - old_stats[i].timer_ints,
-               thread_stats[i].timers - old_stats[i].timers);
+               stats->interrupts - old_stats[i].interrupts,
+               stats->timer_ints - old_stats[i].timer_ints,
+               stats->timers - old_stats[i].timers);
 
-        old_stats[i] = thread_stats[i];
+        old_stats[i] = *stats;
         last_idle_time[i] = idle_time;
     }
 

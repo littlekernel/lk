@@ -10,6 +10,7 @@ MODULE_SRCS := \
 	$(LOCAL_DIR)/debug.c \
 	$(LOCAL_DIR)/event.c \
 	$(LOCAL_DIR)/init.c \
+	$(LOCAL_DIR)/percpu.c \
 	$(LOCAL_DIR)/preempt.c \
 	$(LOCAL_DIR)/spinlock.c \
 	$(LOCAL_DIR)/mutex.c \

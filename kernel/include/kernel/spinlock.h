@@ -10,6 +10,7 @@
 #include <arch/ops.h>
 #include <arch/spinlock.h>
 #include <assert.h>
+#include <kernel/percpu.h>
 #include <lk/compiler.h>
 #include <lk/debug.h>
 #include <sys/types.h>
@@ -28,7 +29,10 @@ __BEGIN_CDECLS
 // word. Encoding an owner into the word would foreclose ticket locks, MCS locks
 // and riscv's single-instruction amoswap acquire; a per-cpu array touches no
 // arch code at all, does not change spin_lock_t, and does not disturb any
-// SPIN_LOCK_INITIAL_VALUE site.
+// SPIN_LOCK_INITIAL_VALUE site. The record itself is struct percpu's held_locks
+// (kernel/percpu.h), on a line of its own: every spin_lock() and spin_unlock()
+// writes it, and adjacent cpus sharing a line would bounce it on every lock
+// operation.
 //
 // Correctness under LK's lock handoff: the thread lock is acquired by one thread
 // and released by another across a context switch, but always on the *same*
@@ -38,24 +42,7 @@ __BEGIN_CDECLS
 // preempt counter -- see kernel/preempt.h.) Release is a search-and-remove
 // rather than a stack pop for the same reason: locks are not guaranteed to be
 // dropped in acquisition order across a handoff.
-#if LK_DEBUGLEVEL > 1
-#define SPIN_LOCK_TRACK_HELD 1
-#endif
-
 #if SPIN_LOCK_TRACK_HELD
-
-// Deeper than anything in the tree nests; the assert below is the real check.
-#define SPIN_LOCK_HELD_MAX 8
-
-// One per cpu, each on its own cache line: every spin_lock() and spin_unlock()
-// writes here, and adjacent cpus sharing a line turns that into a line
-// bouncing between them on every lock operation.
-struct spin_lock_held_state {
-    spin_lock_t *locks[SPIN_LOCK_HELD_MAX];
-    uint count;
-} __CPU_ALIGN;
-
-extern struct spin_lock_held_state spin_lock_held_state[SMP_MAX_CPUS];
 
 // The failure paths stay out of line in spinlock.c. These helpers are inlined
 // into every spin_lock()/spin_unlock() in the kernel, so a panic() with a format
@@ -69,7 +56,7 @@ static inline void spin_lock_held_acquired(spin_lock_t *lock) {
     // Safe without further synchronization: spin_lock() requires interrupts to
     // be disabled already, so the current cpu number is stable and nothing else
     // can be touching this cpu's slot.
-    struct spin_lock_held_state *s = &spin_lock_held_state[arch_curr_cpu_num()];
+    struct spin_lock_held_state *s = &percpu_local()->held_locks;
     if (unlikely(s->count >= SPIN_LOCK_HELD_MAX)) {
         spin_lock_held_overflow();
     }
@@ -77,7 +64,7 @@ static inline void spin_lock_held_acquired(spin_lock_t *lock) {
 }
 
 static inline void spin_lock_held_released(spin_lock_t *lock) {
-    struct spin_lock_held_state *s = &spin_lock_held_state[arch_curr_cpu_num()];
+    struct spin_lock_held_state *s = &percpu_local()->held_locks;
     for (uint i = 0; i < s->count; i++) {
         if (s->locks[i] == lock) {
             // order within the array carries no meaning, so fill the hole from
@@ -134,7 +121,7 @@ static inline bool spin_lock_held(spin_lock_t *lock) {
 // back to what they check today rather than becoming false.
 static inline bool spin_lock_held_by_me(spin_lock_t *lock) {
 #if SPIN_LOCK_TRACK_HELD
-    const struct spin_lock_held_state *s = &spin_lock_held_state[arch_curr_cpu_num()];
+    const struct spin_lock_held_state *s = &percpu_local()->held_locks;
     for (uint i = 0; i < s->count; i++) {
         if (s->locks[i] == lock) {
             return true;

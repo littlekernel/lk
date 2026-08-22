@@ -7,6 +7,7 @@
 #pragma once
 
 #include <arch/ops.h>
+#include <kernel/percpu.h>
 #include <kernel/spinlock.h>
 #include <kernel/wait.h>
 #include <lk/compiler.h>
@@ -64,15 +65,10 @@ __BEGIN_CDECLS
 extern spin_lock_t thread_lock;
 
 // The lock protecting a cpu's run queues, and with them the state of every
-// thread queued on or running on that cpu. Each lock gets its own cache line;
-// the rest of the per-cpu scheduler state is private to sched.c.
-struct sched_lock_slot {
-    spin_lock_t lock;
-} __CPU_ALIGN;
-extern struct sched_lock_slot sched_lock_slots[SMP_MAX_CPUS];
-
+// thread queued on or running on that cpu. It lives in the cpu's struct percpu
+// on the same cache line as the run queue bitmap it guards (kernel/percpu.h).
 static inline spin_lock_t *sched_lock(uint cpu) {
-    return &sched_lock_slots[cpu].lock;
+    return &percpu_get(cpu)->sched_lock;
 }
 
 // The lock protecting a wait queue: its list and count, not the scheduling

@@ -23,6 +23,7 @@
 #include <arch/ops.h>
 #include <kernel/debug.h>
 #include <kernel/mp.h>
+#include <kernel/percpu.h>
 #include <kernel/preempt.h>
 #include <kernel/thread.h>
 #include <kernel/timer.h>
@@ -59,30 +60,12 @@
  * another. That makes initial placement the whole scheduling policy, so a bug
  * there is a thread that never runs rather than a thread that runs late.
  *
- * All of this is protected by sched_lock(cpu), one lock per cpu, which lives
- * in its own cache line in sched_lock_slots[] (see kernel/thread_lock.h for
- * the lock order and for which lock owns a thread in which state).
+ * All of this is protected by sched_lock(cpu), one lock per cpu. The lock,
+ * the run queues and the rest of the per-cpu scheduler state live together in
+ * the cpu's struct percpu; see kernel/percpu.h for how they are laid out across
+ * cache lines and kernel/thread_lock.h for the lock order and for which lock
+ * owns a thread in which state.
  */
-struct percpu_sched {
-    struct list_node run_queue[NUM_PRIORITIES];
-    uint32_t run_queue_bitmap;
-    uint runnable_count;
-#if !ARCH_CONTEXT_SWITCH_DROPS_LOCK
-    /* The thread this cpu is in the middle of switching away from. Set by
-     * sched_resched() just before arch_context_switch() and consumed by
-     * sched_context_switch_complete() on the incoming side, so the incoming
-     * thread can finish off the outgoing one once its context is safely saved. */
-    thread_t *previous_thread;
-#endif
-#if PLATFORM_HAS_DYNAMIC_TIMER
-    /* preemption timer */
-    timer_t preempt_timer;
-#endif
-} __CPU_ALIGN;
-
-static struct percpu_sched percpu_sched[SMP_MAX_CPUS];
-
-struct sched_lock_slot sched_lock_slots[SMP_MAX_CPUS];
 
 /* Take two cpus' sched locks. Two locks of the same rank need an order, and
  * the order is by cpu number, lowest first. The same cpu twice is one lock. */
@@ -134,7 +117,7 @@ static void run_queue_insert_checks(uint cpu, thread_t *t) {
 void sched_insert_runnable_head_on(uint cpu, thread_t *t) {
     run_queue_insert_checks(cpu, t);
 
-    struct percpu_sched *s = &percpu_sched[cpu];
+    struct percpu *s = percpu_get(cpu);
     list_add_head(&s->run_queue[t->priority], &t->run_queue_node);
     s->run_queue_bitmap |= (1 << t->priority);
     s->runnable_count++;
@@ -144,7 +127,7 @@ void sched_insert_runnable_head_on(uint cpu, thread_t *t) {
 void sched_insert_runnable_tail_on(uint cpu, thread_t *t) {
     run_queue_insert_checks(cpu, t);
 
-    struct percpu_sched *s = &percpu_sched[cpu];
+    struct percpu *s = percpu_get(cpu);
     list_add_tail(&s->run_queue[t->priority], &t->run_queue_node);
     s->run_queue_bitmap |= (1 << t->priority);
     s->runnable_count++;
@@ -162,7 +145,7 @@ void sched_insert_runnable_tail_on(uint cpu, thread_t *t) {
  */
 static bool thread_is_queued_on(uint cpu, thread_t *t) {
     struct list_node *node;
-    list_for_every(&percpu_sched[cpu].run_queue[t->priority], node) {
+    list_for_every(&percpu_get(cpu)->run_queue[t->priority], node) {
         if (node == &t->run_queue_node) {
             return true;
         }
@@ -182,7 +165,7 @@ static void run_queue_remove(uint cpu, thread_t *t) {
     /* the caller derives `cpu` from last_cpu; this is what makes that safe */
     DEBUG_ASSERT(thread_is_queued_on(cpu, t));
 
-    struct percpu_sched *s = &percpu_sched[cpu];
+    struct percpu *s = percpu_get(cpu);
     list_delete(&t->run_queue_node);
     if (list_is_empty(&s->run_queue[t->priority])) {
         s->run_queue_bitmap &= ~(1 << t->priority);
@@ -194,7 +177,7 @@ static void run_queue_remove(uint cpu, thread_t *t) {
  * so that it does not have to touch every cpu's lock to choose one, and a
  * count that is a little stale only costs a slightly worse choice. */
 static uint sched_runnable_count(uint cpu) {
-    return __atomic_load_n(&percpu_sched[cpu].runnable_count, __ATOMIC_RELAXED);
+    return __atomic_load_n(&percpu_get(cpu)->runnable_count, __ATOMIC_RELAXED);
 }
 
 /* Pick the cpu with the shortest run queue out of `mask`, breaking ties towards
@@ -439,7 +422,7 @@ status_t thread_set_real_time(thread_t *t) {
     thread_flags_set(t, THREAD_FLAG_REAL_TIME);
 #if PLATFORM_HAS_DYNAMIC_TIMER
     if (t == get_current_thread()) {
-        timer_cancel(&percpu_sched[arch_curr_cpu_num()].preempt_timer);
+        timer_cancel(&percpu_get(arch_curr_cpu_num())->preempt_timer);
     }
 #endif
     sched_unlock_local_irqrestore(state);
@@ -534,7 +517,7 @@ void thread_set_pinned_cpu(thread_t *t, int cpu) {
  * which takes this cpu's sched lock to get in line behind this point.
  */
 static void sched_context_switch_complete(void) {
-    struct percpu_sched *s = &percpu_sched[arch_curr_cpu_num()];
+    struct percpu *s = percpu_get(arch_curr_cpu_num());
 
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(sched_lock_local_held());
@@ -582,7 +565,7 @@ void sched_idle_routine(void) {
 }
 
 static thread_t *get_top_thread(uint cpu) {
-    struct percpu_sched *s = &percpu_sched[cpu];
+    struct percpu *s = percpu_get(cpu);
 
     if (s->run_queue_bitmap) {
         /* find the highest priority queue with a thread in it. everything on
@@ -705,14 +688,15 @@ void sched_resched(void) {
 #if THREAD_STATS
     THREAD_STATS_INC(context_switches);
 
+    struct thread_stats *stats = &percpu_get(cpu)->stats;
     lk_bigtime_t now = current_time_hires();
     if (thread_is_idle(oldthread)) {
-        thread_stats[cpu].idle_time += now - thread_stats[cpu].last_idle_timestamp;
+        stats->idle_time += now - stats->last_idle_timestamp;
     } else {
         oldthread->stats.total_run_time += now - oldthread->stats.last_run_timestamp;
     }
     if (thread_is_idle(newthread)) {
-        thread_stats[cpu].last_idle_timestamp = now;
+        stats->last_idle_timestamp = now;
     } else {
         newthread->stats.last_run_timestamp = now;
         newthread->stats.schedules++;
@@ -730,7 +714,7 @@ void sched_resched(void) {
             dprintf(ALWAYS, "arch_context_switch: stop preempt, cpu %d, old %p (%s), new %p (%s)\n",
                     cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
-            timer_cancel(&percpu_sched[cpu].preempt_timer);
+            timer_cancel(&percpu_get(cpu)->preempt_timer);
         }
     } else if (thread_is_real_time_or_idle(oldthread)) {
         /* if we're switching from a real time (or idle thread) to a regular one,
@@ -739,7 +723,7 @@ void sched_resched(void) {
         dprintf(ALWAYS, "arch_context_switch: start preempt, cpu %d, old %p (%s), new %p (%s)\n",
                 cpu, oldthread, oldthread->name, newthread, newthread->name);
 #endif
-        timer_set_periodic(&percpu_sched[cpu].preempt_timer, 10, thread_timer_tick, NULL);
+        timer_set_periodic(&percpu_get(cpu)->preempt_timer, 10, thread_timer_tick, NULL);
     }
 #endif
 
@@ -798,7 +782,7 @@ void sched_resched(void) {
      * the job. When arch_context_switch() returns we are oldthread again, on
      * whatever cpu picked us up, and the thread to finish is whoever switched
      * to us there -- not the newthread of this frame. */
-    struct percpu_sched *s = &percpu_sched[cpu];
+    struct percpu *s = percpu_get(cpu);
     DEBUG_ASSERT(s->previous_thread == NULL);
     s->previous_thread = oldthread;
 
@@ -1272,7 +1256,7 @@ void sched_init_early(void) {
     for (uint c = 0; c < SMP_MAX_CPUS; c++) {
         spin_lock_init(sched_lock(c));
         for (int i = 0; i < NUM_PRIORITIES; i++) {
-            list_initialize(&percpu_sched[c].run_queue[i]);
+            list_initialize(&percpu_get(c)->run_queue[i]);
         }
     }
 }
@@ -1280,7 +1264,7 @@ void sched_init_early(void) {
 void sched_init(void) {
 #if PLATFORM_HAS_DYNAMIC_TIMER
     for (uint i = 0; i < SMP_MAX_CPUS; i++) {
-        timer_initialize(&percpu_sched[i].preempt_timer);
+        timer_initialize(&percpu_get(i)->preempt_timer);
     }
 #endif
 }

@@ -10,6 +10,7 @@
 #include <arch/ops.h>
 #include <arch/thread.h>
 #include <arch/arch_ops.h>
+#include <kernel/percpu.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread_lock.h>
 #include <kernel/wait.h>
@@ -21,9 +22,9 @@
 
 __BEGIN_CDECLS
 
-// debug-enable runtime checks
+// debug-enable runtime checks. THREAD_STATS is decided in kernel/percpu.h,
+// which holds the per-cpu half of the statistics.
 #if LK_DEBUGLEVEL > 1
-#define THREAD_STATS 1
 #define THREAD_STACK_HIGHWATER 1
 #define THREAD_STACK_BOUNDS_CHECK 1
 #ifndef THREAD_STACK_PADDING_SIZE
@@ -138,8 +139,8 @@ typedef struct thread {
 #endif
 } thread_t;
 
-// thread priority
-#define NUM_PRIORITIES 32
+// thread priority. NUM_PRIORITIES itself is in kernel/percpu.h, which sizes
+// the run queues by it.
 #define LOWEST_PRIORITY 0
 #define HIGHEST_PRIORITY (NUM_PRIORITIES - 1)
 #define DPC_PRIORITY (NUM_PRIORITIES - 2)
@@ -317,28 +318,10 @@ static inline __ALWAYS_INLINE uintptr_t __tls_set(uint entry, uintptr_t val) {
         __tls_set(e, v); \
     })
 
-// thread level statistics
+// thread level statistics. The per-cpu counters live in struct percpu
+// (kernel/percpu.h); this bumps the local cpu's.
 #if THREAD_STATS
-// one per cpu, each on its own cache line: written on every context switch
-struct thread_stats {
-    lk_bigtime_t idle_time;
-    lk_bigtime_t last_idle_timestamp;
-    ulong reschedules;
-    ulong context_switches;
-    ulong preempts;
-    ulong yields;
-    ulong interrupts; // platform code increment this
-    ulong timer_ints; // timer code increment this
-    ulong timers; // timer code increment this
-
-#if WITH_SMP
-    ulong reschedule_ipis;
-#endif
-} __CPU_ALIGN;
-
-extern struct thread_stats thread_stats[SMP_MAX_CPUS];
-
-#define THREAD_STATS_INC(name) do { thread_stats[arch_curr_cpu_num()].name++; } while(0)
+#define THREAD_STATS_INC(name) do { percpu_local()->stats.name++; } while(0)
 
 #else
 
