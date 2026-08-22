@@ -7,6 +7,7 @@
  */
 #include <arch/arm64.h>
 #include <assert.h>
+#include <kernel/sched.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
@@ -42,8 +43,8 @@ static void initial_thread_func(void) {
 
     LTRACEF("initial_thread_func: thread %p calling %p with arg %p\n", current_thread, current_thread->entry, current_thread->arg);
 
-    /* release the thread lock that was implicitly held across the reschedule */
-    spin_unlock(&thread_lock);
+    /* finish the switch that started us and drop the sched lock handed across it */
+    sched_initial_thread_entry();
     arch_enable_ints();
 
     ret = current_thread->entry(current_thread->arg);

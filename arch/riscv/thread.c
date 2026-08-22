@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <kernel/sched.h>
 #include <kernel/thread.h>
 #include <arch/riscv.h>
 
@@ -29,8 +30,8 @@ static void initial_thread_func(void) {
     dump_thread(ct);
 #endif
 
-    /* release the thread lock that was implicitly held across the reschedule */
-    spin_unlock(&thread_lock);
+    /* finish the switch that started us and drop the sched lock handed across it */
+    sched_initial_thread_entry();
     arch_enable_ints();
 
     int ret = ct->entry(ct->arg);

@@ -42,6 +42,15 @@
 
 #define DEBUG_THREAD_CONTEXT_SWITCH 0
 
+/* On every arch but one the local sched lock is held across arch_context_switch()
+ * and handed to the incoming thread, which releases it: either by returning from
+ * its own sched_resched() and unlocking as usual, or, for a thread running for
+ * the first time, via sched_initial_thread_entry(). The exception is cortex-m,
+ * which drops the lock before the switch (see its arch_thread.h). */
+#ifndef ARCH_CONTEXT_SWITCH_DROPS_LOCK
+#define ARCH_CONTEXT_SWITCH_DROPS_LOCK 0
+#endif
+
 /* Per-cpu scheduler state.
  *
  * Each cpu has its own run queue and only ever pulls work off of its own. Which
@@ -59,6 +68,13 @@ struct percpu_sched {
     struct list_node run_queue[NUM_PRIORITIES];
     uint32_t run_queue_bitmap;
     uint runnable_count;
+#if !ARCH_CONTEXT_SWITCH_DROPS_LOCK
+    /* The thread this cpu is in the middle of switching away from. Set by
+     * sched_resched() just before arch_context_switch() and consumed by
+     * sched_context_switch_complete() on the incoming side, so the incoming
+     * thread can finish off the outgoing one once its context is safely saved. */
+    thread_t *previous_thread;
+#endif
 #if PLATFORM_HAS_DYNAMIC_TIMER
     /* preemption timer */
     timer_t preempt_timer;
@@ -348,6 +364,44 @@ void thread_set_pinned_cpu(thread_t *t, int cpu) {
 }
 #endif
 
+#if !ARCH_CONTEXT_SWITCH_DROPS_LOCK
+/* The incoming side of a context switch. Runs on the thread that was just
+ * switched to, with the local sched lock held -- handed over by the outgoing
+ * thread rather than taken here -- and finishes off that outgoing thread.
+ *
+ * This is the point at which the previous thread is truly off this cpu: its
+ * context is saved and nothing here will touch it again. Until now it was still
+ * running here as far as any other cpu was concerned, whatever its state field
+ * said, so this is where curr_cpu is cleared rather than before the switch.
+ * Once the sched locks are per cpu this is what a remote cpu that has been
+ * handed the thread must wait for before it can run it.
+ */
+static void sched_context_switch_complete(void) {
+    struct percpu_sched *s = &percpu_sched[arch_curr_cpu_num()];
+
+    DEBUG_ASSERT(arch_ints_disabled());
+    DEBUG_ASSERT(sched_lock_local_held());
+
+    thread_t *prev = s->previous_thread;
+    DEBUG_ASSERT(prev != NULL);
+    DEBUG_ASSERT(prev != get_current_thread());
+    s->previous_thread = NULL;
+
+    thread_set_curr_cpu(prev, -1);
+}
+
+/* A thread running for the first time was switched to exactly like any other,
+ * under the local sched lock, but has no sched_resched() frame to return into
+ * and so nothing that would release it. The arch's initial_thread_func calls
+ * this first, before enabling interrupts. */
+void sched_initial_thread_entry(void) {
+    DEBUG_ASSERT(arch_ints_disabled());
+
+    sched_context_switch_complete();
+    spin_unlock(sched_lock(arch_curr_cpu_num()));
+}
+#endif
+
 static bool thread_is_realtime(thread_t *t) {
     return (t->flags & THREAD_FLAG_REAL_TIME) && t->priority > DEFAULT_PRIORITY;
 }
@@ -432,8 +486,12 @@ void sched_resched(void) {
     }
 
     /* mark the cpu ownership of the threads. last_cpu outlives curr_cpu and is
-     * what find_target_cpu() uses to keep a thread near where it last ran. */
+     * what find_target_cpu() uses to keep a thread near where it last ran.
+     * oldthread's curr_cpu is cleared on the far side of the switch, in
+     * sched_context_switch_complete(), where the arch lets us. */
+#if ARCH_CONTEXT_SWITCH_DROPS_LOCK
     thread_set_curr_cpu(oldthread, -1);
+#endif
     thread_set_curr_cpu(newthread, cpu);
     thread_set_last_cpu(newthread, cpu);
 
@@ -533,11 +591,28 @@ void sched_resched(void) {
     }
 #endif
 
+#if ARCH_CONTEXT_SWITCH_DROPS_LOCK
+    /* the arch drops the lock around the switch itself and takes it back
+     * before returning; nothing is handed off and there is nothing to finish */
+    arch_context_switch(oldthread, newthread);
+#else
     /* Do the low level context switch. The local sched lock goes with it: it
      * is not released here but handed to newthread, which drops it when it
-     * resumes (or, for a brand new thread, in the arch initial_thread_func).
-     * It is the lock of this cpu that is handed, whichever thread took it. */
+     * resumes (or, for a brand new thread, in sched_initial_thread_entry()).
+     * It is the lock of this cpu that is handed, whichever thread took it.
+     *
+     * Record who is being switched away from so the incoming thread can finish
+     * the job. When arch_context_switch() returns we are oldthread again, on
+     * whatever cpu picked us up, and the thread to finish is whoever switched
+     * to us there -- not the newthread of this frame. */
+    struct percpu_sched *s = &percpu_sched[cpu];
+    DEBUG_ASSERT(s->previous_thread == NULL);
+    s->previous_thread = oldthread;
+
     arch_context_switch(oldthread, newthread);
+
+    sched_context_switch_complete();
+#endif
 }
 
 /* Put the current thread, which is giving up the cpu, back on a run queue.

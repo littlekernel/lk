@@ -41,6 +41,14 @@ void sched_idle_routine(void) __NO_RETURN;
 // current thread into whatever state and queue it belongs in.
 void sched_resched(void);
 
+// For the arch's initial_thread_func: the first thing a new thread does.
+// Finishes the context switch that started it and releases the local sched
+// lock, which was handed across the switch and which this thread never
+// acquired. Interrupts are still disabled on return; the arch enables them.
+// Not present on arches that set ARCH_CONTEXT_SWITCH_DROPS_LOCK (cortex-m),
+// where nothing is handed off and a new thread starts with no lock held.
+void sched_initial_thread_entry(void);
+
 // Put a thread on the head of the run queue of the cpu the scheduler picks for
 // it, and return that cpu so the caller can poke it. Does not reschedule.
 uint sched_insert_runnable(thread_t *t);

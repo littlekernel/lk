@@ -11,6 +11,7 @@
 #include <arch/x86.h>
 #include <arch/x86/descriptor.h>
 #include <kernel/spinlock.h>
+#include <kernel/sched.h>
 #include <kernel/thread.h>
 #include <lk/debug.h>
 #include <stdlib.h>
@@ -24,8 +25,8 @@ struct thread *_current_thread;
 
 static void initial_thread_func(void) __NO_RETURN;
 static void initial_thread_func(void) {
-    /* release the thread lock that was implicitly held across the reschedule */
-    spin_unlock(&thread_lock);
+    /* finish the switch that started us and drop the sched lock handed across it */
+    sched_initial_thread_entry();
     arch_enable_ints();
 
     thread_t *ct = arch_get_current_thread();
