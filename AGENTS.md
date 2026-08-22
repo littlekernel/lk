@@ -257,8 +257,8 @@ scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
 - Commands are separated with `;` or newlines (`\n` in the quoted form), same as any other
   console script.
 - Ending the script with `poweroff` makes QEMU exit once the script is done, which is how
-  `scripts/run-qemu-boot-tests.py` drives its runs. Note `poweroff` is only registered when
-  `LK_DEBUGLEVEL > 1` (i.e. the default `DEBUG=2`).
+  `scripts/run-qemu-boot-tests.py` drives its runs. `poweroff` and `reboot` are registered at
+  every debug level, so this works for `DEBUG=0` images too.
 - The script is capped at 511 bytes. On PC targets `platform/pc` copies the multiboot command
   line into a 256 byte buffer, which caps the *entire* command line there.
 - The script runs on the shell app's thread, whose stack size can be overridden with

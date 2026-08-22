@@ -12,8 +12,8 @@
 # The default elf is build-qemu-virt-arm64-test/lk.elf; the default command
 # line is empty (interactive serial console). Output comes back on stdout.
 # The run is killed after -t seconds (default 30): boot plus a test pass takes
-# a few seconds under KVM, and a DEBUG=0 image has no poweroff command, so
-# a script that ends in one never exits on its own there.
+# a few seconds under KVM, and the timeout is the backstop for a script that
+# does not end in poweroff, or an image that hangs.
 #
 # -r adds the virtio-rng device that do-qemuarm always attaches. It is off by
 # default because under KVM on a raspberry pi 5 the virtio_rng_seed init hook
