@@ -20,8 +20,12 @@ struct arch_thread {
  * the lock and enabling interrupts, and a thread preempted out of an interrupt
  * handler resumes straight into thread code with no scheduler code on the way.
  * So no lock is ever handed from the outgoing thread to the incoming one and
- * there is no incoming side hook; the scheduler skips that bookkeeping here. */
-#define ARCH_CONTEXT_SWITCH_DROPS_LOCK 1
+ * there is no incoming side hook; the scheduler skips that bookkeeping here.
+ *
+ * The flag itself, ARCH_CONTEXT_SWITCH_DROPS_LOCK=1, is set in arch/arm/rules.mk
+ * and arrives through config.h rather than being defined here: it shapes
+ * struct percpu (kernel/percpu.h), and a define in a header only reaches the
+ * translation units that happen to include it first. */
 
 #endif
 

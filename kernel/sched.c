@@ -48,9 +48,6 @@
  * its own sched_resched() and unlocking as usual, or, for a thread running for
  * the first time, via sched_initial_thread_entry(). The exception is cortex-m,
  * which drops the lock before the switch (see its arch_thread.h). */
-#ifndef ARCH_CONTEXT_SWITCH_DROPS_LOCK
-#define ARCH_CONTEXT_SWITCH_DROPS_LOCK 0
-#endif
 
 /* Per-cpu scheduler state.
  *

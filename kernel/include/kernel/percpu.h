@@ -64,6 +64,21 @@
 
 __BEGIN_CDECLS
 
+// Everything that changes the shape of struct percpu has to be visible to every
+// translation unit, whatever it includes and in what order, or two files will
+// disagree about where a field is and quietly corrupt each other's state. The
+// knobs below are decided here; these two come from the build system, and
+// this insists on it. (ARCH_CONTEXT_SWITCH_DROPS_LOCK was once a #define in
+// an arch header; timer.c, which includes spinlock.h before thread.h, did not
+// see it and took its spinlocks against a struct percpu four bytes out of
+// step with the rest of the kernel.)
+#ifndef ARCH_CONTEXT_SWITCH_DROPS_LOCK
+#error "ARCH_CONTEXT_SWITCH_DROPS_LOCK must come from config.h (engine.mk), not a header"
+#endif
+#ifndef PLATFORM_HAS_DYNAMIC_TIMER
+#error "PLATFORM_HAS_DYNAMIC_TIMER must come from config.h (engine.mk), not a header"
+#endif
+
 // Debug-build features whose state lives in struct percpu. Owned by this
 // header so that the layout is decided in one place; see above.
 #ifndef THREAD_STATS

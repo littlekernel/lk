@@ -358,6 +358,10 @@ endif
 
 endif
 ifeq ($(SUBARCH),arm-m)
+# the switch happens in PendSV with the sched lock dropped; see
+# arm-m/include/arch/arch_thread.h
+ARCH_CONTEXT_SWITCH_DROPS_LOCK := 1
+
 MODULE_SRCS += \
 	$(LOCAL_DIR)/arm-m/cache.c \
 	$(LOCAL_DIR)/arm-m/exceptions.c \

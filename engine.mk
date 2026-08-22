@@ -190,6 +190,11 @@ WITH_TESTS ?= false
 # memory-hungry code (tests, etc) can size itself down or compile itself out.
 LK_EMBEDDED ?= 0
 
+# Set to 1 by an arch whose context switch cannot carry the sched lock across
+# to the incoming thread (cortex-m). Always defined: it shapes struct percpu
+# (kernel/percpu.h), which every translation unit has to agree on.
+ARCH_CONTEXT_SWITCH_DROPS_LOCK ?= 0
+
 # try to include the project file
 -include project/$(PROJECT).mk
 ifndef TARGET
@@ -384,7 +389,15 @@ GLOBAL_DEFINES += \
 	ARCH_$(ARCH)=1 \
 	ARCH=\"$(ARCH)\" \
 	LK_EMBEDDED=$(LK_EMBEDDED) \
+	ARCH_CONTEXT_SWITCH_DROPS_LOCK=$(ARCH_CONTEXT_SWITCH_DROPS_LOCK) \
 	$(addsuffix =1,$(addprefix WITH_,$(ALLMODULES)))
+
+# PLATFORM_HAS_DYNAMIC_TIMER is set to 1 by the timer driver's or platform's
+# rules.mk. Default it to 0 here rather than leaving it undefined: it too
+# shapes struct percpu, so it must reach every translation unit via config.h.
+ifeq ($(filter PLATFORM_HAS_DYNAMIC_TIMER=%,$(GLOBAL_DEFINES)),)
+GLOBAL_DEFINES += PLATFORM_HAS_DYNAMIC_TIMER=0
+endif
 
 # debug build?
 ifneq ($(DEBUG),)
