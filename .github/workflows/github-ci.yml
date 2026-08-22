@@ -37,7 +37,6 @@ jobs:
           - arm64
           - m68k
           - mips
-          - or1k
           - riscv32
           - riscv64
           - x86
@@ -73,7 +72,6 @@ jobs:
             arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
             m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
             mips) TOOLCHAIN_PREFIX="mips-elf-" ;;
-            or1k) TOOLCHAIN_PREFIX="or1k-elf-" ;;
             riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
             riscv64) TOOLCHAIN_PREFIX="riscv64-elf-" ;;
             x86) TOOLCHAIN_PREFIX="x86_64-elf-" ;;

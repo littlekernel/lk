@@ -27,7 +27,6 @@ For comprehensive documentation, see [Index](docs/index.md).
 - x86-32 and x86-64
 - Motorola 68000
 - MIPS
-- OpenRISC 1000
 - VAX (experimental)
 
 ## Command Completion

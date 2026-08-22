@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The actively developed arches. m68k/mips/or1k are omitted until the
+        # The actively developed arches. m68k/mips are omitted until the
         # CodeQL C/C++ extractor is known to cope with them.
         arch:
           - arm

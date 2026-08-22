@@ -39,10 +39,9 @@ jobs:
           # when no usable libgcc is found for the target, so 32-bit targets
           # build fine here too now.
           #
-          # m68k, mips, and or1k are left out: they don't build under Clang
-          # yet (m68k crashes the Clang integrated assembler on inline asm,
-          # mips rejects the -march=m14k CPU name, and or1k's rules.mk
-          # explicitly refuses TOOLCHAIN=clang).
+          # m68k and mips are left out: they don't build under Clang yet
+          # (m68k crashes the Clang integrated assembler on inline asm, and
+          # mips rejects the -march=m14k CPU name).
           #
           # The Stellaris Cortex-M boards are left out for a different reason:
           # their M4F has a single-precision-only FPU, so double math still

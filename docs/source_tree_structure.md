@@ -11,7 +11,6 @@ Architecture-specific code for different CPU architectures:
 - `riscv/` - RISC-V 32-bit and 64-bit support
 - `m68k/` - Motorola 68000 support
 - `mips/` - MIPS support
-- `or1k/` - OpenRISC 1000 support
 - `x86/` - x86 and x86_64 support
 - `vax/` - VAX support (experimental)
 

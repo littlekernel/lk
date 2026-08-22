@@ -2,7 +2,7 @@
 
 - Project: Little Kernel (LK), a small SMP-aware embedded OS kernel used in embedded systems and bootloaders.
 - Primary languages: C and assembly; limited C++14 without STL/exceptions/RTTI.
-- Scope: portable kernel across many architectures (ARM32/ARM64/RISC-V/x86/M68K/Microblaze/MIPS/OpenRISC).
+- Scope: portable kernel across many architectures (ARM32/ARM64/RISC-V/x86/M68K/Microblaze/MIPS).
 - Build model: hierarchical Project -> Target -> Platform -> Architecture plus module-based `rules.mk` files.
 - Notable subsystems: scheduler/threading (`kernel/thread.c`), VM (`kernel/vm` for MMU builds), libc, platform bring-up.
 
