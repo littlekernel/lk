@@ -35,7 +35,7 @@ static inline ulong arch_cycle_count(void) {
 
 static inline uint arch_curr_cpu_num(void) {
 #if WITH_SMP
-    return riscv_get_percpu()->cpu_num;
+    return RISCV_PERCPU_READ32(cpu_num);
 #else
     return 0;
 #endif
@@ -44,7 +44,7 @@ static inline uint arch_curr_cpu_num(void) {
 #if WITH_SMP
 #define ARCH_HAS_KERNEL_PERCPU_PTR 1
 static inline void *arch_get_kernel_percpu(void) {
-    return riscv_get_percpu()->kernel_percpu;
+    return (void *)RISCV_PERCPU_READ_PTR(kernel_percpu);
 }
 #endif
 

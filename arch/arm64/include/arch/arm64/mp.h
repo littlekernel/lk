@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#include <stddef.h>
+
 #include <arch/arm64.h>
 #include <arch/defines.h>
 #include <arch/ops.h>
@@ -39,14 +41,36 @@ static inline struct arm64_percpu *arm64_get_percpu(void) {
     return pc;
 }
 
+// Read a field of the local arm64_percpu as a single load off x18. Going
+// through arm64_get_percpu() costs a `mov xN, x18` first: the asm's output is
+// opaque to the compiler, so it cannot use x18 as the base register itself.
+// These are on the path of every spin_lock() in a debug build, so the extra
+// instruction at a few hundred sites is worth avoiding.
+#define ARM64_PERCPU_READ32(field)                                                    \
+    ({                                                                                \
+        uint32_t _v;                                                                  \
+        __asm__ volatile("ldr %w0, [x18, %1]"                                         \
+                         : "=r"(_v)                                                   \
+                         : "i"(offsetof(struct arm64_percpu, field)));                \
+        _v;                                                                           \
+    })
+
+#define ARM64_PERCPU_READ64(field)                                                    \
+    ({                                                                                \
+        uint64_t _v;                                                                  \
+        __asm__ volatile("ldr %0, [x18, %1]"                                          \
+                         : "=r"(_v)                                                   \
+                         : "i"(offsetof(struct arm64_percpu, field)));                \
+        _v;                                                                           \
+    })
+
 static inline uint arch_curr_cpu_num(void) {
-    const struct arm64_percpu *pc = arm64_get_percpu();
-    return pc->cpu_num;
+    return ARM64_PERCPU_READ32(cpu_num);
 }
 
 #define ARCH_HAS_KERNEL_PERCPU_PTR 1
 static inline void *arch_get_kernel_percpu(void) {
-    return arm64_get_percpu()->kernel_percpu;
+    return (void *)ARM64_PERCPU_READ64(kernel_percpu);
 }
 
 // Translate a CPU number back to the MPIDR of the CPU.

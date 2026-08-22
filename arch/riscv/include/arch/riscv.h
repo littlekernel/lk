@@ -190,6 +190,7 @@ __BEGIN_CDECLS
 })
 
 #include <arch/riscv/iframe.h>
+#include <stddef.h>
 
 struct riscv_percpu {
     // must be first field in the struct
@@ -210,6 +211,32 @@ static inline struct riscv_percpu *riscv_get_percpu(void) {
 static inline void riscv_set_percpu(struct riscv_percpu *cpu) {
     __asm__ volatile("mv tp, %0" :: "r"(cpu));
 }
+
+// Read a field of the local percpu as a single load off tp. Going through
+// riscv_get_percpu() costs a `mv` first, since the asm's output is opaque to
+// the compiler and it cannot use tp as the base register itself.
+#define RISCV_PERCPU_READ32(field)                                                   \
+    ({                                                                               \
+        uint32_t _v;                                                                 \
+        __asm__ volatile("lw %0, %1(tp)" : "=r"(_v) : "i"(offsetof(struct riscv_percpu, field))); \
+        _v;                                                                          \
+    })
+
+#if __riscv_xlen == 32
+#define RISCV_PERCPU_READ_PTR(field)                                                 \
+    ({                                                                               \
+        uintptr_t _v;                                                                \
+        __asm__ volatile("lw %0, %1(tp)" : "=r"(_v) : "i"(offsetof(struct riscv_percpu, field))); \
+        _v;                                                                          \
+    })
+#else
+#define RISCV_PERCPU_READ_PTR(field)                                                 \
+    ({                                                                               \
+        uintptr_t _v;                                                                \
+        __asm__ volatile("ld %0, %1(tp)" : "=r"(_v) : "i"(offsetof(struct riscv_percpu, field))); \
+        _v;                                                                          \
+    })
+#endif
 
 // current thread is always at the start of the percpu struct
 static inline struct thread *riscv_get_current_thread(void) {
