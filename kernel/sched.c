@@ -673,16 +673,32 @@ void sched_resched(void) {
     thread_set_last_cpu(newthread, cpu);
 
 #if WITH_SMP
-    if (thread_is_idle(newthread)) {
-        mp_set_cpu_idle(cpu);
-    } else {
-        mp_set_cpu_busy(cpu);
+    /* The mp masks live on one line shared by every cpu and each update is an
+     * atomic read-modify-write, so only touch them when this switch actually
+     * changes the cpu's status. Most switches do not: a busy cpu moving
+     * between two regular threads would otherwise do four no-op RMWs on the
+     * line every time, bouncing it between all of the cpus in the system.
+     * The current status comes from the mask rather than from oldthread, as a
+     * running thread's priority or flags can change under it without a switch
+     * (thread_set_priority, thread_set_real_time); reading the mask keeps this
+     * self-correcting the way the unconditional update was. Plain loads of a
+     * line that is only written on a real transition stay shared and cheap. */
+    const bool now_idle = thread_is_idle(newthread);
+    if (mp_is_cpu_idle(cpu) != now_idle) {
+        if (now_idle) {
+            mp_set_cpu_idle(cpu);
+        } else {
+            mp_set_cpu_busy(cpu);
+        }
     }
 
-    if (thread_is_realtime(newthread)) {
-        mp_set_cpu_realtime(cpu);
-    } else {
-        mp_set_cpu_non_realtime(cpu);
+    const bool now_realtime = thread_is_realtime(newthread);
+    if (mp_is_cpu_realtime(cpu) != now_realtime) {
+        if (now_realtime) {
+            mp_set_cpu_realtime(cpu);
+        } else {
+            mp_set_cpu_non_realtime(cpu);
+        }
     }
 #endif
 

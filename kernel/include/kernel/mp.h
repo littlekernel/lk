@@ -87,6 +87,10 @@ static inline bool mp_is_cpu_idle(uint cpu) {
     return mp.idle_cpus & (1UL << cpu);
 }
 
+static inline bool mp_is_cpu_realtime(uint cpu) {
+    return mp.realtime_cpus & (1UL << cpu);
+}
+
 static inline void mp_set_cpu_idle(uint cpu) {
     mp_mask_set(&mp.idle_cpus, cpu);
 }
