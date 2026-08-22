@@ -51,6 +51,9 @@ struct pair {
     thread_t *b;
     uint cpu_a;
     uint cpu_b;
+    /* when each thread finished its iterations, for the per-pair time */
+    lk_bigtime_t done_a;
+    lk_bigtime_t done_b;
     /* Each pair is worked by one or two cpus and nobody else, and the events
      * are the hottest lines in the benchmark. Unaligned, a 120 byte pair
      * shares a line with its neighbour and two cpus that should be
@@ -63,6 +66,7 @@ static struct pair pairs[MAX_PAIRS];
 static event_t start_gate;
 static uint iterations;
 static lk_time_t wait_timeout = INFINITE_TIME;
+static lk_bigtime_t start_time;
 
 static int pingpong_a(void *arg) {
     struct pair *p = arg;
@@ -71,6 +75,7 @@ static int pingpong_a(void *arg) {
         event_signal(&p->to_b);
         event_wait_timeout(&p->to_a, wait_timeout);
     }
+    p->done_a = current_time_hires();
     return 0;
 }
 
@@ -81,6 +86,7 @@ static int pingpong_b(void *arg) {
         event_wait_timeout(&p->to_b, wait_timeout);
         event_signal(&p->to_a);
     }
+    p->done_b = current_time_hires();
     return 0;
 }
 
@@ -102,6 +108,7 @@ static int spawner(void *arg) {
         thread_resume(t);
         thread_join(t, NULL, INFINITE_TIME);
     }
+    p->done_a = current_time_hires();
     return 0;
 }
 
@@ -116,8 +123,13 @@ static uint active_cpus(uint *cpus, uint max) {
     return n;
 }
 
-/* run |mode| on the first |ncpus| cpus and return the wall time in usecs */
-static lk_bigtime_t run_once(const char *mode, uint ncpus, const uint *cpus) {
+/* run |mode| on the first |ncpus| cpus and return the wall time in usecs,
+ * along with the fastest and slowest individual pair's time. The wall time is
+ * clocked by the slowest pair, so on a machine with unequal cores (big/little,
+ * or a hyperthread sharing a core with another pair) the spread says whether
+ * a poor row is the scheduler or the slowest cpu in the set. */
+static lk_bigtime_t run_once(const char *mode, uint ncpus, const uint *cpus,
+                             lk_bigtime_t *pair_min, lk_bigtime_t *pair_max) {
     const bool spawn = !strcmp(mode, "spawn");
     const bool cross = !strcmp(mode, "cross");
     /* long enough never to fire, short enough to stay a plausible deadline */
@@ -128,6 +140,7 @@ static lk_bigtime_t run_once(const char *mode, uint ncpus, const uint *cpus) {
     for (uint i = 0; i < ncpus; i++) {
         struct pair *p = &pairs[i];
         p->cpu_a = cpus[i];
+        p->done_a = p->done_b = 0;
         p->cpu_b = cross ? cpus[(i + 1) % ncpus] : cpus[i];
         event_init(&p->to_a, false, EVENT_FLAG_AUTOUNSIGNAL);
         event_init(&p->to_b, false, EVENT_FLAG_AUTOUNSIGNAL);
@@ -150,6 +163,7 @@ static lk_bigtime_t run_once(const char *mode, uint ncpus, const uint *cpus) {
     /* let everyone reach the gate, then open it and time to the last join */
     thread_sleep(20);
     lk_bigtime_t t = current_time_hires();
+    start_time = t;
     event_signal(&start_gate);
     for (uint i = 0; i < ncpus; i++) {
         thread_join(pairs[i].a, NULL, INFINITE_TIME);
@@ -159,7 +173,17 @@ static lk_bigtime_t run_once(const char *mode, uint ncpus, const uint *cpus) {
     }
     t = current_time_hires() - t;
 
+    *pair_min = UINT64_MAX;
+    *pair_max = 0;
     for (uint i = 0; i < ncpus; i++) {
+        const lk_bigtime_t done = pairs[i].done_a > pairs[i].done_b ? pairs[i].done_a : pairs[i].done_b;
+        const lk_bigtime_t elapsed = done - start_time;
+        if (elapsed < *pair_min) {
+            *pair_min = elapsed;
+        }
+        if (elapsed > *pair_max) {
+            *pair_max = elapsed;
+        }
         event_destroy(&pairs[i].to_a);
         event_destroy(&pairs[i].to_b);
     }
@@ -175,11 +199,12 @@ static void run_mode(const char *mode, uint maxcpus) {
     /* one iteration is a round trip: two wakes and two switches for the
      * ping-pong modes, one create/resume/join for spawn */
     printf("schedbench %s: %u iterations per thread\n", mode, iterations);
-    printf("  cpus   total ms   iters/ms   per cpu   scaling\n");
+    printf("  cpus   total ms   iters/ms   per cpu   scaling   pair ms min..max\n");
 
     lk_bigtime_t per_cpu_at_one = 0;
     for (uint ncpus = 1; ncpus <= n; ncpus++) {
-        lk_bigtime_t us = run_once(mode, ncpus, cpus);
+        lk_bigtime_t pair_min, pair_max;
+        lk_bigtime_t us = run_once(mode, ncpus, cpus, &pair_min, &pair_max);
         if (us == 0) {
             us = 1;
         }
@@ -190,9 +215,9 @@ static void run_mode(const char *mode, uint maxcpus) {
             per_cpu_at_one = per_cpu;
         }
         const lk_bigtime_t scale = per_cpu_at_one ? per_cpu * 100 / per_cpu_at_one : 0;
-        printf("  %4u %10llu %7llu.%03llu %7llu.%03llu   %3llu.%02llu\n", ncpus,
+        printf("  %4u %10llu %7llu.%03llu %7llu.%03llu   %3llu.%02llu   %6llu..%llu\n", ncpus,
                us / 1000, total / 1000, total % 1000, per_cpu / 1000, per_cpu % 1000,
-               scale / 100, scale % 100);
+               scale / 100, scale % 100, pair_min / 1000, pair_max / 1000);
     }
 }
 
