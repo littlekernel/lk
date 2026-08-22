@@ -29,7 +29,15 @@ static void dump_frame(const struct arm_cm_exception_frame *frame) {
             frame->lr, frame->pc, frame->psr);
 }
 
-void hardfault(struct arm_cm_exception_frame *frame) {
+/* The C handlers below are entered only via the __NAKED trampolines at the
+ * bottom of this file, which branch to them from inline asm. That reference
+ * is invisible to the compiler, so under LTO they would be internalized and
+ * dropped before the link sees the asm. Plain "used" (not __USED, whose
+ * clang flavour adds "retain") is enough: it survives LTO's internalize pass
+ * while still letting --gc-sections drop a handler that is not referenced. */
+#define ASM_REFERENCED __attribute__((__used__))
+
+ASM_REFERENCED void hardfault(struct arm_cm_exception_frame *frame) {
     printf("hardfault\n");
     dump_frame(frame);
 
@@ -54,7 +62,7 @@ void hardfault(struct arm_cm_exception_frame *frame) {
 }
 
 #if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
-void memmanage(struct arm_cm_exception_frame *frame) {
+ASM_REFERENCED void memmanage(struct arm_cm_exception_frame *frame) {
     printf("memmanage\n");
     dump_frame(frame);
 
@@ -88,7 +96,7 @@ void memmanage(struct arm_cm_exception_frame *frame) {
     platform_halt(HALT_ACTION_HALT, HALT_REASON_SW_PANIC);
 }
 
-void usagefault(struct arm_cm_exception_frame *frame) {
+ASM_REFERENCED void usagefault(struct arm_cm_exception_frame *frame) {
     printf("usagefault\n");
     dump_frame(frame);
 
@@ -127,7 +135,7 @@ void usagefault(struct arm_cm_exception_frame *frame) {
 #endif
 
 #if defined(__ARM_FEATURE_CMSE) && (__ARM_FEATURE_CMSE == 3U)
-void securefault(struct arm_cm_exception_frame *frame) {
+ASM_REFERENCED void securefault(struct arm_cm_exception_frame *frame) {
     printf("securefault\n");
     dump_frame(frame);
 
@@ -166,7 +174,7 @@ void securefault(struct arm_cm_exception_frame *frame) {
 #endif
 
 #if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
-void busfault(struct arm_cm_exception_frame *frame) {
+ASM_REFERENCED void busfault(struct arm_cm_exception_frame *frame) {
     printf("busfault\n");
     dump_frame(frame);
 

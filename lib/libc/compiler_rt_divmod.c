@@ -21,7 +21,9 @@
  * routines with this much slower bit-by-bit fallback.
  */
 
-__attribute__((weak)) uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem) {
+/* "used": eabi_libgcc_fallback.c branches to these from inline asm, which LTO
+ * cannot see, so without it they are internalized and the link fails. */
+__attribute__((weak, used)) uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem) {
     if (den == 0) {
         if (rem) *rem = 0;
         return 0;
@@ -39,7 +41,7 @@ __attribute__((weak)) uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t
     return q;
 }
 
-__attribute__((weak)) int64_t __divmoddi4(int64_t num, int64_t den, int64_t *rem) {
+__attribute__((weak, used)) int64_t __divmoddi4(int64_t num, int64_t den, int64_t *rem) {
     bool neg_q = (num < 0) ^ (den < 0);
     bool neg_r = (num < 0);
     uint64_t un = (num < 0) ? -(uint64_t)num : (uint64_t)num;
