@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+#
+# Run an arm64 lk.elf under qemu with KVM on a remote arm64 host over ssh.
+#
+# The local do-qemuarm script runs arm64 under TCG unless this machine is
+# itself arm64. This copies the image to a host that is (the default is an
+# rpi5) and runs it there with -accel kvm, which is the only way to get
+# scheduler timings that mean anything from an x86 development box.
+#
+#   scripts/do-qemuarm-remote [-H host] [-s cpus] [-m MB] [-t secs] [-A cmdline] [-r] [elf]
+#
+# The default elf is build-qemu-virt-arm64-test/lk.elf; the default command
+# line is empty (interactive serial console). Output comes back on stdout.
+#
+# -r adds the virtio-rng device that do-qemuarm always attaches. It is off by
+# default because under KVM on a raspberry pi 5 the virtio_rng_seed init hook
+# never returns and the boot hangs before the apps start, on master as of
+# 02092405. That is a separate bug; the device is not needed for most runs.
+
+HOST=rpi5
+SMP=4
+MEM=512
+TIMEOUT=120
+APPEND=""
+ELF=""
+CPU=host
+RNG=""
+
+while getopts "H:s:m:t:A:c:r" opt; do
+    case $opt in
+        H) HOST=$OPTARG ;;
+        s) SMP=$OPTARG ;;
+        m) MEM=$OPTARG ;;
+        t) TIMEOUT=$OPTARG ;;
+        A) APPEND=$OPTARG ;;
+        c) CPU=$OPTARG ;;
+        r) RNG="-device virtio-rng-device" ;;
+        *) echo "usage: $0 [-H host] [-s cpus] [-m MB] [-t secs] [-A cmdline] [-c cpu] [-r] [elf]" >&2; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+ELF=${1:-build-qemu-virt-arm64-test/lk.elf}
+
+if [ ! -f "$ELF" ]; then
+    echo "$0: $ELF not found" >&2
+    exit 1
+fi
+
+REMOTE_DIR="lk-run/$$"
+REMOTE_ELF="$REMOTE_DIR/lk.elf"
+
+ssh -o BatchMode=yes "$HOST" "mkdir -p $REMOTE_DIR" || exit 1
+scp -q "$ELF" "$HOST:$REMOTE_ELF" || exit 1
+
+# quoted once here, unquoted by the remote shell; lib/cmdline handles the
+# rest the same way do-qemuarm does
+ARGS="-accel kvm -cpu $CPU -m $MEM -smp $SMP -machine virt -kernel $REMOTE_ELF \
+    -net none -nographic $RNG"
+if [ -n "$APPEND" ]; then
+    ARGS="$ARGS -append '$APPEND'"
+fi
+
+ssh -o BatchMode=yes "$HOST" "timeout $TIMEOUT qemu-system-aarch64 $ARGS; rm -rf $REMOTE_DIR"
