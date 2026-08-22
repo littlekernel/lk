@@ -22,6 +22,10 @@
  *   cross   the same pairs, but the two threads of a pair pinned to
  *           neighboring cpus, so every wake is a remote one. Measures the
  *           cross-cpu wake and ipi path, which is what fibo is bound by.
+ *   timed   local, but every wait carries a timeout that never expires: the
+ *           same switch path plus a timer set and cancel per block, which is
+ *           what a mutex or semaphore wait with a deadline costs.
+ *
  *   spawn   each cpu creates, resumes and joins a thread pinned to itself,
  *           over and over: the thread lifecycle path (thread list lock,
  *           exit and reap) with real parallelism.
@@ -52,13 +56,14 @@ struct pair {
 static struct pair pairs[MAX_PAIRS];
 static event_t start_gate;
 static uint iterations;
+static lk_time_t wait_timeout = INFINITE_TIME;
 
 static int pingpong_a(void *arg) {
     struct pair *p = arg;
     event_wait(&start_gate);
     for (uint i = 0; i < iterations; i++) {
         event_signal(&p->to_b);
-        event_wait(&p->to_a);
+        event_wait_timeout(&p->to_a, wait_timeout);
     }
     return 0;
 }
@@ -67,7 +72,7 @@ static int pingpong_b(void *arg) {
     struct pair *p = arg;
     event_wait(&start_gate);
     for (uint i = 0; i < iterations; i++) {
-        event_wait(&p->to_b);
+        event_wait_timeout(&p->to_b, wait_timeout);
         event_signal(&p->to_a);
     }
     return 0;
@@ -109,6 +114,8 @@ static uint active_cpus(uint *cpus, uint max) {
 static lk_bigtime_t run_once(const char *mode, uint ncpus, const uint *cpus) {
     const bool spawn = !strcmp(mode, "spawn");
     const bool cross = !strcmp(mode, "cross");
+    /* long enough never to fire, short enough to stay a plausible deadline */
+    wait_timeout = !strcmp(mode, "timed") ? 10000 : INFINITE_TIME;
 
     event_init(&start_gate, false, 0);
 
@@ -191,11 +198,13 @@ int schedbench(int argc, const console_cmd_args *argv) {
     if (!strcmp(mode, "all")) {
         run_mode("local", maxcpus);
         run_mode("cross", maxcpus);
+        run_mode("timed", maxcpus);
         run_mode("spawn", maxcpus);
-    } else if (!strcmp(mode, "local") || !strcmp(mode, "cross") || !strcmp(mode, "spawn")) {
+    } else if (!strcmp(mode, "local") || !strcmp(mode, "cross") || !strcmp(mode, "timed") ||
+               !strcmp(mode, "spawn")) {
         run_mode(mode, maxcpus);
     } else {
-        printf("usage: schedbench [local|cross|spawn|all] [iterations] [max cpus]\n");
+        printf("usage: schedbench [local|cross|timed|spawn|all] [iterations] [max cpus]\n");
         return ERR_INVALID_ARGS;
     }
     return NO_ERROR;
