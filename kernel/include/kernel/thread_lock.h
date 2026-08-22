@@ -16,36 +16,54 @@ __BEGIN_CDECLS
 
 struct wait_queue;
 
-// The kernel's one thread lock, seen through the names of the locks it is
-// going to be split into.
+// The locks the thread lock has been split into, so far.
 //
-// Today every accessor below returns &thread_lock, so naming a lock changes
-// nothing at runtime. What it changes is the code: each site that takes the
-// lock says which lock it needs, and the order the locks will nest in is fixed
-// here rather than discovered at the point they actually separate:
+// The scheduler now has a lock per cpu. The wait queue and thread list locks
+// are still the one global thread_lock; each accessor below names the lock a
+// site needs, and the order they nest in is fixed here:
 //
 //   thread_list_lock()  >  wait_queue_lock(wq)  >  sched_lock(cpu)  >  timer_lock
 //
 // outermost first. The sched lock is the innermost of the three because the
 // wait queue and thread list code hand threads to the scheduler, never the
-// other way around. A site holds at most one lock of each rank, with a single
-// known exception: moving a queued thread between cpus needs two sched locks.
+// other way around. Two sched locks may be held at once, lowest cpu number
+// first; see sched_lock_pair() in sched.c. The list and wait queue locks are
+// the same lock today, so a site never holds both: it takes them in sequence.
 //
-// Sites that cannot name their lock yet keep using THREAD_LOCK(), with a
-// comment saying why. The two recurring reasons are that the thread being
-// touched is on no queue at all (suspended, sleeping or dead, so neither a
-// sched lock nor a wait queue lock owns it), and that the cpu a thread is
-// headed for is only chosen inside the call that enqueues it. Those sites are
-// the work items for the split, and they are deliberately not disguised
-// behind a confident name.
+// Which lock owns a thread's scheduling state follows from the thread's state:
+//
+//   RUNNING              sched_lock(curr_cpu)
+//   READY, on a queue    sched_lock(last_cpu), the cpu whose queue it is on
+//   BLOCKED              wait_queue_lock(blocking_wait_queue)
+//   SUSPENDED, SLEEPING,
+//   DEATH                sched_lock(last_cpu): the cpu it last ran on, or for
+//                        a thread that never has, the cpu that created it
+//
+// so last_cpu is the key for everything but a blocked thread, and is never -1
+// on a thread the scheduler can see. A thread taken off a queue is invisible
+// to everyone but the remover, which owns it outright until it is queued
+// again; the one way to observe that window is READY with run_queue_node not
+// on a list, and the one site that can (thread_set_pinned_cpu) retries.
+//
+// Exactly one lock is ever held across a context switch: the local cpu's
+// sched lock, which is handed to the incoming thread. Everything else -- the
+// wait queue lock a blocking thread came in with, a remote sched lock -- is
+// dropped before sched_resched(). Holding the global lock across the switch
+// used to be a release in disguise, since the incoming thread could be anyone,
+// so dropping it explicitly changes nothing a caller could rely on.
 
 extern spin_lock_t thread_lock;
 
 // The lock protecting a cpu's run queues, and with them the state of every
-// thread queued on or running on that cpu.
+// thread queued on or running on that cpu. Each lock gets its own cache line;
+// the rest of the per-cpu scheduler state is private to sched.c.
+struct sched_lock_slot {
+    spin_lock_t lock;
+} __CPU_ALIGN;
+extern struct sched_lock_slot sched_lock_slots[SMP_MAX_CPUS];
+
 static inline spin_lock_t *sched_lock(uint cpu) {
-    (void)cpu;
-    return &thread_lock;
+    return &sched_lock_slots[cpu].lock;
 }
 
 // The lock protecting a wait queue, and the state of every thread blocked on it.
@@ -115,11 +133,9 @@ static inline bool thread_list_lock_held(void) {
     return spin_lock_held_by_me(thread_list_lock());
 }
 
-// The unresolved sites. Every use carries a comment naming what it is waiting
-// on; do not add one without.
-#define THREAD_LOCK(state) arch_interrupt_saved_state_t state = spin_lock_irqsave(&thread_lock)
-#define THREAD_UNLOCK(state) spin_unlock_irqrestore(&thread_lock, state)
-
+// For the two backward walkers in wait.c, which reach a wait queue through a
+// thread and cannot name it until they hold it. Sound only while every wait
+// queue lock is this one lock; see the comments at the sites.
 static inline bool thread_lock_held(void) {
     return spin_lock_held_by_me(&thread_lock);
 }

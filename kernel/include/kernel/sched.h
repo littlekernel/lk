@@ -21,7 +21,8 @@ __BEGIN_CDECLS
 // thread lands on, the idle threads, and the context switch itself. Everything
 // here runs with a sched lock held unless noted: the local cpu's for anything
 // touching the current thread, the target cpu's for an insert onto a specific
-// cpu. See kernel/thread_lock.h; today these are all the one thread lock.
+// cpu. There is one per cpu; see kernel/thread_lock.h for the order and for
+// which lock owns a thread in which state.
 
 // Initialize the run queues. Must run before any thread is made runnable,
 // including the half-constructed bootstrap thread. Called by thread_init_early().
@@ -50,8 +51,30 @@ void sched_resched(void);
 void sched_initial_thread_entry(void);
 
 // Put a thread on the head of the run queue of the cpu the scheduler picks for
-// it, and return that cpu so the caller can poke it. Does not reschedule.
+// it, and return that cpu so the caller can poke it. Does not reschedule. The
+// caller holds no sched lock and owns the thread: it has just taken it off a
+// wait queue, and the thread is already READY. The target's lock is taken here.
 uint sched_insert_runnable(thread_t *t);
+
+// The same for a thread that is on no queue at all (suspended or sleeping) and
+// is therefore owned by the sched lock of its last cpu. Moves it from |from| to
+// READY atomically with the insert, or returns false if it was not in |from|.
+bool sched_insert_runnable_from(thread_t *t, enum thread_state from, uint *target_out);
+
+// Switch away on behalf of the wait queue code, which holds |wq|'s lock and has
+// already queued or otherwise disposed of the current thread. The wait queue
+// lock is dropped for the switch and held again on return.
+struct wait_queue;
+void sched_resched_from_wait_queue(struct wait_queue *wq);
+
+// For a wake path about to switch away: put the current thread at the head of
+// the local run queue first, so the woken threads go in ahead of it. Takes and
+// releases the local sched lock; the caller holds none.
+void sched_requeue_current_for_wake(void);
+
+// Free a detached thread that has exited. Called by the scheduler on the far
+// side of its last context switch, once nothing is running on its stack.
+void thread_reap_detached(thread_t *t);
 
 // Put a thread on a specific cpu's run queue. Used for the current thread,
 // which by definition belongs on the local cpu.

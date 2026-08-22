@@ -166,6 +166,10 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
     /* set up the initial stack frame */
     arch_thread_initialize(t);
 
+    /* until it first runs, the thread belongs to the sched lock of the cpu
+     * that created it (see thread_lock.h) */
+    thread_set_last_cpu(t, arch_curr_cpu_num());
+
     /* add it to the global thread list */
     arch_interrupt_saved_state_t state = thread_list_lock_irqsave();
     list_add_head(&thread_list, &t->thread_list_node);
@@ -198,32 +202,26 @@ status_t thread_resume(thread_t *t) {
     // are always disabled.
     bool ints_disabled = arch_ints_disabled();
 
-    /* Unresolved: there is no lock to name here. The thread is suspended and on
-     * no queue, so no sched lock or wait queue lock owns it, and
-     * sched_insert_runnable() chooses the cpu and enqueues in one step, so the
-     * target sched lock is not known until inside it. The honest shape is to
-     * hold nothing here and have the scheduler take the target cpu's lock
-     * internally, which is what the split will do; what remains is who
-     * protects t->state on a thread that is on no queue.
-     */
-    THREAD_LOCK(state);
-    if (t->state != THREAD_SUSPENDED) {
-        THREAD_UNLOCK(state);
+    /* A suspended thread is on no queue and is owned by the sched lock of the
+     * cpu that created it; the scheduler takes that together with the lock of
+     * the cpu it picks, and does the SUSPENDED to READY transition under both.
+     * Interrupts stay off until the ipi is sent: arch_mp_send_ipi() asserts
+     * they are. */
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
+    uint target;
+    if (!sched_insert_runnable_from(t, THREAD_SUSPENDED, &target)) {
+        arch_interrupt_restore(state);
         return ERR_NOT_SUSPENDED;
     }
 
-    t->state = THREAD_READY;
-    const uint target = sched_insert_runnable(t);
     bool local_resched = false;
     if (!ints_disabled) { /* HACK, don't resched into bootstrap thread before idle thread is set up */
         local_resched = true;
     }
 
-    // Send an IPI to wake up the target CPU if needed. This must happen with
-    // the lock still held: arch_mp_send_ipi() asserts interrupts are disabled.
     sched_poke_cpus(1U << target);
 
-    THREAD_UNLOCK(state);
+    arch_interrupt_restore(state);
 
     if (local_resched) {
         if (!preempt_set_pending_if_disabled()) {
@@ -293,28 +291,24 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
 
     /* Now reap it. The list lock ranks above the wait queue lock and the two
      * steps are independent, so the wait queue lock is dropped first rather
-     * than the list lock nested inside it.
-     *
-     * Unresolved: thread_list_lock() is the right lock for the list_delete()
-     * but not for the rest of what happens to |t| from here on. A dead thread
-     * is on no queue, so nothing owns its state, and nothing yet guarantees
-     * the exiting thread has finished switching off of its cpu before the
-     * joiner frees the stack it is still running on. With one lock both are
-     * covered: it is handed across the context switch, so it cannot be taken
-     * here until the exit has completed. The split has to provide the same
-     * guarantee; the candidate is for the reaper to take the sched lock of the
-     * cpu the thread last ran on, which the exiting thread holds until it is
-     * gone.
-     */
-    THREAD_LOCK(reap_state);
-
-    /* remove it from the master thread list */
+     * than the list lock nested inside it. */
+    arch_interrupt_saved_state_t reap_state = thread_list_lock_irqsave();
     list_delete(&t->thread_list_node);
+    thread_list_unlock_irqrestore(reap_state);
 
-    /* clear the structure's magic */
+    /* The thread may still be on its way off the cpu it exited on: it marked
+     * itself dead and woke us before switching away, and its stack is in use
+     * until that switch completes. A dead thread is owned by the sched lock
+     * of the cpu it last ran on, and thread_exit() takes that lock before it
+     * lets go of the wait queue lock we saw THREAD_DEATH under, then hands it
+     * across the switch. So by the time we can take it the thread is gone. */
+    const uint exit_cpu = (uint)thread_last_cpu(t);
+    reap_state = spin_lock_irqsave(sched_lock(exit_cpu));
+#if WITH_SMP
+    DEBUG_ASSERT(thread_curr_cpu(t) == -1);
+#endif
     t->magic = 0;
-
-    THREAD_UNLOCK(reap_state);
+    spin_unlock_irqrestore(sched_lock(exit_cpu), reap_state);
 
     /* free its stack and the thread structure itself */
     if (t->flags & THREAD_FLAG_FREE_STACK && t->stack) {
@@ -350,15 +344,39 @@ status_t thread_detach(thread_t *t) {
 
     /* if it's already dead, then just do what join would have and exit */
     if (t->state == THREAD_DEATH) {
-        t->flags &= ~THREAD_FLAG_DETACHED; /* makes sure thread_join continues */
+        thread_flags_clear(t, THREAD_FLAG_DETACHED); /* makes sure thread_join continues */
         wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
         preempt_enable();
         return thread_join(t, NULL, 0);
     } else {
-        t->flags |= THREAD_FLAG_DETACHED;
+        thread_flags_set(t, THREAD_FLAG_DETACHED);
         wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
         preempt_enable();
         return NO_ERROR;
+    }
+}
+
+/* Free what a detached thread leaves behind. Called once nothing runs on its
+ * stack: by the scheduler on the far side of the thread's final context
+ * switch, with the sched lock held and interrupts off, so the frees are
+ * delayed ones. The thread is already off the thread list. */
+void thread_reap_detached(thread_t *t) {
+    DEBUG_ASSERT(t->state == THREAD_DEATH);
+    DEBUG_ASSERT(t->flags & THREAD_FLAG_DETACHED);
+    DEBUG_ASSERT(!list_in_list(&t->thread_list_node));
+
+    t->magic = 0;
+
+    if (t->flags & THREAD_FLAG_FREE_STACK && t->stack) {
+        heap_delayed_free(t->stack);
+
+        /* the delayed free list node now sits in the stack's guard words.
+         * Where this runs before the final switch (cortex-m), that switch
+         * would otherwise see it as an overrun. */
+        thread_flags_clear(t, THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK);
+    }
+    if (t->flags & THREAD_FLAG_FREE_STRUCT) {
+        heap_delayed_free(t);
     }
 }
 
@@ -378,48 +396,17 @@ void thread_exit(int retcode) {
 
     //  dprintf("thread_exit: current %p\n", current_thread);
 
-    /* Unresolved, and a shape problem rather than a naming one. Three things
-     * happen under one lock here. The thread is marked dead, which
-     * thread_join() and thread_detach() read under the retcode wait queue's
-     * lock, so it has to be set under that lock and before the wake. The thread
-     * is then either reaped from the list or its joiner is woken -- list lock
-     * or wait queue lock, the two paths are exclusive. And finally the cpu is
-     * given up under the sched lock, which is handed off across the switch.
-     * The nesting, list->sched or wq->sched, matches the lock order; the
-     * trouble is that the outer lock is never released, because this thread
-     * does not come back from sched_resched() to do it. The split has to
-     * either drop the outer lock before the final reschedule, and then
-     * guarantee the reaper cannot free the stack until the switch is complete
-     * (see thread_join()), or teach the handoff to release more than the sched
-     * lock.
-     */
-    THREAD_LOCK(state);
-    (void)state; /* silence unused variable warning */
+    /* The thread is marked dead under the retcode wait queue's lock, which is
+     * what thread_join() and thread_detach() read it under, and before the
+     * joiners are woken. The detached flag is read under the same lock. */
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&current_thread->retcode_wait_queue);
+    (void)state; /* never restored: this thread does not come back */
 
-    /* enter the dead state */
     current_thread->state = THREAD_DEATH;
     current_thread->retcode = retcode;
+    const bool detached = current_thread->flags & THREAD_FLAG_DETACHED;
 
-    /* if we're detached, then do our teardown here */
-    if (current_thread->flags & THREAD_FLAG_DETACHED) {
-        /* remove it from the master thread list */
-        list_delete(&current_thread->thread_list_node);
-
-        /* clear the structure's magic */
-        current_thread->magic = 0;
-
-        /* free its stack and the thread structure itself */
-        if (current_thread->flags & THREAD_FLAG_FREE_STACK && current_thread->stack) {
-            heap_delayed_free(current_thread->stack);
-
-            /* make sure its not going to get a bounds check performed on the half-freed stack */
-            current_thread->flags &= ~THREAD_FLAG_DEBUG_STACK_BOUNDS_CHECK;
-        }
-
-        if (current_thread->flags & THREAD_FLAG_FREE_STRUCT) {
-            heap_delayed_free(current_thread);
-        }
-    } else {
+    if (!detached) {
         /* Signal if anyone is waiting. This must not reschedule from inside the
          * wake: doing so marks the current thread READY and puts it back on the
          * run queue to be resumed later, undoing the THREAD_DEATH set above. We
@@ -429,9 +416,35 @@ void thread_exit(int retcode) {
         preempt_disable();
         wait_queue_wake_all(&current_thread->retcode_wait_queue, 0);
         (void)preempt_enable_no_resched();
+
+        /* The joiner frees our stack, and must not do so while we are still
+         * on it. It waits on the local sched lock, which is taken here, before
+         * the wait queue lock it saw us die under is released, and is handed
+         * across the switch: nobody gets it until the switch is complete. */
+        spin_lock(sched_lock(arch_curr_cpu_num()));
+        spin_unlock(wait_queue_lock(&current_thread->retcode_wait_queue));
+    } else {
+        /* Nobody will join us. Leave the list now; the list lock is a
+         * different rank from the wait queue lock, so it is taken after it is
+         * dropped, never inside it. The stack and struct are freed on the far
+         * side of the switch, by thread_reap_detached(), once we are off them
+         * -- except where the arch hands nothing across the switch, in which
+         * case the delayed free is queued here and is safe because that arch
+         * has only the one cpu to run the freer on, after we are gone. */
+        spin_unlock(wait_queue_lock(&current_thread->retcode_wait_queue));
+
+        spin_lock(thread_list_lock());
+        list_delete(&current_thread->thread_list_node);
+        spin_unlock(thread_list_lock());
+
+#if ARCH_CONTEXT_SWITCH_DROPS_LOCK
+        thread_reap_detached(current_thread);
+#endif
+
+        spin_lock(sched_lock(arch_curr_cpu_num()));
     }
 
-    /* reschedule */
+    /* reschedule, handing the local sched lock to whatever runs next */
     sched_resched();
 
     /* should never return here */
@@ -464,6 +477,7 @@ void thread_init_early(void) {
     t->state = THREAD_RUNNING;
     t->flags = THREAD_FLAG_DETACHED;
     thread_set_curr_cpu(t, 0);
+    thread_set_last_cpu(t, 0);
     thread_init_pinned_cpu(t, 0);
     wait_queue_init(&t->retcode_wait_queue);
     list_add_head(&thread_list, &t->thread_list_node);
@@ -513,6 +527,7 @@ void thread_create_secondary_cpu_idle_thread(uint cpu) {
     t->state = THREAD_RUNNING;
     t->flags = THREAD_FLAG_DETACHED | THREAD_FLAG_IDLE;
     thread_set_curr_cpu(t, cpu);
+    thread_set_last_cpu(t, cpu);
     thread_init_pinned_cpu(t, cpu);
     wait_queue_init(&t->retcode_wait_queue);
 

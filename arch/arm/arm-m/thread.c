@@ -105,7 +105,7 @@ static vaddr_t pendsv_swap_sp(vaddr_t old_frame) {
     /* make sure the stack is 8 byte aligned */
     DEBUG_ASSERT(((uintptr_t)__GET_FRAME() & 0x7) == 0);
 
-    DEBUG_ASSERT_MSG(!spin_lock_held(&thread_lock),
+    DEBUG_ASSERT_MSG(!spin_lock_held(sched_lock(arch_curr_cpu_num())),
                      "PENDSV: thread lock was held when preempted! pc %#x\n", ((struct arm_cm_exception_frame *)old_frame)->pc);
 
     DEBUG_ASSERT(_prev_running_thread != NULL);
@@ -155,7 +155,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
 #endif
 
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(sched_lock_local_held());
 
     const bool in_interrupt_context = arch_in_int_handler();
 
@@ -194,7 +194,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
         /* we're in thread context, so jump to PendSV immediately */
 
         /* drop the lock and enable interrupts so PendSV can run */
-        spin_unlock(&thread_lock);
+        spin_unlock(sched_lock(arch_curr_cpu_num()));
         arch_enable_ints();
 
         /*
@@ -207,7 +207,7 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
         /* should jump to PendSV here */
 
         arch_disable_ints();
-        spin_lock(&thread_lock);
+        spin_lock(sched_lock(arch_curr_cpu_num()));
     } else {
         /*
          * If we're in interrupt context, then we've come through

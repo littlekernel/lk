@@ -97,7 +97,9 @@ typedef struct thread {
     bool pending_reschedule;
 #if WITH_SMP
     int curr_cpu;
-    int last_cpu;   // last cpu this thread ran on, -1 if it has never run
+    int last_cpu;   // last cpu this thread ran on or was queued on; the
+                    // creating cpu until then. Keys the sched lock that owns
+                    // the thread whenever it is not blocked (thread_lock.h)
     int pinned_cpu; // only run on pinned_cpu if >= 0
 #endif
 #if WITH_KERNEL_VM
@@ -189,7 +191,6 @@ void dump_threads_stats(void);
 void thread_yield(void); // give up the cpu voluntarily
 void thread_preempt(void); // get preempted (inserted into head of run queue)
 void thread_block(void); // block on something and reschedule
-void thread_unblock(thread_t *t); // go back in the run queue
 
 #ifdef WITH_LIB_UTHREAD
 void uthread_context_switch(thread_t *oldthread, thread_t *newthread);
@@ -216,6 +217,29 @@ static inline bool thread_is_idle(const thread_t *t) {
     return !!(t->flags & THREAD_FLAG_IDLE);
 }
 
+// Set or clear bits in a thread's flags. Different bits are owned by different
+// locks (DETACHED by the retcode wait queue's, REAL_TIME by a sched lock), so
+// on SMP an update of the word has to be atomic against an update under the
+// other lock. On a single cpu, interrupts being disabled is the same thing,
+// and the 68000 for one has no atomic read-modify-write to offer anyway.
+static inline void thread_flags_set(thread_t *t, unsigned int bits) {
+#if WITH_SMP
+    __atomic_fetch_or(&t->flags, bits, __ATOMIC_RELAXED);
+#else
+    DEBUG_ASSERT(arch_ints_disabled());
+    t->flags |= bits;
+#endif
+}
+
+static inline void thread_flags_clear(thread_t *t, unsigned int bits) {
+#if WITH_SMP
+    __atomic_fetch_and(&t->flags, ~bits, __ATOMIC_RELAXED);
+#else
+    DEBUG_ASSERT(arch_ints_disabled());
+    t->flags &= ~bits;
+#endif
+}
+
 // SMP related accessors
 static inline int thread_curr_cpu(const thread_t *t) {
 #if WITH_SMP
@@ -226,7 +250,7 @@ static inline int thread_curr_cpu(const thread_t *t) {
 }
 
 // The cpu this thread most recently ran on, or was queued on if it is currently
-// runnable and waiting for a cpu. -1 if it has never been either.
+// runnable and waiting for a cpu; the cpu that created it if neither yet.
 static inline int thread_last_cpu(const thread_t *t) {
 #if WITH_SMP
     return t->last_cpu;
@@ -265,12 +289,9 @@ static inline void thread_init_pinned_cpu(thread_t *t, int cpu) {
 }
 
 #if WITH_SMP
-// Pin a thread to a cpu, or -1 to unpin it. Takes the thread lock, and moves
-// the thread if it is already sitting on the wrong cpu's run queue.
-//
-// A thread that is currently running can only be pinned to the cpu it is
-// already running on: moving it requires that cpu to reschedule and give it up,
-// which nothing needs yet.
+// Pin a thread to a cpu, or -1 to unpin it. Moves the thread if it is already
+// sitting on the wrong cpu's run queue, and asks the cpu running it to give it
+// up if it is running on the wrong one. Takes whichever locks own the thread.
 void thread_set_pinned_cpu(thread_t *t, int cpu);
 #else
 static inline void thread_set_pinned_cpu(thread_t *t, int cpu) {}

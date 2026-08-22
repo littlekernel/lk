@@ -15,12 +15,13 @@
  * reduce to putting a thread on one of these and taking it back off.
  *
  * Everything here runs under wait_queue_lock() of the queue in question, which
- * is still the one global thread lock (see kernel/thread_lock.h). That is also
- * what makes the hand-off to the scheduler safe for now: a thread taken off a
- * wait queue is handed straight to sched_insert_runnable(), which needs the
- * target cpu's sched lock, and today that is the same lock, already held. Once
- * they split, the sched lock nests inside the wait queue lock and is taken by
- * the scheduler on the way in.
+ * is still the one global thread lock (see kernel/thread_lock.h). The sched
+ * locks are per cpu and nest inside it: a thread taken off a wait queue is
+ * handed to sched_insert_runnable(), which takes the lock of the cpu it picks,
+ * and a thread blocking or a waker switching away goes through
+ * sched_resched_from_wait_queue(), which drops the wait queue lock for the
+ * switch -- only the local sched lock is held across one -- and takes it
+ * back before returning here.
  *
  * @defgroup  wait  Wait Queue
  * @{
@@ -45,14 +46,14 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
 
     DEBUG_ASSERT(thread->magic == THREAD_MAGIC);
 
-    /* Unresolved: this walks backwards, from a thread to the queue it is
-     * blocked on, and which queue that is can only be read under the lock
-     * being taken here. The lock wanted is
+    /* Unresolved until the wait queue locks split: this walks backwards,
+     * from a thread to the queue it is blocked on, and which queue that is
+     * can only be read under the lock being taken here. The lock wanted is
      * wait_queue_lock(thread->blocking_wait_queue); naming it that would be
      * right about the rank and wrong about the object, since the thread may
      * have been woken and gone on to block elsewhere in between. The split
      * needs a read, drop, acquire, revalidate loop here. Until then it is the
-     * one lock. */
+     * one lock, which is every wait queue's. */
     spin_lock(&thread_lock);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
@@ -113,7 +114,9 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
         timer_set_oneshot(&timer, timeout, wait_queue_timeout_handler, (void *)current_thread);
     }
 
-    sched_resched();
+    /* switch away; the wait queue lock is dropped for the switch and is held
+     * again on return, so the caller sees the same lock state as it came in */
+    sched_resched_from_wait_queue(wait);
 
     /* we don't really know if the timer fired or not, so it's better safe to try to cancel it */
     if (timeout != INFINITE_TIME) {
@@ -140,8 +143,6 @@ int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
     thread_t *t;
     int ret = 0;
 
-    thread_t *current_thread = get_current_thread();
-
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(wait_queue_lock_held(wait));
@@ -165,12 +166,11 @@ int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
          * before the current one, but the current one doesn't get unnecessarily punished.
          */
         if (resched_now) {
-            current_thread->state = THREAD_READY;
-            sched_insert_runnable_head_on(arch_curr_cpu_num(), current_thread);
+            sched_requeue_current_for_wake();
         }
         sched_poke_cpus(1U << sched_insert_runnable(t));
         if (resched_now) {
-            sched_resched();
+            sched_resched_from_wait_queue(wait);
         }
         ret = 1;
     }
@@ -196,8 +196,6 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
     int ret = 0;
     uint32_t cpu_mask = 0;
 
-    thread_t *current_thread = get_current_thread();
-
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(wait_queue_lock_held(wait));
@@ -222,8 +220,7 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
          * newly awakened threads get a chance to run before the current one, but the
          * current one doesn't get unnecessarilly punished.
          */
-        current_thread->state = THREAD_READY;
-        sched_insert_runnable_head_on(arch_curr_cpu_num(), current_thread);
+        sched_requeue_current_for_wake();
     }
 
     /* pop all the threads off the wait queue into the run queue */
@@ -244,7 +241,7 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
     if (ret > 0) {
         sched_poke_cpus(cpu_mask);
         if (resched_now) {
-            sched_resched();
+            sched_resched_from_wait_queue(wait);
         }
     }
 
@@ -280,9 +277,10 @@ void wait_queue_destroy(wait_queue_t *wait) {
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
-    /* Unresolved: the other backward walker, see wait_queue_timeout_handler().
-     * The lock this wants is wait_queue_lock(t->blocking_wait_queue), which
-     * is only knowable once t->state has been read under it. */
+    /* Unresolved until the wait queue locks split: the other backward walker,
+     * see wait_queue_timeout_handler(). The lock this wants is
+     * wait_queue_lock(t->blocking_wait_queue), which is only knowable once
+     * t->state has been read under it. */
     DEBUG_ASSERT(thread_lock_held());
 
     if (t->state != THREAD_BLOCKED) {
