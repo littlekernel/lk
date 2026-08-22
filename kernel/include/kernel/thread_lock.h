@@ -22,11 +22,12 @@ __BEGIN_CDECLS
 // thread list keeps the original global lock. Each accessor below names the
 // lock a site needs, and the order they nest in is fixed here:
 //
-//   thread_list_lock()  >  wait_queue_lock(wq)  >  sched_lock(cpu)  >  timer_lock
+//   thread_list_lock()  >  wait_queue_lock(wq)  >  sched_lock(cpu)  >  timer_lock(cpu)
 //
 // outermost first. The sched lock is the innermost of the three because the
 // wait queue and thread list code hand threads to the scheduler, never the
-// other way around. Two sched locks may be held at once, lowest cpu number
+// other way around. The timer locks are per cpu too (kernel/timer.c); any
+// one of them may be taken under any sched lock, and never two at once. Two sched locks may be held at once, lowest cpu number
 // first; see sched_lock_pair() in sched.c. Two wait queue locks never are.
 //
 // A thread's scheduling state -- state, the run queue node, pinned_cpu,

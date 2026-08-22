@@ -35,6 +35,11 @@ typedef struct timer {
 
     timer_callback callback;
     void *arg;
+
+    // The cpu whose queue the timer is on, or was last on. Written under that
+    // cpu's timer lock when the timer is queued; a cancel from another cpu
+    // reads it to find the lock to take. See timer_cancel().
+    uint cpu;
 } timer_t;
 
 // Initializes a timer to the default state. Can statically initialize a timer
@@ -47,6 +52,7 @@ typedef struct timer {
     .periodic_time = 0, \
     .callback = NULL, \
     .arg = NULL, \
+    .cpu = 0, \
 }
 
 void timer_initialize(timer_t *);

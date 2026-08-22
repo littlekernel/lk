@@ -35,7 +35,15 @@
 
 #define LOCAL_TRACE 0
 
-spin_lock_t timer_lock;
+/* Each cpu has its own timer queue and its own lock for it, both in struct
+ * percpu. A timer is queued on the cpu that set it and records which in
+ * timer_t.cpu, so the tick and timer_set only ever touch the local queue, and
+ * timer_cancel -- which can run on a different cpu than the one that set the
+ * timer, for a thread that blocked with a timeout and was woken elsewhere --
+ * takes the owning cpu's lock. Two timer locks are never held at once. */
+static inline spin_lock_t *timer_lock(uint cpu) {
+    return &percpu_get(cpu)->timer_lock;
+}
 
 static enum handler_return timer_tick(void *arg, lk_time_t now);
 
@@ -53,6 +61,9 @@ static void insert_timer_in_queue(uint cpu, timer_t *timer) {
 
     LTRACEF("timer %p, cpu %u, scheduled %u, periodic %u\n", timer, cpu, timer->scheduled_time, timer->periodic_time);
 
+    DEBUG_ASSERT(spin_lock_held(timer_lock(cpu)));
+
+    timer->cpu = cpu;
     list_for_every_entry(&percpu_get(cpu)->timer_queue, entry, timer_t, node) {
         if (TIME_GT(entry->scheduled_time, timer->scheduled_time)) {
             list_add_before(&entry->node, &timer->node);
@@ -83,9 +94,10 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
 
     LTRACEF("scheduled time %u\n", timer->scheduled_time);
 
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&timer_lock);
-
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
     uint cpu = arch_curr_cpu_num();
+    spin_lock(timer_lock(cpu));
+
     insert_timer_in_queue(cpu, timer);
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
@@ -96,7 +108,7 @@ static void timer_set(timer_t *timer, lk_time_t delay, lk_time_t period, timer_c
     }
 #endif
 
-    spin_unlock_irqrestore(&timer_lock, state);
+    spin_unlock_irqrestore(timer_lock(cpu), state);
 }
 
 /**
@@ -145,11 +157,23 @@ void timer_set_periodic(timer_t *timer, lk_time_t period, timer_callback callbac
 void timer_cancel(timer_t *timer) {
     DEBUG_ASSERT(timer->magic == TIMER_MAGIC);
 
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&timer_lock);
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
+
+    /* Lock the queue the timer is on. timer->cpu is read unlocked and could be
+     * changing under us if the timer is being set on another cpu at the same
+     * time, which is not a supported thing to do to a timer, but the check
+     * after taking the lock keeps the list intact if it ever happens. */
+    uint cpu;
+    for (;;) {
+        cpu = __atomic_load_n(&timer->cpu, __ATOMIC_RELAXED);
+        spin_lock(timer_lock(cpu));
+        if (likely(__atomic_load_n(&timer->cpu, __ATOMIC_RELAXED) == cpu)) {
+            break;
+        }
+        spin_unlock(timer_lock(cpu));
+    }
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
-    uint cpu = arch_curr_cpu_num();
-
     timer_t *oldhead = list_peek_head_type(&percpu_get(cpu)->timer_queue, timer_t, node);
 #endif
 
@@ -164,9 +188,14 @@ void timer_cancel(timer_t *timer) {
     timer->arg = NULL;
 
 #if PLATFORM_HAS_DYNAMIC_TIMER
-    /* see if we've just modified the head of the timer queue */
+    /* See if we've just modified the head of the timer queue. Only the local
+     * cpu's hardware timer can be reprogrammed from here; a remote queue's
+     * head going away just leaves that cpu's timer armed for a time at which
+     * it will find nothing due and rearm for whatever is next. */
     timer_t *newhead = list_peek_head_type(&percpu_get(cpu)->timer_queue, timer_t, node);
-    if (newhead == NULL) {
+    if (cpu != arch_curr_cpu_num()) {
+        /* nothing to do */
+    } else if (newhead == NULL) {
         LTRACEF("clearing old hw timer, nothing in the queue\n");
         platform_stop_timer();
     } else if (newhead != oldhead) {
@@ -183,7 +212,7 @@ void timer_cancel(timer_t *timer) {
     }
 #endif
 
-    spin_unlock_irqrestore(&timer_lock, state);
+    spin_unlock_irqrestore(timer_lock(cpu), state);
 }
 
 /* called at interrupt time to process any pending timers */
@@ -200,7 +229,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now) {
 
     LTRACEF("cpu %u now %u, sp %p\n", cpu, now, __GET_FRAME());
 
-    spin_lock(&timer_lock);
+    spin_lock(timer_lock(cpu));
 
     for (;;) {
         /* see if there's an event to process */
@@ -217,7 +246,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now) {
         list_delete(&timer->node);
 
         /* we pulled it off the list, release the list lock to handle it */
-        spin_unlock(&timer_lock);
+        spin_unlock(timer_lock(cpu));
 
         LTRACEF("dequeued timer %p, scheduled %u periodic %u\n", timer, timer->scheduled_time, timer->periodic_time);
 
@@ -231,7 +260,7 @@ static enum handler_return timer_tick(void *arg, lk_time_t now) {
             ret = INT_RESCHEDULE;
 
         /* it may have been requeued or periodic, grab the lock so we can safely inspect it */
-        spin_lock(&timer_lock);
+        spin_lock(timer_lock(cpu));
 
         /* if it was a periodic timer and it hasn't been requeued
          * by the callback put it back in the list
@@ -260,10 +289,10 @@ static enum handler_return timer_tick(void *arg, lk_time_t now) {
     }
 
     /* we're done manipulating the timer queue */
-    spin_unlock(&timer_lock);
+    spin_unlock(timer_lock(cpu));
 #else
     /* release the timer lock before calling the tick handler */
-    spin_unlock(&timer_lock);
+    spin_unlock(timer_lock(cpu));
 
     /* let the scheduler have a shot to do quantum expiration, etc */
     /* in case of dynamic timer, the scheduler will set up a periodic timer */
@@ -275,8 +304,8 @@ static enum handler_return timer_tick(void *arg, lk_time_t now) {
 }
 
 void timer_init(void) {
-    timer_lock = SPIN_LOCK_INITIAL_VALUE;
     for (uint i = 0; i < SMP_MAX_CPUS; i++) {
+        spin_lock_init(timer_lock(i));
         list_initialize(&percpu_get(i)->timer_queue);
     }
 #if !PLATFORM_HAS_DYNAMIC_TIMER

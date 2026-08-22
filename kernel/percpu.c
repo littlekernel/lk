@@ -23,6 +23,6 @@ struct percpu percpu_array[SMP_MAX_CPUS];
 STATIC_ASSERT(offsetof(struct percpu, sched_lock) == 0);
 STATIC_ASSERT(offsetof(struct percpu, runnable_count) == CACHE_LINE);
 STATIC_ASSERT(offsetof(struct percpu, run_queue) == 2 * CACHE_LINE);
-STATIC_ASSERT(offsetof(struct percpu, timer_queue) % CACHE_LINE == 0);
+STATIC_ASSERT(offsetof(struct percpu, timer_lock) % CACHE_LINE == 0);
 STATIC_ASSERT(sizeof(struct percpu) % CACHE_LINE == 0);
 #endif

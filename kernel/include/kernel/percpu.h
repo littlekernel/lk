@@ -37,10 +37,12 @@
 //       Eight lines of list heads on 64 bit. Only the active priority's line
 //       is warm, and it stays warm, so there is nothing to gain from shrinking
 //       it.
-//   timer_queue, preempt_timer
-//       The cpu's timer queue and the preemption timer that is set and
-//       cancelled as the cpu goes in and out of idle. Both interrupt-time and
-//       only at idle transitions, so off the switch path proper.
+//   timer_lock, timer_queue, preempt_timer
+//       The cpu's timer queue, its lock, and the preemption timer that is set
+//       and cancelled as the cpu goes in and out of idle. Interrupt time and
+//       idle transitions, so off the switch path proper; the lock is per cpu
+//       so that a timed wait on one cpu does not contend with the tick on
+//       another.
 //   stats, held_locks
 //       Debug-build bookkeeping. Written on every switch (stats) or every lock
 //       operation (held_locks), so they still need their own lines to keep
@@ -157,8 +159,12 @@ struct percpu {
 
     struct list_node run_queue[NUM_PRIORITIES] PERCPU_LINE;
 
-    // The timer queue, protected by the timer lock (kernel/timer.c).
-    struct list_node timer_queue PERCPU_LINE;
+    // The cpu's timer queue and the lock that protects it. Timers are queued
+    // on the cpu that set them and record which (timer_t.cpu), so a cancel
+    // from another cpu takes this lock rather than a global one. See
+    // kernel/timer.c.
+    spin_lock_t timer_lock PERCPU_LINE;
+    struct list_node timer_queue;
 #if PLATFORM_HAS_DYNAMIC_TIMER
     timer_t preempt_timer;
 #endif
