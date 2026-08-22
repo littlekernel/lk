@@ -181,6 +181,18 @@ static inline bool arm_cm_is_preempt_triggered(void) {
     return SCB->ICSR & SCB_ICSR_PENDSVSET_Msk;
 }
 
+/* PendSV has been taken and is running (its handler is active). The hardware
+ * clears PENDSVSET at that point, so a nested interrupt that lands in the
+ * PendSV prologue sees it neither pending nor done. armv6-m has no SHCSR, so
+ * there this can only be answered pessimistically. */
+static inline bool arm_cm_is_preempt_active(void) {
+#if ARM_ISA_ARMV7M || ARM_ISA_ARMV8M
+    return SCB->SHCSR & SCB_SHCSR_PENDSVACT_Msk;
+#else
+    return true;
+#endif
+}
+
 void arm_cm_spin_cycles(uint32_t cycles);
 
 /* systick */

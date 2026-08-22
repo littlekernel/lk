@@ -185,10 +185,17 @@ void arch_context_switch(struct thread *oldthread, struct thread *newthread) {
     }
 
     /*
-     * Make sure either pendsv is queued up either via the previous if statement
-     * or via a nested preemption.
+     * Make sure pendsv is queued up, either via the previous if statement or
+     * via a nested preemption. The nested case has a third possibility: the
+     * interrupt that got us here landed in PendSV's own prologue, before its
+     * cpsid. PendSV is then active rather than pending (taking it cleared
+     * PENDSVSET), _prev_running_thread is already set, and the swap will
+     * happen as soon as we return; only the flag is gone. Seen on a real
+     * Cortex-M33, where a DEBUG=2 ping-pong benchmark lined up systick with
+     * that window on every run; qemu never reproduces it.
      */
-    DEBUG_ASSERT(arm_cm_is_preempt_triggered());
+    DEBUG_ASSERT(arm_cm_is_preempt_triggered() ||
+                 (in_interrupt_context && arm_cm_is_preempt_active()));
 
     if (!in_interrupt_context) {
         /* we're in thread context, so jump to PendSV immediately */
