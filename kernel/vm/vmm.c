@@ -730,10 +730,10 @@ status_t vmm_free_aspace(vmm_aspace_t *aspace) {
     /* make sure the current thread does not map the aspace */
     thread_t *current_thread = get_current_thread();
     if (current_thread->aspace == aspace) {
-        THREAD_LOCK(state);
+        arch_interrupt_saved_state_t state = sched_lock_local_irqsave();
         current_thread->aspace = NULL;
         vmm_context_switch(aspace, NULL);
-        THREAD_UNLOCK(state);
+        sched_unlock_local_irqrestore(state);
     }
 
     /* destroy the arch portion of the aspace */
@@ -746,7 +746,10 @@ status_t vmm_free_aspace(vmm_aspace_t *aspace) {
 }
 
 void vmm_context_switch(vmm_aspace_t *oldspace, vmm_aspace_t *newaspace) {
-    DEBUG_ASSERT(thread_lock_held());
+    /* the current thread's aspace is scheduler state: it is switched from
+     * sched_resched() under the local sched lock, and set from the two callers
+     * in this file under the same */
+    DEBUG_ASSERT(sched_lock_local_held());
 
     arch_mmu_context_switch(newaspace ? &newaspace->arch_aspace : NULL);
 }
@@ -760,14 +763,14 @@ vmm_aspace_t* vmm_set_active_aspace(vmm_aspace_t *aspace) {
     if (aspace == t->aspace)
         return aspace;
 
-    /* grab the thread lock and switch to the new address space */
-    THREAD_LOCK(state);
+    /* grab the local sched lock and switch to the new address space */
+    arch_interrupt_saved_state_t state = sched_lock_local_irqsave();
     vmm_aspace_t *old = t->aspace;
     if (old != aspace) {
         t->aspace = aspace;
         vmm_context_switch(old, t->aspace);
     }
-    THREAD_UNLOCK(state);
+    sched_unlock_local_irqrestore(state);
     return old;
 }
 

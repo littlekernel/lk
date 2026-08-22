@@ -50,9 +50,10 @@
  * another. That makes initial placement the whole scheduling policy, so a bug
  * there is a thread that never runs rather than a thread that runs late.
  *
- * This is all still covered by the global thread_lock. Splitting the queues
- * buys affinity and stops threads bouncing between cpus; splitting the lock is
- * a separate change.
+ * All of this is protected by sched_lock(cpu), which is still the one global
+ * thread lock (see kernel/thread_lock.h). Splitting the queues buys affinity
+ * and stops threads bouncing between cpus; splitting the lock is a separate
+ * change.
  */
 struct percpu_sched {
     struct list_node run_queue[NUM_PRIORITIES];
@@ -84,7 +85,7 @@ static void run_queue_insert_checks(uint cpu, thread_t *t) {
     DEBUG_ASSERT(t->state == THREAD_READY);
     DEBUG_ASSERT(!list_in_list(&t->queue_node));
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(sched_lock_held(cpu));
     DEBUG_ASSERT(cpu < SMP_MAX_CPUS);
     /* pinning is enforced here, at insert time, so that the cpu pulling threads
      * off of its own queue never has to filter */
@@ -135,7 +136,7 @@ static bool thread_is_queued_on(uint cpu, thread_t *t) {
  */
 static void run_queue_remove(uint cpu, thread_t *t) {
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(sched_lock_held(cpu));
     DEBUG_ASSERT(cpu < SMP_MAX_CPUS);
     DEBUG_ASSERT(t->state == THREAD_READY);
     DEBUG_ASSERT(list_in_list(&t->queue_node));
@@ -234,6 +235,12 @@ static uint find_target_cpu(thread_t *t) {
 /* Steer a newly runnable thread at a cpu and put it on that cpu's run queue.
  * Returns the target so the caller can poke it -- separately, so that a caller
  * waking a run of threads can batch the ipis into one call.
+ *
+ * The target cpu's sched lock is needed for the insert, and the target is not
+ * known until find_target_cpu() has run, so the caller cannot take it. Today
+ * it does not have to: every caller holds the one thread lock, which is every
+ * cpu's sched lock. Once the locks split this is where the target's lock gets
+ * taken, with the choice revalidated after acquiring it.
  */
 uint sched_insert_runnable(thread_t *t) {
     const uint target = find_target_cpu(t);
@@ -271,6 +278,12 @@ status_t thread_set_real_time(thread_t *t) {
 
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
 
+    /* Unresolved: |t| is any thread in any state. For the current thread this
+     * is the local sched lock (the preemption timer is per cpu); for a queued
+     * or blocked one it is the sched lock or wait queue lock that owns it; for
+     * a suspended, sleeping or dead one it is nothing at all -- the
+     * who-owns-a-thread-on-no-queue question.
+     */
     THREAD_LOCK(state);
 #if PLATFORM_HAS_DYNAMIC_TIMER
     if (t == get_current_thread()) {
@@ -299,6 +312,14 @@ void thread_set_pinned_cpu(thread_t *t, int cpu) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(cpu >= -1 && cpu < (int)SMP_MAX_CPUS);
 
+    /* Unresolved: the only site in the tree that needs two sched locks --
+     * dequeue from the cpu the thread is queued on, enqueue on the one it is
+     * pinned to -- and two locks of the same rank need an order, lowest cpu
+     * number first. On top of that, what protects pinned_cpu itself depends
+     * on the thread's state: a blocked thread's pin is read by
+     * find_target_cpu() when it wakes, under its wait queue lock; a suspended
+     * or sleeping thread's under nothing (the thread-on-no-queue question).
+     */
     THREAD_LOCK(state);
 
     t->pinned_cpu = cpu;
@@ -388,7 +409,7 @@ void sched_resched(void) {
     uint cpu = arch_curr_cpu_num();
 
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(sched_lock_local_held());
     DEBUG_ASSERT(current_thread->state != THREAD_RUNNING);
 
     THREAD_STATS_INC(reschedules);
@@ -512,7 +533,10 @@ void sched_resched(void) {
     }
 #endif
 
-    /* do the low level context switch */
+    /* Do the low level context switch. The local sched lock goes with it: it
+     * is not released here but handed to newthread, which drops it when it
+     * resumes (or, for a brand new thread, in the arch initial_thread_func).
+     * It is the lock of this cpu that is handed, whichever thread took it. */
     arch_context_switch(oldthread, newthread);
 }
 
@@ -556,7 +580,7 @@ void thread_yield(void) {
     DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
     DEBUG_ASSERT(!thread_is_idle(current_thread));
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = sched_lock_local_irqsave();
 
     THREAD_STATS_INC(yields);
 
@@ -566,7 +590,7 @@ void thread_yield(void) {
     sched_requeue_current(current_thread, false);
     sched_resched();
 
-    THREAD_UNLOCK(state);
+    sched_unlock_local_irqrestore(state);
 }
 
 /**
@@ -595,7 +619,7 @@ void thread_preempt(void) {
 
     KEVLOG_THREAD_PREEMPT(current_thread);
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = sched_lock_local_irqsave();
 
     /* we are being preempted, so we get to go back into the front of the run queue if we have quantum left */
     current_thread->state = THREAD_READY;
@@ -605,7 +629,7 @@ void thread_preempt(void) {
     }
     sched_resched();
 
-    THREAD_UNLOCK(state);
+    sched_unlock_local_irqrestore(state);
 }
 
 /**
@@ -623,7 +647,7 @@ void thread_block(void) {
 
     DEBUG_ASSERT(current_thread->magic == THREAD_MAGIC);
     DEBUG_ASSERT(current_thread->state == THREAD_BLOCKED);
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(sched_lock_local_held());
     DEBUG_ASSERT(!thread_is_idle(current_thread));
 
     /* we are blocking on something. the blocking code should have already stuck us on a queue */
@@ -641,7 +665,9 @@ void thread_block(void) {
 void thread_unblock(thread_t *t) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(t->state == THREAD_BLOCKED);
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    /* Unresolved (and currently unused): same shape as thread_resume(), the
+     * target sched lock is only known inside sched_insert_runnable(). */
+    DEBUG_ASSERT(thread_lock_held());
     DEBUG_ASSERT(!thread_is_idle(t));
 
     t->state = THREAD_READY;
@@ -676,6 +702,9 @@ static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, v
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(t->state == THREAD_SLEEPING);
 
+    /* Unresolved: same shape as thread_resume(). A sleeping thread is on no
+     * queue, so nothing owns it, and the cpu it is headed for is only chosen
+     * inside sched_insert_runnable(). */
     THREAD_LOCK(state);
 
     t->state = THREAD_READY;
@@ -719,11 +748,13 @@ void thread_sleep(lk_time_t delay) {
 
     timer_initialize(&timer);
 
-    THREAD_LOCK(state);
+    /* The timer is armed under the sched lock: the timer lock is the innermost
+     * of the lot, so this nesting is the right way around. */
+    arch_interrupt_saved_state_t state = sched_lock_local_irqsave();
     timer_set_oneshot(&timer, delay, thread_sleep_handler, (void *)current_thread);
     current_thread->state = THREAD_SLEEPING;
     sched_resched();
-    THREAD_UNLOCK(state);
+    sched_unlock_local_irqrestore(state);
 }
 
 /**
@@ -734,7 +765,7 @@ void thread_sleep(lk_time_t delay) {
 void thread_set_priority(int priority) {
     thread_t *current_thread = get_current_thread();
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = sched_lock_local_irqsave();
 
     if (priority <= IDLE_PRIORITY) {
         priority = IDLE_PRIORITY + 1;
@@ -748,7 +779,7 @@ void thread_set_priority(int priority) {
     sched_requeue_current(current_thread, true);
     sched_resched();
 
-    THREAD_UNLOCK(state);
+    sched_unlock_local_irqrestore(state);
 }
 
 /**

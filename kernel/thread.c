@@ -51,7 +51,9 @@ struct thread_stats thread_stats[SMP_MAX_CPUS];
 /* global thread list */
 struct list_node thread_list;
 
-/* master thread spinlock */
+/* The thread lock. Every site takes it under one of the names in
+ * kernel/thread_lock.h, which say which of the locks it stands in for they
+ * actually need. */
 spin_lock_t thread_lock = SPIN_LOCK_INITIAL_VALUE;
 
 
@@ -165,9 +167,9 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
     arch_thread_initialize(t);
 
     /* add it to the global thread list */
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = thread_list_lock_irqsave();
     list_add_head(&thread_list, &t->thread_list_node);
-    THREAD_UNLOCK(state);
+    thread_list_unlock_irqrestore(state);
 
     return t;
 }
@@ -196,6 +198,14 @@ status_t thread_resume(thread_t *t) {
     // are always disabled.
     bool ints_disabled = arch_ints_disabled();
 
+    /* Unresolved: there is no lock to name here. The thread is suspended and on
+     * no queue, so no sched lock or wait queue lock owns it, and
+     * sched_insert_runnable() chooses the cpu and enqueues in one step, so the
+     * target sched lock is not known until inside it. The honest shape is to
+     * hold nothing here and have the scheduler take the target cpu's lock
+     * internally, which is what the split will do; what remains is who
+     * protects t->state on a thread that is on no queue.
+     */
     THREAD_LOCK(state);
     if (t->state != THREAD_SUSPENDED) {
         THREAD_UNLOCK(state);
@@ -245,11 +255,17 @@ status_t thread_detach_and_resume(thread_t *t) {
 status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
 
-    THREAD_LOCK(state);
+    /* The detached flag and the exit handshake are protected by the lock of
+     * the thread's retcode wait queue: thread_detach() sets the flag, and
+     * thread_exit() marks the thread dead, under that lock and just before
+     * waking this queue, so a joiner that sees either under the same lock sees
+     * the state it is being told about.
+     */
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&t->retcode_wait_queue);
 
     if (t->flags & THREAD_FLAG_DETACHED) {
         /* the thread is detached, go ahead and exit */
-        THREAD_UNLOCK(state);
+        wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
         return ERR_THREAD_DETACHED;
     }
 
@@ -257,7 +273,7 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
     if (t->state != THREAD_DEATH) {
         status_t err = wait_queue_block(&t->retcode_wait_queue, timeout);
         if (err < 0) {
-            THREAD_UNLOCK(state);
+            wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
             return err;
         }
     }
@@ -272,13 +288,32 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
         *retcode = t->retcode;
     }
 
+    wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
+
+    /* Now reap it. The list lock ranks above the wait queue lock and the two
+     * steps are independent, so the wait queue lock is dropped first rather
+     * than the list lock nested inside it.
+     *
+     * Unresolved: thread_list_lock() is the right lock for the list_delete()
+     * but not for the rest of what happens to |t| from here on. A dead thread
+     * is on no queue, so nothing owns its state, and nothing yet guarantees
+     * the exiting thread has finished switching off of its cpu before the
+     * joiner frees the stack it is still running on. With one lock both are
+     * covered: it is handed across the context switch, so it cannot be taken
+     * here until the exit has completed. The split has to provide the same
+     * guarantee; the candidate is for the reaper to take the sched lock of the
+     * cpu the thread last ran on, which the exiting thread holds until it is
+     * gone.
+     */
+    THREAD_LOCK(reap_state);
+
     /* remove it from the master thread list */
     list_delete(&t->thread_list_node);
 
     /* clear the structure's magic */
     t->magic = 0;
 
-    THREAD_UNLOCK(state);
+    THREAD_UNLOCK(reap_state);
 
     /* free its stack and the thread structure itself */
     if (t->flags & THREAD_FLAG_FREE_STACK && t->stack) {
@@ -302,7 +337,11 @@ status_t thread_detach(thread_t *t) {
      */
     preempt_disable();
 
-    THREAD_LOCK(state);
+    /* The detached flag lives under the lock of the retcode wait queue: it is
+     * what thread_join() reads it under, and the check for an already dead
+     * thread below relies on thread_exit() marking the thread dead under this
+     * lock before it wakes the queue. */
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&t->retcode_wait_queue);
 
     /* if another thread is blocked inside thread_join() on this thread,
      * wake them up with a specific return code */
@@ -311,12 +350,12 @@ status_t thread_detach(thread_t *t) {
     /* if it's already dead, then just do what join would have and exit */
     if (t->state == THREAD_DEATH) {
         t->flags &= ~THREAD_FLAG_DETACHED; /* makes sure thread_join continues */
-        THREAD_UNLOCK(state);
+        wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
         preempt_enable();
         return thread_join(t, NULL, 0);
     } else {
         t->flags |= THREAD_FLAG_DETACHED;
-        THREAD_UNLOCK(state);
+        wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
         preempt_enable();
         return NO_ERROR;
     }
@@ -338,6 +377,21 @@ void thread_exit(int retcode) {
 
     //  dprintf("thread_exit: current %p\n", current_thread);
 
+    /* Unresolved, and a shape problem rather than a naming one. Three things
+     * happen under one lock here. The thread is marked dead, which
+     * thread_join() and thread_detach() read under the retcode wait queue's
+     * lock, so it has to be set under that lock and before the wake. The thread
+     * is then either reaped from the list or its joiner is woken -- list lock
+     * or wait queue lock, the two paths are exclusive. And finally the cpu is
+     * given up under the sched lock, which is handed off across the switch.
+     * The nesting, list->sched or wq->sched, matches the lock order; the
+     * trouble is that the outer lock is never released, because this thread
+     * does not come back from sched_resched() to do it. The split has to
+     * either drop the outer lock before the final reschedule, and then
+     * guarantee the reaper cannot free the stack until the switch is complete
+     * (see thread_join()), or teach the handoff to release more than the sched
+     * lock.
+     */
     THREAD_LOCK(state);
     (void)state; /* silence unused variable warning */
 
@@ -461,9 +515,9 @@ void thread_create_secondary_cpu_idle_thread(uint cpu) {
     thread_init_pinned_cpu(t, cpu);
     wait_queue_init(&t->retcode_wait_queue);
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = thread_list_lock_irqsave();
     list_add_head(&thread_list, &t->thread_list_node);
-    THREAD_UNLOCK(state);
+    thread_list_unlock_irqrestore(state);
 }
 
 // We should be on the idle thread for the secondary cpu, drop to idle priority and
@@ -592,16 +646,16 @@ void dump_all_threads_unlocked(void) {
  * @brief  Dump debugging info about all threads
  */
 void dump_all_threads(void) {
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = thread_list_lock_irqsave();
     dump_all_threads_unlocked();
-    THREAD_UNLOCK(state);
+    thread_list_unlock_irqrestore(state);
 }
 
 #if THREAD_STATS
 void dump_threads_stats(void) {
     thread_t *t;
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = thread_list_lock_irqsave();
     list_for_every_entry(&thread_list, t, thread_t, thread_list_node) {
         if (t->magic != THREAD_MAGIC) {
             dprintf(INFO, "bad magic on thread struct %p, aborting.\n", t);
@@ -619,7 +673,7 @@ void dump_threads_stats(void) {
                 percent / 100, percent % 100);
         dprintf(INFO, "\t\tLast time run: %lld\n", t->stats.last_run_timestamp);
     }
-    THREAD_UNLOCK(state);
+    thread_list_unlock_irqrestore(state);
 }
 #endif
 

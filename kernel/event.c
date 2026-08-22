@@ -54,14 +54,14 @@ void event_init(event_t *e, bool initial, uint flags) {
 void event_destroy(event_t *e) {
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&e->wait);
 
     e->magic = 0;
     __atomic_store_n(&e->signaled, 0, __ATOMIC_RELAXED);
     e->flags = 0;
     wait_queue_destroy(&e->wait);
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&e->wait, state);
 }
 
 /**
@@ -84,7 +84,7 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
 
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&e->wait);
 
     if (__atomic_load_n(&e->signaled, __ATOMIC_ACQUIRE)) {
         /* signaled, we're going to fall through */
@@ -97,7 +97,7 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
         ret = wait_queue_block(&e->wait, timeout);
     }
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&e->wait, state);
 
     return ret;
 }
@@ -120,7 +120,7 @@ int event_signal(event_t *e) {
     int ret = 0;
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&e->wait);
 
     if (!__atomic_load_n(&e->signaled, __ATOMIC_RELAXED)) {
         if (e->flags & EVENT_FLAG_AUTOUNSIGNAL) {
@@ -141,7 +141,7 @@ int event_signal(event_t *e) {
         }
     }
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&e->wait, state);
 
     return ret;
 }

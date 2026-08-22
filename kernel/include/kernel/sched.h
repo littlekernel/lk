@@ -19,7 +19,9 @@ __BEGIN_CDECLS
 //
 // The scheduler owns the per-cpu run queues, the choice of which cpu a runnable
 // thread lands on, the idle threads, and the context switch itself. Everything
-// here runs with the thread lock held unless noted.
+// here runs with a sched lock held unless noted: the local cpu's for anything
+// touching the current thread, the target cpu's for an insert onto a specific
+// cpu. See kernel/thread_lock.h; today these are all the one thread lock.
 
 // Initialize the run queues. Must run before any thread is made runnable,
 // including the half-constructed bootstrap thread. Called by thread_init_early().

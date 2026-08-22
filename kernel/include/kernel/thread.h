@@ -11,6 +11,7 @@
 #include <arch/thread.h>
 #include <arch/arch_ops.h>
 #include <kernel/spinlock.h>
+#include <kernel/thread_lock.h>
 #include <kernel/wait.h>
 #include <lk/compiler.h>
 #include <lk/debug.h>
@@ -198,22 +199,8 @@ static inline void set_current_thread(thread_t *t) {
     arch_set_current_thread(t);
 }
 
-// list of all threads, unsafe to traverse without holding thread_lock
+// list of all threads, unsafe to traverse without holding thread_list_lock()
 extern struct list_node thread_list;
-
-// scheduler lock
-extern spin_lock_t thread_lock;
-
-#define THREAD_LOCK(state) arch_interrupt_saved_state_t state = spin_lock_irqsave(&thread_lock)
-#define THREAD_UNLOCK(state) spin_unlock_irqrestore(&thread_lock, state)
-
-// "Do I hold the thread lock?" -- which is what every caller of this actually
-// means, and what the ~30 DEBUG_ASSERTs across kernel/ are trying to check.
-// While there is one global lock this is nearly the same question as "is it held
-// at all"; once the lock splits per cpu it is a completely different one.
-static inline bool thread_lock_held(void) {
-    return spin_lock_held_by_me(&thread_lock);
-}
 
 // Is this the idle thread for some cpu? Idle threads never sit on a run queue.
 static inline bool thread_is_idle(const thread_t *t) {

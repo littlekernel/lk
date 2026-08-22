@@ -23,6 +23,11 @@
 #include <lk/err.h>
 #include <lk/init.h>
 
+/* A mutex's holder and count are protected by the lock of its wait queue,
+ * which is what makes the wait queue lock sufficient rather than merely
+ * convenient here: acquire, release and the wakeup all happen under one lock.
+ */
+
 static bool mutex_threading_ready;
 
 /* mutex_threading_ready is currently only used from a DEBUG_ASSERT */
@@ -57,11 +62,11 @@ void mutex_destroy(mutex_t *m) {
               get_current_thread(), get_current_thread()->name, m, m->holder, m->holder->name);
 #endif
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&m->wait);
     m->magic = 0;
     m->count = 0;
     wait_queue_destroy(&m->wait);
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&m->wait, state);
 }
 
 /**
@@ -84,7 +89,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout) {
 #endif
     DEBUG_ASSERT(!mutex_threading_ready || !timeout || !arch_ints_disabled());
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&m->wait);
 
     status_t ret = NO_ERROR;
     if (unlikely(++m->count > 1)) {
@@ -109,7 +114,7 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout) {
     m->holder = get_current_thread();
 
 err:
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&m->wait, state);
     return ret;
 }
 
@@ -126,7 +131,7 @@ status_t mutex_release(mutex_t *m) {
     }
 #endif
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&m->wait);
 
     m->holder = 0;
 
@@ -135,7 +140,7 @@ status_t mutex_release(mutex_t *m) {
         wait_queue_wake_one(&m->wait, NO_ERROR);
     }
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&m->wait, state);
     return NO_ERROR;
 }
 

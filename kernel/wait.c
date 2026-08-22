@@ -14,10 +14,13 @@
  * the kernel is built out of: mutexes, events, semaphores and thread_join all
  * reduce to putting a thread on one of these and taking it back off.
  *
- * Everything here currently runs under the global thread lock, which is also
- * what makes the hand-off to the scheduler safe: a thread taken off a wait queue
- * is handed straight to sched_insert_runnable() without the lock being dropped
- * in between.
+ * Everything here runs under wait_queue_lock() of the queue in question, which
+ * is still the one global thread lock (see kernel/thread_lock.h). That is also
+ * what makes the hand-off to the scheduler safe for now: a thread taken off a
+ * wait queue is handed straight to sched_insert_runnable(), which needs the
+ * target cpu's sched lock, and today that is the same lock, already held. Once
+ * they split, the sched lock nests inside the wait queue lock and is taken by
+ * the scheduler on the way in.
  *
  * @defgroup  wait  Wait Queue
  * @{
@@ -42,6 +45,14 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
 
     DEBUG_ASSERT(thread->magic == THREAD_MAGIC);
 
+    /* Unresolved: this walks backwards, from a thread to the queue it is
+     * blocked on, and which queue that is can only be read under the lock
+     * being taken here. The lock wanted is
+     * wait_queue_lock(thread->blocking_wait_queue); naming it that would be
+     * right about the rank and wrong about the object, since the thread may
+     * have been woken and gone on to block elsewhere in between. The split
+     * needs a read, drop, acquire, revalidate loop here. Until then it is the
+     * one lock. */
     spin_lock(&thread_lock);
 
     enum handler_return ret = INT_NO_RESCHEDULE;
@@ -84,7 +95,7 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(current_thread->state == THREAD_RUNNING);
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(wait_queue_lock_held(wait));
 
     if (timeout == 0) {
         return ERR_TIMED_OUT;
@@ -133,7 +144,7 @@ int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
 
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(wait_queue_lock_held(wait));
 
     t = list_remove_head_type(&wait->list, thread_t, queue_node);
     if (t) {
@@ -189,7 +200,7 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
 
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(wait_queue_lock_held(wait));
 
     if (wait->count == 0) {
         /* Nothing to wake. Return before touching the current thread's run queue
@@ -248,7 +259,7 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
 void wait_queue_destroy(wait_queue_t *wait) {
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    DEBUG_ASSERT(wait_queue_lock_held(wait));
 
     wait_queue_wake_all(wait, ERR_OBJECT_DESTROYED);
     wait->magic = 0;
@@ -269,7 +280,10 @@ void wait_queue_destroy(wait_queue_t *wait) {
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
-    DEBUG_ASSERT(spin_lock_held(&thread_lock));
+    /* Unresolved: the other backward walker, see wait_queue_timeout_handler().
+     * The lock this wants is wait_queue_lock(t->blocking_wait_queue), which
+     * is only knowable once t->state has been read under it. */
+    DEBUG_ASSERT(thread_lock_held());
 
     if (t->state != THREAD_BLOCKED) {
         return ERR_NOT_BLOCKED;

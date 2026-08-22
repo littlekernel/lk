@@ -38,8 +38,10 @@ typedef struct wait_queue {
 }
 void wait_queue_init(wait_queue_t *wait);
 
-// All of the below apis must be called with interrupts disabled and the main thread
-// lock held (see kernel/thread.h for details).
+// All of the below apis must be called with interrupts disabled and the wait
+// queue's lock held, wait_queue_lock() in kernel/thread_lock.h. (Today that is
+// the one thread lock; the name records which lock each site will need when
+// it is no longer.)
 
 // Release all the threads on this wait queue with a return code of ERR_OBJECT_DESTROYED.
 // the caller must assure that no other threads are operating on the wait queue during or

@@ -20,21 +20,23 @@
 #include <lk/debug.h>
 #include <lk/err.h>
 
+/* A semaphore's count is protected by the lock of its wait queue. */
+
 void sem_init(semaphore_t *sem, int initial_count) {
     *sem = (semaphore_t)SEMAPHORE_INITIAL_VALUE(*sem, initial_count);
 }
 
 void sem_destroy(semaphore_t *sem) {
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&sem->wait);
     sem->count = 0;
     wait_queue_destroy(&sem->wait);
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&sem->wait, state);
 }
 
 int sem_post(semaphore_t *sem) {
     int ret = 0;
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&sem->wait);
 
     /*
      * If the count is or was negative then a thread is waiting for a resource, otherwise
@@ -43,14 +45,14 @@ int sem_post(semaphore_t *sem) {
     if (unlikely(++sem->count <= 0))
         ret = wait_queue_wake_one(&sem->wait, NO_ERROR);
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&sem->wait, state);
 
     return ret;
 }
 
 status_t sem_wait(semaphore_t *sem) {
     status_t ret = NO_ERROR;
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&sem->wait);
 
     /*
      * If there are no resources available then we need to
@@ -59,13 +61,13 @@ status_t sem_wait(semaphore_t *sem) {
     if (unlikely(--sem->count < 0))
         ret = wait_queue_block(&sem->wait, INFINITE_TIME);
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&sem->wait, state);
     return ret;
 }
 
 status_t sem_trywait(semaphore_t *sem) {
     status_t ret = NO_ERROR;
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&sem->wait);
 
     if (unlikely(sem->count <= 0)) {
         ret = ERR_NOT_READY;
@@ -73,28 +75,28 @@ status_t sem_trywait(semaphore_t *sem) {
         sem->count--;
     }
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&sem->wait, state);
     return ret;
 }
 
 int sem_reset(semaphore_t *sem) {
     int discarded = 0;
 
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&sem->wait);
 
     if (sem->count > 0) {
         discarded = sem->count;
         sem->count = 0;
     }
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&sem->wait, state);
 
     return discarded;
 }
 
 status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout) {
     status_t ret = NO_ERROR;
-    THREAD_LOCK(state);
+    arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&sem->wait);
 
     if (unlikely(--sem->count < 0)) {
         ret = wait_queue_block(&sem->wait, timeout);
@@ -105,6 +107,6 @@ status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout) {
         }
     }
 
-    THREAD_UNLOCK(state);
+    wait_queue_unlock_irqrestore(&sem->wait, state);
     return ret;
 }
