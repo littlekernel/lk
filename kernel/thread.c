@@ -281,7 +281,8 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(t->state == THREAD_DEATH);
     DEBUG_ASSERT(t->blocking_wait_queue == NULL);
-    DEBUG_ASSERT(!list_in_list(&t->queue_node));
+    DEBUG_ASSERT(!list_in_list(&t->run_queue_node));
+    DEBUG_ASSERT(!list_in_list(&t->wait_queue_node));
 
     /* save the return code */
     if (retcode) {

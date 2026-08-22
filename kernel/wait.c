@@ -101,7 +101,7 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
         return ERR_TIMED_OUT;
     }
 
-    list_add_tail(&wait->list, &current_thread->queue_node);
+    list_add_tail(&wait->list, &current_thread->wait_queue_node);
     wait->count++;
     current_thread->state = THREAD_BLOCKED;
     current_thread->blocking_wait_queue = wait;
@@ -146,7 +146,7 @@ int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(wait_queue_lock_held(wait));
 
-    t = list_remove_head_type(&wait->list, thread_t, queue_node);
+    t = list_remove_head_type(&wait->list, thread_t, wait_queue_node);
     if (t) {
         wait->count--;
         DEBUG_ASSERT(t->state == THREAD_BLOCKED);
@@ -227,7 +227,7 @@ int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
     }
 
     /* pop all the threads off the wait queue into the run queue */
-    while ((t = list_remove_tail_type(&wait->list, thread_t, queue_node))) {
+    while ((t = list_remove_tail_type(&wait->list, thread_t, wait_queue_node))) {
         wait->count--;
         DEBUG_ASSERT(t->state == THREAD_BLOCKED);
         t->state = THREAD_READY;
@@ -291,9 +291,9 @@ status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error) 
 
     DEBUG_ASSERT(t->blocking_wait_queue != NULL);
     DEBUG_ASSERT(t->blocking_wait_queue->magic == WAIT_QUEUE_MAGIC);
-    DEBUG_ASSERT(list_in_list(&t->queue_node));
+    DEBUG_ASSERT(list_in_list(&t->wait_queue_node));
 
-    list_delete(&t->queue_node);
+    list_delete(&t->wait_queue_node);
     t->blocking_wait_queue->count--;
     t->blocking_wait_queue = NULL;
     t->state = THREAD_READY;

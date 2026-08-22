@@ -42,6 +42,11 @@ static const struct __debugger_info__ {
     .off_name = __builtin_offsetof(thread_t, name),
     .off_waitq = __builtin_offsetof(thread_t, blocking_wait_queue),
 };
+
+// The offsets above are u8, so a thread_t that grows past 256 bytes ahead of
+// these fields would publish silently truncated values. Make that a build error.
+STATIC_ASSERT(__builtin_offsetof(thread_t, name) <= UINT8_MAX);
+STATIC_ASSERT(__builtin_offsetof(thread_t, blocking_wait_queue) <= UINT8_MAX);
 #endif
 
 // ARMv7m+ have more vectors than armv6m

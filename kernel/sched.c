@@ -83,7 +83,7 @@ static thread_t _idle_thread;
 static void run_queue_insert_checks(uint cpu, thread_t *t) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(t->state == THREAD_READY);
-    DEBUG_ASSERT(!list_in_list(&t->queue_node));
+    DEBUG_ASSERT(!list_in_list(&t->run_queue_node));
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(sched_lock_held(cpu));
     DEBUG_ASSERT(cpu < SMP_MAX_CPUS);
@@ -96,7 +96,7 @@ void sched_insert_runnable_head_on(uint cpu, thread_t *t) {
     run_queue_insert_checks(cpu, t);
 
     struct percpu_sched *s = &percpu_sched[cpu];
-    list_add_head(&s->run_queue[t->priority], &t->queue_node);
+    list_add_head(&s->run_queue[t->priority], &t->run_queue_node);
     s->run_queue_bitmap |= (1 << t->priority);
     s->runnable_count++;
     thread_set_last_cpu(t, (int)cpu);
@@ -106,7 +106,7 @@ void sched_insert_runnable_tail_on(uint cpu, thread_t *t) {
     run_queue_insert_checks(cpu, t);
 
     struct percpu_sched *s = &percpu_sched[cpu];
-    list_add_tail(&s->run_queue[t->priority], &t->queue_node);
+    list_add_tail(&s->run_queue[t->priority], &t->run_queue_node);
     s->run_queue_bitmap |= (1 << t->priority);
     s->runnable_count++;
     thread_set_last_cpu(t, (int)cpu);
@@ -124,7 +124,7 @@ void sched_insert_runnable_tail_on(uint cpu, thread_t *t) {
 static bool thread_is_queued_on(uint cpu, thread_t *t) {
     struct list_node *node;
     list_for_every(&percpu_sched[cpu].run_queue[t->priority], node) {
-        if (node == &t->queue_node) {
+        if (node == &t->run_queue_node) {
             return true;
         }
     }
@@ -139,12 +139,12 @@ static void run_queue_remove(uint cpu, thread_t *t) {
     DEBUG_ASSERT(sched_lock_held(cpu));
     DEBUG_ASSERT(cpu < SMP_MAX_CPUS);
     DEBUG_ASSERT(t->state == THREAD_READY);
-    DEBUG_ASSERT(list_in_list(&t->queue_node));
+    DEBUG_ASSERT(list_in_list(&t->run_queue_node));
     /* the caller derives `cpu` from last_cpu; this is what makes that safe */
     DEBUG_ASSERT(thread_is_queued_on(cpu, t));
 
     struct percpu_sched *s = &percpu_sched[cpu];
-    list_delete(&t->queue_node);
+    list_delete(&t->run_queue_node);
     if (list_is_empty(&s->run_queue[t->priority])) {
         s->run_queue_bitmap &= ~(1 << t->priority);
     }
@@ -372,7 +372,7 @@ static thread_t *get_top_thread(uint cpu) {
         const uint next_queue = sizeof(s->run_queue_bitmap) * 8 - 1 -
                                 __builtin_clz(s->run_queue_bitmap);
 
-        thread_t *newthread = list_remove_head_type(&s->run_queue[next_queue], thread_t, queue_node);
+        thread_t *newthread = list_remove_head_type(&s->run_queue[next_queue], thread_t, run_queue_node);
         DEBUG_ASSERT(newthread);
         /* a stranded thread is otherwise invisible until something else times
          * out, so catch a bad find_target_cpu() decision right here */

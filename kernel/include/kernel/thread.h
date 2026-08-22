@@ -79,7 +79,16 @@ typedef struct thread {
     struct list_node thread_list_node;
 
     // active bits
-    struct list_node queue_node;
+    //
+    // Run queue and wait queue membership are exclusive -- a thread is READY on
+    // one or BLOCKED on the other, never both -- so one node could serve both,
+    // and used to. They are separate because they are protected by different
+    // locks: run_queue_node by the sched lock of the cpu it is queued on,
+    // wait_queue_node by the lock of the queue it is blocked on. A field that
+    // changes owner with the thread's state is a standing invitation to touch
+    // it under the wrong lock.
+    struct list_node run_queue_node;
+    struct list_node wait_queue_node;
     int priority;
     enum thread_state state;
     int remaining_quantum;
