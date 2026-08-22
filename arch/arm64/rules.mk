@@ -102,6 +102,12 @@ TOOLCHAIN_PREFIX := $(ARCH_$(ARCH)_TOOLCHAIN_PREFIX)
 
 ARCH_COMPILEFLAGS += $(ARCH_$(ARCH)_COMPILEFLAGS)
 ARCH_COMPILEFLAGS += -ffixed-x18
+# gcc defaults to routing every __atomic builtin through an out of line
+# __aarch64_* helper that picks LSE or ldxr/stxr at runtime. Every atomic in
+# the kernel -- the spinlocks, the mp masks, the refcounts -- then costs a call.
+# Inline them; there is no LSE dispatch to lose since nothing sets -march for
+# it, and clang already inlines by default.
+ARCH_COMPILEFLAGS += -mno-outline-atomics
 ARCH_COMPILEFLAGS += -fno-omit-frame-pointer
 ARCH_COMPILEFLAGS_NOFLOAT := -mgeneral-regs-only
 ARCH_COMPILEFLAGS_FLOAT :=
