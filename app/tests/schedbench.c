@@ -51,7 +51,13 @@ struct pair {
     thread_t *b;
     uint cpu_a;
     uint cpu_b;
-};
+    /* Each pair is worked by one or two cpus and nobody else, and the events
+     * are the hottest lines in the benchmark. Unaligned, a 120 byte pair
+     * shares a line with its neighbour and two cpus that should be
+     * independent bounce it on every iteration -- and how badly depends on
+     * where the linker happened to put the array, which made builds with
+     * different layouts incomparable above one cpu. */
+} __CPU_ALIGN;
 
 static struct pair pairs[MAX_PAIRS];
 static event_t start_gate;
