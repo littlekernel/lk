@@ -319,6 +319,7 @@ static inline __ALWAYS_INLINE uintptr_t __tls_set(uint entry, uintptr_t val) {
 
 // thread level statistics
 #if THREAD_STATS
+// one per cpu, each on its own cache line: written on every context switch
 struct thread_stats {
     lk_bigtime_t idle_time;
     lk_bigtime_t last_idle_timestamp;
@@ -333,7 +334,7 @@ struct thread_stats {
 #if WITH_SMP
     ulong reschedule_ipis;
 #endif
-};
+} __CPU_ALIGN;
 
 extern struct thread_stats thread_stats[SMP_MAX_CPUS];
 

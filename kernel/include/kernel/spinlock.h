@@ -5,6 +5,7 @@
 // https://opensource.org/licenses/MIT
 #pragma once
 
+#include <arch/defines.h>
 #include <arch/interrupts.h>
 #include <arch/ops.h>
 #include <arch/spinlock.h>
@@ -46,10 +47,13 @@ __BEGIN_CDECLS
 // Deeper than anything in the tree nests; the assert below is the real check.
 #define SPIN_LOCK_HELD_MAX 8
 
+// One per cpu, each on its own cache line: every spin_lock() and spin_unlock()
+// writes here, and adjacent cpus sharing a line turns that into a line
+// bouncing between them on every lock operation.
 struct spin_lock_held_state {
     spin_lock_t *locks[SPIN_LOCK_HELD_MAX];
     uint count;
-};
+} __CPU_ALIGN;
 
 extern struct spin_lock_held_state spin_lock_held_state[SMP_MAX_CPUS];
 
