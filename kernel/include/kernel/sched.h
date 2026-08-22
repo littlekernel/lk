@@ -50,27 +50,39 @@ void sched_resched(void);
 // where nothing is handed off and a new thread starts with no lock held.
 void sched_initial_thread_entry(void);
 
-// Put a thread on the head of the run queue of the cpu the scheduler picks for
-// it, and return that cpu so the caller can poke it. Does not reschedule. The
-// caller holds no sched lock and owns the thread: it has just taken it off a
-// wait queue, and the thread is already READY. The target's lock is taken here.
-uint sched_insert_runnable(thread_t *t);
-
-// The same for a thread that is on no queue at all (suspended or sleeping) and
-// is therefore owned by the sched lock of its last cpu. Moves it from |from| to
-// READY atomically with the insert, or returns false if it was not in |from|.
+// Make runnable a thread that is on no run queue (suspended or sleeping), and
+// is therefore owned by the sched lock of its last cpu: moves it from |from| to
+// READY atomically with the insert onto the cpu the scheduler picks, which is
+// returned so the caller can poke it. Returns false if it was not in |from|.
+// The caller holds no sched lock.
 bool sched_insert_runnable_from(thread_t *t, enum thread_state from, uint *target_out);
 
-// Switch away on behalf of the wait queue code, which holds |wq|'s lock and has
-// already queued or otherwise disposed of the current thread. The wait queue
-// lock is dropped for the switch and held again on return.
-struct wait_queue;
-void sched_resched_from_wait_queue(struct wait_queue *wq);
+// The same for a thread blocked on a wait queue, with the value its
+// wait_queue_block() returns. The caller has taken it off the queue's list
+// (or, for a timeout, has not: see wait_queue_block()). Returns false if the
+// thread was no longer blocked, because the other of a wake and a timeout got
+// there first.
+bool sched_unblock(thread_t *t, status_t wait_ret, uint *target_out);
 
-// For a wake path about to switch away: put the current thread at the head of
-// the local run queue first, so the woken threads go in ahead of it. Takes and
-// releases the local sched lock; the caller holds none.
-void sched_requeue_current_for_wake(void);
+// Wake every thread on |threads| (linked through wait_queue_node; emptied),
+// skipping any no longer blocked, and poke their cpus. Returns the number
+// woken. The first does not reschedule; the second queues the current thread
+// behind the woken ones and switches away, dropping |wq|'s lock, which the
+// caller holds, for the switch and not retaking it: no lock is held on return.
+int sched_wake_list(struct list_node *threads, status_t wait_ret);
+struct wait_queue;
+int sched_wake_list_and_resched(struct wait_queue *wq, struct list_node *threads,
+                                status_t wait_ret);
+
+// Block the current thread, which the caller holds |wq|'s lock for and has
+// already put on its list. Arms |timeout_timer|, if not NULL, to wake it with
+// ERR_TIMED_OUT after |timeout|. Drops the wait queue lock for the switch and
+// does not retake it: returns once woken, with no lock held. Returns true if
+// the thread was woken by something other than a waker (its timeout) and so
+// is still on the list; the caller then calls sched_leave_wait_queue().
+struct timer;
+bool sched_block(struct wait_queue *wq, struct timer *timeout_timer, lk_time_t timeout);
+void sched_leave_wait_queue(void);
 
 // Free a detached thread that has exited. Called by the scheduler on the far
 // side of its last context switch, once nothing is running on its stack.

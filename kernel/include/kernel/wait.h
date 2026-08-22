@@ -5,6 +5,7 @@
 // https://opensource.org/licenses/MIT
 #pragma once
 
+#include <kernel/spinlock.h>
 #include <lk/compiler.h>
 #include <lk/list.h>
 #include <stdbool.h>
@@ -26,6 +27,12 @@ typedef struct wait_queue {
     uint32_t magic;
     int count;
     struct list_node list;
+    // Protects the two fields above, and the wait_queue_node of every thread on
+    // the list. It does not own the threads' scheduling state: see
+    // kernel/thread_lock.h for what does, and for where this lock sits in the
+    // lock order. The primitives built on a wait queue (mutex, event,
+    // semaphore) use it for their own state as well.
+    spin_lock_t lock;
 } wait_queue_t;
 
 // Initialize a wait queue to the default state. Can statically initialize a wait queue
@@ -34,24 +41,35 @@ typedef struct wait_queue {
 { \
     .magic = WAIT_QUEUE_MAGIC, \
     .count = 0, \
-    .list = LIST_INITIAL_VALUE((q).list) \
+    .list = LIST_INITIAL_VALUE((q).list), \
+    .lock = SPIN_LOCK_INITIAL_VALUE, \
 }
 void wait_queue_init(wait_queue_t *wait);
 
 // All of the below apis must be called with interrupts disabled and the wait
-// queue's lock held, wait_queue_lock() in kernel/thread_lock.h. (Today that is
-// the one thread lock; the name records which lock each site will need when
-// it is no longer.)
+// queue's lock held, wait_queue_lock() in kernel/thread_lock.h, and return the
+// same way -- except wait_queue_block(), which releases it.
 
 // Release all the threads on this wait queue with a return code of ERR_OBJECT_DESTROYED.
-// the caller must assure that no other threads are operating on the wait queue during or
-// after the call.
+// The caller must assure that no other thread uses the wait queue once this is
+// called. A thread woken by it never touches the queue again on its way out of
+// wait_queue_block(), so the memory may be freed as soon as the caller is done
+// with it; the one exception is a waiter whose timeout fires at the same time
+// (see wait_queue_block()), which is the caller's race to avoid.
 void wait_queue_destroy(wait_queue_t *);
 
 // Block on a wait queue.
 // Return status is whatever the caller of wait_queue_wake_*() specifies.
 // A timeout other than INFINITE_TIME will set abort after the specified time
 // and return ERR_TIMED_OUT. A timeout of 0 will immediately return.
+//
+// Always returns with the wait queue lock *released*; interrupts are still
+// disabled. A woken thread is off the queue before it runs and has no reason
+// to touch it again, so it does not: a thread released by wait_queue_destroy()
+// can count on never dereferencing a destroyed queue. A thread that timed out
+// is the exception: the timeout acts on the thread and leaves its node on the
+// list, and the thread takes the lock once on its way out to pull it off.
+// Callers that need the queue's lock again after a block take it themselves.
 status_t wait_queue_block(wait_queue_t *, lk_time_t timeout);
 
 // Release one or more threads from the wait queue.
@@ -65,8 +83,10 @@ status_t wait_queue_block(wait_queue_t *, lk_time_t timeout);
 int wait_queue_wake_one(wait_queue_t *, status_t wait_queue_error);
 int wait_queue_wake_all(wait_queue_t *, status_t wait_queue_error);
 
-// Remove the thread from whatever wait queue it's in.
-// Return an error if the thread is not currently blocked (or is the current thread).
+// Wake a thread out of whatever wait queue it is blocked on, with the given
+// return code for its wait_queue_block(). The thread leaves the queue's list
+// itself (see wait_queue_block()), so this needs no lock, and works the way a
+// timeout does. Returns ERR_NOT_BLOCKED if the thread is not blocked.
 struct thread;
 status_t thread_unblock_from_wait_queue(struct thread *t, status_t wait_queue_error);
 

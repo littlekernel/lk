@@ -51,9 +51,9 @@ struct thread_stats thread_stats[SMP_MAX_CPUS];
 /* global thread list */
 struct list_node thread_list;
 
-/* The thread lock. Every site takes it under one of the names in
- * kernel/thread_lock.h, which say which of the locks it stands in for they
- * actually need. */
+/* The thread list lock, taken as thread_list_lock() from kernel/thread_lock.h.
+ * Once the one lock for all of threading; the sched and wait queue locks have
+ * since been split out of it. */
 spin_lock_t thread_lock = SPIN_LOCK_INITIAL_VALUE;
 
 
@@ -267,15 +267,22 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
         return ERR_THREAD_DETACHED;
     }
 
-    /* wait for the thread to die */
+    /* wait for the thread to die. The block releases the wait queue lock, and
+     * this is the one path where that matters: a joiner woken with
+     * ERR_THREAD_DETACHED must not touch |t| again, because the detached
+     * thread may have exited and been freed by the time the joiner runs. */
     if (t->state != THREAD_DEATH) {
         status_t err = wait_queue_block(&t->retcode_wait_queue, timeout);
         if (err < 0) {
-            wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
+            arch_interrupt_restore(state);
             return err;
         }
+    } else {
+        spin_unlock(wait_queue_lock(&t->retcode_wait_queue));
     }
 
+    /* No lock held. The thread is dead and stays that way, and its return
+     * code was written before it woke us (or before we saw it dead above). */
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(t->state == THREAD_DEATH);
     DEBUG_ASSERT(t->blocking_wait_queue == NULL);
@@ -287,7 +294,7 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
         *retcode = t->retcode;
     }
 
-    wait_queue_unlock_irqrestore(&t->retcode_wait_queue, state);
+    arch_interrupt_restore(state);
 
     /* Now reap it. The list lock ranks above the wait queue lock and the two
      * steps are independent, so the wait queue lock is dropped first rather
@@ -299,14 +306,24 @@ status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout) {
     /* The thread may still be on its way off the cpu it exited on: it marked
      * itself dead and woke us before switching away, and its stack is in use
      * until that switch completes. A dead thread is owned by the sched lock
-     * of the cpu it last ran on, and thread_exit() takes that lock before it
-     * lets go of the wait queue lock we saw THREAD_DEATH under, then hands it
-     * across the switch. So by the time we can take it the thread is gone. */
+     * of the cpu it last ran on, which thread_exit() takes after the wake and
+     * hands across the switch. We can get there first, between the wake and
+     * its taking the lock, so holding the lock is not enough on its own: wait
+     * for curr_cpu to clear, which sched_context_switch_complete() does on the
+     * far side of the switch, and which is the same thing a cpu handed a
+     * still-running thread waits for in sched_resched(). The wait is done
+     * without the lock: the exiter needs that very lock to switch out, and
+     * taking and dropping it in a loop here starved it of it on arm64, at a
+     * cost of a timer tick per join. curr_cpu is an atomic, so an unlocked
+     * read is fine; the lock is taken once it reads -1, so that the thread is
+     * retired under the lock that owns it like everything else. */
     const uint exit_cpu = (uint)thread_last_cpu(t);
-    reap_state = spin_lock_irqsave(sched_lock(exit_cpu));
 #if WITH_SMP
-    DEBUG_ASSERT(thread_curr_cpu(t) == -1);
+    while (unlikely(__atomic_load_n(&t->curr_cpu, __ATOMIC_ACQUIRE) != -1)) {
+        /* spin */
+    }
 #endif
+    reap_state = spin_lock_irqsave(sched_lock(exit_cpu));
     t->magic = 0;
     spin_unlock_irqrestore(sched_lock(exit_cpu), reap_state);
 
@@ -326,9 +343,9 @@ status_t thread_detach(thread_t *t) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
 
     /* The wake below must not reschedule inline. A context switch inside the
-     * locked region hands the thread lock to the incoming thread, so a woken
-     * joiner would be free to run thread_join() to completion and free |t|
-     * before we get back to inspect it. Defer the reschedule past the unlock.
+     * locked region drops the wait queue lock, so a woken joiner would be free
+     * to run thread_join() to completion and free |t| before we get back to
+     * inspect it. Defer the reschedule past the unlock.
      */
     preempt_disable();
 

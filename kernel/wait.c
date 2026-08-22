@@ -14,14 +14,19 @@
  * the kernel is built out of: mutexes, events, semaphores and thread_join all
  * reduce to putting a thread on one of these and taking it back off.
  *
- * Everything here runs under wait_queue_lock() of the queue in question, which
- * is still the one global thread lock (see kernel/thread_lock.h). The sched
- * locks are per cpu and nest inside it: a thread taken off a wait queue is
- * handed to sched_insert_runnable(), which takes the lock of the cpu it picks,
- * and a thread blocking or a waker switching away goes through
- * sched_resched_from_wait_queue(), which drops the wait queue lock for the
- * switch -- only the local sched lock is held across one -- and takes it
- * back before returning here.
+ * Each queue has its own lock, which protects the list and the count and
+ * nothing else: the scheduling state of a thread on the list belongs to the
+ * scheduler's per-cpu locks, which nest inside this one (see
+ * kernel/thread_lock.h). So the division of labor with sched.c is that this
+ * file moves threads on and off lists, and the scheduler makes them BLOCKED
+ * and READY: sched_block() for the thread going to sleep, and
+ * sched_wake_list() and sched_wake_list_and_resched() for a run of threads
+ * just popped off the list. A wake pops the threads first, under the queue
+ * lock, and hands the scheduler the batch; it then decides per thread whether
+ * it is still there to be woken, because the other way off a wait queue, the
+ * timeout, does not go through the list at all. It wakes the thread directly,
+ * and the thread pulls its own node off afterwards. A waker that pops such a
+ * node finds nothing to wake and moves on.
  *
  * @defgroup  wait  Wait Queue
  * @{
@@ -32,6 +37,7 @@
 #include <kernel/preempt.h>
 #include <kernel/sched.h>
 #include <kernel/thread.h>
+#include <kernel/thread_lock.h>
 #include <kernel/timer.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -39,35 +45,6 @@
 
 void wait_queue_init(wait_queue_t *wait) {
     *wait = (wait_queue_t)WAIT_QUEUE_INITIAL_VALUE(*wait);
-}
-
-static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t now, void *arg) {
-    thread_t *thread = (thread_t *)arg;
-
-    DEBUG_ASSERT(thread->magic == THREAD_MAGIC);
-
-    /* Unresolved until the wait queue locks split: this walks backwards,
-     * from a thread to the queue it is blocked on, and which queue that is
-     * can only be read under the lock being taken here. The lock wanted is
-     * wait_queue_lock(thread->blocking_wait_queue); naming it that would be
-     * right about the rank and wrong about the object, since the thread may
-     * have been woken and gone on to block elsewhere in between. The split
-     * needs a read, drop, acquire, revalidate loop here. Until then it is the
-     * one lock, which is every wait queue's. */
-    spin_lock(&thread_lock);
-
-    enum handler_return ret = INT_NO_RESCHEDULE;
-    if (thread_unblock_from_wait_queue(thread, ERR_TIMED_OUT) >= NO_ERROR) {
-        ret = INT_RESCHEDULE;
-        if (preempt_set_pending_if_disabled()) {
-            // If preemption was disabled, we can't reschedule now.
-            ret = INT_NO_RESCHEDULE;
-        }
-    }
-
-    spin_unlock(&thread_lock);
-
-    return ret;
 }
 
 /**
@@ -85,6 +62,9 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
  * waits indefinitely.  Otherwise, this function returns with
  * ERR_TIMED_OUT at the end of the timeout period.
  *
+ * The wait queue lock is held on entry and released on return, whether or
+ * not the thread blocked; see the header for why.
+ *
  * @return ERR_TIMED_OUT on timeout, else returns the return
  * value specified when the queue was woken by wait_queue_wake_one().
  */
@@ -99,31 +79,53 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
     DEBUG_ASSERT(wait_queue_lock_held(wait));
 
     if (timeout == 0) {
+        spin_unlock(wait_queue_lock(wait));
         return ERR_TIMED_OUT;
     }
 
     list_add_tail(&wait->list, &current_thread->wait_queue_node);
     wait->count++;
-    current_thread->state = THREAD_BLOCKED;
     current_thread->blocking_wait_queue = wait;
     current_thread->wait_queue_block_ret = NO_ERROR;
 
-    /* if the timeout is nonzero or noninfinite, set a callback to yank us out of the queue */
-    if (timeout != INFINITE_TIME) {
+    /* The timer lives on this stack and is armed by the scheduler once the
+     * thread is BLOCKED, so that it cannot fire before there is anything for
+     * it to wake. It is cancelled on the way out whether it fired or not. */
+    const bool timed = (timeout != INFINITE_TIME);
+    if (timed) {
         timer_initialize(&timer);
-        timer_set_oneshot(&timer, timeout, wait_queue_timeout_handler, (void *)current_thread);
     }
 
-    /* switch away; the wait queue lock is dropped for the switch and is held
-     * again on return, so the caller sees the same lock state as it came in */
-    sched_resched_from_wait_queue(wait);
+    /* switch away; the wait queue lock is dropped for the switch and stays
+     * dropped. Back here the thread has been woken, by a waker that took it
+     * off the list, or by the timeout, which did not. */
+    const bool still_queued = sched_block(wait, timed ? &timer : NULL, timeout);
 
-    /* we don't really know if the timer fired or not, so it's better safe to try to cancel it */
-    if (timeout != INFINITE_TIME) {
+    if (timed) {
         timer_cancel(&timer);
+    }
+    if (unlikely(still_queued)) {
+        sched_leave_wait_queue();
     }
 
     return current_thread->wait_queue_block_ret;
+}
+
+/* Hand a staged list of threads to the scheduler, switching away to let them
+ * run first unless preemption is disabled -- by an interrupt handler, or by a
+ * caller batching a run of wakeups -- in which case a reschedule is recorded
+ * as owed and whoever reenables preemption takes it. The wait queue lock is
+ * dropped for a switch and retaken after, so the caller sees the same lock
+ * state either way. Returns the number of threads actually woken. */
+static int wait_queue_wake_staged(wait_queue_t *wait, struct list_node *staged,
+                                  status_t wait_queue_error) {
+    if (preempt_set_pending_if_disabled()) {
+        return sched_wake_list(staged, wait_queue_error);
+    }
+
+    const int woken = sched_wake_list_and_resched(wait, staged, wait_queue_error);
+    spin_lock(wait_queue_lock(wait));
+    return woken;
 }
 
 /**
@@ -140,42 +142,27 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
  * @return  The number of threads woken (zero or one)
  */
 int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
-    thread_t *t;
-    int ret = 0;
-
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(wait_queue_lock_held(wait));
 
-    t = list_remove_head_type(&wait->list, thread_t, wait_queue_node);
-    if (t) {
+    /* A node whose thread has already timed out wakes nobody, and the caller
+     * asked for one thread, so keep going until one is found or the list is
+     * empty: a mutex_release() that woke nobody would leave the next waiter
+     * stranded. */
+    for (;;) {
+        thread_t *t = list_remove_head_type(&wait->list, thread_t, wait_queue_node);
+        if (t == NULL) {
+            return 0;
+        }
         wait->count--;
-        DEBUG_ASSERT(t->state == THREAD_BLOCKED);
-        t->state = THREAD_READY;
-        t->wait_queue_block_ret = wait_queue_error;
-        t->blocking_wait_queue = NULL;
 
-        /* If preemption is disabled -- by an interrupt handler, or by a caller
-         * batching a run of wakeups -- just record that a reschedule is owed and
-         * let whoever reenables preemption take it. Otherwise switch now.
-         */
-        const bool resched_now = !preempt_set_pending_if_disabled();
-
-        /* if we're rescheduling, stick the current thread on the head
-         * of the run queue first, so that the newly awakened thread gets a chance to run
-         * before the current one, but the current one doesn't get unnecessarily punished.
-         */
-        if (resched_now) {
-            sched_requeue_current_for_wake();
+        struct list_node staged = LIST_INITIAL_VALUE(staged);
+        list_add_head(&staged, &t->wait_queue_node);
+        if (wait_queue_wake_staged(wait, &staged, wait_queue_error) > 0) {
+            return 1;
         }
-        sched_poke_cpus(1U << sched_insert_runnable(t));
-        if (resched_now) {
-            sched_resched_from_wait_queue(wait);
-        }
-        ret = 1;
     }
-
-    return ret;
 }
 
 /**
@@ -189,63 +176,26 @@ int wait_queue_wake_one(wait_queue_t *wait, status_t wait_queue_error) {
  * @param wait_queue_error  The return value which the new thread will receive
  * from wait_queue_block().
  *
- * @return  The number of threads woken (zero or one)
+ * @return  The number of threads woken
  */
 int wait_queue_wake_all(wait_queue_t *wait, status_t wait_queue_error) {
-    thread_t *t;
-    int ret = 0;
-    uint32_t cpu_mask = 0;
-
     DEBUG_ASSERT(wait->magic == WAIT_QUEUE_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
     DEBUG_ASSERT(wait_queue_lock_held(wait));
 
     if (wait->count == 0) {
-        /* Nothing to wake. Return before touching the current thread's run queue
-         * state: the self-insert below is only unwound by the sched_resched() at
-         * the end of this function, which is gated on having woken something.
-         * Inserting here would leave the current thread sitting on the run queue
-         * while it is still running.
-         */
         return 0;
     }
 
-    /* If preemption is disabled -- by an interrupt handler, or by a caller
-     * batching a run of wakeups -- just record that a reschedule is owed and
-     * let whoever reenables preemption take it. Otherwise switch now.
-     */
-    const bool resched_now = !preempt_set_pending_if_disabled();
-    if (resched_now) {
-        /* stick the current thread on the head of the run queue first, so that the
-         * newly awakened threads get a chance to run before the current one, but the
-         * current one doesn't get unnecessarilly punished.
-         */
-        sched_requeue_current_for_wake();
+    /* stage the whole list, in order, and hand it over in one go */
+    struct list_node staged = LIST_INITIAL_VALUE(staged);
+    thread_t *t;
+    while ((t = list_remove_head_type(&wait->list, thread_t, wait_queue_node)) != NULL) {
+        list_add_tail(&staged, &t->wait_queue_node);
     }
+    wait->count = 0;
 
-    /* pop all the threads off the wait queue into the run queue */
-    while ((t = list_remove_tail_type(&wait->list, thread_t, wait_queue_node))) {
-        wait->count--;
-        DEBUG_ASSERT(t->state == THREAD_BLOCKED);
-        t->state = THREAD_READY;
-        t->wait_queue_block_ret = wait_queue_error;
-        t->blocking_wait_queue = NULL;
-        /* accumulate the targets and send one batch of ipis at the end rather
-         * than one per thread woken */
-        cpu_mask |= (1U << sched_insert_runnable(t));
-        ret++;
-    }
-
-    DEBUG_ASSERT(wait->count == 0);
-
-    if (ret > 0) {
-        sched_poke_cpus(cpu_mask);
-        if (resched_now) {
-            sched_resched_from_wait_queue(wait);
-        }
-    }
-
-    return ret;
+    return wait_queue_wake_staged(wait, &staged, wait_queue_error);
 }
 
 /**
@@ -263,10 +213,14 @@ void wait_queue_destroy(wait_queue_t *wait) {
 }
 
 /**
- * @brief  Wake a specific thread in a wait queue
+ * @brief  Wake a specific thread out of whatever wait queue it is in
  *
- * This function extracts a specific thread from a wait queue, wakes it, and
- * puts it at the head of the run queue.
+ * The thread is made runnable at the head of a run queue, and pulls its own
+ * node off the wait queue on its way out of wait_queue_block(), the same as
+ * it does on a timeout. No lock is needed; interrupts must be disabled. Does
+ * not reschedule: if the thread landed on this cpu a reschedule is recorded
+ * as pending when preemption is disabled, and is otherwise the caller's to
+ * take.
  *
  * @param t  The thread to wake
  * @param wait_queue_error  The return value which the new thread will receive
@@ -277,26 +231,15 @@ void wait_queue_destroy(wait_queue_t *wait) {
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t wait_queue_error) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);
     DEBUG_ASSERT(arch_ints_disabled());
-    /* Unresolved until the wait queue locks split: the other backward walker,
-     * see wait_queue_timeout_handler(). The lock this wants is
-     * wait_queue_lock(t->blocking_wait_queue), which is only knowable once
-     * t->state has been read under it. */
-    DEBUG_ASSERT(thread_lock_held());
 
-    if (t->state != THREAD_BLOCKED) {
+    uint target;
+    if (!sched_unblock(t, wait_queue_error, &target)) {
         return ERR_NOT_BLOCKED;
     }
-
-    DEBUG_ASSERT(t->blocking_wait_queue != NULL);
-    DEBUG_ASSERT(t->blocking_wait_queue->magic == WAIT_QUEUE_MAGIC);
-    DEBUG_ASSERT(list_in_list(&t->wait_queue_node));
-
-    list_delete(&t->wait_queue_node);
-    t->blocking_wait_queue->count--;
-    t->blocking_wait_queue = NULL;
-    t->state = THREAD_READY;
-    t->wait_queue_block_ret = wait_queue_error;
-    sched_poke_cpus(1U << sched_insert_runnable(t));
+    sched_poke_cpus(1U << target);
+    if (target == arch_curr_cpu_num()) {
+        preempt_set_pending_if_disabled();
+    }
 
     return NO_ERROR;
 }

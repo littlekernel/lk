@@ -92,12 +92,13 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
             /* autounsignal flag lets one thread fall through before unsignaling */
             __atomic_store_n(&e->signaled, 0, __ATOMIC_RELAXED);
         }
+        wait_queue_unlock_irqrestore(&e->wait, state);
     } else {
-        /* unsignaled, block here */
+        /* unsignaled, block here. The block releases the lock, and the event
+         * is not touched again: it may have been destroyed by the time we run. */
         ret = wait_queue_block(&e->wait, timeout);
+        arch_interrupt_restore(state);
     }
-
-    wait_queue_unlock_irqrestore(&e->wait, state);
 
     return ret;
 }

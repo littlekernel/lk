@@ -158,10 +158,14 @@ Wait queues provide the foundation for thread synchronization primitives:
 ```c
 void wait_queue_init(wait_queue_t *wait);
 status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout);
-int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t error);
-int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t error);
-void wait_queue_destroy(wait_queue_t *wait, bool reschedule);
+int wait_queue_wake_one(wait_queue_t *wait, status_t error);
+int wait_queue_wake_all(wait_queue_t *wait, status_t error);
+void wait_queue_destroy(wait_queue_t *wait);
 ```
+
+All of these are called with the queue's own lock held (`wait_queue_lock_irqsave()` in
+`kernel/thread_lock.h`); `wait_queue_block()` releases it. The lock rules are described
+in [Blocking Primitives](blocking_primitives.md#locking).
 
 ### Timeout Support
 

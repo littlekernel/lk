@@ -6,7 +6,9 @@
  * https://opensource.org/licenses/MIT
  */
 #include <kernel/mp.h>
+#include <kernel/semaphore.h>
 #include <kernel/thread.h>
+#include <platform.h>
 #include <lib/unittest.h>
 #include <lk/err.h>
 #include <lk/trace.h>
@@ -156,8 +158,68 @@ static bool repin_current_thread(void) {
     END_TEST;
 }
 
+/* A wake racing a timeout.
+ *
+ * A timeout does not take the thread off its wait queue: it makes the thread
+ * runnable and leaves the node for the thread to pull off on its way out of
+ * wait_queue_block(). A wake that pops that node before the thread has run
+ * must skip it, and for a wake_one, go on to the next waiter (or wake nobody)
+ * rather than count the stale node as a wakeup. The stale window is made
+ * deterministic here by keeping the timed-out waiter from running: it is a
+ * lower priority thread on this cpu, and this thread spins rather than sleeps
+ * until the timeout has fired.
+ */
+static semaphore_t stale_sem;
+
+static int timed_waiter(void *arg) {
+    return sem_timedwait(&stale_sem, 20);
+}
+
+static bool wake_skips_timed_out_waiter(void) {
+    BEGIN_TEST;
+
+    thread_t *self = get_current_thread();
+    const int old_pin = thread_pinned_cpu(self);
+    const uint local = arch_curr_cpu_num();
+
+    sem_init(&stale_sem, 0);
+
+    /* the waiter must not be able to run anywhere once its timeout fires */
+    thread_set_pinned_cpu(self, (int)local);
+    thread_t *t = thread_create("timed_waiter", timed_waiter, NULL, LOW_PRIORITY, DEFAULT_STACK_SIZE);
+    ASSERT_NONNULL(t, "thread_create");
+    thread_set_pinned_cpu(t, (int)local);
+    ASSERT_EQ(NO_ERROR, thread_resume(t), "resume");
+
+    /* let it run and block, then spin past its timeout without yielding */
+    thread_sleep(5);
+    const lk_time_t start = current_time();
+    while (current_time() - start < 60) {
+        /* spin */
+    }
+
+    /* the timeout has fired and the waiter is READY behind us, its node still
+     * on the semaphore's wait queue. A post must find nobody to wake. */
+    EXPECT_EQ(0, sem_post(&stale_sem), "a post must not count a timed out waiter as woken");
+
+    int retcode = 0;
+    ASSERT_EQ(NO_ERROR, thread_join(t, &retcode, INFINITE_TIME), "join");
+    EXPECT_EQ(ERR_TIMED_OUT, retcode, "the waiter must have timed out");
+
+    /* the post is still banked: the waiter gave its count back on the way out */
+    EXPECT_EQ(NO_ERROR, sem_trywait(&stale_sem), "the post must still be there");
+    EXPECT_EQ(ERR_NOT_READY, sem_trywait(&stale_sem), "and only once");
+    EXPECT_EQ(0, stale_sem.wait.count, "the stale node must be off the wait queue");
+
+    thread_set_pinned_cpu(self, old_pin);
+    sem_destroy(&stale_sem);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(sched_tests)
 RUN_TEST(pin_before_resume)
 RUN_TEST(repin_runnable_thread)
 RUN_TEST(repin_current_thread)
+RUN_TEST(wake_skips_timed_out_waiter)
 END_TEST_CASE(sched_tests)

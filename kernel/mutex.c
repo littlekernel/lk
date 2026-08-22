@@ -91,9 +91,9 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout) {
 
     arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&m->wait);
 
-    status_t ret = NO_ERROR;
     if (unlikely(++m->count > 1)) {
-        ret = wait_queue_block(&m->wait, timeout);
+        /* the block releases the lock */
+        status_t ret = wait_queue_block(&m->wait, timeout);
         if (unlikely(ret < NO_ERROR)) {
             /* if the acquisition timed out, back out the acquire and exit */
             if (likely(ret == ERR_TIMED_OUT)) {
@@ -102,20 +102,29 @@ status_t mutex_acquire_timeout(mutex_t *m, lk_time_t timeout) {
                  * but before we got scheduled again which makes messing with the
                  * count variable dangerous.
                  */
+                spin_lock(wait_queue_lock(&m->wait));
                 m->count--;
+                spin_unlock(wait_queue_lock(&m->wait));
             }
             /* if there was a general error, it may have been destroyed out from
              * underneath us, so just exit (which is really an invalid state anyway)
              */
-            goto err;
+            arch_interrupt_restore(state);
+            return ret;
         }
+
+        /* Woken by the previous holder's release, which handed the mutex to us:
+         * the count already includes us. holder is only ever compared against
+         * the thread doing the comparing, so it is written without the lock. */
+        m->holder = get_current_thread();
+        arch_interrupt_restore(state);
+        return NO_ERROR;
     }
 
     m->holder = get_current_thread();
 
-err:
     wait_queue_unlock_irqrestore(&m->wait, state);
-    return ret;
+    return NO_ERROR;
 }
 
 /**

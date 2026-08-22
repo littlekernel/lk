@@ -99,14 +99,17 @@ typedef struct thread {
     int curr_cpu;
     int last_cpu;   // last cpu this thread ran on or was queued on; the
                     // creating cpu until then. Keys the sched lock that owns
-                    // the thread whenever it is not blocked (thread_lock.h)
+                    // the thread whenever it is not running (thread_lock.h)
     int pinned_cpu; // only run on pinned_cpu if >= 0
 #endif
 #if WITH_KERNEL_VM
     struct vmm_aspace *aspace;
 #endif
 
-    // if blocked, a pointer to the wait queue the thread is blocked on
+    // The wait queue the thread is blocked on, for the thread's own use on the
+    // way out of wait_queue_block() and for the debug dumps; cleared by a waker
+    // under the queue's lock, so no other reader may follow it. The return
+    // value is written by whoever makes the thread READY, under its sched lock.
     struct wait_queue *blocking_wait_queue;
     status_t wait_queue_block_ret;
 

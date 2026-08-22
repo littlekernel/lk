@@ -408,12 +408,28 @@ See [`wait.h`](../kernel/include/kernel/wait.h) implementation details.
 
 ```c
 void wait_queue_init(wait_queue_t *wait);
-void wait_queue_destroy(wait_queue_t *wait, bool reschedule);
+void wait_queue_destroy(wait_queue_t *wait);
 status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout);
-int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t error);
-int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t error);
+int wait_queue_wake_one(wait_queue_t *wait, status_t error);
+int wait_queue_wake_all(wait_queue_t *wait, status_t error);
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t error);
 ```
+
+#### Locking
+
+Every wait queue has its own spinlock, taken as `wait_queue_lock_irqsave(&wq)` from
+`kernel/thread_lock.h`. The wake and destroy calls expect it held and return with it
+still held, even though a wake that switches away drops it for the switch.
+`wait_queue_block()` also expects it held but *releases* it: a woken thread is off the
+queue before it runs and never touches the queue again, so a primitive's destroy path
+only has to keep the object alive until its own call returns. Callers that need the
+lock again after blocking (to back out a count on a timeout, say) take it themselves.
+
+The lock covers the queue's list and count, not the scheduling state of the threads
+on it, which belongs to the scheduler's per-cpu locks. That is what lets a timeout
+act on the thread without finding the queue; the thread pulls its own node off on
+the way out, and a wake that finds such a node skips it. See `kernel/thread_lock.h`
+for the lock order and the ownership table.
 
 #### Timeout Handling
 

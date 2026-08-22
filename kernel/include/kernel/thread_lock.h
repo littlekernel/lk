@@ -8,42 +8,50 @@
 
 #include <arch/ops.h>
 #include <kernel/spinlock.h>
+#include <kernel/wait.h>
 #include <lk/compiler.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
 __BEGIN_CDECLS
 
-struct wait_queue;
-
-// The locks the thread lock has been split into, so far.
+// The locks the thread lock was split into.
 //
-// The scheduler now has a lock per cpu. The wait queue and thread list locks
-// are still the one global thread_lock; each accessor below names the lock a
-// site needs, and the order they nest in is fixed here:
+// The scheduler has a lock per cpu, every wait queue has its own, and the
+// thread list keeps the original global lock. Each accessor below names the
+// lock a site needs, and the order they nest in is fixed here:
 //
 //   thread_list_lock()  >  wait_queue_lock(wq)  >  sched_lock(cpu)  >  timer_lock
 //
 // outermost first. The sched lock is the innermost of the three because the
 // wait queue and thread list code hand threads to the scheduler, never the
 // other way around. Two sched locks may be held at once, lowest cpu number
-// first; see sched_lock_pair() in sched.c. The list and wait queue locks are
-// the same lock today, so a site never holds both: it takes them in sequence.
+// first; see sched_lock_pair() in sched.c. Two wait queue locks never are.
 //
-// Which lock owns a thread's scheduling state follows from the thread's state:
+// A thread's scheduling state -- state, the run queue node, pinned_cpu,
+// last_cpu -- is always owned by a sched lock, which one following from the
+// state:
 //
 //   RUNNING              sched_lock(curr_cpu)
 //   READY, on a queue    sched_lock(last_cpu), the cpu whose queue it is on
-//   BLOCKED              wait_queue_lock(blocking_wait_queue)
-//   SUSPENDED, SLEEPING,
-//   DEATH                sched_lock(last_cpu): the cpu it last ran on, or for
+//   BLOCKED, SUSPENDED,
+//   SLEEPING, DEATH      sched_lock(last_cpu): the cpu it last ran on, or for
 //                        a thread that never has, the cpu that created it
 //
-// so last_cpu is the key for everything but a blocked thread, and is never -1
-// on a thread the scheduler can see. A thread taken off a queue is invisible
-// to everyone but the remover, which owns it outright until it is queued
-// again; the one way to observe that window is READY with run_queue_node not
-// on a list, and the one site that can (thread_set_pinned_cpu) retries.
+// so last_cpu is the key for anything not running, and is never -1 on a
+// thread the scheduler can see. The wait queue lock owns only the queue: its
+// list, its count, and so the thread's wait_queue_node while it is on one.
+// That a blocked thread is *not* owned by its queue's lock is what lets the
+// timeout path and thread_set_pinned_cpu() act on a blocked thread without
+// finding the queue, which they would have no safe way to do: the queue may
+// be gone by the time a pointer to it is followed. A waker holds both -- the
+// queue's lock to take the thread off the list, then the sched lock pair to
+// make it READY -- and a wake racing a timeout is decided by the sched lock,
+// with the loser doing nothing (see sched_make_ready_from() in sched.c).
+//
+// The one way to see a thread READY with run_queue_node not on a list is the
+// thread itself on its way off the cpu, between marking itself READY and
+// queueing itself; the one site that can (thread_set_pinned_cpu) retries.
 //
 // Exactly one lock is ever held across a context switch: the local cpu's
 // sched lock, which is handed to the incoming thread. Everything else -- the
@@ -52,6 +60,7 @@ struct wait_queue;
 // used to be a release in disguise, since the incoming thread could be anyone,
 // so dropping it explicitly changes nothing a caller could rely on.
 
+// The thread list lock. Was the one lock for all of the above, hence the name.
 extern spin_lock_t thread_lock;
 
 // The lock protecting a cpu's run queues, and with them the state of every
@@ -66,10 +75,10 @@ static inline spin_lock_t *sched_lock(uint cpu) {
     return &sched_lock_slots[cpu].lock;
 }
 
-// The lock protecting a wait queue, and the state of every thread blocked on it.
+// The lock protecting a wait queue: its list and count, not the scheduling
+// state of the threads on it, which their sched locks own (see above).
 static inline spin_lock_t *wait_queue_lock(struct wait_queue *wq) {
-    (void)wq;
-    return &thread_lock;
+    return &wq->lock;
 }
 
 // The lock protecting the global thread list.
@@ -131,13 +140,6 @@ static inline bool wait_queue_lock_held(struct wait_queue *wq) {
 
 static inline bool thread_list_lock_held(void) {
     return spin_lock_held_by_me(thread_list_lock());
-}
-
-// For the two backward walkers in wait.c, which reach a wait queue through a
-// thread and cannot name it until they hold it. Sound only while every wait
-// queue lock is this one lock; see the comments at the sites.
-static inline bool thread_lock_held(void) {
-    return spin_lock_held_by_me(&thread_lock);
 }
 
 __END_CDECLS

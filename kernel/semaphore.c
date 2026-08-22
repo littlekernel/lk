@@ -58,8 +58,12 @@ status_t sem_wait(semaphore_t *sem) {
      * If there are no resources available then we need to
      * sit in the wait queue until sem_post adds some.
      */
-    if (unlikely(--sem->count < 0))
+    if (unlikely(--sem->count < 0)) {
+        /* the block releases the lock */
         ret = wait_queue_block(&sem->wait, INFINITE_TIME);
+        arch_interrupt_restore(state);
+        return ret;
+    }
 
     wait_queue_unlock_irqrestore(&sem->wait, state);
     return ret;
@@ -99,12 +103,17 @@ status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout) {
     arch_interrupt_saved_state_t state = wait_queue_lock_irqsave(&sem->wait);
 
     if (unlikely(--sem->count < 0)) {
+        /* the block releases the lock */
         ret = wait_queue_block(&sem->wait, timeout);
-        if (ret < NO_ERROR) {
-            if (ret == ERR_TIMED_OUT) {
-                sem->count++;
-            }
+        if (ret == ERR_TIMED_OUT) {
+            /* give back the count we took, now that nobody is going to hand
+             * it to us */
+            spin_lock(wait_queue_lock(&sem->wait));
+            sem->count++;
+            spin_unlock(wait_queue_lock(&sem->wait));
         }
+        arch_interrupt_restore(state);
+        return ret;
     }
 
     wait_queue_unlock_irqrestore(&sem->wait, state);
