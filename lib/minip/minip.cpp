@@ -274,21 +274,27 @@ static void minip_build_ipv4_hdr(netif_t *netif, struct ipv4_hdr *ipv4, ipv4_add
     ipv4->chksum = ~ones_sum16(0, (uint8_t *) ipv4, sizeof(struct ipv4_hdr));
 }
 
-status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, const uint8_t *dest_mac, netif_t *netif) {
-    DEBUG_ASSERT(p);
-    DEBUG_ASSERT(netif);
-
+/* prepend the ethernet and ipv4 headers on a payload */
+static void minip_ipv4_build(netif_t *netif, pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto,
+                             const uint8_t *dest_mac) {
     size_t data_len = p->dlen;
 
     struct ipv4_hdr *ip = (struct ipv4_hdr *)pktbuf_prepend(p, sizeof(struct ipv4_hdr));
     struct eth_hdr *eth = (struct eth_hdr *)pktbuf_prepend(p, sizeof(struct eth_hdr));
 
+    minip_build_mac_hdr(netif, eth, dest_mac, ETH_TYPE_IPV4);
+    minip_build_ipv4_hdr(netif, ip, dest_addr, proto, data_len);
+}
+
+status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, const uint8_t *dest_mac, netif_t *netif) {
+    DEBUG_ASSERT(p);
+    DEBUG_ASSERT(netif);
+
     if (LOCAL_TRACE) {
         printf("sending ipv4\n");
     }
 
-    minip_build_mac_hdr(netif, eth, dest_mac, ETH_TYPE_IPV4);
-    minip_build_ipv4_hdr(netif, ip, dest_addr, proto, data_len);
+    minip_ipv4_build(netif, p, dest_addr, proto, dest_mac);
 
     return netif->tx_func(netif->tx_func_arg, p);
 }
@@ -320,6 +326,7 @@ status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
     if ((dest_addr & netmask) != (netif->ipv4_addr & netmask)) {
         // need to use the gateway
         if (minip_gateway == IPV4_NONE) {
+            pktbuf_free(p, true);
             ret = ERR_NOT_FOUND; // TODO: better error code
             goto err;
         }
@@ -327,10 +334,20 @@ status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
         target_addr = minip_gateway;
     }
 
-    dest_mac = arp_get_dest_mac(target_addr);
-    if (!dest_mac) {
-        pktbuf_free(p, true);
-        ret = -EHOSTUNREACH;
+    // fast path: address already resolved
+    dest_mac = arp_cache_lookup(target_addr);
+    if (dest_mac) {
+        goto ready;
+    }
+
+    /* the mac is not known yet: build the frame with a placeholder mac and
+     * hand it to the arp layer, which fills it in and transmits when the
+     * address resolves (or drops it if resolution fails). never blocks.
+     */
+    {
+        static const uint8_t zero_mac[6] = { 0, 0, 0, 0, 0, 0 };
+        minip_ipv4_build(netif, p, dest_addr, proto, zero_mac);
+        ret = arp_send_or_queue(netif, target_addr, p);
         goto err;
     }
 

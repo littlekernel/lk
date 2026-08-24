@@ -102,6 +102,7 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6]);
 uint8_t *arp_cache_lookup(uint32_t addr);
 void arp_cache_dump(void);
 int arp_send_request(netif_t *, ipv4_addr_t addr);
+status_t arp_send_or_queue(netif_t *netif, ipv4_addr_t addr, pktbuf_t *p);
 const uint8_t *arp_get_dest_mac(uint32_t host);
 int handle_arp_pkt(netif_t *netif, pktbuf_t *p);
 
