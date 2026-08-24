@@ -212,13 +212,11 @@ static status_t pcnet_init_device(struct pcnet_state *state, pci_location_t loc)
 
     /* setup receive descriptors */
     for (int i = 0; i < state->rd_count; i++) {
-        pktbuf_t *p = pktbuf_alloc();
+        pktbuf_t *p = pktbuf_alloc_rx();
         if (!p) {
             res = ERR_NO_MEMORY;
             goto error;
         }
-
-        pktbuf_reset(p, 0);
 
         state->rd[i].rbadr = pktbuf_data_phys(p);
         state->rd[i].bcnt = -(int16_t)p->blen;
@@ -402,8 +400,12 @@ static bool pcnet_service_rx(struct pcnet_state *state) {
         pktbuf_t *p = state->rx_buffers[state->rd_head];
         DEBUG_ASSERT(p);
 
-        if (!rd->err) {
-            if (rd->mcnt <= p->blen) {
+        if (!rd->err && rd->mcnt <= p->blen) {
+            /* hand the filled buffer to the stack -- but only if a fresh one
+             * can take its place on the ring; when the pool is empty the
+             * frame is dropped and the buffer stays put */
+            pktbuf_t *np = pktbuf_alloc_rx();
+            if (np) {
                 p->dlen = rd->mcnt;
 
 #if LOCAL_TRACE
@@ -411,10 +413,13 @@ static bool pcnet_service_rx(struct pcnet_state *state) {
                 hexdump8(p->data, p->dlen);
 #endif
 
-                minip_rx_driver_callback(&state->netif, p);
-            } else {
-                LTRACEF("RX packet size error: mcnt = %u, buf len = %u\n", rd->mcnt, p->blen);
+                minip_rx_pktbuf(&state->netif, p);
+
+                p = np;
+                state->rx_buffers[state->rd_head] = np;
             }
+        } else if (!rd->err) {
+            LTRACEF("RX packet size error: mcnt = %u, buf len = %u\n", rd->mcnt, p->blen);
         }
 
         pktbuf_reset(p, 0);
@@ -480,6 +485,10 @@ static status_t pcnet_output(struct pcnet_state *state, pktbuf_t *p) {
 
 done:
     mutex_release(&state->tx_lock);
+    if (res != NO_ERROR) {
+        /* the transmit path owns the packet on every outcome */
+        pktbuf_free(p, true);
+    }
     return res;
 }
 
