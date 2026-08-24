@@ -103,6 +103,7 @@ status_t udp_open(ipv4_addr_t host, uint16_t sport, uint16_t dport, udp_socket_t
     // look up route to set local address
     ipv4_route_t *route = ipv4_search_route(host);
     if (!route) {
+        free(socket);
         return ERR_NO_ROUTE;
     }
 
