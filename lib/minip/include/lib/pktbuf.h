@@ -13,17 +13,25 @@
 
 __BEGIN_CDECLS
 
-/* PAGE_SIZE minus 16 bytes of metadata in pktbuf_buf */
+/* Number of packet data buffers in the pool. Each is PKTBUF_SIZE bytes.
+ * pktbuf headers are allocated from a separate, smaller pool.
+ */
 #ifndef PKTBUF_POOL_SIZE
 #define PKTBUF_POOL_SIZE 256
 #endif
 
-/* Reserve this many pktbuf pool objects for non-RX-ring traffic by default.
- * Since pktbuf_alloc() consumes two pool objects (header + buffer), this keeps
- * space for TX/control traffic such as ARP/DHCP.
+/* Reserve this many pool data buffers for non-RX-ring traffic by default,
+ * keeping space for TX/control traffic such as ARP/DHCP.
  */
-#ifndef PKTBUF_ETH_RX_POOL_RESERVE_OBJECTS
-#define PKTBUF_ETH_RX_POOL_RESERVE_OBJECTS 64
+#ifndef PKTBUF_ETH_RX_POOL_RESERVE
+#define PKTBUF_ETH_RX_POOL_RESERVE 64
+#endif
+
+/* Extra pktbuf headers on top of one per data buffer, for headers that wrap
+ * externally owned (driver) buffers via pktbuf_add_buffer().
+ */
+#ifndef PKTBUF_EXTRA_HEADERS
+#define PKTBUF_EXTRA_HEADERS 64
 #endif
 
 #ifndef PKTBUF_SIZE
@@ -47,13 +55,6 @@ typedef struct pktbuf {
     void *cb_args;
     u8 *buffer;
 } pktbuf_t;
-
-typedef struct pktbuf_pool_object {
-    union {
-        pktbuf_t p;
-        uint8_t b[PKTBUF_SIZE];
-    };
-} pktbuf_pool_object_t;
 
 #define PKTBUF_FLAG_CKSUM_IP_GOOD  (1<<0)
 #define PKTBUF_FLAG_CKSUM_TCP_GOOD (1<<1)
@@ -114,17 +115,10 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz);
 // be within the buffer.
 void pktbuf_reset(pktbuf_t *p, uint32_t header_sz);
 
-// create a new packet buffer from raw memory and add
-// it to the free pool
-void pktbuf_create(void *ptr, size_t size);
-
-// Create buffers for pktbufs of size PKTBUF_BUF_SIZE out of size
-void pktbuf_create_bufs(void *ptr, size_t size);
-
 void pktbuf_dump(pktbuf_t *p);
 
-// Return a safe ethernet RX preallocation depth based on pool capacity.
-// Each RX descriptor that uses pktbuf_alloc() consumes two pool objects.
+// Return a safe ethernet RX preallocation depth based on pool capacity,
+// leaving PKTBUF_ETH_RX_POOL_RESERVE data buffers for other traffic.
 // The returned value is clamped to requested_depth.
 size_t pktbuf_recommended_eth_rx_depth(size_t requested_depth);
 
