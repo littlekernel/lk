@@ -105,6 +105,8 @@ typedef struct tcp_socket {
     event_t  tx_event;
     net_timer_t retransmit_timer;
     int      retransmit_count; // consecutive retransmits with no ack in between
+    uint32_t dupack_count;   // consecutive duplicate acks from the peer
+    uint16_t tx_last_win;    // window they advertised last, to spot duplicates
     bool     fin_pending;    // tcp_close() has queued a FIN behind the tx data
     bool     fin_sent;       // the FIN has been transmitted at least once
     uint32_t fin_seq;        // the sequence the FIN occupies (valid if fin_sent)
@@ -117,6 +119,11 @@ typedef struct tcp_socket {
     bool     rtt_pending;    // a segment is being timed right now
     uint32_t rtt_seq;        // the sequence being timed; an ack past it ends it
     lk_time_t rtt_start;     // when that segment went out
+
+    /* counters, read out through tcp_get_socket_stats() */
+    uint32_t stat_retransmits;
+    uint32_t stat_fast_retransmits;
+    uint32_t stat_dupacks;
 
     /* listen accept */
     semaphore_t accept_sem;
@@ -160,6 +167,12 @@ typedef struct tcp_socket {
 #define TCP_RTO_MAX (16000)
 #define TCP_RTO_GRANULARITY (10)
 #define TCP_MAX_RETRANSMITS (6)
+
+/* Duplicate acks that mean a segment was lost rather than merely delayed
+ * (RFC 5681 3.2). Three is the long standing value: it is enough that
+ * plain reordering of adjacent segments does not trip it.
+ */
+#define TCP_DUPACK_THRESHOLD (3)
 
 /* The handshake gets its own retry count: it starts from the initial 1s
  * timeout with nothing measured yet, so 4 tries is already ~15 seconds.
@@ -243,7 +256,9 @@ static status_t tcp_socket_send(tcp_socket_t *s, const iovec_t *iov, size_t iov_
                                 tcp_flags_t flags, const void *options, size_t options_length, uint32_t sequence);
 static bool handle_data(tcp_socket_t *s, pktbuf_t *p, uint32_t sequence);
 static void send_ack(tcp_socket_t *s);
-static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
+static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bool bare);
+static ssize_t tcp_retransmit(tcp_socket_t *s);
+static void tcp_fast_retransmit(tcp_socket_t *s);
 static ssize_t tcp_write_pending_data(tcp_socket_t *s);
 static uint16_t tcp_advertised_window(tcp_socket_t *s);
 static status_t tcp_send_data_pktbuf(tcp_socket_t *s, pktbuf_t *p, uint32_t sequence);
@@ -352,9 +367,11 @@ static void dump_socket(tcp_socket_t *s) {
                s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
                tx_buffered_bytes(s), s->tx_pktbuf_count);
     }
-    printf("\trto: %u ms (srtt %u rttvar %u%s), retransmits %d\n",
+    printf("\trto: %u ms (srtt %u rttvar %u%s), retransmits %d, dupacks %u\n",
            s->rto, s->srtt, s->rttvar, s->rtt_valid ? "" : ", unmeasured",
-           s->retransmit_count);
+           s->retransmit_count, s->dupack_count);
+    printf("\tcounters: retransmit %u fast %u dupack %u\n",
+           s->stat_retransmits, s->stat_fast_retransmits, s->stat_dupacks);
     if (s->fin_pending) {
         printf("\tfin: seq %u %s\n", s->fin_seq, s->fin_sent ? "sent" : "pending");
     }
@@ -615,6 +632,9 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
     uint8_t packet_flags = header->length_flags & 0x3f;
     size_t data_len = p->dlen - header_len;
 
+    /* a segment carrying nothing but an acknowledgement */
+    const bool bare_ack = (data_len == 0 && (packet_flags & (PKT_SYN|PKT_FIN)) == 0);
+
     /* see if it matches a socket we have */
     tcp_socket_t *s = lookup_socket(src_ip, dst_ip, header->source_port, header->dest_port);
     if (!s) {
@@ -717,6 +737,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
                 s->tx_win_high = s->tx_win_low + header->win_size;
                 s->tx_highest_seq = s->tx_win_low;
+                s->tx_last_win = header->win_size;
 
                 tcp_rtt_ack(s, header->ack_num);
                 tcp_timer_cancel(s, &s->retransmit_timer);
@@ -761,6 +782,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             s->tx_win_low++;
             s->tx_win_high = s->tx_win_low + header->win_size;
             s->tx_highest_seq = s->tx_win_low;
+            s->tx_last_win = header->win_size;
 
             tcp_rtt_ack(s, header->ack_num);
             tcp_timer_cancel(s, &s->retransmit_timer);
@@ -778,7 +800,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
         case STATE_ESTABLISHED:
             if (packet_flags & PKT_ACK) {
                 /* they're acking us */
-                handle_ack(s, header->ack_num, header->win_size);
+                handle_ack(s, header->ack_num, header->win_size, bare_ack);
             }
 
             if (data_len > 0) {
@@ -804,7 +826,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
         case STATE_CLOSE_WAIT:
             if (packet_flags & PKT_ACK) {
                 /* they're acking us */
-                handle_ack(s, header->ack_num, header->win_size);
+                handle_ack(s, header->ack_num, header->win_size, bare_ack);
             }
             if (packet_flags & PKT_FIN) {
                 /* they must have missed our ack, ack them again */
@@ -817,7 +839,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 send_ack(s);
             }
             if (packet_flags & PKT_ACK) {
-                handle_ack(s, header->ack_num, header->win_size);
+                handle_ack(s, header->ack_num, header->win_size, bare_ack);
             }
             if (tcp_fin_acked(s)) {
                 /* tcp_close() was already called on us, so the abort also
@@ -827,7 +849,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             break;
         case STATE_FIN_WAIT_1:
             if (packet_flags & PKT_ACK) {
-                handle_ack(s, header->ack_num, header->win_size);
+                handle_ack(s, header->ack_num, header->win_size, bare_ack);
             }
             if (tcp_fin_acked(s)) {
                 s->state = STATE_FIN_WAIT_2;
@@ -855,7 +877,7 @@ fin_wait_2:
             break;
         case STATE_CLOSING:
             if (packet_flags & PKT_ACK) {
-                handle_ack(s, header->ack_num, header->win_size);
+                handle_ack(s, header->ack_num, header->win_size, bare_ack);
             }
             if (tcp_fin_acked(s)) {
                 s->state = STATE_TIME_WAIT;
@@ -1266,16 +1288,33 @@ static status_t tcp_send_segment_copy(tcp_socket_t *s, pktbuf_t *q, uint32_t sta
     return tcp_send_data_pktbuf(s, cp, start);
 }
 
-static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
+/* Process an incoming acknowledgement. 'bare' says the segment carried
+ * nothing else -- no payload, no SYN or FIN -- which is what makes an ack
+ * of nothing new a duplicate rather than just a window update.
+ */
+static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bool bare) {
     LTRACEF("socket %p ack sequence %u, win_size %u\n", s, sequence, win_size);
 
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
+    const bool same_window = (win_size == s->tx_last_win);
+    s->tx_last_win = (uint16_t)win_size;
+
     LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u buffered %u\n",
             s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, tx_buffered_bytes(s));
     if (SEQUENCE_LTE(sequence, s->tx_win_low)) {
-        /* they're acking stuff we've already received an ack for */
+        /* they're acking stuff we've already received an ack for. an empty
+         * segment repeating the ack we already have, with the window
+         * unchanged and data of ours still outstanding, is the peer
+         * telling us it has a hole */
+        if (bare && sequence == s->tx_win_low && same_window &&
+                s->tx_highest_seq != s->tx_win_low) {
+            s->stat_dupacks++;
+            if (++s->dupack_count == TCP_DUPACK_THRESHOLD) {
+                tcp_fast_retransmit(s);
+            }
+        }
         return;
     } else if (SEQUENCE_GT(sequence, s->tx_highest_seq)) {
         /* they're acking stuff we haven't sent */
@@ -1289,6 +1328,7 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
      * and drop whatever backoff the timeout had accumulated */
     tcp_rtt_ack(s, sequence);
     s->retransmit_count = 0;
+    s->dupack_count = 0;
     tcp_update_rto(s);
 
     s->tx_win_low = sequence;
@@ -1439,6 +1479,25 @@ static ssize_t tcp_retransmit(tcp_socket_t *s) {
     return 0;
 }
 
+/* Resend the oldest unacked segment now, without waiting for the timer:
+ * duplicate acks say the peer is missing it while still receiving what
+ * came after, which is loss rather than reordering. The timeout is not
+ * backed off -- nothing timed out -- but the round trip in progress
+ * becomes ambiguous just as it would on a timeout.
+ */
+static void tcp_fast_retransmit(tcp_socket_t *s) {
+    DEBUG_ASSERT(is_mutex_held(&s->lock));
+
+    LTRACEF("s %p, seq %u\n", s, s->tx_win_low);
+
+    s->rtt_pending = false;
+
+    if (tcp_retransmit(s) > 0) {
+        s->stat_fast_retransmits++;
+        tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, s->rto);
+    }
+}
+
 static void handle_retransmit_timeout(void *_s) {
     tcp_socket_t *s = (tcp_socket_t *)_s;
 
@@ -1478,6 +1537,7 @@ static void handle_retransmit_timeout(void *_s) {
             }
 
             if (tcp_retransmit(s) > 0) {
+                s->stat_retransmits++;
                 tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, s->rto);
             } else {
                 /* nothing to resend; a FIN that failed to allocate a pktbuf
@@ -2001,6 +2061,19 @@ out:
     dec_socket_ref(s);
 
     return err;
+}
+
+void tcp_get_socket_stats(tcp_socket_t *s, tcp_socket_stats_t *out) {
+    DEBUG_ASSERT(s);
+    DEBUG_ASSERT(out);
+
+    mutex_acquire(&s->lock);
+    out->retransmits = s->stat_retransmits;
+    out->fast_retransmits = s->stat_fast_retransmits;
+    out->dupacks = s->stat_dupacks;
+    out->rto = s->rto;
+    out->srtt = s->srtt;
+    mutex_release(&s->lock);
 }
 
 /* debug stuff */

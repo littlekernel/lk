@@ -490,6 +490,76 @@ static bool close_with_unacked_data(void) {
     END_TEST;
 }
 
+/* Lose one data segment out of a burst and let the duplicate acks the
+ * rest provoke drive the recovery, rather than the retransmit timer.
+ */
+static bool fast_retransmit(void) {
+    BEGIN_TEST;
+
+    testnetif_get();
+
+    const uint16_t port = TCP_TEST_PORT_BASE + 10;
+    /* enough segments behind the hole for three duplicate acks */
+    const size_t total = 8 * TRANSFER_CHUNK;
+
+    uint8_t *expected = (uint8_t *)malloc(total);
+    ASSERT_NONNULL(expected, "");
+
+    struct sink_server srv;
+    memset(&srv, 0, sizeof(srv));
+    srv.buf = (uint8_t *)malloc(total);
+    srv.buflen = total;
+    if (!srv.buf) {
+        free(expected);
+        ASSERT_NONNULL(srv.buf, "");
+    }
+    fill_pattern(expected, total, 0x2b);
+
+    ASSERT_EQ(NO_ERROR, tcp_open_listen(&srv.listener, port), "");
+    srv.thread = thread_create("tcp test sink", &sink_server_worker, &srv,
+                               DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(srv.thread);
+
+    struct connect_result res = { .port = port, .err = 1 };
+    thread_t *t = thread_create("tcp test connect", &connect_worker, &res,
+                                DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(t);
+    ASSERT_EQ(NO_ERROR, thread_join(t, NULL, 15000), "");
+    ASSERT_EQ(NO_ERROR, res.err, "");
+
+    /* let the handshake's delayed ack drain so the next sizable frame on
+     * the wire is our first data segment */
+    thread_sleep(2 * 50);
+
+    /* swallow it; everything behind it still arrives, out of order */
+    const testnetif_faults_t faults = { .drop_once_min_len = 512 };
+    testnetif_configure(&faults);
+
+    ASSERT_EQ((ssize_t)total, tcp_write(res.sock, expected, total), "");
+
+    EXPECT_EQ(NO_ERROR, thread_join(srv.thread, NULL, 15000), "");
+
+    tcp_socket_stats_t stats;
+    tcp_get_socket_stats(res.sock, &stats);
+
+    EXPECT_EQ(1U, testnetif_dropped_count(), "exactly one segment should be lost");
+    EXPECT_GE(stats.dupacks, (uint32_t)3, "the segments behind the hole should dup-ack");
+    EXPECT_EQ(1U, stats.fast_retransmits, "the hole should be filled on the third dupack");
+    EXPECT_EQ(0U, stats.retransmits, "the retransmit timer should not have been needed");
+
+    testnetif_configure(NULL);
+
+    EXPECT_EQ(total, srv.received, "the whole stream should arrive");
+    EXPECT_BYTES_EQ(expected, srv.buf, total, "");
+
+    EXPECT_EQ(NO_ERROR, tcp_close(res.sock), "");
+    tcp_close(srv.listener);
+    free(expected);
+    free(srv.buf);
+
+    END_TEST;
+}
+
 /* --- raw frame injection ----------------------------------------------- */
 
 /* the wire header layout (the stack's own struct is private to tcp.cpp) */
@@ -666,6 +736,7 @@ RUN_TEST(data_retransmit)
 RUN_TEST(reordered_segments)
 RUN_TEST(duplicated_segments)
 RUN_TEST(close_with_unacked_data)
+RUN_TEST(fast_retransmit)
 RUN_TEST(rst_on_closed_port)
 RUN_TEST(ipv4_input_validation)
 END_TEST_CASE(tcp_tests)

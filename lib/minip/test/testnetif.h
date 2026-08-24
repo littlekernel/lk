@@ -24,6 +24,7 @@ typedef struct testnetif_faults {
     uint drop_every;     // drop every Nth transmitted frame (0 = never)
     uint dup_every;      // deliver every Nth frame twice (0 = never)
     bool reorder_pairs;  // swap the delivery order of each frame pair
+    size_t drop_once_min_len; // drop the first frame at least this long, once
 } testnetif_faults_t;
 
 #define TESTNETIF_CAPTURE_FRAMES 8

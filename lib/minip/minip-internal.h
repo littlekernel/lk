@@ -156,6 +156,20 @@ void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip);
 // console command backend (tcp.cpp), registered by lk_console.c
 int cmd_tcp(int argc, const console_cmd_args *argv);
 
+/* Per socket counters and estimator state. Nothing in the stack acts on
+ * these; they are what the unit tests and the console read to see what
+ * the retransmit logic actually did.
+ */
+typedef struct tcp_socket_stats {
+    uint32_t retransmits;       // segments resent because the timer expired
+    uint32_t fast_retransmits;  // segments resent on duplicate acks alone
+    uint32_t dupacks;           // duplicate acks received
+    uint32_t rto;               // current retransmit timeout, milliseconds
+    uint32_t srtt;              // smoothed round trip time, milliseconds
+} tcp_socket_stats_t;
+
+void tcp_get_socket_stats(struct tcp_socket *s, tcp_socket_stats_t *out);
+
 // dhcp (dhcp.cpp)
 /* the handful of options minip acts on */
 typedef struct dhcp_options {

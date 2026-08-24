@@ -51,7 +51,14 @@ static int testnetif_tx(void *arg, pktbuf_t *p) {
     tn_capture[tn_capture_next % TESTNETIF_CAPTURE_FRAMES].len = p->dlen;
     tn_capture_next++;
 
-    const bool drop = tn_faults.drop_every && (tn_tx_count % tn_faults.drop_every) == 0;
+    bool drop = tn_faults.drop_every && (tn_tx_count % tn_faults.drop_every) == 0;
+
+    /* a one shot drop of the first frame over a given size, which is how a
+     * test singles out a data segment without parsing the frame */
+    if (tn_faults.drop_once_min_len && p->dlen >= tn_faults.drop_once_min_len) {
+        tn_faults.drop_once_min_len = 0;
+        drop = true;
+    }
     const bool dup = tn_faults.dup_every && (tn_tx_count % tn_faults.dup_every) == 0;
     const bool reorder = tn_faults.reorder_pairs;
 
