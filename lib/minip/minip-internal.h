@@ -157,7 +157,7 @@ void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip);
 int cmd_tcp(int argc, const console_cmd_args *argv);
 
 // dhcp (dhcp.cpp)
-/* the handful of options minip acts on, in network byte order */
+/* the handful of options minip acts on */
 typedef struct dhcp_options {
     int op;                 /* message type (option 53), -1 if absent */
     ipv4_addr_t netmask;    /* option 1 */

@@ -363,6 +363,10 @@ status_t dhcp::start(netif_t *netif) {
 /* Walk the option area of a DHCP message, picking out the handful of options
  * minip acts on. Kept out of the state machine (and out of the anonymous
  * namespace) so it can be fed canned blobs by the unit tests.
+ *
+ * Addresses are assembled with IPV4_PACK() rather than copied in as four
+ * raw bytes: an ipv4_addr_t holds the first octet in its low byte, which on
+ * a big endian target is not what the wire order lands as.
  */
 void dhcp_parse_options(const void *_options, size_t len, dhcp_options_t *out) {
     DEBUG_ASSERT(_options || len == 0);
@@ -401,16 +405,16 @@ void dhcp_parse_options(const void *_options, size_t len, dhcp_options_t *out) {
                 if (optlen == 1) out->op = opt[2];
                 break;
             case OPT_NET_MASK:
-                if (optlen == 4) memcpy(&out->netmask, opt + 2, 4);
+                if (optlen == 4) out->netmask = IPV4_PACK(opt + 2);
                 break;
             case OPT_ROUTERS:
-                if (optlen >= 4) memcpy(&out->gateway, opt + 2, 4);
+                if (optlen >= 4) out->gateway = IPV4_PACK(opt + 2);
                 break;
             case OPT_DNS:
-                if (optlen >= 4) memcpy(&out->dns, opt + 2, 4);
+                if (optlen >= 4) out->dns = IPV4_PACK(opt + 2);
                 break;
             case OPT_SERVER_ID:
-                if (optlen == 4) memcpy(&out->server, opt + 2, 4);
+                if (optlen == 4) out->server = IPV4_PACK(opt + 2);
                 break;
             case OPT_CLASSLESS_STATIC_ROUTE: {
                 // RFC3442: list of [prefix-width][dest bytes][router-ip].
@@ -428,7 +432,7 @@ void dhcp_parse_options(const void *_options, size_t len, dhcp_options_t *out) {
                     }
 
                     if ((prefix_width == 0) && (out->gateway == 0)) {
-                        memcpy(&out->gateway, p + dst_bytes, 4);
+                        out->gateway = IPV4_PACK(p + dst_bytes);
                     }
 
                     p += dst_bytes + 4;

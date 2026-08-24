@@ -407,8 +407,16 @@ event_t dns_event = EVENT_INITIAL_VALUE(dns_event, false, EVENT_FLAG_AUTOUNSIGNA
 
 /* --- the cache --- */
 
+/* The cache is pure .bss, so keep it small where memory is: a name too long
+ * for an entry is simply not cached, never truncated into one.
+ */
+#if LK_EMBEDDED
+constexpr size_t DNS_CACHE_SIZE = 2;
+constexpr size_t DNS_CACHE_NAME_MAX = 32;
+#else
 constexpr size_t DNS_CACHE_SIZE = 8;
-constexpr size_t DNS_CACHE_NAME_MAX = 64;   // longer names simply are not cached
+constexpr size_t DNS_CACHE_NAME_MAX = 64;
+#endif
 constexpr uint32_t DNS_MAX_TTL_SECS = 3600;
 
 struct dns_cache_entry {
