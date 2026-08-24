@@ -626,6 +626,9 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 tcp_timer_cancel(s, &s->retransmit_timer);
                 s->retransmit_count = 0;
                 s->state = STATE_ESTABLISHED;
+
+                /* wake any writer waiting out the handshake */
+                event_signal(&s->tx_event, true);
             } else {
                 goto send_reset;
             }
@@ -1630,6 +1633,14 @@ ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len) {
         event_wait(&s->tx_event);
 
         mutex_acquire(&s->lock);
+
+        /* an accepted socket is handed out while the handshake may still
+         * be completing; wait for it rather than failing the write */
+        if (s->state == STATE_SYN_RCVD) {
+            event_unsignal(&s->tx_event);
+            mutex_release(&s->lock);
+            continue;
+        }
 
         /* check to see if we've closed */
         if (s->state != STATE_ESTABLISHED && s->state != STATE_CLOSE_WAIT) {
