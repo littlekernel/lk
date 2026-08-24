@@ -13,6 +13,8 @@
 
 __BEGIN_CDECLS
 
+struct netif;
+
 /* Number of packet data buffers in the pool. Each is PKTBUF_SIZE bytes.
  * pktbuf headers are allocated from a separate, smaller pool.
  */
@@ -66,6 +68,7 @@ typedef struct pktbuf {
     u32 flags;
     int ref;                // reference count, adjusted atomically
     u32 seq;                // per-layer scratch (e.g. TCP sequence number)
+    struct netif *netif;    // receiving interface, set by the stack input queue
     pktbuf_free_callback cb;
     void *cb_args;
     u8 *buffer;

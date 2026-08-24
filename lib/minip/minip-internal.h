@@ -150,6 +150,11 @@ status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, 
 void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
 void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip);
 
+// stack worker (stack.cpp)
+void netstack_init(void);
+// process one received frame on the stack thread (minip.cpp)
+void minip_rx_process(netif_t *netif, pktbuf_t *p);
+
 // interface list
 void netif_init(void);
 void netif_dump(void);
@@ -172,7 +177,6 @@ bool net_timer_set(net_timer_t *, net_timer_callback_t, void *callback_args, lk_
 /* cancels a net timer. returns true if it was previously set and is not now */
 bool net_timer_cancel(net_timer_t *) __NONNULL();
 
-void net_timer_init(void);
 
 static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src) {
     memcpy(dest, src, 6);

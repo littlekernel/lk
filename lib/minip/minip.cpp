@@ -497,7 +497,10 @@ static void dump_eth_packet(const struct eth_hdr *eth) {
     printf(" type 0x%hx\n", htons(eth->type));
 }
 
-void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p) {
+/* main demux of a received frame, called on the stack worker thread.
+ * p is owned by the caller, which frees it afterwards.
+ */
+void minip_rx_process(netif_t *netif, pktbuf_t *p) {
     DEBUG_ASSERT(netif);
     DEBUG_ASSERT(p);
 
@@ -575,7 +578,7 @@ void print_ipv4_address_named(const char *s, ipv4_addr_t x) {
 // run static initialization
 static void minip_init(uint level) {
     arp_cache_init();
-    net_timer_init();
+    netstack_init();
     netif_init();
 }
 

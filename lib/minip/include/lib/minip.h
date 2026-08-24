@@ -42,7 +42,23 @@ void minip_start_dhcp(netif_t *);
 bool minip_is_configured(void);
 status_t minip_wait_for_configured(lk_time_t timeout);
 
-/* packet rx hook to hand to ethernet driver */
+/* Hand a received ethernet frame to the stack; ownership of the pktbuf
+ * transfers to the stack, which processes it on its own thread and frees
+ * it (returning driver owned buffers via their free callback). The driver
+ * must not touch p again after this call. IRQ safe and non blocking.
+ */
+void minip_rx_pktbuf(netif_t *netif, pktbuf_t *p);
+
+/* As minip_rx_pktbuf, but copies the frame into a pool pktbuf first, for
+ * drivers that cannot give their receive buffer away. Drops the frame and
+ * returns ERR_NO_MEMORY when the pool is exhausted.
+ */
+status_t minip_rx_driver_callback_copy(netif_t *netif, const void *frame, size_t len);
+
+/* Transitional: old borrow-semantics rx hook (the caller keeps ownership
+ * of p). Implemented as a copy; drivers should move to minip_rx_pktbuf or
+ * minip_rx_driver_callback_copy.
+ */
 void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p);
 
 /* global configuration state */
