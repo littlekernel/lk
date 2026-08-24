@@ -103,8 +103,8 @@ static void free_buffer(void *buf, bool reschedule) {
 /* Callback used internally to place a pool data buffer back in the pool after
  * the pktbuf wrapping it is freed.
  */
-static void free_pktbuf_buf_cb(void *buf, void *arg) {
-    free_buffer(buf, true);
+static void free_pktbuf_buf_cb(void *buf, void *arg, bool reschedule) {
+    free_buffer(buf, reschedule);
 }
 
 /* Add a buffer to a pktbuf. Header space for prepending data is adjusted based on
@@ -179,13 +179,8 @@ void pktbuf_reset(pktbuf_t *p, uint32_t header_sz) {
 int pktbuf_free(pktbuf_t *p, bool reschedule) {
     DEBUG_ASSERT(p);
 
-    /* TODO: pass reschedule through to the free callback; the internal buffer
-     * callback currently hardcodes it.
-     */
-    (void)reschedule;
-
     if (p->cb) {
-        p->cb(p->buffer, p->cb_args);
+        p->cb(p->buffer, p->cb_args, reschedule);
     }
     free_header(p);
 

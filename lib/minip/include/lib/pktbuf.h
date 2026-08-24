@@ -43,7 +43,7 @@ __BEGIN_CDECLS
 /* The remaining space in the buffer */
 #define PKTBUF_MAX_DATA (PKTBUF_SIZE - PKTBUF_MAX_HDR)
 
-typedef void (*pktbuf_free_callback)(void *buf, void *arg);
+typedef void (*pktbuf_free_callback)(void *buf, void *arg, bool reschedule);
 typedef struct pktbuf {
     u8 *data;
     u32 blen;

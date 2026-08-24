@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-static void my_free_cb(void *buf, void *arg) {
+static void my_free_cb(void *buf, void *arg, bool reschedule) {
     bool *called_ptr = (bool *)arg;
     if (called_ptr) {
         *called_ptr = true;
