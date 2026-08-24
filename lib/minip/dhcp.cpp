@@ -210,7 +210,6 @@ void dhcp::dhcp_cb(void *data, size_t sz, uint32_t srcip, uint16_t srcport, void
 
 void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport) {
     const dhcp_msg *msg = (dhcp_msg *)data;
-    const u8 *opt;
     u32 netmask = 0;
     u32 gateway = 0;
     u32 dns = 0;
@@ -252,80 +251,14 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
            msg->chaddr[3], msg->chaddr[4], msg->chaddr[5]);
     printf("\toptions: ");
 #endif
-    sz -= sizeof(dhcp_msg);
-    opt = msg->options;
-#if TRACE_DHCP
-    printf("\toptions: ");
-#endif
-    while (sz > 0) {
-        u8 code = opt[0];
+    dhcp_options_t options;
+    dhcp_parse_options(msg->options, sz - sizeof(dhcp_msg), &options);
+    op = options.op;
+    netmask = options.netmask;
+    gateway = options.gateway;
+    dns = options.dns;
+    server = options.server;
 
-        // Pad and end are single-byte options.
-        if (code == OPT_PAD) {
-            opt++;
-            sz--;
-            continue;
-        }
-        if (code == OPT_DONE) {
-            break;
-        }
-
-        if (sz < 2) {
-            break;
-        }
-        u8 optlen = opt[1];
-        if (sz < static_cast<size_t>(2 + optlen)) {
-            break;
-        }
-#if TRACE_DHCP
-        printf("#%d (%d), ", code, optlen);
-#endif
-        switch (code) {
-            case OPT_MSG_TYPE:
-                if (optlen == 1) op = opt[2];
-                break;
-            case OPT_NET_MASK:
-                if (optlen == 4) memcpy(&netmask, opt + 2, 4);
-                break;
-            case OPT_ROUTERS:
-                if (optlen >= 4) memcpy(&gateway, opt + 2, 4);
-                break;
-            case OPT_DNS:
-                if (optlen >= 4) memcpy(&dns, opt + 2, 4);
-                break;
-            case OPT_SERVER_ID:
-                if (optlen == 4) memcpy(&server, opt + 2, 4);
-                break;
-            case OPT_CLASSLESS_STATIC_ROUTE: {
-                // RFC3442: list of [prefix-width][dest bytes][router-ip].
-                // If present and option 3 is absent, use the default route (0/0).
-                const u8 *p = opt + 2;
-                size_t left = optlen;
-                while (left > 0) {
-                    u8 prefix_width = p[0];
-                    p++;
-                    left--;
-
-                    size_t dst_bytes = (prefix_width + 7) / 8;
-                    if (left < dst_bytes + 4) {
-                        break;
-                    }
-
-                    if ((prefix_width == 0) && (gateway == 0)) {
-                        memcpy(&gateway, p + dst_bytes, 4);
-                    }
-
-                    p += dst_bytes + 4;
-                    left -= dst_bytes + 4;
-                }
-                break;
-            }
-            default:
-                break;
-        }
-        opt += optlen + 2;
-        sz -= static_cast<size_t>(optlen + 2);
-    }
 #if TRACE_DHCP
     printf("\n\t");
     if (server) print_ipv4_address_named("server", server);
@@ -353,13 +286,18 @@ void dhcp::udp_callback(void *data, size_t sz, uint32_t srcip, uint16_t srcport)
 #endif
             printf("DHCP configured\n");
             uint8_t netwidth = 32;
-            if (netmask) {
+            if (netmask && ~netmask) {
+                // note: a /32 lease leaves ~netmask == 0, where __builtin_ctz
+                // is undefined; the initializer above already covers it.
                 netwidth = __builtin_ctz(~netmask);
                 //printf("netmask %#x netwidth %u\n", netmask, netwidth);
             }
             netif_set_ipv4_addr(netif_, msg->yiaddr, netwidth);
             if (gateway) {
                 minip_set_gateway(gateway);
+            }
+            if (dns) {
+                minip_set_dns_server(dns);
             }
             state_ = CONFIGURED;
             configured_ = true;
@@ -421,6 +359,90 @@ status_t dhcp::start(netif_t *netif) {
 }
 
 } // anonymous namespace
+
+/* Walk the option area of a DHCP message, picking out the handful of options
+ * minip acts on. Kept out of the state machine (and out of the anonymous
+ * namespace) so it can be fed canned blobs by the unit tests.
+ */
+void dhcp_parse_options(const void *_options, size_t len, dhcp_options_t *out) {
+    DEBUG_ASSERT(_options || len == 0);
+    DEBUG_ASSERT(out);
+
+    const u8 *opt = (const u8 *)_options;
+
+    memset(out, 0, sizeof(*out));
+    out->op = -1;
+
+    while (len > 0) {
+        u8 code = opt[0];
+
+        // Pad and end are single-byte options.
+        if (code == OPT_PAD) {
+            opt++;
+            len--;
+            continue;
+        }
+        if (code == OPT_DONE) {
+            break;
+        }
+
+        if (len < 2) {
+            break;
+        }
+        u8 optlen = opt[1];
+        if (len < static_cast<size_t>(2 + optlen)) {
+            break;
+        }
+#if TRACE_DHCP
+        printf("#%d (%d), ", code, optlen);
+#endif
+        switch (code) {
+            case OPT_MSG_TYPE:
+                if (optlen == 1) out->op = opt[2];
+                break;
+            case OPT_NET_MASK:
+                if (optlen == 4) memcpy(&out->netmask, opt + 2, 4);
+                break;
+            case OPT_ROUTERS:
+                if (optlen >= 4) memcpy(&out->gateway, opt + 2, 4);
+                break;
+            case OPT_DNS:
+                if (optlen >= 4) memcpy(&out->dns, opt + 2, 4);
+                break;
+            case OPT_SERVER_ID:
+                if (optlen == 4) memcpy(&out->server, opt + 2, 4);
+                break;
+            case OPT_CLASSLESS_STATIC_ROUTE: {
+                // RFC3442: list of [prefix-width][dest bytes][router-ip].
+                // If present and option 3 is absent, use the default route (0/0).
+                const u8 *p = opt + 2;
+                size_t left = optlen;
+                while (left > 0) {
+                    u8 prefix_width = p[0];
+                    p++;
+                    left--;
+
+                    size_t dst_bytes = (prefix_width + 7) / 8;
+                    if (left < dst_bytes + 4) {
+                        break;
+                    }
+
+                    if ((prefix_width == 0) && (out->gateway == 0)) {
+                        memcpy(&out->gateway, p + dst_bytes, 4);
+                    }
+
+                    p += dst_bytes + 4;
+                    left -= dst_bytes + 4;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+        opt += optlen + 2;
+        len -= static_cast<size_t>(optlen + 2);
+    }
+}
 
 void minip_start_dhcp(netif_t *netif) {
     DEBUG_ASSERT(netif);

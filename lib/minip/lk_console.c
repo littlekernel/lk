@@ -72,6 +72,7 @@ minip_usage:
             case 's':
                 printf("hostname: %s\n", minip_get_hostname());
                 printf("gateway: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_gateway()));
+                printf("dns server: %u.%u.%u.%u\n", IPV4_SPLIT(minip_get_dns_server()));
                 printf("interfaces:\n");
                 netif_dump();
                 printf("ipv4 routing table:\n");

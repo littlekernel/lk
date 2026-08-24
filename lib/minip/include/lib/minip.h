@@ -64,6 +64,8 @@ status_t minip_rx_driver_callback_copy(netif_t *netif, const void *frame, size_t
 /* global configuration state */
 uint32_t minip_get_gateway(void);
 void minip_set_gateway(const ipv4_addr_t addr);
+ipv4_addr_t minip_get_dns_server(void);
+void minip_set_dns_server(const ipv4_addr_t addr);
 void minip_set_hostname(const char *name);
 const char *minip_get_hostname(void);
 void minip_set_configured(void); // set by dhcp or static init to signal minip is ready to be used

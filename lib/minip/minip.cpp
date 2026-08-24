@@ -35,6 +35,7 @@
 bool minip_trace = (LOCAL_TRACE != 0);
 
 static ipv4_addr_t minip_gateway = IPV4_NONE;
+static ipv4_addr_t minip_dns_server = IPV4_NONE;
 
 static char minip_hostname[32] = "";
 
@@ -79,6 +80,14 @@ const char *minip_get_hostname(void) {
 
 uint32_t minip_get_gateway(void) {
     return minip_gateway;
+}
+
+ipv4_addr_t minip_get_dns_server(void) {
+    return minip_dns_server;
+}
+
+void minip_set_dns_server(const ipv4_addr_t addr) {
+    minip_dns_server = addr;
 }
 
 void minip_set_gateway(const ipv4_addr_t addr) {

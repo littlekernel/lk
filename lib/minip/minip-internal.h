@@ -156,6 +156,18 @@ void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip);
 // console command backend (tcp.cpp), registered by lk_console.c
 int cmd_tcp(int argc, const console_cmd_args *argv);
 
+// dhcp (dhcp.cpp)
+/* the handful of options minip acts on, in network byte order */
+typedef struct dhcp_options {
+    int op;                 /* message type (option 53), -1 if absent */
+    ipv4_addr_t netmask;    /* option 1 */
+    ipv4_addr_t gateway;    /* option 3, else the 0/0 route from option 121 */
+    ipv4_addr_t dns;        /* option 6, first server only */
+    ipv4_addr_t server;     /* option 54 */
+} dhcp_options_t;
+
+void dhcp_parse_options(const void *options, size_t len, dhcp_options_t *out);
+
 // stack worker (stack.cpp)
 void netstack_init(void);
 // process one received frame on the stack thread (minip.cpp); returns true
