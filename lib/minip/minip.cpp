@@ -309,6 +309,8 @@ status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
     // TODO: cache route at socket creation
     ipv4_route_t *route = ipv4_search_route(dest_addr);
     if (!route) {
+        /* like every other outcome, consume the caller's reference */
+        pktbuf_free(p, true);
         ret = -EHOSTUNREACH;
         goto err;
     }
