@@ -12,9 +12,11 @@
 #include <lk/debug.h>
 #include <lk/trace.h>
 #include <malloc.h>
+#include <stdlib.h>
 #include <printf.h>
 #include <string.h>
 
+#include <kernel/mutex.h>
 #include <kernel/semaphore.h>
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
@@ -34,10 +36,20 @@
  */
 #define PKTBUF_TOTAL_HEADERS (PKTBUF_POOL_SIZE + PKTBUF_EXTRA_HEADERS)
 
+/* How many packets to add per growth step. */
+#define PKTBUF_GROW_CHUNK 64
+
 static pool_t pktbuf_buf_pool;  // PKTBUF_SIZE sized data buffers
 static pool_t pktbuf_hdr_pool;  // pktbuf_t headers
 static semaphore_t pktbuf_sem;  // counts available data buffers
-static spin_lock_t lock;        // protects both pools
+static spin_lock_t lock;        // protects both pools and the counters
+
+/* accounting, protected by lock */
+static size_t bufs_total;       // data buffers ever created
+static size_t hdrs_total;
+static size_t bufs_free;
+static size_t hdrs_free;
+static size_t bufs_free_low = ~(size_t)0; // low water mark of bufs_free
 
 size_t pktbuf_recommended_eth_rx_depth(size_t requested_depth) {
     if (requested_depth == 0) {
@@ -66,6 +78,9 @@ size_t pktbuf_recommended_eth_rx_depth(size_t requested_depth) {
 static pktbuf_t *alloc_header(void) {
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
     void *h = pool_alloc(&pktbuf_hdr_pool);
+    if (h) {
+        hdrs_free--;
+    }
     spin_unlock_irqrestore(&lock, state);
 
     return (pktbuf_t *)h;
@@ -77,6 +92,7 @@ static void free_header(pktbuf_t *p) {
 
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
     pool_free(&pktbuf_hdr_pool, p);
+    hdrs_free++;
     spin_unlock_irqrestore(&lock, state);
 }
 
@@ -86,6 +102,12 @@ static void free_header(pktbuf_t *p) {
 static void *alloc_buffer(void) {
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
     void *b = pool_alloc(&pktbuf_buf_pool);
+    if (b) {
+        bufs_free--;
+        if (bufs_free < bufs_free_low) {
+            bufs_free_low = bufs_free;
+        }
+    }
     spin_unlock_irqrestore(&lock, state);
 
     return b;
@@ -97,6 +119,7 @@ static void free_buffer(void *buf, bool reschedule) {
 
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
     pool_free(&pktbuf_buf_pool, buf);
+    bufs_free++;
     spin_unlock_irqrestore(&lock, state);
     sem_post(&pktbuf_sem, reschedule);
 }
@@ -141,6 +164,72 @@ void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32
 #endif
 }
 
+#if !LK_EMBEDDED
+static mutex_t grow_lock = MUTEX_INITIAL_VALUE(grow_lock);
+
+/* Try to add a chunk of buffers + headers to the pool, up to
+ * PKTBUF_POOL_MAX packets total. Thread context only.
+ * Returns true if the pool grew.
+ */
+static bool pktbuf_grow(void) {
+    mutex_acquire(&grow_lock);
+
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
+    size_t count = MIN((size_t)PKTBUF_GROW_CHUNK, (size_t)PKTBUF_POOL_MAX - bufs_total);
+    spin_unlock_irqrestore(&lock, state);
+
+    bool grew = false;
+    if (count > 0) {
+        /* headers first: they come from the heap and are easy to give back */
+        void *hdr_chunk =
+            memalign(CACHE_LINE, pool_storage_size(sizeof(pktbuf_t), CACHE_LINE, count));
+        void *buf_chunk = NULL;
+        if (hdr_chunk) {
+            const size_t buf_chunk_size = pool_storage_size(PKTBUF_SIZE, CACHE_LINE, count);
+#if WITH_KERNEL_VM
+            if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf", buf_chunk_size, &buf_chunk,
+                                     0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
+                buf_chunk = NULL;
+            }
+#else
+            buf_chunk = memalign(CACHE_LINE, buf_chunk_size);
+#endif
+            if (!buf_chunk) {
+                free(hdr_chunk);
+                hdr_chunk = NULL;
+            }
+        }
+
+        if (hdr_chunk && buf_chunk) {
+            LTRACEF("growing pool by %zu packets\n", count);
+
+            state = spin_lock_irqsave(&lock);
+            uint8_t *h = (uint8_t *)hdr_chunk;
+            uint8_t *b = (uint8_t *)buf_chunk;
+            for (size_t i = 0; i < count; i++) {
+                pool_free(&pktbuf_hdr_pool, h);
+                h += pool_padded_object_size(sizeof(pktbuf_t), CACHE_LINE);
+                pool_free(&pktbuf_buf_pool, b);
+                b += pool_padded_object_size(PKTBUF_SIZE, CACHE_LINE);
+            }
+            bufs_total += count;
+            hdrs_total += count;
+            bufs_free += count;
+            hdrs_free += count;
+            spin_unlock_irqrestore(&lock, state);
+
+            for (size_t i = 0; i < count; i++) {
+                sem_post(&pktbuf_sem, false);
+            }
+            grew = true;
+        }
+    }
+
+    mutex_release(&grow_lock);
+    return grew;
+}
+#endif // !LK_EMBEDDED
+
 /* Common allocation path, called with a buffer semaphore slot held. */
 static pktbuf_t *pktbuf_alloc_common(void) {
     void *buf = alloc_buffer();
@@ -166,6 +255,20 @@ pktbuf_t *pktbuf_alloc(void) {
 }
 
 pktbuf_t *pktbuf_alloc_timeout(lk_time_t timeout) {
+#if !LK_EMBEDDED
+    /* if the pool is exhausted, try to grow it before sleeping. loop in
+     * case another thread takes the new buffers before we do; the loop
+     * terminates because growth fails once the pool hits PKTBUF_POOL_MAX.
+     */
+    for (;;) {
+        if (sem_trywait(&pktbuf_sem) >= 0) {
+            return pktbuf_alloc_common();
+        }
+        if (!pktbuf_grow()) {
+            break;
+        }
+    }
+#endif
     if (sem_timedwait(&pktbuf_sem, timeout) < 0) {
         return NULL;
     }
@@ -317,6 +420,9 @@ static void pktbuf_init(uint level) {
     pool_init(&pktbuf_buf_pool, PKTBUF_SIZE, CACHE_LINE, PKTBUF_POOL_SIZE, buf_slab);
     pool_init(&pktbuf_hdr_pool, sizeof(pktbuf_t), CACHE_LINE, PKTBUF_TOTAL_HEADERS, hdr_slab);
     sem_init(&pktbuf_sem, PKTBUF_POOL_SIZE);
+
+    bufs_total = bufs_free = bufs_free_low = PKTBUF_POOL_SIZE;
+    hdrs_total = hdrs_free = PKTBUF_TOTAL_HEADERS;
 }
 
 LK_INIT_HOOK(pktbuf, pktbuf_init, LK_INIT_LEVEL_THREADING);

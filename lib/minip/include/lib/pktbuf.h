@@ -38,6 +38,19 @@ __BEGIN_CDECLS
 #define PKTBUF_SIZE     1536
 #endif
 
+/* Ceiling for on-demand pool growth, in packets. The pool starts at
+ * PKTBUF_POOL_SIZE and grows in chunks as blocking allocations find it
+ * exhausted, up to this cap. Fixed at PKTBUF_POOL_SIZE on LK_EMBEDDED
+ * targets, where the growth path compiles out entirely.
+ */
+#ifndef PKTBUF_POOL_MAX
+#if LK_EMBEDDED
+#define PKTBUF_POOL_MAX PKTBUF_POOL_SIZE
+#else
+#define PKTBUF_POOL_MAX (4 * PKTBUF_POOL_SIZE)
+#endif
+#endif
+
 /* How much space pktbuf_alloc should save for IP headers in the front of the buffer */
 #define PKTBUF_MAX_HDR  64
 /* The remaining space in the buffer */
