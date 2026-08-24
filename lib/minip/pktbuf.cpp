@@ -61,10 +61,10 @@ size_t pktbuf_recommended_eth_rx_depth(size_t requested_depth) {
 static void *get_pool_object(void) {
     sem_wait(&pktbuf_sem);
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
-    pool_t *entry = pool_alloc(&pktbuf_pool);
+    void *entry = pool_alloc(&pktbuf_pool);
     spin_unlock_irqrestore(&lock, state);
 
-    return (pktbuf_pool_object_t *)entry;
+    return entry;
 }
 
 /* Return an object to thje pktbuf object pool. */
@@ -121,7 +121,7 @@ pktbuf_t *pktbuf_alloc(void) {
     pktbuf_t *p = NULL;
     void *buf = NULL;
 
-    p = get_pool_object();
+    p = (pktbuf_t *)get_pool_object();
     if (!p) {
         return NULL;
     }
@@ -133,7 +133,7 @@ pktbuf_t *pktbuf_alloc(void) {
     }
 
     memset(p, 0, sizeof(pktbuf_t));
-    pktbuf_add_buffer(p, buf, PKTBUF_SIZE, PKTBUF_MAX_HDR, 0, free_pktbuf_buf_cb, NULL);
+    pktbuf_add_buffer(p, (u8 *)buf, PKTBUF_SIZE, PKTBUF_MAX_HDR, 0, free_pktbuf_buf_cb, NULL);
     return p;
 }
 

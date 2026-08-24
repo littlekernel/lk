@@ -16,7 +16,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/minip.c \
 	$(LOCAL_DIR)/net_timer.c \
 	$(LOCAL_DIR)/netif.c \
-	$(LOCAL_DIR)/pktbuf.c \
+	$(LOCAL_DIR)/pktbuf.cpp \
 	$(LOCAL_DIR)/tcp.c \
 	$(LOCAL_DIR)/udp.c
 
