@@ -25,6 +25,10 @@
 #include <lib/minip/netif.h>
 #include <arch/atomic.h>
 
+#if WITH_KERNEL_VM
+#include <kernel/vm.h>
+#endif
+
 #define LOCAL_TRACE 0
 
 namespace {
@@ -114,28 +118,50 @@ constexpr uint32_t RING_TX = 1;
 
 constexpr size_t VIRTIO_NET_MSS = 1514;
 
+/* the wire header is the legacy 10 byte layout (no num_buffers; MRG_RXBUF
+ * is not negotiated) */
+constexpr size_t VIRTIO_NET_HDR_LEN = sizeof(virtio_net_hdr) - 2;
+
+/* per tx slot wire header, padded so one never straddles a page boundary
+ * (its physical address is computed per slot) */
+struct virtio_net_tx_hdr_slot {
+    virtio_net_hdr hdr;
+} __ALIGNED(16);
+
 struct virtio_net_dev {
     virtio_device *dev;
 
     spin_lock_t lock;
-    event_t rx_event;
 
     /* list of active tx/rx packets to be freed at irq time */
     pktbuf_t *pending_tx_packet[TX_RING_SIZE];
     pktbuf_t *pending_rx_packet[RX_RING_SIZE];
 
     uint tx_pending_count;
-    struct list_node completed_rx_queue;
+
+    /* rx ring slots we could not refill because the pktbuf pool was empty;
+     * retried on every irq */
+    uint rx_ring_deficit;
+
+    /* per slot tx headers, indexed by the head descriptor of each 2-chain */
+    virtio_net_tx_hdr_slot tx_hdr[TX_RING_SIZE];
 
     /* the minip ethernet structure */
     netif_t netif;
 };
 
 enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e);
-int virtio_net_rx_worker(void *arg);
-status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick = true);
+status_t virtio_net_queue_rx_locked(virtio_net_dev *ndev, pktbuf_t *p);
 void virtio_net_get_mac_addr(virtio_net_dev *ndev, uint8_t mac_addr[6]);
 status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p);
+
+paddr_t virtio_net_tx_hdr_phys(virtio_net_dev *ndev, uint16_t i) {
+#if WITH_KERNEL_VM
+    return vaddr_to_paddr(&ndev->tx_hdr[i].hdr);
+#else
+    return (paddr_t)(uintptr_t)&ndev->tx_hdr[i].hdr;
+#endif
+}
 
 void dump_feature_bits(uint64_t feature) {
     printf("virtio-net host features (%#" PRIx64 "):", feature);
@@ -188,17 +214,8 @@ status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     virtio_device *vdev = ndev->dev;
 
     uint16_t i;
-    pktbuf_t *p;
 
     DEBUG_ASSERT(ndev);
-
-    p = pktbuf_alloc();
-    if (!p)
-        return ERR_NO_MEMORY;
-
-    /* point our header to the base of the first pktbuf */
-    virtio_net_hdr *hdr = (virtio_net_hdr *)pktbuf_append(p, sizeof(virtio_net_hdr) - 2);
-    memset(hdr, 0, p->dlen);
 
     AutoSpinLock lock_guard(&ndev->lock);
 
@@ -212,7 +229,6 @@ status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     if (!desc) {
         lock_guard.release();
         TRACEF("out of virtio tx descriptors, tx_pending_count %u\n", ndev->tx_pending_count);
-        pktbuf_free(p, true);
 
         return ERR_NO_MEMORY;
     }
@@ -220,21 +236,25 @@ status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     ndev->tx_pending_count += 2;
 
     const bool modern = vdev->config_is_modern();
-    /* save a pointer to our pktbufs for the irq handler to free */
-    LTRACEF("saving pointer to pkt in index %u and %u\n", i, vring_desc_read_next(desc, modern));
-    DEBUG_ASSERT(ndev->pending_tx_packet[i] == NULL);
-    DEBUG_ASSERT(ndev->pending_tx_packet[vring_desc_read_next(desc, modern)] == NULL);
-    ndev->pending_tx_packet[i] = p;
-    ndev->pending_tx_packet[vring_desc_read_next(desc, modern)] = p2;
+    const uint16_t next = vring_desc_read_next(desc, modern);
 
+    /* the wire header lives in the per slot array, keyed by the head
+     * descriptor; only the data descriptor has a pktbuf to free later */
+    LTRACEF("using tx header slot %u, data pkt in index %u\n", i, next);
+    DEBUG_ASSERT(ndev->pending_tx_packet[i] == NULL);
+    DEBUG_ASSERT(ndev->pending_tx_packet[next] == NULL);
+    ndev->pending_tx_packet[next] = p2;
+
+    virtio_net_hdr *hdr = &ndev->tx_hdr[i].hdr;
+    memset(hdr, 0, VIRTIO_NET_HDR_LEN);
 
     /* set up the descriptor pointing to the header */
-    vring_desc_write_addr(desc, pktbuf_data_phys(p), modern);
-    vring_desc_write_len(desc, p->dlen, modern);
+    vring_desc_write_addr(desc, virtio_net_tx_hdr_phys(ndev, i), modern);
+    vring_desc_write_len(desc, VIRTIO_NET_HDR_LEN, modern);
     vring_desc_write_flags(desc, vring_desc_read_flags(desc, modern) | VRING_DESC_F_NEXT, modern);
 
     /* set up the descriptor pointing to the buffer */
-    desc = vdev->virtio_desc_index_to_desc(RING_TX, vring_desc_read_next(desc, modern));
+    desc = vdev->virtio_desc_index_to_desc(RING_TX, next);
     vring_desc_write_addr(desc, pktbuf_data_phys(p2), modern);
     vring_desc_write_len(desc, p2->dlen, modern);
     vring_desc_write_flags(desc, 0, modern);
@@ -271,21 +291,19 @@ status_t virtio_net_queue_tx(virtio_net_dev *ndev, const void *buf, size_t len) 
     return err;
 }
 
-status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick) {
+/* arm one rx descriptor with a pool pktbuf. called with ndev->lock held;
+ * the caller kicks the ring. */
+status_t virtio_net_queue_rx_locked(virtio_net_dev *ndev, pktbuf_t *p) {
     virtio_device *vdev = ndev->dev;
 
     DEBUG_ASSERT(ndev);
     DEBUG_ASSERT(p);
 
-    /* point our header to the base of the pktbuf */
+    /* the device writes the wire header followed by the frame from the
+     * base of the buffer */
     p->data = p->buffer;
-    p->flags = 0;
-    virtio_net_hdr *hdr = (virtio_net_hdr *)p->data;
-    memset(hdr, 0, sizeof(virtio_net_hdr) - 2);
-
-    p->dlen = sizeof(virtio_net_hdr) - 2 + VIRTIO_NET_MSS;
-
-    AutoSpinLock lock_guard(&ndev->lock);
+    p->flags = PKTBUF_FLAG_EOF;
+    p->dlen = VIRTIO_NET_HDR_LEN + VIRTIO_NET_MSS;
 
     /* allocate a chain of descriptors for our transfer */
     uint16_t i;
@@ -305,18 +323,35 @@ status_t virtio_net_queue_rx(virtio_net_dev *ndev, pktbuf_t *p, bool do_kick) {
     /* submit the transfer */
     vdev->virtio_submit_chain(RING_RX, i);
 
-    /* kick it off */
-    if (do_kick) {
-        vdev->bus()->virtio_kick(RING_RX);
+    return NO_ERROR;
+}
+
+/* make up any rx ring slots that could not be refilled earlier because the
+ * pktbuf pool was empty. called with ndev->lock held.
+ * returns true if any were armed (the caller should kick). */
+bool virtio_net_refill_rx_locked(virtio_net_dev *ndev) {
+    bool armed = false;
+
+    while (ndev->rx_ring_deficit > 0) {
+        pktbuf_t *p = pktbuf_alloc_rx();
+        if (!p) {
+            break;
+        }
+        virtio_net_queue_rx_locked(ndev, p);
+        ndev->rx_ring_deficit--;
+        armed = true;
     }
 
-    return NO_ERROR;
+    return armed;
 }
 
 enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring, const vring_used_elem *e) {
     virtio_net_dev *ndev = (virtio_net_dev *)dev->priv();
 
     LTRACEF("dev %p, ring %u, e %p, id %u, len %u\n", dev, ring, e, e->id, e->len);
+
+    /* completed rx frames, handed to the stack after the lock is dropped */
+    struct list_node done = LIST_INITIAL_VALUE(done);
 
     spin_lock(&ndev->lock);
 
@@ -337,7 +372,7 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
         dev->virtio_free_desc(ring, i);
 
         if (ring == RING_RX) {
-            /* put the freed rx buffer in a queue */
+            /* take the filled rx buffer; it belongs to the stack now */
             pktbuf_t *p = ndev->pending_rx_packet[i];
             ndev->pending_rx_packet[i] = NULL;
 
@@ -345,24 +380,28 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
             LTRACEF("rx pktbuf %p filled\n", p);
 
             /* trim the pktbuf according to the written length in the used element descriptor */
-            if (e->len > (sizeof(virtio_net_hdr) - 2 + VIRTIO_NET_MSS)) {
+            if (e->len > (VIRTIO_NET_HDR_LEN + VIRTIO_NET_MSS)) {
                 TRACEF("bad used len on RX %u\n", e->len);
                 p->dlen = 0;
             } else {
                 p->dlen = e->len;
             }
 
-            list_add_tail(&ndev->completed_rx_queue, &p->list);
+            list_add_tail(&done, &p->list);
+
+            /* re-arm the slot with a fresh pool pktbuf */
+            ndev->rx_ring_deficit++;
         } else { // ring == RING_TX
-            /* free the pktbuf associated with the tx packet we just consumed */
+            /* free the pktbuf associated with the tx packet we just consumed;
+             * the header descriptor of each chain has none */
             pktbuf_t *p = ndev->pending_tx_packet[i];
             ndev->pending_tx_packet[i] = NULL;
             ndev->tx_pending_count--;
 
-            DEBUG_ASSERT(p);
-            LTRACEF("freeing pktbuf %p\n", p);
-
-            pktbuf_free(p, false);
+            if (p) {
+                LTRACEF("freeing pktbuf %p\n", p);
+                pktbuf_free(p, false);
+            }
         }
 
         if (next < 0)
@@ -370,11 +409,29 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
         i = next;
     }
 
+    /* top the rx ring back up (also retries earlier pool failures) */
+    if (virtio_net_refill_rx_locked(ndev)) {
+        dev->bus()->virtio_kick(RING_RX);
+    }
+
     spin_unlock(&ndev->lock);
 
-    /* if rx ring, signal our event */
-    if (ring == 0) {
-        event_signal(&ndev->rx_event, false);
+    /* hand completed frames up; the stack owns them from here */
+    pktbuf_t *p;
+    while ((p = list_remove_head_type(&done, pktbuf_t, list)) != NULL) {
+        const auto *hdr = static_cast<const virtio_net_hdr *>(pktbuf_consume(p, VIRTIO_NET_HDR_LEN));
+        if (!hdr) {
+            /* runt or errored frame */
+            pktbuf_free(p, false);
+            continue;
+        }
+
+        /* signal checksum offload to the stack if the device validated it */
+        if (hdr->flags & VIRTIO_NET_HDR_F_DATA_VALID) {
+            p->flags |= PKTBUF_FLAG_CKSUM_TCP_GOOD | PKTBUF_FLAG_CKSUM_UDP_GOOD;
+        }
+
+        minip_rx_pktbuf(&ndev->netif, p);
     }
 
     return INT_RESCHEDULE;
@@ -382,46 +439,6 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
 
 enum handler_return virtio_net_config_change_callback(virtio_device *dev) {
     return INT_NO_RESCHEDULE;
-}
-
-int virtio_net_rx_worker(void *arg) {
-    virtio_net_dev *ndev = (virtio_net_dev *)arg;
-
-    for (;;) {
-        event_wait(&ndev->rx_event);
-
-        /* pull some packets from the received queue */
-        for (;;) {
-            pktbuf_t *p;
-            {
-                AutoSpinLock lock_guard(&ndev->lock);
-                p = list_remove_head_type(&ndev->completed_rx_queue, pktbuf_t, list);
-            }
-
-            if (!p)
-                break; /* nothing left in the queue, go back to waiting */
-
-            LTRACEF("got packet len %u\n", p->dlen);
-
-            if (likely(netif_is_configured(&ndev->netif))) {
-                /* process our packet */
-                const auto *hdr = static_cast<const virtio_net_hdr *>(pktbuf_consume(p, sizeof(virtio_net_hdr) - 2));
-                if (hdr) {
-                    /* signal checksum offload to the stack if the device validated it */
-                    if (hdr->flags & VIRTIO_NET_HDR_F_DATA_VALID) {
-                        p->flags |= PKTBUF_FLAG_CKSUM_TCP_GOOD | PKTBUF_FLAG_CKSUM_UDP_GOOD;
-                    }
-
-                    /* call up into the stack */
-                    minip_rx_driver_callback(&ndev->netif, p);
-                }
-            }
-
-            /* requeue the pktbuf in the rx queue */
-            virtio_net_queue_rx(ndev, p);
-        }
-    }
-    return 0;
 }
 
 status_t virtio_net_send_minip_pkt(void *arg, pktbuf_t *p) {
@@ -462,8 +479,6 @@ status_t virtio_net_init(virtio_device *dev) {
     dev->set_priv(ndev);
 
     ndev->lock = SPIN_LOCK_INITIAL_VALUE;
-    event_init(&ndev->rx_event, false, EVENT_FLAG_AUTOUNSIGNAL);
-    list_initialize(&ndev->completed_rx_queue);
 
     /* start from a known reset state */
     dev->bus()->virtio_reset_device();
@@ -515,20 +530,8 @@ status_t virtio_net_init(virtio_device *dev) {
     /* set DRIVER_OK */
     dev->bus()->virtio_status_driver_ok();
 
-    /* start the rx worker thread */
-    thread_resume(thread_create("virtio_net_rx", &virtio_net_rx_worker, static_cast<void *>(ndev), HIGH_PRIORITY, DEFAULT_STACK_SIZE));
-
-    /* queue up a bunch of rxes */
-    for (uint i = 0; i < RX_RING_SIZE - 1; i++) {
-        pktbuf_t *p = pktbuf_alloc();
-        if (p) {
-            virtio_net_queue_rx(ndev, p, false);
-        }
-    }
-    /* kick all at once */
-    ndev->dev->bus()->virtio_kick(RING_RX);
-
-    /* construct and register the minip netif interface */
+    /* construct the minip netif interface before arming the rx ring, so a
+     * frame that arrives immediately has somewhere to go */
     char str[32];
     static volatile int ndev_count = 0;
     snprintf(str, sizeof(str), "virtio-net-%d", atomic_add(&ndev_count, 1));
@@ -536,6 +539,23 @@ status_t virtio_net_init(virtio_device *dev) {
     uint8_t mac[6];
     virtio_net_get_mac_addr(ndev, mac);
     netif_set_eth(&ndev->netif, virtio_net_send_minip_pkt, ndev, mac);
+
+    /* queue up a bunch of rxes */
+    {
+        AutoSpinLock lock_guard(&ndev->lock);
+        for (uint i = 0; i < RX_RING_SIZE - 1; i++) {
+            pktbuf_t *p = pktbuf_alloc_rx();
+            if (p) {
+                virtio_net_queue_rx_locked(ndev, p);
+            } else {
+                ndev->rx_ring_deficit++;
+            }
+        }
+    }
+    /* kick all at once */
+    ndev->dev->bus()->virtio_kick(RING_RX);
+
+    /* register it, which brings the interface up */
     netif_register(&ndev->netif);
 
     return NO_ERROR;
