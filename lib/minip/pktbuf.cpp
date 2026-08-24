@@ -22,6 +22,7 @@
 #include <kernel/thread.h>
 #include <lib/pktbuf.h>
 #include <lib/pool.h>
+#include <lk/console_cmd.h>
 #include <lk/init.h>
 #include <lk/pow2.h>
 
@@ -385,6 +386,35 @@ void pktbuf_dump(pktbuf_t *p) {
            p->buffer, p->dlen, (uintptr_t)p->data - (uintptr_t)p->buffer, p->ref,
            (void *)p->phys_base);
 }
+
+void pktbuf_get_stats(pktbuf_stats_t *stats) {
+    DEBUG_ASSERT(stats);
+
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
+    stats->bufs_total = bufs_total;
+    stats->bufs_free = bufs_free;
+    stats->bufs_free_low = bufs_free_low;
+    stats->bufs_max = PKTBUF_POOL_MAX;
+    stats->hdrs_total = hdrs_total;
+    stats->hdrs_free = hdrs_free;
+    spin_unlock_irqrestore(&lock, state);
+}
+
+static int cmd_pktbuf(int argc, const console_cmd_args *argv) {
+    pktbuf_stats_t stats;
+    pktbuf_get_stats(&stats);
+
+    printf("pktbuf pool: %zu/%zu buffers free (low water %zu, growth ceiling %zu), "
+           "%zu/%zu headers free\n",
+           stats.bufs_free, stats.bufs_total, stats.bufs_free_low, stats.bufs_max,
+           stats.hdrs_free, stats.hdrs_total);
+
+    return 0;
+}
+
+STATIC_COMMAND_START
+STATIC_COMMAND("pktbuf", "pktbuf pool statistics", &cmd_pktbuf)
+STATIC_COMMAND_END(pktbuf);
 
 static void pktbuf_init(uint level) {
     const size_t buf_storage_size = pool_storage_size(PKTBUF_SIZE, CACHE_LINE, PKTBUF_POOL_SIZE);

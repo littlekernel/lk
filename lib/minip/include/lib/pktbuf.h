@@ -149,6 +149,18 @@ void pktbuf_reset(pktbuf_t *p, uint32_t header_sz);
 
 void pktbuf_dump(pktbuf_t *p);
 
+// pool statistics snapshot
+typedef struct pktbuf_stats {
+    size_t bufs_total;    // data buffers created so far
+    size_t bufs_free;     // currently in the pool
+    size_t bufs_free_low; // low water mark of bufs_free
+    size_t bufs_max;      // growth ceiling (PKTBUF_POOL_MAX)
+    size_t hdrs_total;
+    size_t hdrs_free;
+} pktbuf_stats_t;
+
+void pktbuf_get_stats(pktbuf_stats_t *stats);
+
 // Return a safe ethernet RX preallocation depth based on pool capacity,
 // leaving PKTBUF_ETH_RX_POOL_RESERVE data buffers for other traffic.
 // The returned value is clamped to requested_depth.
