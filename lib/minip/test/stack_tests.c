@@ -129,10 +129,67 @@ static bool route_lookup_and_ref(void) {
     END_TEST;
 }
 
+static bool ipaddr_parse(void) {
+    BEGIN_TEST;
+
+    static const struct {
+        const char *str;
+        ipv4_addr_t addr;
+    } good[] = {
+        { "0.0.0.0", IPV4(0, 0, 0, 0) },
+        { "127.0.0.1", IPV4(127, 0, 0, 1) },
+        { "10.0.2.15", IPV4(10, 0, 2, 15) },
+        { "255.255.255.255", IPV4(255, 255, 255, 255) },
+        { "1.2.3.255", IPV4(1, 2, 3, 255) },
+        { "192.168.000.001", IPV4(192, 168, 0, 1) },
+    };
+
+    for (size_t i = 0; i < countof(good); i++) {
+        ipv4_addr_t addr = IPV4_BCAST;
+        EXPECT_EQ(NO_ERROR, minip_parse_ipaddr_checked(good[i].str, strlen(good[i].str), &addr),
+                  good[i].str);
+        EXPECT_EQ(good[i].addr, addr, good[i].str);
+        EXPECT_EQ(good[i].addr, minip_parse_ipaddr(good[i].str, strlen(good[i].str)), good[i].str);
+    }
+
+    static const char *bad[] = {
+        "",
+        ".",
+        "1.2.3",
+        "1.2.3.4.5",         /* used to write past the end of the octet array */
+        "1.2.3.4.5.6.7.8.9",
+        "1..2.3",
+        "1.2.3.",
+        "256.1.1.1",
+        "1.2.3.256",
+        "0000.1.1.1",
+        "1.2.3.4x",
+        "irc.sortix.org",
+        "localhost",
+        "-1.2.3.4",
+        " 1.2.3.4",
+    };
+
+    for (size_t i = 0; i < countof(bad); i++) {
+        ipv4_addr_t addr = IPV4_BCAST;
+        EXPECT_LT(minip_parse_ipaddr_checked(bad[i], strlen(bad[i]), &addr), 0, bad[i]);
+        EXPECT_EQ(IPV4_BCAST, addr, "failed parse should not touch the output");
+        EXPECT_EQ((ipv4_addr_t)IPV4_NONE, minip_parse_ipaddr(bad[i], strlen(bad[i])), bad[i]);
+    }
+
+    /* the length argument bounds the parse */
+    ipv4_addr_t addr = IPV4_BCAST;
+    EXPECT_EQ(NO_ERROR, minip_parse_ipaddr_checked("10.0.0.1 and trailing junk", 8, &addr), "");
+    EXPECT_EQ(IPV4(10, 0, 0, 1), addr, "");
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(netstack_tests)
 RUN_TEST(timer_fires)
 RUN_TEST(timer_cancel)
 RUN_TEST(timer_rearm)
 RUN_TEST(timer_ordering)
 RUN_TEST(route_lookup_and_ref)
+RUN_TEST(ipaddr_parse)
 END_TEST_CASE(netstack_tests)

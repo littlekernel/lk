@@ -18,9 +18,14 @@
 
 __BEGIN_CDECLS
 
-#define IPV4(a,b,c,d) (((a)&0xFF)|(((b)&0xFF)<<8)|(((c)&0xFF)<<16)|(((d)&0xFF)<<24))
+/* note: the octets are cast to uint32_t before shifting; shifting a value of
+ * 128 or more left by 24 as an int is undefined behavior.
+ */
+#define IPV4(a,b,c,d) (((uint32_t)(a)&0xFF)|(((uint32_t)(b)&0xFF)<<8)| \
+                       (((uint32_t)(c)&0xFF)<<16)|(((uint32_t)(d)&0xFF)<<24))
 #define IPV4_SPLIT(a) (a & 0xFF), ((a >> 8) & 0xFF), ((a >> 16) & 0xFF), ((a >> 24) & 0xFF)
-#define IPV4_PACK(a) (a[3] << 24 | a[2] << 16 | a[1] << 8 | a[0])
+#define IPV4_PACK(a) (((uint32_t)(a)[3] << 24) | ((uint32_t)(a)[2] << 16) | \
+                      ((uint32_t)(a)[1] << 8) | (uint32_t)(a)[0])
 #define IPV4_BCAST (0xFFFFFFFF)
 #define IPV4_NONE (0)
 
@@ -89,6 +94,13 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
 
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
+
+/* parse a dotted quad. rejects anything that is not exactly four decimal
+ * octets, so it doubles as the "is this a literal address?" test.
+ */
+status_t minip_parse_ipaddr_checked(const char *addr, size_t len, ipv4_addr_t *out);
+
+/* as above, but returns IPV4_NONE if the string does not parse */
 ipv4_addr_t minip_parse_ipaddr(const char *addr, size_t len);
 void print_mac_address(const uint8_t *mac);
 void print_ipv4_address(ipv4_addr_t x);

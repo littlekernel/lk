@@ -553,24 +553,62 @@ bool minip_rx_process(netif_t *netif, pktbuf_t *p) {
 }
 
 // utility routines
-uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len) {
-    uint8_t ip[4] = { 0, 0, 0, 0 };
-    size_t pos = 0, i = 0;
 
-    while (pos < len) {
-        char c = ipaddr_str[pos];
-        if (c == '.') {
-            i++;
-        } else if (c == '\0') {
-            break;
-        } else {
-            ip[i] *= 10;
-            ip[i] += c - '0';
-        }
-        pos++;
+/* Parse a dotted quad. Anything that is not exactly four decimal octets is
+ * rejected, which is what lets callers use this to tell a literal address
+ * from a host name.
+ */
+status_t minip_parse_ipaddr_checked(const char *ipaddr_str, size_t len, ipv4_addr_t *out) {
+    if (!ipaddr_str || !out) {
+        return ERR_INVALID_ARGS;
     }
 
-    return IPV4_PACK(ip);
+    uint8_t ip[4] = { 0, 0, 0, 0 };
+    size_t octet = 0;
+    uint digits = 0;
+    uint val = 0;
+
+    for (size_t pos = 0; pos < len; pos++) {
+        char c = ipaddr_str[pos];
+
+        if (c == '\0') {
+            break;
+        } else if (c == '.') {
+            if (digits == 0 || octet >= 3) {
+                return ERR_NOT_VALID;
+            }
+            ip[octet++] = (uint8_t)val;
+            val = 0;
+            digits = 0;
+        } else if (c >= '0' && c <= '9') {
+            if (++digits > 3) {
+                return ERR_NOT_VALID;
+            }
+            val = val * 10 + (uint)(c - '0');
+            if (val > 255) {
+                return ERR_NOT_VALID;
+            }
+        } else {
+            return ERR_NOT_VALID;
+        }
+    }
+
+    if (digits == 0 || octet != 3) {
+        return ERR_NOT_VALID;
+    }
+    ip[3] = (uint8_t)val;
+
+    *out = IPV4_PACK(ip);
+    return NO_ERROR;
+}
+
+uint32_t minip_parse_ipaddr(const char *ipaddr_str, size_t len) {
+    ipv4_addr_t addr;
+
+    if (minip_parse_ipaddr_checked(ipaddr_str, len, &addr) != NO_ERROR) {
+        return IPV4_NONE;
+    }
+    return addr;
 }
 
 void print_mac_address(const uint8_t *mac) {

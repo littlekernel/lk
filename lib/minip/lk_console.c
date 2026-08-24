@@ -33,7 +33,12 @@ static int cmd_arp(int argc, const console_cmd_args *argv) {
         arp_cache_dump();
     } else if (argc == 3 && strncmp(cmd, "query", sizeof("query")) == 0) {
         const char *addr_s = argv[2].str;
-        uint32_t addr = minip_parse_ipaddr(addr_s, strlen(addr_s));
+        ipv4_addr_t addr;
+
+        if (minip_parse_ipaddr_checked(addr_s, strlen(addr_s), &addr) < 0) {
+            printf("bad ipv4 address '%s'\n", addr_s);
+            return -1;
+        }
 
         arp_get_dest_mac(addr);
     } else {
