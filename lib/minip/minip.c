@@ -414,7 +414,7 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
     }
 
     /* compute checksum */
-    if (ones_sum16(0, (void *)ip, header_len) == 0) {
+    if (ones_sum16(0, (void *)ip, header_len) != 0xffff) {
         /* bad checksum */
         LTRACEF("REJECT: bad checksum\n");
         return;
