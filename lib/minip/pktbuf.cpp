@@ -141,8 +141,8 @@ void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz, uint32
 #endif
 }
 
-pktbuf_t *pktbuf_alloc(void) {
-    sem_wait(&pktbuf_sem);
+/* Common allocation path, called with a buffer semaphore slot held. */
+static pktbuf_t *pktbuf_alloc_common(void) {
     void *buf = alloc_buffer();
     DEBUG_ASSERT(buf); // the semaphore guarantees a buffer is available
 
@@ -155,6 +155,28 @@ pktbuf_t *pktbuf_alloc(void) {
     memset(p, 0, sizeof(pktbuf_t));
     p->ref = 1;
     pktbuf_add_buffer(p, (u8 *)buf, PKTBUF_SIZE, PKTBUF_MAX_HDR, 0, free_pktbuf_buf_cb, NULL);
+    return p;
+}
+
+pktbuf_t *pktbuf_alloc(void) {
+    if (sem_trywait(&pktbuf_sem) < 0) {
+        return NULL;
+    }
+    return pktbuf_alloc_common();
+}
+
+pktbuf_t *pktbuf_alloc_timeout(lk_time_t timeout) {
+    if (sem_timedwait(&pktbuf_sem, timeout) < 0) {
+        return NULL;
+    }
+    return pktbuf_alloc_common();
+}
+
+pktbuf_t *pktbuf_alloc_rx(void) {
+    pktbuf_t *p = pktbuf_alloc();
+    if (p) {
+        pktbuf_reset(p, 0);
+    }
     return p;
 }
 

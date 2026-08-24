@@ -79,8 +79,22 @@ static inline u32 pktbuf_avail_tail(pktbuf_t *p) {
     return p->blen - (p->data - p->buffer) - p->dlen;
 }
 
-// allocate packet buffer from buffer pool
+// allocate a packet buffer from the pool, with PKTBUF_MAX_HDR bytes of
+// headroom reserved for prepending headers.
+// non-blocking and callable from interrupt context; returns NULL if the
+// pool is exhausted.
 pktbuf_t *pktbuf_alloc(void);
+
+// as pktbuf_alloc, but block up to timeout for a buffer to become
+// available. thread context only.
+pktbuf_t *pktbuf_alloc_timeout(lk_time_t timeout);
+
+// as pktbuf_alloc, but set up for driver RX DMA: data starts at the
+// beginning of the buffer with no headroom reserved.
+pktbuf_t *pktbuf_alloc_rx(void);
+
+// allocate a bare pktbuf header with no data buffer, for wrapping an
+// externally owned buffer via pktbuf_add_buffer().
 pktbuf_t *pktbuf_alloc_empty(void);
 
 /* Add a buffer to an existing packet buffer */
