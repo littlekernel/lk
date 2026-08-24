@@ -16,7 +16,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <lk/console_cmd.h>
-#include <lib/cbuf.h>
+#include <kernel/event.h>
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>
 #include <arch/ops.h>
@@ -99,8 +99,9 @@ typedef struct tcp_socket {
     uint32_t tx_win_low;  // low side of the acked window
     uint32_t tx_win_high; // tx_win_low + their advertised window size
     uint32_t tx_highest_seq; // highest sequence we have txed them
-    uint8_t  *tx_buffer_raw; // our outgoing buffer backing memory
-    cbuf_t   tx_buffer;   // our outgoing circular buffer
+    struct list_node tx_queue; // unacked/unsent payload pktbufs; p->seq (immutable) = first byte
+    uint32_t tx_buf_top;  // one past the last queued sequence (valid while tx_queue is non-empty)
+    uint32_t tx_pktbuf_count;
     event_t  tx_event;
     net_timer_t retransmit_timer;
     int      retransmit_count; // consecutive unacked (re)transmits of the SYN
@@ -128,6 +129,12 @@ typedef struct tcp_socket {
 #define TCP_RX_OOO_CAP        MAX(2, MIN(8, PKTBUF_POOL_SIZE / 32))
 #define TCP_RX_COALESCE_SIZE  (128)
 
+/* Sent data stays queued in pktbufs too (each holding one segment's payload
+ * behind PKTBUF_MAX_HDR of headroom), bounded both by bytes and by a pktbuf
+ * count scaled off the pool size.
+ */
+#define TCP_TX_MAX_PKTBUFS    MAX(2, MIN(8, PKTBUF_POOL_SIZE / 32))
+
 #define RETRANSMIT_TIMEOUT (250)
 #define SYN_RETRANSMIT_TIMEOUT (1000)
 #define SYN_RETRANSMIT_RETRIES (5)
@@ -150,7 +157,7 @@ static bool tcp_debug = false;
 static tcp_socket_t *lookup_socket(ipv4_addr_t remote_ip, ipv4_addr_t local_ip, uint16_t remote_port, uint16_t local_port);
 static void add_socket_to_list(tcp_socket_t *s);
 static void remove_socket_from_list(tcp_socket_t *s);
-static tcp_socket_t *create_tcp_socket(bool alloc_buffers);
+static tcp_socket_t *create_tcp_socket(void);
 static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port,
                          const iovec_t *iov, size_t iov_cnt,
                          tcp_flags_t flags, const void *options, size_t options_length,
@@ -161,6 +168,10 @@ static bool handle_data(tcp_socket_t *s, pktbuf_t *p, uint32_t sequence);
 static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
 static ssize_t tcp_write_pending_data(tcp_socket_t *s);
+static uint16_t tcp_advertised_window(tcp_socket_t *s);
+static status_t tcp_send_data_pktbuf(tcp_socket_t *s, pktbuf_t *p, uint32_t sequence);
+static status_t tcp_send_queued_segment(tcp_socket_t *s, pktbuf_t *q, uint32_t plen);
+static status_t tcp_send_segment_copy(tcp_socket_t *s, pktbuf_t *q, uint32_t start, uint32_t len);
 static void handle_retransmit_timeout(void *_s);
 static void tcp_send_syn(tcp_socket_t *s, bool with_ack);
 static void handle_time_wait_timeout(void *_s);
@@ -169,6 +180,34 @@ static void tcp_remote_close(tcp_socket_t *s);
 static void tcp_wakeup_waiters(tcp_socket_t *s);
 static void inc_socket_ref(tcp_socket_t *s);
 static bool dec_socket_ref(tcp_socket_t *s);
+
+/* Payload length of a queued tx pktbuf, derived from its neighbors: a
+ * segment runs from its own (immutable) seq to the next segment's, the tail
+ * to tx_buf_top. data/dlen of queued pktbufs carry no state between
+ * transmits.
+ */
+static uint32_t tx_seg_len(tcp_socket_t *s, pktbuf_t *q) {
+    pktbuf_t *next = list_next_type(&s->tx_queue, &q->list, pktbuf_t, list);
+    return (next ? next->seq : s->tx_buf_top) - q->seq;
+}
+
+static uint32_t tx_buffered_bytes(tcp_socket_t *s) {
+    return list_is_empty(&s->tx_queue) ? 0 : s->tx_buf_top - s->tx_win_low;
+}
+
+static uint32_t tx_seg_cap(tcp_socket_t *s) {
+    return MIN(s->mss, (uint32_t)PKTBUF_MAX_DATA);
+}
+
+static bool tx_queue_has_room(tcp_socket_t *s) {
+    if (tx_buffered_bytes(s) >= DEFAULT_TX_BUFFER_SIZE)
+        return false;
+    if (s->tx_pktbuf_count < (uint32_t)TCP_TX_MAX_PKTBUFS)
+        return true;
+    /* every pktbuf slot is used, but the tail segment may still take bytes */
+    pktbuf_t *tail = list_peek_tail_type(&s->tx_queue, pktbuf_t, list);
+    return tail != NULL && tx_seg_len(s, tail) < tx_seg_cap(s);
+}
 
 __NO_INLINE static void dump_tcp_header(const tcp_header_t *header) {
     printf("TCP: src_port %u, dest_port %u, seq %u, ack %u, win %u, flags %c%c%c%c%c%c\n",
@@ -218,10 +257,10 @@ static void dump_socket(tcp_socket_t *s) {
         printf("\trx: wsize %u wlo %u whi %u (%u) contig %u ooo %u\n",
                s->rx_win_size, s->rx_win_low, s->rx_win_high,
                s->rx_win_high - s->rx_win_low, s->rx_contig_bytes, s->rx_ooo_count);
-        printf("\ttx: wlo %u whi %u (%u) highest_seq %u (%u) bufsize %zu space_used %u\n",
+        printf("\ttx: wlo %u whi %u (%u) highest_seq %u (%u) buffered %u pktbufs %u\n",
                s->tx_win_low, s->tx_win_high, s->tx_win_high - s->tx_win_low,
                s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
-               cbuf_size(&s->tx_buffer), (uint32_t)cbuf_space_used(&s->tx_buffer));
+               tx_buffered_bytes(s), s->tx_pktbuf_count);
     }
 }
 
@@ -322,8 +361,9 @@ static bool dec_socket_ref(tcp_socket_t *s) {
         while ((q = list_remove_head_type(&s->rx_queue, pktbuf_t, list)) != NULL) {
             pktbuf_free(q, true);
         }
-
-        free(s->tx_buffer_raw);
+        while ((q = list_remove_head_type(&s->tx_queue, pktbuf_t, list)) != NULL) {
+            pktbuf_free(q, true);
+        }
 
         free(s);
     }
@@ -446,7 +486,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 goto done;
 
             /* make a new accept socket */
-            tcp_socket_t *accept_socket = create_tcp_socket(true);
+            tcp_socket_t *accept_socket = create_tcp_socket();
             if (!accept_socket)
                 goto done;
 
@@ -820,21 +860,7 @@ static status_t tcp_socket_send(tcp_socket_t *s, const iovec_t *iov, size_t iov_
     DEBUG_ASSERT(options_length == 0 || options);
     DEBUG_ASSERT((options_length % 4) == 0);
 
-    // calculate the new right edge of the rx window
-    uint32_t rx_win_high = s->rx_win_low + s->rx_win_size - s->rx_contig_bytes - 1;
-
-    LTRACEF("rx_win_low %u rx_win_size %u unread %u, new win high %u\n",
-            s->rx_win_low, s->rx_win_size, s->rx_contig_bytes, rx_win_high);
-
-    uint16_t win_size;
-    if (SEQUENCE_GTE(rx_win_high, s->rx_win_high)) {
-        s->rx_win_high = rx_win_high;
-        win_size = rx_win_high - s->rx_win_low;
-    } else {
-        // the window size has shrunk, but we can't move the
-        // right edge of the window backwards
-        win_size = s->rx_win_high - s->rx_win_low;
-    }
+    uint16_t win_size = tcp_advertised_window(s);
 
     // we are piggybacking a pending ACK, so clear the delayed ACK timer
     if (flags & PKT_ACK) {
@@ -938,91 +964,207 @@ static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t sr
     return err;
 }
 
+/* Calculate the window size to advertise from the unread in-order byte
+ * count, never moving the right edge of the window backwards.
+ */
+static uint16_t tcp_advertised_window(tcp_socket_t *s) {
+    DEBUG_ASSERT(is_mutex_held(&s->lock));
+
+    uint32_t rx_win_high = s->rx_win_low + s->rx_win_size - s->rx_contig_bytes - 1;
+
+    LTRACEF("rx_win_low %u rx_win_size %u unread %u, new win high %u\n",
+            s->rx_win_low, s->rx_win_size, s->rx_contig_bytes, rx_win_high);
+
+    if (SEQUENCE_GTE(rx_win_high, s->rx_win_high)) {
+        s->rx_win_high = rx_win_high;
+        return rx_win_high - s->rx_win_low;
+    } else {
+        // the window size has shrunk, but we can't move the
+        // right edge of the window backwards
+        return s->rx_win_high - s->rx_win_low;
+    }
+}
+
+/* Wrap the payload described by p->data/p->dlen in a data (ACK|PSH) header
+ * and hand it to the ip layer, which consumes one reference on p whatever
+ * the outcome.
+ */
+static status_t tcp_send_data_pktbuf(tcp_socket_t *s, pktbuf_t *p, uint32_t sequence) {
+    DEBUG_ASSERT(s);
+    DEBUG_ASSERT(is_mutex_held(&s->lock));
+
+    uint16_t win_size = tcp_advertised_window(s);
+
+    /* data segments carry an ack: clear any pending delayed ack */
+    tcp_timer_cancel(s, &s->ack_delay_timer);
+
+    tcp_header_t *header = (tcp_header_t *)pktbuf_prepend(p, sizeof(tcp_header_t));
+    DEBUG_ASSERT(header);
+
+    header->source_port = htons(s->local_port);
+    header->dest_port = htons(s->remote_port);
+    header->seq_num = htonl(sequence);
+    header->ack_num = htonl(s->rx_win_low);
+    header->length_flags = htons((sizeof(tcp_header_t) / 4) << 12 | (PKT_ACK | PKT_PSH));
+    header->win_size = htons(win_size);
+    header->checksum = 0;
+    header->urg_pointer = 0;
+
+    ipv4_pseudo_header_t pheader;
+    pheader.source_addr = s->local_ip;
+    pheader.dest_addr = s->remote_ip;
+    pheader.zero = 0;
+    pheader.protocol = IP_PROTO_TCP;
+    pheader.tcp_length = htons(p->dlen);
+    header->checksum = cksum_pheader(&pheader, p->data, p->dlen);
+
+    if (LOCAL_TRACE) {
+        printf("sending ");
+        dump_tcp_header(header);
+    }
+
+    return minip_ipv4_send(p, s->remote_ip, IP_PROTO_TCP);
+}
+
+/* Transmit the first plen bytes of a queued segment zero copy: point
+ * data/dlen at the payload (their values between transmits are
+ * meaningless), keep the queue's reference and give one to the tx path.
+ * Only valid while no other reference is outstanding.
+ */
+static status_t tcp_send_queued_segment(tcp_socket_t *s, pktbuf_t *q, uint32_t plen) {
+    DEBUG_ASSERT(q->ref == 1);
+    DEBUG_ASSERT(plen > 0 && plen <= tx_seg_len(s, q));
+
+    q->data = q->buffer + PKTBUF_MAX_HDR;
+    q->dlen = plen;
+    pktbuf_ref(q);
+    return tcp_send_data_pktbuf(s, q, q->seq);
+}
+
+/* Copy a byte range of a queued segment into a fresh pktbuf and send that
+ * instead: for ranges not starting at the segment head, for a window that
+ * doesn't cover the whole segment, and for segments whose buffer is still
+ * referenced by an earlier transmit still in flight.
+ */
+static status_t tcp_send_segment_copy(tcp_socket_t *s, pktbuf_t *q, uint32_t start, uint32_t len) {
+    DEBUG_ASSERT(SEQUENCE_GTE(start, q->seq));
+    DEBUG_ASSERT(len > 0);
+    DEBUG_ASSERT(SEQUENCE_LTE(start + len, q->seq + tx_seg_len(s, q)));
+
+    pktbuf_t *cp = pktbuf_alloc();
+    if (!cp)
+        return ERR_NO_MEMORY;
+
+    pktbuf_append_data(cp, q->buffer + PKTBUF_MAX_HDR + (start - q->seq), len);
+    return tcp_send_data_pktbuf(s, cp, start);
+}
+
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
     LTRACEF("socket %p ack sequence %u, win_size %u\n", s, sequence, win_size);
 
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %zu space_used %zu\n",
-            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, cbuf_size(&s->tx_buffer), cbuf_space_used(&s->tx_buffer));
+    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u buffered %u\n",
+            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, tx_buffered_bytes(s));
     if (SEQUENCE_LTE(sequence, s->tx_win_low)) {
         /* they're acking stuff we've already received an ack for */
         return;
     } else if (SEQUENCE_GT(sequence, s->tx_highest_seq)) {
         /* they're acking stuff we haven't sent */
         return;
+    }
+
+    /* their ack is somewhere in our window */
+    LTRACEF("acked len %u\n", sequence - s->tx_win_low);
+
+    s->tx_win_low = sequence;
+    s->tx_win_high = sequence + win_size;
+
+    /* free fully acked segments; a partially acked head stays whole (its
+     * seq is immutable) and a retransmit just resends the acked prefix
+     * too, which the peer discards */
+    pktbuf_t *q;
+    while ((q = list_peek_head_type(&s->tx_queue, pktbuf_t, list)) != NULL) {
+        if (SEQUENCE_GT(q->seq + tx_seg_len(s, q), sequence))
+            break;
+        list_delete(&q->list);
+        DEBUG_ASSERT(s->tx_pktbuf_count > 0);
+        s->tx_pktbuf_count--;
+        pktbuf_free(q, true);
+    }
+
+    /* cancel or reset our retransmit timer */
+    if (s->tx_win_low == s->tx_highest_seq) {
+        tcp_timer_cancel(s, &s->retransmit_timer);
     } else {
-        /* their ack is somewhere in our window */
-        uint32_t acked_len;
-
-        acked_len = (sequence - s->tx_win_low);
-
-        LTRACEF("acked len %u\n", acked_len);
-
-        DEBUG_ASSERT(acked_len <= cbuf_size(&s->tx_buffer));
-        DEBUG_ASSERT(acked_len <= cbuf_space_used(&s->tx_buffer));
-
-        size_t consumed = cbuf_read(&s->tx_buffer, NULL, acked_len, false);
-        DEBUG_ASSERT(consumed == acked_len);
-
-        s->tx_win_low += acked_len;
-        s->tx_win_high = s->tx_win_low + win_size;
-
-        /* cancel or reset our retransmit timer */
-        if (s->tx_win_low == s->tx_highest_seq) {
-            tcp_timer_cancel(s, &s->retransmit_timer);
-        } else {
-            tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
-        }
-
-        /* we have opened the transmit buffer */
-        event_signal(&s->tx_event, true);
-
-        /* send any pending data that can now fit in the window */
-        tcp_write_pending_data(s);
-    }
-}
-
-static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
-    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u bufsize %zu space_used %zu\n",
-            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, cbuf_size(&s->tx_buffer), cbuf_space_used(&s->tx_buffer));
-
-    DEBUG_ASSERT(s);
-    DEBUG_ASSERT(is_mutex_held(&s->lock));
-    DEBUG_ASSERT(cbuf_size(&s->tx_buffer) > 0);
-
-    /* do we have any new data to send? */
-    uint32_t outstanding = (s->tx_highest_seq - s->tx_win_low);
-    uint32_t pending = cbuf_space_used(&s->tx_buffer) - outstanding;
-    LTRACEF("outstanding %u, pending %u\n", outstanding, pending);
-
-    /* check the remote window limit */
-    int32_t allowed = (int32_t)(s->tx_win_high - s->tx_highest_seq);
-    if (allowed < 0) {
-        allowed = 0;
-    }
-    uint32_t to_send = MIN(pending, (uint32_t)allowed);
-
-    /* send packets that cover the pending area of the window */
-    uint32_t offset = 0;
-    while (offset < to_send) {
-        uint32_t tosend = MIN(s->mss, to_send - offset);
-
-        iovec_t iov[2];
-        cbuf_peek_at(&s->tx_buffer, outstanding + offset, tosend, iov);
-
-        tcp_socket_send(s, iov, 2, PKT_ACK|PKT_PSH, NULL, 0, s->tx_highest_seq);
-        s->tx_highest_seq += tosend;
-        offset += tosend;
-    }
-
-    /* reset the retransmit timer if we sent anything */
-    if (offset > 0) {
         tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
     }
 
-    return offset;
+    /* we have opened the transmit buffer */
+    event_signal(&s->tx_event, true);
+
+    /* send any pending data that can now fit in the window */
+    tcp_write_pending_data(s);
+}
+
+static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
+    LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u buffered %u\n",
+            s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, tx_buffered_bytes(s));
+
+    DEBUG_ASSERT(s);
+    DEBUG_ASSERT(is_mutex_held(&s->lock));
+
+    if (list_is_empty(&s->tx_queue))
+        return 0;
+
+    uint32_t next = s->tx_highest_seq;
+
+    /* find the segment holding the first unsent byte */
+    pktbuf_t *q = NULL;
+    pktbuf_t *e;
+    list_for_every_entry(&s->tx_queue, e, pktbuf_t, list) {
+        if (SEQUENCE_LT(next, e->seq + tx_seg_len(s, e))) {
+            q = e;
+            break;
+        }
+    }
+
+    while (q != NULL && SEQUENCE_LT(next, s->tx_buf_top)) {
+        int32_t allowed = (int32_t)(s->tx_win_high - next);
+        if (allowed <= 0)
+            break;
+
+        uint32_t plen = tx_seg_len(s, q);
+        DEBUG_ASSERT(plen > 0);
+
+        if (next == q->seq && plen <= (uint32_t)allowed && q->ref == 1) {
+            /* the whole segment fits the window: send the queued pktbuf */
+            if (tcp_send_queued_segment(s, q, plen) < 0)
+                break;
+            next += plen;
+        } else {
+            /* partial: window edge, resuming mid-segment, or the buffer is
+             * still referenced by a transmit in flight */
+            uint32_t seg = MIN(q->seq + plen - next, (uint32_t)allowed);
+            if (tcp_send_segment_copy(s, q, next, seg) < 0)
+                break;
+            next += seg;
+        }
+
+        if (SEQUENCE_GTE(next, q->seq + plen))
+            q = list_next_type(&s->tx_queue, &q->list, pktbuf_t, list);
+    }
+
+    ssize_t sent = next - s->tx_highest_seq;
+    s->tx_highest_seq = next;
+
+    /* reset the retransmit timer if we sent anything */
+    if (sent > 0) {
+        tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+    }
+
+    return sent;
 }
 
 static ssize_t tcp_retransmit(tcp_socket_t *s) {
@@ -1037,16 +1179,23 @@ static ssize_t tcp_retransmit(tcp_socket_t *s) {
     if (outstanding == 0)
         return 0;
 
-    uint32_t tosend = MIN(s->mss, outstanding);
+    pktbuf_t *q = list_peek_head_type(&s->tx_queue, pktbuf_t, list);
+    DEBUG_ASSERT(q);
+    if (!q)
+        return 0;
 
-    LTRACEF("s %p, tosend %u seq %u\n", s, tosend, s->tx_win_low);
+    /* resend the head segment, but only as far as it has been transmitted */
+    uint32_t seg = MIN(tx_seg_len(s, q), s->tx_highest_seq - q->seq);
 
-    iovec_t iov[2];
-    cbuf_peek_at(&s->tx_buffer, 0, tosend, iov);
+    LTRACEF("s %p, seg %u seq %u\n", s, seg, q->seq);
 
-    tcp_socket_send(s, iov, 2, PKT_ACK|PKT_PSH, NULL, 0, s->tx_win_low);
+    if (q->ref == 1) {
+        tcp_send_queued_segment(s, q, seg);
+    } else {
+        tcp_send_segment_copy(s, q, q->seq, seg);
+    }
 
-    return tosend;
+    return seg;
 }
 
 static void handle_retransmit_timeout(void *_s) {
@@ -1145,7 +1294,7 @@ static void tcp_remote_close(tcp_socket_t *s) {
     tcp_wakeup_waiters(s);
 }
 
-static tcp_socket_t *create_tcp_socket(bool alloc_buffers) {
+static tcp_socket_t *create_tcp_socket(void) {
     tcp_socket_t *s;
 
     s = (tcp_socket_t *)calloc(1, sizeof(tcp_socket_t));
@@ -1165,13 +1314,8 @@ static tcp_socket_t *create_tcp_socket(bool alloc_buffers) {
     s->tx_win_low = rand();
     s->tx_win_high = s->tx_win_low;
     s->tx_highest_seq = s->tx_win_low;
+    list_initialize(&s->tx_queue);
     event_init(&s->tx_event, true, 0);
-
-    if (alloc_buffers) {
-        // XXX check for error
-        s->tx_buffer_raw = (uint8_t *)malloc(DEFAULT_TX_BUFFER_SIZE);
-        cbuf_initialize_etc(&s->tx_buffer, DEFAULT_TX_BUFFER_SIZE, s->tx_buffer_raw);
-    }
 
     sem_init(&s->accept_sem, 0);
     event_init(&s->connect_event, false, 0);
@@ -1186,7 +1330,7 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
     if (!handle)
         return ERR_INVALID_ARGS;
 
-    s = create_tcp_socket(true);
+    s = create_tcp_socket();
     if (!s)
         return ERR_NO_MEMORY;
 
@@ -1249,7 +1393,7 @@ status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port) {
     if (!handle)
         return ERR_INVALID_ARGS;
 
-    s = create_tcp_socket(false);
+    s = create_tcp_socket();
     if (!s)
         return ERR_NO_MEMORY;
 
@@ -1380,52 +1524,97 @@ ssize_t tcp_write(tcp_socket_t *socket, const void *buf, size_t len) {
     tcp_socket_t *s = socket;
     inc_socket_ref(s);
 
+    ssize_t ret = (ssize_t)len;
+    pktbuf_t *spare = NULL;
     size_t off = 0;
     while (off < len) {
         LTRACEF("off %zu, len %zu\n", off, len);
 
-        /* wait for the tx buffer to open up */
+        /* wait for the tx queue to open up */
         event_wait(&s->tx_event);
-        LTRACEF("after event_wait\n");
 
         mutex_acquire(&s->lock);
 
         /* check to see if we've closed */
         if (s->state != STATE_ESTABLISHED && s->state != STATE_CLOSE_WAIT) {
             mutex_release(&s->lock);
-            dec_socket_ref(s);
-            return ERR_CHANNEL_CLOSED;
+            ret = ERR_CHANNEL_CLOSED;
+            break;
         }
 
-        DEBUG_ASSERT(cbuf_size(&s->tx_buffer) > 0);
+        uint32_t seg_cap = tx_seg_cap(s);
+        uint32_t buffered = tx_buffered_bytes(s);
+        size_t byte_room = (buffered < DEFAULT_TX_BUFFER_SIZE) ? DEFAULT_TX_BUFFER_SIZE - buffered : 0;
+        size_t copied = 0;
 
-        /* figure out how much data to copy in */
-        size_t avail = cbuf_space_avail(&s->tx_buffer);
-        if (avail == 0) {
+        /* top up the tail segment first; its pktbuf may be in flight, but
+         * bytes past the segment end are outside any transmitted frame */
+        pktbuf_t *tail = list_peek_tail_type(&s->tx_queue, pktbuf_t, list);
+        if (tail != NULL && byte_room > 0) {
+            uint32_t plen = tx_seg_len(s, tail);
+            if (plen < seg_cap) {
+                size_t tocopy = MIN(MIN((size_t)(seg_cap - plen), len - off), byte_room);
+                memcpy(tail->buffer + PKTBUF_MAX_HDR + plen, (const uint8_t *)buf + off, tocopy);
+                s->tx_buf_top += tocopy;
+                off += tocopy;
+                copied += tocopy;
+                byte_room -= tocopy;
+            }
+        }
+
+        /* start a new segment if there's still data and a pktbuf slot */
+        if (off < len && byte_room > 0 && s->tx_pktbuf_count < (uint32_t)TCP_TX_MAX_PKTBUFS) {
+            if (spare == NULL) {
+                /* get a buffer without holding the socket lock: the
+                 * blocking allocator is serviced by frees that may need it
+                 * (and the stack thread takes s->lock in tcp_input) */
+                mutex_release(&s->lock);
+                spare = pktbuf_alloc_timeout(INFINITE_TIME);
+                if (spare == NULL) {
+                    ret = ERR_NO_MEMORY;
+                    break;
+                }
+                /* revalidate everything */
+                continue;
+            }
+
+            size_t tocopy = MIN(MIN((size_t)seg_cap, len - off), byte_room);
+
+            pktbuf_reset(spare, PKTBUF_MAX_HDR);
+            memcpy(spare->buffer + PKTBUF_MAX_HDR, (const uint8_t *)buf + off, tocopy);
+
+            if (list_is_empty(&s->tx_queue)) {
+                DEBUG_ASSERT(s->tx_win_low == s->tx_highest_seq);
+                s->tx_buf_top = s->tx_win_low;
+            }
+            spare->seq = s->tx_buf_top;
+            list_add_tail(&s->tx_queue, &spare->list);
+            s->tx_pktbuf_count++;
+            s->tx_buf_top += tocopy;
+            spare = NULL;
+
+            off += tocopy;
+            copied += tocopy;
+        }
+
+        /* if the queue is full, sleep until acks drain it */
+        if (!tx_queue_has_room(s)) {
             event_unsignal(&s->tx_event);
-            mutex_release(&s->lock);
-            continue;
-        }
-        size_t to_copy = MIN(avail, len - off);
-
-        size_t written = cbuf_write(&s->tx_buffer, (const uint8_t *)buf + off, to_copy, false);
-        DEBUG_ASSERT(written == to_copy);
-
-        /* if this has completely filled it, unsignal the event */
-        if (cbuf_space_avail(&s->tx_buffer) == 0) {
-            event_unsignal(&s->tx_event);
         }
 
-        /* send as much data as we can */
-        tcp_write_pending_data(s);
-
-        off += to_copy;
+        if (copied > 0) {
+            /* send as much data as we can */
+            tcp_write_pending_data(s);
+        }
 
         mutex_release(&s->lock);
     }
 
+    if (spare != NULL) {
+        pktbuf_free(spare, true);
+    }
     dec_socket_ref(s);
-    return len;
+    return ret;
 }
 
 status_t tcp_close(tcp_socket_t *socket) {
