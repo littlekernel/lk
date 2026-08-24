@@ -296,7 +296,7 @@ status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, 
 
     minip_ipv4_build(netif, p, dest_addr, proto, dest_mac);
 
-    return netif->tx_func(netif->tx_func_arg, p);
+    return netif_tx(netif, p);
 }
 
 status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
@@ -392,7 +392,7 @@ static void send_ping_reply(netif_t *netif, uint32_t ipaddr, struct icmp_pkt *re
     icmp->chksum = 0;
     icmp->chksum = ~ones_sum16(0, (uint8_t *) icmp, len);
 
-    netif->tx_func(netif->tx_func_arg, p);
+    netif_tx(netif, p);
 }
 
 __NO_INLINE static void dump_ipv4_packet(const struct ipv4_hdr *ip) {

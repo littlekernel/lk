@@ -54,6 +54,7 @@ netif_t *netif_create(netif_t *n, const char *name) {
     memset(n, 0, sizeof(*n));
 
     n->magic = NETIF_MAGIC;
+    mutex_init(&n->tx_lock);
     strlcpy(n->name, name, sizeof(n->name));
 
     return n;
@@ -125,6 +126,17 @@ status_t netif_set_ipv4_addr(netif_t *n, ipv4_addr_t addr, uint8_t subnet_width)
     ipv4_add_route(netif_get_network_ipv4(n), netif_get_netmask_ipv4(n), n);
 
     return NO_ERROR;
+}
+
+status_t netif_tx(netif_t *n, pktbuf_t *p) {
+    DEBUG_ASSERT(n->magic == NETIF_MAGIC);
+    DEBUG_ASSERT(n->tx_func);
+
+    mutex_acquire(&n->tx_lock);
+    status_t err = n->tx_func(n->tx_func_arg, p);
+    mutex_release(&n->tx_lock);
+
+    return err;
 }
 
 void netif_dump(void) {

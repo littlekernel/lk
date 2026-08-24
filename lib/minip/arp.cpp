@@ -140,7 +140,7 @@ out:
     pktbuf_t *p;
     while ((p = list_remove_head_type(&ready, pktbuf_t, list)) != NULL) {
         DEBUG_ASSERT(netif);
-        netif->tx_func(netif->tx_func_arg, p);
+        netif_tx(netif, p);
     }
 }
 
@@ -209,7 +209,7 @@ int arp_send_request(netif_t *netif, ipv4_addr_t addr) {
     mac_addr_copy(arp->tha, bcast_mac);
 
     if (netif->tx_func) {
-        netif->tx_func(netif->tx_func_arg, p);
+        netif_tx(netif, p);
     } else {
         pktbuf_free(p, true);
     }
@@ -275,7 +275,7 @@ status_t arp_send_or_queue(netif_t *netif, ipv4_addr_t addr, pktbuf_t *p) {
         arp_patch_frame(p, arp->mac);
         mutex_release(&arp_mutex);
 
-        return netif->tx_func(netif->tx_func_arg, p);
+        return netif_tx(netif, p);
     }
 
     if (!arp) {
@@ -387,7 +387,7 @@ int handle_arp_pkt(netif_t *netif, pktbuf_t *p) {
                 mac_addr_copy(rarp->tha, arp->sha);
                 rarp->tpa = arp->spa;
 
-                netif->tx_func(netif->tx_func_arg, rp);
+                netif_tx(netif, rp);
             }
         }
         break;

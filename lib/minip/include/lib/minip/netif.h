@@ -9,6 +9,7 @@
 
 #include <lk/compiler.h>
 #include <lib/minip.h>
+#include <kernel/mutex.h>
 
 __BEGIN_CDECLS
 
@@ -33,6 +34,10 @@ struct netif {
     tx_func_t tx_func;
     void *tx_func_arg;
 
+    // serializes calls into tx_func; the stack worker and any number of
+    // user threads may transmit concurrently
+    mutex_t tx_lock;
+
     // name
     char name[32];
 };
@@ -49,6 +54,10 @@ typedef struct netif netif_t;
 netif_t *netif_create(netif_t *n, const char *name);
 
 status_t netif_set_eth(netif_t *n, tx_func_t tx_handler, void *tx_arg, const uint8_t *macaddr);
+
+// transmit a frame on the interface, serialized against other transmitters.
+// thread context only; ownership of p passes to the driver on every path.
+status_t netif_tx(netif_t *n, pktbuf_t *p);
 status_t netif_set_ipv4_addr(netif_t *n, ipv4_addr_t addr, uint8_t subnet_width);
 status_t netif_register(netif_t *n);
 
