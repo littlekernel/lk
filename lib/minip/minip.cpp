@@ -321,6 +321,12 @@ status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
         goto ready;
     }
 
+    // loopback needs no arp; address the frame to our own mac
+    if (netif_is_loopback(netif)) {
+        dest_mac = netif->mac_address;
+        goto ready;
+    }
+
     // is this a local subnet packet or do we need to send to the router?
     netmask = netif_get_netmask_ipv4(netif);
     if ((dest_addr & netmask) != (netif->ipv4_addr & netmask)) {
@@ -455,8 +461,13 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
         return;
     }
 
-    /* the packet is good, we can use it to populate our arp cache */
-    arp_cache_update(ip->src_addr, src_mac);
+    /* The packet is good, so use it to populate the arp cache -- except on
+     * loopback and for 127/8 sources, which are not ethernet neighbors
+     * (some NATs leak host-loopback-sourced frames onto the wire).
+     */
+    if (!netif_is_loopback(netif) && (ip->src_addr & 0xff) != 127) {
+        arp_cache_update(ip->src_addr, src_mac);
+    }
 
     /* see if it's for us */
     if (ip->dst_addr != IPV4_BCAST) {
