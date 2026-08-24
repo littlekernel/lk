@@ -412,13 +412,14 @@ __NO_INLINE static void dump_ipv4_packet(const struct ipv4_hdr *ip) {
            (ip->ver_ihl & 0xf) * 4, ip->proto, ntohs(ip->chksum), ntohs(ip->len), ntohs(ip->id), ntohs(ip->flags_frags) & 0x1fff);
 }
 
-__NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const uint8_t *src_mac) {
+/* returns true if ownership of p was taken by a protocol layer */
+__NO_INLINE static bool handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const uint8_t *src_mac) {
     struct ipv4_hdr *ip;
 
     ip = (struct ipv4_hdr *)p->data;
     if (p->dlen < sizeof(struct ipv4_hdr)) {
         LTRACEF("REJECT: packet too short to hold header\n");
-        return;
+        return false;
     }
 
     /* print packets for us */
@@ -430,27 +431,27 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
     if (((ip->ver_ihl >> 4) & 0xf) != 4) {
         /* not version 4 */
         LTRACEF("REJECT: not version 4\n");
-        return;
+        return false;
     }
 
     /* do we have enough buffer to hold the full header + options? */
     size_t header_len = (ip->ver_ihl & 0xf) * 4;
     if (p->dlen < header_len) {
         LTRACEF("REJECT: not enough buffer to hold header\n");
-        return;
+        return false;
     }
 
     /* compute checksum */
     if (ones_sum16(0, (void *)ip, header_len) != 0xffff) {
         /* bad checksum */
         LTRACEF("REJECT: bad checksum\n");
-        return;
+        return false;
     }
 
     /* is the pkt_buf large enough to hold the length the header says the packet is? */
     if (htons(ip->len) > p->dlen) {
         LTRACEF("REJECT: packet exceeds size of buffer (header %d, dlen %d)\n", htons(ip->len), p->dlen);
-        return;
+        return false;
     }
 
     /* trim any excess bytes at the end of the packet */
@@ -460,7 +461,7 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
 
     /* remove the header from the front of the packet_buf  */
     if (pktbuf_consume(p, header_len) == NULL) {
-        return;
+        return false;
     }
 
     /* The packet is good, so use it to populate the arp cache -- except on
@@ -475,7 +476,7 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
     if (ip->dst_addr != IPV4_BCAST) {
         if (netif->ipv4_addr != IPV4_NONE && ip->dst_addr != netif->ipv4_addr && ip->dst_addr != netif_get_broadcast_ipv4(netif)) {
             LTRACEF("REJECT: for another host\n");
-            return;
+            return false;
         }
     }
 
@@ -497,9 +498,10 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
             break;
 
         case IP_PROTO_TCP:
-            tcp_input(netif, p, ip->src_addr, ip->dst_addr);
-            break;
+            return tcp_input(netif, p, ip->src_addr, ip->dst_addr);
     }
+
+    return false;
 }
 
 static void dump_eth_packet(const struct eth_hdr *eth) {
@@ -511,9 +513,10 @@ static void dump_eth_packet(const struct eth_hdr *eth) {
 }
 
 /* main demux of a received frame, called on the stack worker thread.
- * p is owned by the caller, which frees it afterwards.
+ * Returns true if ownership of p was taken by a protocol layer; otherwise
+ * the caller frees it.
  */
-void minip_rx_process(netif_t *netif, pktbuf_t *p) {
+bool minip_rx_process(netif_t *netif, pktbuf_t *p) {
     DEBUG_ASSERT(netif);
     DEBUG_ASSERT(p);
 
@@ -521,7 +524,7 @@ void minip_rx_process(netif_t *netif, pktbuf_t *p) {
 
     struct eth_hdr *eth;
     if ((eth = (struct eth_hdr *)pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
-        return;
+        return false;
     }
 
     if (minip_trace) {
@@ -531,13 +534,12 @@ void minip_rx_process(netif_t *netif, pktbuf_t *p) {
     if (memcmp(eth->dst_mac, netif->mac_address, 6) != 0 &&
             memcmp(eth->dst_mac, bcast_mac, 6) != 0) {
         /* not for us */
-        return;
+        return false;
     }
 
     switch (htons(eth->type)) {
         case ETH_TYPE_IPV4:
-            handle_ipv4_packet(netif, p, eth->src_mac);
-            break;
+            return handle_ipv4_packet(netif, p, eth->src_mac);
 
         case ETH_TYPE_ARP:
             handle_arp_pkt(netif, p);
@@ -546,6 +548,8 @@ void minip_rx_process(netif_t *netif, pktbuf_t *p) {
             LTRACEF("unhandled pkt type %#hx\n", htons(eth->type));
             break;
     }
+
+    return false;
 }
 
 // utility routines

@@ -202,8 +202,9 @@ static int netstack_worker_thread(void *arg) {
                 break;
             }
 
-            minip_rx_process(p->netif, p);
-            pktbuf_free(p, true);
+            if (!minip_rx_process(p->netif, p)) {
+                pktbuf_free(p, true);
+            }
         }
     }
 

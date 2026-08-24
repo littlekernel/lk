@@ -12,6 +12,7 @@
 
 #include <lk/compiler.h>
 #include <endian.h>
+#include <stdbool.h>
 #include <lk/console_cmd.h>
 #include <lk/list.h>
 #include <stdint.h>
@@ -148,7 +149,8 @@ void minip_build_mac_hdr(netif_t *netif, struct eth_hdr *pkt, const uint8_t *dst
 status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto);
 status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, const uint8_t *dest_mac, netif_t *netif);
 
-void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
+/* returns true if ownership of p was taken; the caller frees it otherwise */
+bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
 void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip);
 
 // console command backend (tcp.cpp), registered by lk_console.c
@@ -156,8 +158,10 @@ int cmd_tcp(int argc, const console_cmd_args *argv);
 
 // stack worker (stack.cpp)
 void netstack_init(void);
-// process one received frame on the stack thread (minip.cpp)
-void minip_rx_process(netif_t *netif, pktbuf_t *p);
+// process one received frame on the stack thread (minip.cpp); returns true
+// if ownership of p was taken by a protocol layer, false if the caller
+// should free it
+bool minip_rx_process(netif_t *netif, pktbuf_t *p);
 
 // interface list
 void netif_init(void);
