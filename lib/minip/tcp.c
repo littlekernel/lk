@@ -98,6 +98,7 @@ typedef struct tcp_socket {
     cbuf_t   tx_buffer;   // our outgoing circular buffer
     event_t  tx_event;
     net_timer_t retransmit_timer;
+    int      retransmit_count; // consecutive unacked (re)transmits of the SYN
 
     /* listen accept */
     semaphore_t accept_sem;
@@ -114,6 +115,8 @@ typedef struct tcp_socket {
 #define DEFAULT_TX_BUFFER_SIZE (8192)
 
 #define RETRANSMIT_TIMEOUT (250)
+#define SYN_RETRANSMIT_TIMEOUT (1000)
+#define SYN_RETRANSMIT_RETRIES (5)
 #define DELAYED_ACK_TIMEOUT (50)
 #define TIME_WAIT_TIMEOUT (60000) // 1 minute
 
@@ -145,6 +148,7 @@ static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size);
 static ssize_t tcp_write_pending_data(tcp_socket_t *s);
 static void handle_retransmit_timeout(void *_s);
+static void tcp_send_syn(tcp_socket_t *s, bool with_ack);
 static void handle_time_wait_timeout(void *_s);
 static void handle_delayed_ack_timeout(void *_s);
 static void tcp_remote_close(tcp_socket_t *s);
@@ -449,18 +453,13 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             s->accepted = accept_socket;
             sem_post(&s->accept_sem, true);
 
-            /* set up a mss option for sending back */
-            tcp_mss_option_t mss_option;
-            mss_option.kind = 0x2;
-            mss_option.len = 0x4;
-            mss_option.mss = ntohs(s->mss); // XXX make sure we fit in their mss
-
-            /* send a response */
-            tcp_socket_send(accept_socket, NULL, 0, PKT_ACK|PKT_SYN, &mss_option, sizeof(mss_option),
-                            accept_socket->tx_win_low);
-
-            /* SYN consumed a sequence */
+            /* send a SYN|ACK; the SYN consumes a sequence */
             accept_socket->tx_win_low++;
+            tcp_send_syn(accept_socket, true);
+
+            /* retransmit it until they ack */
+            tcp_timer_set(accept_socket, &accept_socket->retransmit_timer,
+                          &handle_retransmit_timeout, SYN_RETRANSMIT_TIMEOUT);
 
             mutex_release(&accept_socket->lock);
             break;
@@ -481,6 +480,8 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 s->tx_win_high = s->tx_win_low + header->win_size;
                 s->tx_highest_seq = s->tx_win_low;
 
+                tcp_timer_cancel(s, &s->retransmit_timer);
+                s->retransmit_count = 0;
                 s->state = STATE_ESTABLISHED;
             } else {
                 goto send_reset;
@@ -516,6 +517,8 @@ void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             s->tx_win_high = s->tx_win_low + header->win_size;
             s->tx_highest_seq = s->tx_win_low;
 
+            tcp_timer_cancel(s, &s->retransmit_timer);
+            s->retransmit_count = 0;
             s->state = STATE_ESTABLISHED;
 
             send_ack(s);
@@ -713,6 +716,28 @@ static status_t tcp_socket_send(tcp_socket_t *s, const iovec_t *iov, size_t iov_
     return err;
 }
 
+/* (re)send our SYN (active open) or SYN|ACK (passive open) with the mss
+ * option attached. For the passive case tx_win_low has already consumed the
+ * SYN's sequence, so back up by one.
+ */
+static void tcp_send_syn(tcp_socket_t *s, bool with_ack) {
+    DEBUG_ASSERT(s);
+    DEBUG_ASSERT(is_mutex_held(&s->lock));
+
+    tcp_mss_option_t mss_option;
+    mss_option.kind = 0x2;
+    mss_option.len = 0x4;
+    mss_option.mss = htons(s->mss); // XXX make sure we fit in their mss
+
+    if (with_ack) {
+        tcp_socket_send(s, NULL, 0, PKT_ACK|PKT_SYN, &mss_option, sizeof(mss_option),
+                        s->tx_win_low - 1);
+    } else {
+        tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, NULL, 0, PKT_SYN,
+                 &mss_option, sizeof(mss_option), 0, s->tx_win_low, s->rx_win_size);
+    }
+}
+
 static void send_ack(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
@@ -902,12 +927,29 @@ static void handle_retransmit_timeout(void *_s) {
 
     mutex_acquire(&s->lock);
 
-    if (tcp_retransmit(s) == 0)
-        goto done;
+    switch (s->state) {
+        case STATE_SYN_SENT:
+        case STATE_SYN_RCVD:
+            /* our SYN or SYN|ACK went unacked */
+            if (++s->retransmit_count >= SYN_RETRANSMIT_RETRIES) {
+                /* give up establishing the connection */
+                LTRACEF("s %p, giving up on connection establishment\n", s);
+                s->state = STATE_CLOSED;
+                tcp_wakeup_waiters(s);
+            } else {
+                tcp_send_syn(s, (s->state == STATE_SYN_RCVD));
+                tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout,
+                              SYN_RETRANSMIT_TIMEOUT);
+            }
+            break;
+        default:
+            if (tcp_retransmit(s) == 0)
+                break;
 
-    tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+            tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+            break;
+    }
 
-done:
     mutex_release(&s->lock);
     dec_socket_ref(s);
 }
@@ -1026,6 +1068,8 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
     // look up route to set local address
     ipv4_route_t *route = ipv4_search_route(addr);
     if (!route) {
+        /* drop the create ref; the socket was never added to the list */
+        dec_socket_ref(s);
         return ERR_NO_ROUTE;
     }
     netif_t *netif = route->interface;
@@ -1048,23 +1092,15 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
     s->state = STATE_SYN_SENT;
     add_socket_to_list(s);
 
-    /* set up a mss option for sending back */
-    tcp_mss_option_t mss_option;
-    mss_option.kind = 0x2;
-    mss_option.len = 0x4;
-    mss_option.mss = ntohs(s->mss);
+    tcp_send_syn(s, false);
 
-    tcp_send(s->remote_ip, s->remote_port, s->local_ip, s->local_port, NULL, 0, PKT_SYN, &mss_option, 0x4, 0, s->tx_win_low, s->rx_win_size);
-
-    // TODO: handle retransmit
+    /* retransmit the SYN until they answer; gives up and wakes us on exhaustion */
+    tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, SYN_RETRANSMIT_TIMEOUT);
 
     mutex_release(&s->lock);
 
-    // block to wait for a successful connection
-    if (event_wait(&s->connect_event) == ERR_TIMED_OUT) {
-        ipv4_dec_route_ref(s->route);
-        return ERR_TIMED_OUT;
-    }
+    // block until the handshake concludes one way or the other
+    event_wait(&s->connect_event);
 
     status_t err = NO_ERROR;
     mutex_acquire(&s->lock);
@@ -1320,6 +1356,7 @@ usage:
         printf("usage: %s sockets\n", argv[0].str);
         printf("usage: %s listenclose <port>\n", argv[0].str);
         printf("usage: %s listen <port>\n", argv[0].str);
+        printf("usage: %s connect <addr> <port> [message]\n", argv[0].str);
         printf("usage: %s debug\n", argv[0].str);
         return ERR_INVALID_ARGS;
     }
@@ -1381,6 +1418,33 @@ usage:
 
         err = tcp_close(accepted);
         printf("tcp_close returns %d\n", err);
+
+        err = tcp_close(handle);
+        printf("tcp_close returns %d\n", err);
+    } else if (!strcmp(argv[1].str, "connect")) {
+        if (argc < 4) goto notenoughargs;
+
+        uint32_t addr = minip_parse_ipaddr(argv[2].str, strlen(argv[2].str));
+        const char *message = (argc >= 5) ? argv[4].str : "hello from lk\n";
+
+        tcp_socket_t *handle = NULL;
+        status_t err = tcp_connect(&handle, addr, argv[3].u);
+        printf("tcp_connect returns %d, handle %p\n", err, handle);
+        if (err < 0) {
+            if (handle)
+                tcp_close(handle);
+            return err;
+        }
+
+        ssize_t err_len = tcp_write(handle, message, strlen(message));
+        printf("tcp_write returns %zd\n", err_len);
+
+        uint8_t buf[128];
+        err_len = tcp_read(handle, buf, sizeof(buf));
+        printf("tcp_read returns %zd\n", err_len);
+        if (err_len > 0) {
+            hexdump8(buf, err_len);
+        }
 
         err = tcp_close(handle);
         printf("tcp_close returns %d\n", err);
