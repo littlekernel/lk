@@ -7,6 +7,7 @@
  * https://opensource.org/licenses/MIT
  */
 
+#include <arch/atomic.h>
 #include <assert.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
@@ -152,6 +153,7 @@ pktbuf_t *pktbuf_alloc(void) {
     }
 
     memset(p, 0, sizeof(pktbuf_t));
+    p->ref = 1;
     pktbuf_add_buffer(p, (u8 *)buf, PKTBUF_SIZE, PKTBUF_MAX_HDR, 0, free_pktbuf_buf_cb, NULL);
     return p;
 }
@@ -163,6 +165,7 @@ pktbuf_t *pktbuf_alloc_empty(void) {
     }
 
     memset(p, 0, sizeof(pktbuf_t));
+    p->ref = 1;
     p->flags = PKTBUF_FLAG_EOF;
     return p;
 }
@@ -176,15 +179,27 @@ void pktbuf_reset(pktbuf_t *p, uint32_t header_sz) {
     p->dlen = 0;
 }
 
-int pktbuf_free(pktbuf_t *p, bool reschedule) {
+void pktbuf_ref(pktbuf_t *p) {
     DEBUG_ASSERT(p);
+
+    __UNUSED int oldval = atomic_add(&p->ref, 1);
+    DEBUG_ASSERT(oldval > 0);
+}
+
+void pktbuf_free(pktbuf_t *p, bool reschedule) {
+    DEBUG_ASSERT(p);
+
+    int oldval = atomic_add(&p->ref, -1);
+    DEBUG_ASSERT(oldval > 0);
+    if (oldval != 1) {
+        /* other references remain; p may already be gone, do not touch it */
+        return;
+    }
 
     if (p->cb) {
         p->cb(p->buffer, p->cb_args, reschedule);
     }
     free_header(p);
-
-    return 1;
 }
 
 void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz) {
@@ -241,8 +256,9 @@ void pktbuf_consume_tail(pktbuf_t *p, size_t sz) {
 }
 
 void pktbuf_dump(pktbuf_t *p) {
-    printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, phys_base %p\n", p->data,
-           p->buffer, p->dlen, (uintptr_t)p->data - (uintptr_t)p->buffer, (void *)p->phys_base);
+    printf("pktbuf data %p, buffer %p, dlen %u, data offset %lu, ref %d, phys_base %p\n", p->data,
+           p->buffer, p->dlen, (uintptr_t)p->data - (uintptr_t)p->buffer, p->ref,
+           (void *)p->phys_base);
 }
 
 static void pktbuf_init(uint level) {

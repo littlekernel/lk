@@ -120,7 +120,8 @@ static int free_completed_pbuf_frames(void) {
             pktbuf_t *p = list_remove_head_type(&gem.queued_pbufs, pktbuf_t, list);
             DEBUG_ASSERT(p);
             eof = p->flags & PKTBUF_FLAG_EOF;
-            ret += pktbuf_free(p, false);
+            pktbuf_free(p, false);
+            ret++;
         } while (!eof);
 
         gem.tx_tail = (gem.tx_tail + 1) % GEM_TX_DESC_CNT;
@@ -537,27 +538,8 @@ static int cmd_gem(int argc, const console_cmd_args *argv) {
     thread_t *stat_thread;
 
     if (argc == 1) {
-        printf("gem raw <iter> <length>: Send <iter> raw mac packet for testing\n");
-        printf("gem rx_debug:      toggle RX debug output\n");
         printf("gem stats          toggle periodic output of driver stats\n");
         printf("gem status:        print driver status\n");
-    } else if (strncmp(argv[1].str, "rx_debug", sizeof("rx_debug")) == 0) {
-        pktbuf_t *p;
-        int iter;
-        if (argc < 4) {
-            return 0;
-        }
-
-        if ((p = pktbuf_alloc()) == NULL) {
-            printf("out of buffers\n");
-        }
-
-        iter = argv[2].u;
-        p->dlen = argv[3].u;
-        while (iter--) {
-            memset(p->data, iter, 12);
-            gem_send_raw_pkt(NULL, p);
-        }
     } else if (strncmp(argv[1].str, "status", sizeof("status")) == 0) {
         uint32_t mac_top = gem.regs->spec_addr1_top;
         uint32_t mac_bot = gem.regs->spec_addr1_bot;

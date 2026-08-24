@@ -51,6 +51,8 @@ typedef struct pktbuf {
     paddr_t phys_base;
     struct list_node list;
     u32 flags;
+    int ref;                // reference count, adjusted atomically
+    u32 seq;                // per-layer scratch (e.g. TCP sequence number)
     pktbuf_free_callback cb;
     void *cb_args;
     u8 *buffer;
@@ -85,9 +87,12 @@ pktbuf_t *pktbuf_alloc_empty(void);
 void pktbuf_add_buffer(pktbuf_t *p, u8 *buf, u32 len, uint32_t header_sz,
                        uint32_t flags, pktbuf_free_callback cb, void *cb_args);
 
-// return packet buffer to buffer pool
-// returns number of threads woken up
-int pktbuf_free(pktbuf_t *p, bool reschedule);
+// take an additional reference on the packet buffer
+void pktbuf_ref(pktbuf_t *p);
+
+// drop a reference; when the last reference is dropped the buffer free
+// callback runs and the header returns to the pool
+void pktbuf_free(pktbuf_t *p, bool reschedule);
 
 // extend buffer by sz bytes, copied from data
 void pktbuf_append_data(pktbuf_t *p, const void *data, size_t sz);
