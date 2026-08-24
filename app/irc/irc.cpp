@@ -24,8 +24,7 @@
 
 namespace {
 
-// constexpr IRC_SERVER = IPV4(176,58,122,119) // irc.libera.chat
-constexpr ipv4_addr_t IRC_SERVER = IPV4(88, 99, 244, 4); // irc.sortix.org
+constexpr const char *IRC_SERVER = "irc.sortix.org";
 constexpr uint16_t IRC_PORT = 6667;
 constexpr const char *IRC_USER = "geist";
 constexpr const char *IRC_NICK = "geist-lk";
@@ -44,6 +43,7 @@ class irc_client {
     status_t console_input_line(const char *line, bool &exit);
 
     void set_server(uint32_t server) { server_ip_ = server; }
+    void set_server_name(const char *name) { server_name_ = name; }
     void set_server_port(uint16_t port) { server_port_ = port; }
 
   private:
@@ -53,6 +53,7 @@ class irc_client {
     tcp_socket_t *sock_ = nullptr;
 
     uint32_t server_ip_ = 0;
+    const char *server_name_ = nullptr;
     uint16_t server_port_ = 0;
     enum class state : uint8_t {
         INITIAL,
@@ -98,6 +99,16 @@ void irc_client::handle_ctcp_request(const char *nick, const char *ctcp_cmd) {
 
 status_t irc_client::connect() {
     AutoLock al(&lock_);
+
+    if (server_ip_ == 0 && server_name_) {
+        // a name, a dotted quad, whichever was configured
+        auto err = minip_resolve(server_name_, &server_ip_);
+        if (err < 0) {
+            printf("err %d resolving '%s'\n", err, server_name_);
+            return err;
+        }
+        printf("irc: %s is %u.%u.%u.%u\n", server_name_, IPV4_SPLIT(server_ip_));
+    }
 
     if (server_ip_ == 0 || server_port_ == 0) {
         return ERR_NOT_CONFIGURED;
@@ -377,7 +388,7 @@ void irc_app_entry(const struct app_descriptor *app, void *args) {
     });
 
     // configure the parameters
-    irc->set_server(IRC_SERVER);
+    irc->set_server_name(IRC_SERVER);
     irc->set_server_port(IRC_PORT);
 
     err = irc->connect();
