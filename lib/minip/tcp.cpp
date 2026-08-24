@@ -104,10 +104,19 @@ typedef struct tcp_socket {
     uint32_t tx_pktbuf_count;
     event_t  tx_event;
     net_timer_t retransmit_timer;
-    int      retransmit_count; // consecutive unacked (re)transmits of the SYN
+    int      retransmit_count; // consecutive retransmits with no ack in between
     bool     fin_pending;    // tcp_close() has queued a FIN behind the tx data
     bool     fin_sent;       // the FIN has been transmitted at least once
     uint32_t fin_seq;        // the sequence the FIN occupies (valid if fin_sent)
+
+    /* round trip estimate, all in milliseconds (RFC 6298) */
+    uint32_t srtt;           // smoothed round trip time
+    uint32_t rttvar;         // its mean deviation
+    uint32_t rto;            // current retransmit timeout, backed off in place
+    bool     rtt_valid;      // srtt/rttvar hold a real measurement
+    bool     rtt_pending;    // a segment is being timed right now
+    uint32_t rtt_seq;        // the sequence being timed; an ack past it ends it
+    lk_time_t rtt_start;     // when that segment went out
 
     /* listen accept */
     semaphore_t accept_sem;
@@ -138,9 +147,24 @@ typedef struct tcp_socket {
  */
 #define TCP_TX_MAX_PKTBUFS    MAX(2, MIN(8, PKTBUF_POOL_SIZE / 32))
 
-#define RETRANSMIT_TIMEOUT (250)
-#define SYN_RETRANSMIT_TIMEOUT (1000)
-#define SYN_RETRANSMIT_RETRIES (5)
+/* Retransmit timeout bounds and the clock granularity the estimator
+ * assumes, in milliseconds. RFC 6298 nominates a 1s floor; like most
+ * implementations we use a much lower one, since the round trips this
+ * stack sees are typically well under a millisecond. The ceiling and the
+ * retry count together bound how long a dead peer is chased: from a
+ * settled 200ms the backoff runs 200/400/800/1600/3200/6400, so a
+ * connection is declared dead after about 12s.
+ */
+#define TCP_RTO_INITIAL (1000)
+#define TCP_RTO_MIN (200)
+#define TCP_RTO_MAX (16000)
+#define TCP_RTO_GRANULARITY (10)
+#define TCP_MAX_RETRANSMITS (6)
+
+/* The handshake gets its own retry count: it starts from the initial 1s
+ * timeout with nothing measured yet, so 4 tries is already ~15 seconds.
+ */
+#define SYN_RETRANSMIT_RETRIES (4)
 #define DELAYED_ACK_TIMEOUT (50)
 #define TIME_WAIT_TIMEOUT (60000) // 1 minute
 
@@ -150,6 +174,56 @@ typedef struct tcp_socket {
 #define SEQUENCE_LTE(a, b) ((int32_t)((a) - (b)) <= 0)
 #define SEQUENCE_GT(a, b) ((int32_t)((a) - (b)) > 0)
 #define SEQUENCE_LT(a, b) ((int32_t)((a) - (b)) < 0)
+
+/* Recompute the retransmit timeout from the current estimate, which also
+ * discards any backoff that had been applied to it.
+ */
+static void tcp_update_rto(tcp_socket_t *s) {
+    uint32_t var = MAX((uint32_t)TCP_RTO_GRANULARITY, 4 * s->rttvar);
+    uint32_t rto = s->srtt + var;
+
+    s->rto = MAX((uint32_t)TCP_RTO_MIN, MIN(rto, (uint32_t)TCP_RTO_MAX));
+}
+
+/* Fold one round trip measurement into the estimate (RFC 6298 2.2/2.3) */
+static void tcp_rtt_sample(tcp_socket_t *s, uint32_t rtt) {
+    if (!s->rtt_valid) {
+        s->srtt = rtt;
+        s->rttvar = rtt / 2;
+        s->rtt_valid = true;
+    } else {
+        uint32_t delta = (rtt > s->srtt) ? (rtt - s->srtt) : (s->srtt - rtt);
+        s->rttvar = (3 * s->rttvar + delta) / 4;
+        s->srtt = (7 * s->srtt + rtt) / 8;
+    }
+
+    LTRACEF("s %p, rtt %u -> srtt %u rttvar %u\n", s, rtt, s->srtt, s->rttvar);
+
+    tcp_update_rto(s);
+}
+
+/* Start timing a segment, if one is not already being timed. */
+static void tcp_rtt_start(tcp_socket_t *s, uint32_t sequence) {
+    if (s->rtt_pending)
+        return;
+
+    s->rtt_pending = true;
+    s->rtt_seq = sequence;
+    s->rtt_start = current_time();
+}
+
+/* An ack arrived: if it covers the segment being timed, that is a sample.
+ * Karn's algorithm keeps this honest -- a retransmit abandons the
+ * measurement outright rather than risk attributing the peer's ack of the
+ * original transmission to the retransmitted one.
+ */
+static void tcp_rtt_ack(tcp_socket_t *s, uint32_t sequence) {
+    if (!s->rtt_pending || !SEQUENCE_GT(sequence, s->rtt_seq))
+        return;
+
+    s->rtt_pending = false;
+    tcp_rtt_sample(s, (uint32_t)(current_time() - s->rtt_start));
+}
 
 static mutex_t tcp_socket_list_lock = MUTEX_INITIAL_VALUE(tcp_socket_list_lock);
 static struct list_node tcp_socket_list = LIST_INITIAL_VALUE(tcp_socket_list);
@@ -180,6 +254,7 @@ static void tcp_send_syn(tcp_socket_t *s, bool with_ack);
 static void handle_time_wait_timeout(void *_s);
 static void handle_delayed_ack_timeout(void *_s);
 static void tcp_remote_close(tcp_socket_t *s);
+static void tcp_abort(tcp_socket_t *s);
 static void tcp_wakeup_waiters(tcp_socket_t *s);
 static void inc_socket_ref(tcp_socket_t *s);
 static bool dec_socket_ref(tcp_socket_t *s);
@@ -277,6 +352,9 @@ static void dump_socket(tcp_socket_t *s) {
                s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
                tx_buffered_bytes(s), s->tx_pktbuf_count);
     }
+    printf("\trto: %u ms (srtt %u rttvar %u%s), retransmits %d\n",
+           s->rto, s->srtt, s->rttvar, s->rtt_valid ? "" : ", unmeasured",
+           s->retransmit_count);
     if (s->fin_pending) {
         printf("\tfin: seq %u %s\n", s->fin_seq, s->fin_sent ? "sent" : "pending");
     }
@@ -554,9 +632,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
     /* check to see if they're resetting us */
     if (packet_flags & PKT_RST) {
-        if (s->state != STATE_CLOSED && s->state != STATE_LISTEN) {
-            tcp_remote_close(s);
-        }
+        tcp_abort(s);
         goto done;
     }
 
@@ -616,11 +692,12 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             /* send a SYN|ACK; the SYN consumes a sequence */
             accept_socket->tx_win_low++;
             accept_socket->tx_highest_seq = accept_socket->tx_win_low;
+            tcp_rtt_start(accept_socket, accept_socket->tx_win_low - 1);
             tcp_send_syn(accept_socket, true);
 
             /* retransmit it until they ack */
             tcp_timer_set(accept_socket, &accept_socket->retransmit_timer,
-                          &handle_retransmit_timeout, SYN_RETRANSMIT_TIMEOUT);
+                          &handle_retransmit_timeout, accept_socket->rto);
 
             mutex_release(&accept_socket->lock);
             break;
@@ -641,6 +718,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 s->tx_win_high = s->tx_win_low + header->win_size;
                 s->tx_highest_seq = s->tx_win_low;
 
+                tcp_rtt_ack(s, header->ack_num);
                 tcp_timer_cancel(s, &s->retransmit_timer);
                 s->retransmit_count = 0;
                 s->state = STATE_ESTABLISHED;
@@ -684,6 +762,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             s->tx_win_high = s->tx_win_low + header->win_size;
             s->tx_highest_seq = s->tx_win_low;
 
+            tcp_rtt_ack(s, header->ack_num);
             tcp_timer_cancel(s, &s->retransmit_timer);
             s->retransmit_count = 0;
             s->state = STATE_ESTABLISHED;
@@ -741,11 +820,9 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 handle_ack(s, header->ack_num, header->win_size);
             }
             if (tcp_fin_acked(s)) {
-                tcp_remote_close(s);
-
-                /* tcp_close() was already called on us, remove us from the list and drop the ref */
-                remove_socket_from_list(s);
-                dec_socket_ref(s);
+                /* tcp_close() was already called on us, so the abort also
+                 * takes the socket off the list and drops its reference */
+                tcp_abort(s);
             }
             break;
         case STATE_FIN_WAIT_1:
@@ -1208,6 +1285,12 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
     /* their ack is somewhere in our window */
     LTRACEF("acked len %u\n", sequence - s->tx_win_low);
 
+    /* forward progress: take a round trip sample if one was being timed,
+     * and drop whatever backoff the timeout had accumulated */
+    tcp_rtt_ack(s, sequence);
+    s->retransmit_count = 0;
+    tcp_update_rto(s);
+
     s->tx_win_low = sequence;
     s->tx_win_high = sequence + win_size;
 
@@ -1228,7 +1311,7 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size) {
     if (s->tx_win_low == s->tx_highest_seq) {
         tcp_timer_cancel(s, &s->retransmit_timer);
     } else {
-        tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+        tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, s->rto);
     }
 
     /* we have opened the transmit buffer */
@@ -1294,11 +1377,17 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
     }
 
     ssize_t sent = next - s->tx_highest_seq;
+
+    /* everything below tx_highest_seq is being sent for the first time, so
+     * it is a legitimate thing to measure the round trip with */
+    if (sent > 0) {
+        tcp_rtt_start(s, s->tx_highest_seq);
+    }
     s->tx_highest_seq = next;
 
     /* keep the retransmit timer running while anything is still owed */
     if (sent > 0 || (s->fin_pending && !s->fin_sent)) {
-        tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+        tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, s->rto);
     }
 
     return sent;
@@ -1359,6 +1448,13 @@ static void handle_retransmit_timeout(void *_s) {
 
     mutex_acquire(&s->lock);
 
+    /* Karn's algorithm: whatever we resend below, the round trip it
+     * belongs to is now ambiguous, so abandon the measurement */
+    s->rtt_pending = false;
+
+    /* back the timeout off for the next attempt */
+    s->rto = MIN(s->rto * 2, (uint32_t)TCP_RTO_MAX);
+
     switch (s->state) {
         case STATE_SYN_SENT:
         case STATE_SYN_RCVD:
@@ -1370,13 +1466,19 @@ static void handle_retransmit_timeout(void *_s) {
                 tcp_wakeup_waiters(s);
             } else {
                 tcp_send_syn(s, (s->state == STATE_SYN_RCVD));
-                tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout,
-                              SYN_RETRANSMIT_TIMEOUT);
+                tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, s->rto);
             }
             break;
         default:
+            if (++s->retransmit_count >= TCP_MAX_RETRANSMITS) {
+                /* the peer has stopped answering entirely */
+                LTRACEF("s %p, giving up after %d retransmits\n", s, s->retransmit_count);
+                tcp_abort(s);
+                break;
+            }
+
             if (tcp_retransmit(s) > 0) {
-                tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+                tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, s->rto);
             } else {
                 /* nothing to resend; a FIN that failed to allocate a pktbuf
                  * gets another try here, and rearms the timer itself */
@@ -1449,6 +1551,40 @@ static void tcp_remote_close(tcp_socket_t *s) {
     tcp_wakeup_waiters(s);
 }
 
+/* Tear a connection down from the stack side, for a reset or a peer that
+ * has stopped answering. States past tcp_close() have no owner left to
+ * come back and free the socket, so they also give up their list entry and
+ * the reference that came with it.
+ */
+static void tcp_abort(tcp_socket_t *s) {
+    DEBUG_ASSERT(is_mutex_held(&s->lock));
+
+    if (s->state == STATE_CLOSED || s->state == STATE_LISTEN)
+        return;
+
+    bool unowned;
+    switch (s->state) {
+        case STATE_FIN_WAIT_1:
+        case STATE_FIN_WAIT_2:
+        case STATE_CLOSING:
+        case STATE_LAST_ACK:
+        case STATE_TIME_WAIT:
+            unowned = true;
+            break;
+        default:
+            unowned = false;
+            break;
+    }
+
+    tcp_remote_close(s);
+
+    if (unowned) {
+        tcp_timer_cancel(s, &s->time_wait_timer);
+        remove_socket_from_list(s);
+        dec_socket_ref(s);
+    }
+}
+
 static tcp_socket_t *create_tcp_socket(void) {
     tcp_socket_t *s;
 
@@ -1465,6 +1601,7 @@ static tcp_socket_t *create_tcp_socket(void) {
     event_init(&s->rx_event, false, 0);
 
     s->mss = DEFAULT_MSS;
+    s->rto = TCP_RTO_INITIAL;
 
     s->tx_win_low = rand();
     s->tx_win_high = s->tx_win_low;
@@ -1523,10 +1660,12 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
     s->state = STATE_SYN_SENT;
     add_socket_to_list(s);
 
+    /* the handshake doubles as the first round trip measurement */
+    tcp_rtt_start(s, s->tx_win_low);
     tcp_send_syn(s, false);
 
     /* retransmit the SYN until they answer; gives up and wakes us on exhaustion */
-    tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, SYN_RETRANSMIT_TIMEOUT);
+    tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, s->rto);
 
     mutex_release(&s->lock);
 
