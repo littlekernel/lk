@@ -394,6 +394,102 @@ static bool duplicated_segments(void) {
     END_TEST;
 }
 
+/* a server that reads to EOF into one buffer, so a test can check that the
+ * whole stream survived the peer's close */
+struct sink_server {
+    tcp_socket_t *listener;
+    uint8_t *buf;
+    size_t buflen;
+    volatile size_t received;
+    volatile status_t err;
+    thread_t *thread;
+};
+
+static int sink_server_worker(void *arg) {
+    struct sink_server *srv = (struct sink_server *)arg;
+
+    tcp_socket_t *conn = NULL;
+    status_t err = tcp_accept_timeout(srv->listener, &conn, 10000);
+    if (err < 0) {
+        srv->err = err;
+        return err;
+    }
+
+    while (srv->received < srv->buflen) {
+        ssize_t len = tcp_read(conn, srv->buf + srv->received, srv->buflen - srv->received);
+        if (len < 0) {
+            break;
+        }
+        srv->received += len;
+    }
+
+    srv->err = NO_ERROR;
+    tcp_close(conn);
+    return 0;
+}
+
+static bool close_with_unacked_data(void) {
+    BEGIN_TEST;
+
+    testnetif_get();
+
+    const uint16_t port = TCP_TEST_PORT_BASE + 9;
+    const size_t total = 8 * TRANSFER_CHUNK;
+
+    uint8_t *expected = (uint8_t *)malloc(total);
+    ASSERT_NONNULL(expected, "");
+
+    struct sink_server srv;
+    memset(&srv, 0, sizeof(srv));
+    srv.buf = (uint8_t *)malloc(total);
+    srv.buflen = total;
+    if (!srv.buf) {
+        free(expected);
+        ASSERT_NONNULL(srv.buf, "");
+    }
+
+    for (size_t pos = 0; pos < total; pos += TRANSFER_CHUNK) {
+        fill_pattern(expected + pos, TRANSFER_CHUNK, 0xc1 + pos);
+    }
+
+    ASSERT_EQ(NO_ERROR, tcp_open_listen(&srv.listener, port), "");
+    srv.thread = thread_create("tcp test sink", &sink_server_worker, &srv,
+                               DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(srv.thread);
+
+    struct connect_result res = { .port = port, .err = 1 };
+    thread_t *t = thread_create("tcp test connect", &connect_worker, &res,
+                                DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(t);
+    ASSERT_EQ(NO_ERROR, thread_join(t, NULL, 15000), "");
+    ASSERT_EQ(NO_ERROR, res.err, "");
+
+    /* swap delivery order so the FIN can overtake data still in flight: a
+     * FIN sequenced anywhere but after the last byte would truncate the
+     * stream, and one the peer discards has to be retransmitted */
+    const testnetif_faults_t faults = { .reorder_pairs = true };
+    testnetif_configure(&faults);
+
+    for (size_t pos = 0; pos < total; pos += TRANSFER_CHUNK) {
+        ASSERT_EQ((ssize_t)TRANSFER_CHUNK, tcp_write(res.sock, expected + pos, TRANSFER_CHUNK), "");
+    }
+
+    /* close with data still unacknowledged */
+    EXPECT_EQ(NO_ERROR, tcp_close(res.sock), "");
+
+    EXPECT_EQ(NO_ERROR, thread_join(srv.thread, NULL, 15000), "");
+    testnetif_configure(NULL);
+
+    EXPECT_EQ(total, srv.received, "the whole stream should arrive before the close");
+    EXPECT_BYTES_EQ(expected, srv.buf, total, "");
+
+    tcp_close(srv.listener);
+    free(expected);
+    free(srv.buf);
+
+    END_TEST;
+}
+
 /* --- raw frame injection ----------------------------------------------- */
 
 /* the wire header layout (the stack's own struct is private to tcp.cpp) */
@@ -569,6 +665,7 @@ RUN_TEST(syn_retransmit)
 RUN_TEST(data_retransmit)
 RUN_TEST(reordered_segments)
 RUN_TEST(duplicated_segments)
+RUN_TEST(close_with_unacked_data)
 RUN_TEST(rst_on_closed_port)
 RUN_TEST(ipv4_input_validation)
 END_TEST_CASE(tcp_tests)

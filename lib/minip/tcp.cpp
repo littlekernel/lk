@@ -105,6 +105,9 @@ typedef struct tcp_socket {
     event_t  tx_event;
     net_timer_t retransmit_timer;
     int      retransmit_count; // consecutive unacked (re)transmits of the SYN
+    bool     fin_pending;    // tcp_close() has queued a FIN behind the tx data
+    bool     fin_sent;       // the FIN has been transmitted at least once
+    uint32_t fin_seq;        // the sequence the FIN occupies (valid if fin_sent)
 
     /* listen accept */
     semaphore_t accept_sem;
@@ -195,6 +198,18 @@ static uint32_t tx_buffered_bytes(tcp_socket_t *s) {
     return list_is_empty(&s->tx_queue) ? 0 : s->tx_buf_top - s->tx_win_low;
 }
 
+/* One past the last queued data byte, which is where a FIN sits. An empty
+ * queue means everything written has been acked, so the top is tx_win_low.
+ */
+static uint32_t tx_data_top(tcp_socket_t *s) {
+    return list_is_empty(&s->tx_queue) ? s->tx_win_low : s->tx_buf_top;
+}
+
+/* true once the peer has acked the FIN we sent */
+static bool tcp_fin_acked(tcp_socket_t *s) {
+    return s->fin_sent && SEQUENCE_GT(s->tx_win_low, s->fin_seq);
+}
+
 static uint32_t tx_seg_cap(tcp_socket_t *s) {
     return MIN(s->mss, (uint32_t)PKTBUF_MAX_DATA);
 }
@@ -261,6 +276,9 @@ static void dump_socket(tcp_socket_t *s) {
                s->tx_win_low, s->tx_win_high, s->tx_win_high - s->tx_win_low,
                s->tx_highest_seq, s->tx_highest_seq - s->tx_win_low,
                tx_buffered_bytes(s), s->tx_pktbuf_count);
+    }
+    if (s->fin_pending) {
+        printf("\tfin: seq %u %s\n", s->fin_seq, s->fin_sent ? "sent" : "pending");
     }
 }
 
@@ -518,7 +536,6 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
     /* get some data from the packet */
     uint8_t packet_flags = header->length_flags & 0x3f;
     size_t data_len = p->dlen - header_len;
-    uint32_t highest_sequence = header->seq_num + ((data_len > 0) ? (data_len - 1) : 0);
 
     /* see if it matches a socket we have */
     tcp_socket_t *s = lookup_socket(src_ip, dst_ip, header->source_port, header->dest_port);
@@ -598,6 +615,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
             /* send a SYN|ACK; the SYN consumes a sequence */
             accept_socket->tx_win_low++;
+            accept_socket->tx_highest_seq = accept_socket->tx_win_low;
             tcp_send_syn(accept_socket, true);
 
             /* retransmit it until they ack */
@@ -689,7 +707,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 consumed = handle_data(s, p, header->seq_num);
             }
 
-            if ((packet_flags & PKT_FIN) && SEQUENCE_GTE(s->rx_win_low, highest_sequence)) {
+            if ((packet_flags & PKT_FIN) && s->rx_win_low == (uint32_t)(header->seq_num + data_len)) {
                 /* they're closing with us, and there's no outstanding data */
 
                 /* FIN consumed a sequence */
@@ -715,8 +733,14 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             }
             break;
         case STATE_LAST_ACK:
+            if (packet_flags & PKT_FIN) {
+                /* they missed our ack of their FIN, ack it again */
+                send_ack(s);
+            }
             if (packet_flags & PKT_ACK) {
-                /* they're acking our FIN, probably */
+                handle_ack(s, header->ack_num, header->win_size);
+            }
+            if (tcp_fin_acked(s)) {
                 tcp_remote_close(s);
 
                 /* tcp_close() was already called on us, remove us from the list and drop the ref */
@@ -726,11 +750,14 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             break;
         case STATE_FIN_WAIT_1:
             if (packet_flags & PKT_ACK) {
-                /* they're acking our FIN, probably */
+                handle_ack(s, header->ack_num, header->win_size);
+            }
+            if (tcp_fin_acked(s)) {
                 s->state = STATE_FIN_WAIT_2;
                 /* drop into fin_wait_2 state logic, in case they were FINning us too */
                 goto fin_wait_2;
-            } else if (packet_flags & PKT_FIN) {
+            }
+            if (packet_flags & PKT_FIN) {
                 /* simultaneous close. they finned us without acking our fin */
                 s->rx_win_low++;
                 send_ack(s);
@@ -751,7 +778,9 @@ fin_wait_2:
             break;
         case STATE_CLOSING:
             if (packet_flags & PKT_ACK) {
-                /* they're acking our FIN, probably */
+                handle_ack(s, header->ack_num, header->win_size);
+            }
+            if (tcp_fin_acked(s)) {
                 s->state = STATE_TIME_WAIT;
 
                 /* set timed wait timer */
@@ -759,7 +788,12 @@ fin_wait_2:
             }
             break;
         case STATE_TIME_WAIT:
-            /* /dev/null of packets */
+            /* a retransmitted FIN means our last ack never arrived: send it
+             * again and start the wait over */
+            if (packet_flags & PKT_FIN) {
+                send_ack(s);
+                tcp_timer_set(s, &s->time_wait_timer, &handle_time_wait_timeout, TIME_WAIT_TIMEOUT);
+            }
             break;
     }
 
@@ -985,10 +1019,20 @@ static void send_ack(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    if (s->state != STATE_ESTABLISHED && s->state != STATE_CLOSE_WAIT && s->state != STATE_FIN_WAIT_2)
-        return;
+    /* a bare ack is meaningful in every state with a synchronized sequence
+     * space; before that there is nothing to acknowledge with */
+    switch (s->state) {
+        case STATE_CLOSED:
+        case STATE_LISTEN:
+        case STATE_SYN_SENT:
+        case STATE_SYN_RCVD:
+            return;
+        default:
+            break;
+    }
 
-    tcp_socket_send(s, NULL, 0, PKT_ACK, NULL, 0, s->tx_win_low);
+    /* acks carry SND.NXT, which sits past a FIN we have already sent */
+    tcp_socket_send(s, NULL, 0, PKT_ACK, NULL, 0, s->tx_highest_seq);
 }
 
 static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t src_ip, uint16_t src_port,
@@ -1201,9 +1245,6 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    if (list_is_empty(&s->tx_queue))
-        return 0;
-
     uint32_t next = s->tx_highest_seq;
 
     /* find the segment holding the first unsent byte */
@@ -1242,11 +1283,21 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
             q = list_next_type(&s->tx_queue, &q->list, pktbuf_t, list);
     }
 
+    /* a queued FIN follows the last data byte and consumes a sequence of
+     * its own; it goes out once everything ahead of it has been sent */
+    if (s->fin_pending && !s->fin_sent && next == tx_data_top(s)) {
+        if (tcp_socket_send(s, NULL, 0, PKT_ACK|PKT_FIN, NULL, 0, next) >= 0) {
+            s->fin_seq = next;
+            s->fin_sent = true;
+            next++;
+        }
+    }
+
     ssize_t sent = next - s->tx_highest_seq;
     s->tx_highest_seq = next;
 
-    /* reset the retransmit timer if we sent anything */
-    if (sent > 0) {
+    /* keep the retransmit timer running while anything is still owed */
+    if (sent > 0 || (s->fin_pending && !s->fin_sent)) {
         tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
     }
 
@@ -1257,31 +1308,46 @@ static ssize_t tcp_retransmit(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    if (s->state != STATE_ESTABLISHED && s->state != STATE_CLOSE_WAIT)
-        return 0;
-
-    /* how much data have we sent but not gotten an ack for? */
-    uint32_t outstanding = (s->tx_highest_seq - s->tx_win_low);
-    if (outstanding == 0)
-        return 0;
-
-    pktbuf_t *q = list_peek_head_type(&s->tx_queue, pktbuf_t, list);
-    DEBUG_ASSERT(q);
-    if (!q)
-        return 0;
-
-    /* resend the head segment, but only as far as it has been transmitted */
-    uint32_t seg = MIN(tx_seg_len(s, q), s->tx_highest_seq - q->seq);
-
-    LTRACEF("s %p, seg %u seq %u\n", s, seg, q->seq);
-
-    if (q->ref == 1) {
-        tcp_send_queued_segment(s, q, seg);
-    } else {
-        tcp_send_segment_copy(s, q, q->seq, seg);
+    switch (s->state) {
+        case STATE_ESTABLISHED:
+        case STATE_CLOSE_WAIT:
+        case STATE_FIN_WAIT_1:
+        case STATE_CLOSING:
+        case STATE_LAST_ACK:
+            break;
+        default:
+            return 0;
     }
 
-    return seg;
+    /* how much of our sequence space have we sent but not gotten an ack for? */
+    if (s->tx_highest_seq == s->tx_win_low)
+        return 0;
+
+    /* resend the oldest unacked data segment, if there is still one */
+    pktbuf_t *q = list_peek_head_type(&s->tx_queue, pktbuf_t, list);
+    if (q && SEQUENCE_LT(q->seq, s->tx_highest_seq)) {
+        /* only as far as the segment has actually been transmitted */
+        uint32_t seg = MIN(tx_seg_len(s, q), s->tx_highest_seq - q->seq);
+
+        LTRACEF("s %p, seg %u seq %u\n", s, seg, q->seq);
+
+        if (q->ref == 1) {
+            tcp_send_queued_segment(s, q, seg);
+        } else {
+            tcp_send_segment_copy(s, q, q->seq, seg);
+        }
+
+        return seg;
+    }
+
+    /* all the data is acked, so what is outstanding is our FIN */
+    if (s->fin_sent && !tcp_fin_acked(s)) {
+        LTRACEF("s %p, retransmitting fin at seq %u\n", s, s->fin_seq);
+        tcp_socket_send(s, NULL, 0, PKT_ACK|PKT_FIN, NULL, 0, s->fin_seq);
+        return 1;
+    }
+
+    return 0;
 }
 
 static void handle_retransmit_timeout(void *_s) {
@@ -1309,10 +1375,13 @@ static void handle_retransmit_timeout(void *_s) {
             }
             break;
         default:
-            if (tcp_retransmit(s) == 0)
-                break;
-
-            tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+            if (tcp_retransmit(s) > 0) {
+                tcp_timer_set(s, &s->retransmit_timer, &handle_retransmit_timeout, RETRANSMIT_TIMEOUT);
+            } else {
+                /* nothing to resend; a FIN that failed to allocate a pktbuf
+                 * gets another try here, and rearms the timer itself */
+                tcp_write_pending_data(s);
+            }
             break;
     }
 
@@ -1754,17 +1823,19 @@ status_t tcp_close(tcp_socket_t *socket) {
         case STATE_SYN_RCVD:
         case STATE_ESTABLISHED:
             s->state = STATE_FIN_WAIT_1;
-            tcp_socket_send(s, NULL, 0, PKT_ACK|PKT_FIN, NULL, 0, s->tx_win_low);
-            s->tx_win_low++;
+
+            /* the FIN belongs after everything already written, and is
+             * retransmitted like data until they ack it */
+            s->fin_pending = true;
+            tcp_write_pending_data(s);
 
             /* stick around and wait for them to FIN us */
             break;
         case STATE_CLOSE_WAIT:
             s->state = STATE_LAST_ACK;
-            tcp_socket_send(s, NULL, 0, PKT_ACK|PKT_FIN, NULL, 0, s->tx_win_low);
-            s->tx_win_low++;
 
-            // XXX set up fin retransmit timer here
+            s->fin_pending = true;
+            tcp_write_pending_data(s);
             break;
         case STATE_SYN_SENT:
         case STATE_FIN_WAIT_1:
