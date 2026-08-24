@@ -12,6 +12,7 @@
 
 #include <lk/err.h>
 #include <errno.h>
+#include <kernel/mutex.h>
 #include <iovec.h>
 #include <lk/list.h>
 #include <malloc.h>
@@ -21,6 +22,7 @@
 #define LOCAL_TRACE 0
 
 static struct list_node udp_list = LIST_INITIAL_VALUE(udp_list);
+static mutex_t udp_list_lock = MUTEX_INITIAL_VALUE(udp_list_lock);
 
 struct udp_listener {
     struct list_node list;
@@ -50,14 +52,23 @@ typedef struct udp_hdr {
 int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
     struct udp_listener *entry, *temp;
 
+    mutex_acquire(&udp_list_lock);
     list_for_every_entry_safe(&udp_list, entry, temp, struct udp_listener, list) {
         if (entry->port == port) {
             if (cb == NULL) {
                 list_delete(&entry->list);
+                mutex_release(&udp_list_lock);
+                free(entry);
                 return 0;
             }
+            mutex_release(&udp_list_lock);
             return -1;
         }
+    }
+    mutex_release(&udp_list_lock);
+
+    if (cb == NULL) {
+        return -1;
     }
 
     if ((entry = malloc(sizeof(struct udp_listener))) == NULL) {
@@ -68,7 +79,9 @@ int udp_listen(uint16_t port, udp_callback_t cb, void *arg) {
     entry->callback = cb;
     entry->arg = arg;
 
+    mutex_acquire(&udp_list_lock);
     list_add_tail(&udp_list, &entry->list);
+    mutex_release(&udp_list_lock);
 
     return 0;
 }
@@ -225,10 +238,23 @@ void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip) {
 
     port = ntohs(udp->dst_port);
 
+    /* snapshot the callback under the lock, then invoke it with the lock
+     * released: callbacks run on the stack worker and may re-enter
+     * udp_listen() (tftp does, to move a transfer to a new port).
+     */
+    udp_callback_t cb = NULL;
+    void *cb_arg = NULL;
+    mutex_acquire(&udp_list_lock);
     list_for_every_entry(&udp_list, e, struct udp_listener, list) {
         if (e->port == port) {
-            e->callback(p->data, p->dlen, src_ip, ntohs(udp->src_port), e->arg);
-            return;
+            cb = e->callback;
+            cb_arg = e->arg;
+            break;
         }
+    }
+    mutex_release(&udp_list_lock);
+
+    if (cb) {
+        cb(p->data, p->dlen, src_ip, ntohs(udp->src_port), cb_arg);
     }
 }
