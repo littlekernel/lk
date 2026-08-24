@@ -250,9 +250,9 @@ static const char *tcp_state_to_string(tcp_state_t state) {
 }
 
 static void dump_socket(tcp_socket_t *s) {
-    printf("socket %p: state %d (%s), local 0x%x:%hu, remote 0x%x:%hu, ref %d\n",
+    printf("socket %p: state %d (%s), local 0x%x:%hu, remote 0x%x:%hu, mss %u, ref %d\n",
            s, s->state, tcp_state_to_string(s->state),
-           s->local_ip, s->local_port, s->remote_ip, s->remote_port, s->ref);
+           s->local_ip, s->local_port, s->remote_ip, s->remote_port, s->mss, s->ref);
     if (s->state == STATE_ESTABLISHED || s->state == STATE_CLOSE_WAIT) {
         printf("\trx: wsize %u wlo %u whi %u (%u) contig %u ooo %u\n",
                s->rx_win_size, s->rx_win_low, s->rx_win_high,
@@ -368,6 +368,43 @@ static bool dec_socket_ref(tcp_socket_t *s) {
         free(s);
     }
     return (oldval == 1);
+}
+
+/* Extract the MSS option from a SYN's option list; 0 if absent or
+ * malformed. The option bytes are still in network order (only the fixed
+ * header is swapped in place).
+ */
+static uint16_t tcp_parse_mss_option(const tcp_header_t *header, size_t header_len) {
+    const uint8_t *opt = (const uint8_t *)(header + 1);
+    const uint8_t *end = (const uint8_t *)header + header_len;
+
+    while (opt < end) {
+        if (opt[0] == 0x0) { /* end of option list */
+            return 0;
+        }
+        if (opt[0] == 0x1) { /* nop */
+            opt++;
+            continue;
+        }
+        if (opt + 1 >= end || opt[1] < 2 || opt + opt[1] > end) {
+            return 0; /* malformed */
+        }
+        if (opt[0] == 0x2) { /* mss */
+            if (opt[1] != 4) {
+                return 0;
+            }
+            return (uint16_t)((opt[2] << 8) | opt[3]);
+        }
+        opt += opt[1];
+    }
+    return 0;
+}
+
+/* Clamp the socket's segment size to what the peer advertised */
+static void tcp_apply_peer_mss(tcp_socket_t *s, uint16_t peer_mss) {
+    if (peer_mss >= 64) {
+        s->mss = MIN(s->mss, (uint32_t)peer_mss);
+    }
 }
 
 static void tcp_timer_set(tcp_socket_t *s, net_timer_t *timer, net_timer_callback_t cb, lk_time_t delay) {
@@ -497,6 +534,9 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             accept_socket->remote_port = header->source_port;
             accept_socket->state = STATE_SYN_RCVD;
 
+            /* honor the mss option on their SYN */
+            tcp_apply_peer_mss(accept_socket, tcp_parse_mss_option(header, header_len));
+
             /* look up and cache the route for the accepted socket */
             ipv4_route_t *route = ipv4_search_route(src_ip);
             if (!route) {
@@ -571,6 +611,9 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 // they didn't ack our syn
                 goto send_reset;
             }
+
+            /* honor the mss option on their SYN|ACK */
+            tcp_apply_peer_mss(s, tcp_parse_mss_option(header, header_len));
 
             // remember their sequence
             s->rx_win_low = header->seq_num + 1;
@@ -884,7 +927,7 @@ static void tcp_send_syn(tcp_socket_t *s, bool with_ack) {
     tcp_mss_option_t mss_option;
     mss_option.kind = 0x2;
     mss_option.len = 0x4;
-    mss_option.mss = htons(s->mss); // XXX make sure we fit in their mss
+    mss_option.mss = htons(s->mss);
 
     if (with_ack) {
         tcp_socket_send(s, NULL, 0, PKT_ACK|PKT_SYN, &mss_option, sizeof(mss_option),
