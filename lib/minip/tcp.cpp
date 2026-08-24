@@ -1870,7 +1870,12 @@ usage:
     } else if (!strcmp(argv[1].str, "connect")) {
         if (argc < 4) goto notenoughargs;
 
-        uint32_t addr = minip_parse_ipaddr(argv[2].str, strlen(argv[2].str));
+        ipv4_addr_t addr;
+        status_t resolve_err = minip_resolve(argv[2].str, &addr);
+        if (resolve_err < 0) {
+            printf("failed to resolve '%s': %d\n", argv[2].str, resolve_err);
+            return resolve_err;
+        }
         const char *message = (argc >= 5) ? argv[4].str : "hello from lk\n";
 
         tcp_socket_t *handle = NULL;
