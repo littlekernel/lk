@@ -333,6 +333,44 @@ static void remove_socket_from_list(tcp_socket_t *s) {
     mutex_release(&tcp_socket_list_lock);
 }
 
+/* Pick a local port for an outgoing connection from the dynamic range,
+ * skipping any port a listed socket already uses (a collision with a
+ * listener would make loopback connections match their own mirrored
+ * 4-tuple). Returns 0 if the whole range is somehow in use.
+ */
+static uint16_t alloc_ephemeral_port(void) {
+    static uint16_t next_ephemeral;
+
+    mutex_acquire(&tcp_socket_list_lock);
+
+    if (next_ephemeral == 0) {
+        /* rand() returns the raw 32 bit LCG state, negative half the time */
+        next_ephemeral = 49152 + ((unsigned int)rand() % 16384);
+    }
+
+    uint16_t port = 0;
+    for (int tries = 0; tries < 16384; tries++) {
+        uint16_t candidate = next_ephemeral;
+        next_ephemeral = (next_ephemeral < 65535) ? next_ephemeral + 1 : 49152;
+
+        bool in_use = false;
+        tcp_socket_t *e;
+        list_for_every_entry(&tcp_socket_list, e, tcp_socket_t, node) {
+            if (e->local_port == candidate) {
+                in_use = true;
+                break;
+            }
+        }
+        if (!in_use) {
+            port = candidate;
+            break;
+        }
+    }
+
+    mutex_release(&tcp_socket_list_lock);
+    return port;
+}
+
 static void inc_socket_ref(tcp_socket_t *s) {
     DEBUG_ASSERT(s);
 
@@ -540,6 +578,8 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             /* look up and cache the route for the accepted socket */
             ipv4_route_t *route = ipv4_search_route(src_ip);
             if (!route) {
+                /* never made it onto the list; drop the create ref */
+                dec_socket_ref(accept_socket);
                 goto done;
             }
             accept_socket->route = route;
@@ -1393,8 +1433,11 @@ status_t tcp_connect(tcp_socket_t **handle, uint32_t addr, uint16_t port) {
 
     // set up the socket for outgoing connections
     s->local_ip = netif->ipv4_addr;
-    s->local_port = (rand() + 1024) & 0xffff; // TODO: allocate sanely
-    DEBUG_ASSERT(s->local_port <= 0xffff);
+    s->local_port = alloc_ephemeral_port();
+    if (s->local_port == 0) {
+        dec_socket_ref(s);
+        return ERR_NO_RESOURCES;
+    }
     s->remote_ip = addr;
     s->remote_port = port;
 
@@ -1440,14 +1483,24 @@ status_t tcp_open_listen(tcp_socket_t **handle, uint16_t port) {
     if (!s)
         return ERR_NO_MEMORY;
 
-    // XXX see if there's another listen socket already on this port
-
     s->local_port = port;
 
     /* go to listen state */
     s->state = STATE_LISTEN;
 
-    add_socket_to_list(s);
+    /* check for an existing listener on this port and insert atomically */
+    mutex_acquire(&tcp_socket_list_lock);
+    tcp_socket_t *e;
+    list_for_every_entry(&tcp_socket_list, e, tcp_socket_t, node) {
+        if (e->state == STATE_LISTEN && e->local_port == port) {
+            mutex_release(&tcp_socket_list_lock);
+            s->state = STATE_CLOSED;
+            dec_socket_ref(s);
+            return ERR_ALREADY_EXISTS;
+        }
+    }
+    list_add_head(&tcp_socket_list, &s->node);
+    mutex_release(&tcp_socket_list_lock);
 
     *handle = s;
 
