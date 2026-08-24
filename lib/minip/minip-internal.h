@@ -168,8 +168,32 @@ typedef struct dhcp_options {
 
 void dhcp_parse_options(const void *options, size_t len, dhcp_options_t *out);
 
+// dns (dns.cpp)
+#define DNS_TYPE_A      1
+#define DNS_TYPE_CNAME  5
+#define DNS_CLASS_IN    1
+
+/* One resource record, in whatever form minip can use. The type tag is what
+ * an AAAA answer would slot into later; today only A records are asked for.
+ */
+typedef struct dns_record {
+    uint16_t type;
+    uint32_t ttl;
+    ipv4_addr_t addr;   /* valid when type is DNS_TYPE_A */
+} dns_record_t;
+
+/* Message builder and parser. Pure functions over byte buffers, exposed
+ * here so the unit tests can drive them with canned packets.
+ */
+ssize_t dns_build_query(void *buf, size_t buflen, uint16_t id, const char *name, uint16_t type);
+status_t dns_parse_response(const void *buf, size_t len, uint16_t id, const char *name,
+                            dns_record_t *out);
+
 // stack worker (stack.cpp)
 void netstack_init(void);
+/* true if the caller is the stack worker thread; nothing running there may
+ * block waiting on work only the stack worker can do */
+bool netstack_is_stack_thread(void);
 // process one received frame on the stack thread (minip.cpp); returns true
 // if ownership of p was taken by a protocol layer, false if the caller
 // should free it

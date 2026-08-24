@@ -211,6 +211,15 @@ static int netstack_worker_thread(void *arg) {
     return 0;
 }
 
+/* True when called from the stack worker itself. Anything that would block
+ * waiting on the stack (a resolver waiting for a reply, a blocking pktbuf
+ * allocation) must refuse to run here: there would be no one left to
+ * deliver what it is waiting for.
+ */
+bool netstack_is_stack_thread(void) {
+    return get_current_thread() == main_worker.thread;
+}
+
 void netstack_init(void) {
     struct netstack_worker *w = &main_worker;
 

@@ -11,6 +11,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/arp.cpp \
 	$(LOCAL_DIR)/chksum.c \
 	$(LOCAL_DIR)/dhcp.cpp \
+	$(LOCAL_DIR)/dns.cpp \
 	$(LOCAL_DIR)/lk_console.c \
 	$(LOCAL_DIR)/minip.cpp \
 	$(LOCAL_DIR)/netif.cpp \

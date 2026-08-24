@@ -94,6 +94,19 @@ static inline status_t tcp_accept(tcp_socket_t *listen_socket, tcp_socket_t **ac
     return tcp_accept_timeout(listen_socket, accept_socket, INFINITE_TIME);
 }
 
+/* dns */
+#define DNS_DEFAULT_TIMEOUT 5000
+
+/* Resolve a host name to an address, blocking until an answer arrives or
+ * the timeout expires. Answers are cached for their TTL. Must not be called
+ * from the netstack thread, which is what delivers the reply.
+ */
+status_t dns_resolve(const char *name, ipv4_addr_t *out, lk_time_t timeout);
+void dns_cache_flush(void);
+
+/* Accept either a literal dotted quad or a host name to resolve. */
+status_t minip_resolve(const char *host, ipv4_addr_t *out);
+
 /* utilities */
 void gen_random_mac_address(uint8_t *mac_addr);
 
