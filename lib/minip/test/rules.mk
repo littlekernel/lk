@@ -2,7 +2,9 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 MODULE := $(LOCAL_DIR)
 
-MODULE_SRCS += $(LOCAL_DIR)/pktbuf_tests.c
+MODULE_SRCS += \
+	$(LOCAL_DIR)/chksum_tests.c \
+	$(LOCAL_DIR)/pktbuf_tests.c
 
 MODULE_DEPS += lib/minip
 MODULE_DEPS += lib/unittest
