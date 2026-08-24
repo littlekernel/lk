@@ -30,7 +30,8 @@
 static netif_t zynq_netif;
 
 static void zynq_gem_rx_callback(pktbuf_t *p) {
-    minip_rx_driver_callback(&zynq_netif, p);
+    /* gem re-arms this buffer as soon as we return, so hand the stack a copy */
+    minip_rx_driver_callback_copy(&zynq_netif, p->data, p->dlen);
 }
 #endif
 

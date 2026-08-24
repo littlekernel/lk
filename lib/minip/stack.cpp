@@ -181,14 +181,6 @@ status_t minip_rx_driver_callback_copy(netif_t *netif, const void *frame, size_t
     return NO_ERROR;
 }
 
-/* Transitional entry point preserving the old borrow semantics: the caller
- * keeps ownership of p and may reuse it as soon as this returns. To be
- * removed once every driver transfers ownership or copies explicitly.
- */
-void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p) {
-    minip_rx_driver_callback_copy(netif, p->data, p->dlen);
-}
-
 /* --- the worker itself --- */
 
 static int netstack_worker_thread(void *arg) {

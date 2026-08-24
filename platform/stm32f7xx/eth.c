@@ -289,17 +289,10 @@ static int eth_rx_worker(void *arg) {
                         eth.EthHandle.RxFrameInfos.SegCount);
 
 #if WITH_LIB_MINIP
-                /* allocate a pktbuf header, point it at our rx buffer, and pass up the stack */
-                pktbuf_t *p = pktbuf_alloc_empty();
-                if (p) {
-                    pktbuf_add_buffer(p, (void *)eth.EthHandle.RxFrameInfos.buffer, eth.EthHandle.RxFrameInfos.length,
-                                      0, 0, NULL, NULL);
-                    p->dlen = eth.EthHandle.RxFrameInfos.length;
-
-                    minip_rx_driver_callback(&eth.netif, p);
-
-                    pktbuf_free(p, true);
-                }
+                /* the HAL owns this buffer and re-arms it below, so hand the
+                 * stack a copy of the frame */
+                minip_rx_driver_callback_copy(&eth.netif, (const void *)eth.EthHandle.RxFrameInfos.buffer,
+                                              eth.EthHandle.RxFrameInfos.length);
 #endif
 
                 /* Release descriptors to DMA */

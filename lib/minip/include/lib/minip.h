@@ -55,11 +55,6 @@ void minip_rx_pktbuf(netif_t *netif, pktbuf_t *p);
  */
 status_t minip_rx_driver_callback_copy(netif_t *netif, const void *frame, size_t len);
 
-/* Transitional: old borrow-semantics rx hook (the caller keeps ownership
- * of p). Implemented as a copy; drivers should move to minip_rx_pktbuf or
- * minip_rx_driver_callback_copy.
- */
-void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p);
 
 /* global configuration state */
 uint32_t minip_get_gateway(void);
