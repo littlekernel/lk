@@ -17,7 +17,7 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/netif.cpp \
 	$(LOCAL_DIR)/stack.cpp \
 	$(LOCAL_DIR)/pktbuf.cpp \
-	$(LOCAL_DIR)/tcp.c \
+	$(LOCAL_DIR)/tcp.cpp \
 	$(LOCAL_DIR)/udp.c
 
 MODULE_OPTIONS := test

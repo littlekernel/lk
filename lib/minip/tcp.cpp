@@ -65,6 +65,10 @@ typedef enum tcp_flags {
     PKT_URG = 32
 } tcp_flags_t;
 
+static inline tcp_flags_t operator|(tcp_flags_t a, tcp_flags_t b) {
+    return (tcp_flags_t)((unsigned)a | (unsigned)b);
+}
+
 typedef struct tcp_socket {
     struct list_node node;
 
@@ -759,7 +763,7 @@ static status_t tcp_send(ipv4_addr_t dest_ip, uint16_t dest_port, ipv4_addr_t sr
     if (!p)
         return ERR_NO_MEMORY;
 
-    tcp_header_t *header = pktbuf_prepend(p, sizeof(tcp_header_t) + options_length);
+    tcp_header_t *header = (tcp_header_t *)pktbuf_prepend(p, sizeof(tcp_header_t) + options_length);
     DEBUG_ASSERT(header);
 
     /* fill in the header */
@@ -919,7 +923,7 @@ static ssize_t tcp_retransmit(tcp_socket_t *s) {
 }
 
 static void handle_retransmit_timeout(void *_s) {
-    tcp_socket_t *s = _s;
+    tcp_socket_t *s = (tcp_socket_t *)_s;
 
     LTRACEF("s %p\n", s);
 
@@ -955,7 +959,7 @@ static void handle_retransmit_timeout(void *_s) {
 }
 
 static void handle_delayed_ack_timeout(void *_s) {
-    tcp_socket_t *s = _s;
+    tcp_socket_t *s = (tcp_socket_t *)_s;
 
     LTRACEF("s %p\n", s);
 
@@ -968,7 +972,7 @@ static void handle_delayed_ack_timeout(void *_s) {
 }
 
 static void handle_time_wait_timeout(void *_s) {
-    tcp_socket_t *s = _s;
+    tcp_socket_t *s = (tcp_socket_t *)_s;
 
     LTRACEF("s %p\n", s);
 
@@ -1017,7 +1021,7 @@ static void tcp_remote_close(tcp_socket_t *s) {
 static tcp_socket_t *create_tcp_socket(bool alloc_buffers) {
     tcp_socket_t *s;
 
-    s = calloc(1, sizeof(tcp_socket_t));
+    s = (tcp_socket_t *)calloc(1, sizeof(tcp_socket_t));
     if (!s)
         return NULL;
 
@@ -1037,10 +1041,10 @@ static tcp_socket_t *create_tcp_socket(bool alloc_buffers) {
 
     if (alloc_buffers) {
         // XXX check for error
-        s->rx_buffer_raw = malloc(s->rx_win_size);
+        s->rx_buffer_raw = (uint8_t *)malloc(s->rx_win_size);
         cbuf_initialize_etc(&s->rx_buffer, s->rx_win_size, s->rx_buffer_raw);
 
-        s->tx_buffer_raw = malloc(DEFAULT_TX_BUFFER_SIZE);
+        s->tx_buffer_raw = (uint8_t *)malloc(DEFAULT_TX_BUFFER_SIZE);
         cbuf_initialize_etc(&s->tx_buffer, DEFAULT_TX_BUFFER_SIZE, s->tx_buffer_raw);
     }
 
@@ -1177,6 +1181,8 @@ ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len) {
     inc_socket_ref(s);
 
     ssize_t ret = 0;
+    size_t remaining_bytes;
+    uint32_t new_rx_win_size;
 retry:
     /* block on available data */
     event_wait(&s->rx_event);
@@ -1199,13 +1205,13 @@ retry:
     }
 
     /* if we've used up the last byte in the read buffer, unsignal the read event */
-    size_t remaining_bytes = cbuf_space_used(&s->rx_buffer);
+    remaining_bytes = cbuf_space_used(&s->rx_buffer);
     if (s->state == STATE_ESTABLISHED && remaining_bytes == 0) {
         event_unsignal(&s->rx_event);
     }
 
     /* we've read something, make sure the other end knows that our window is opening */
-    uint32_t new_rx_win_size = s->rx_win_size - remaining_bytes;
+    new_rx_win_size = s->rx_win_size - remaining_bytes;
 
     /* if we've opened it enough, send an ack */
     if (new_rx_win_size >= s->mss && s->rx_win_high - s->rx_win_low < s->mss)

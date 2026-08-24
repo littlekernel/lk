@@ -12,6 +12,7 @@
 
 #include <lk/compiler.h>
 #include <endian.h>
+#include <lk/console_cmd.h>
 #include <lk/list.h>
 #include <stdint.h>
 #include <string.h>
@@ -149,6 +150,9 @@ status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, 
 
 void tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip);
 void udp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip);
+
+// console command backend (tcp.cpp), registered by lk_console.c
+int cmd_tcp(int argc, const console_cmd_args *argv);
 
 // stack worker (stack.cpp)
 void netstack_init(void);

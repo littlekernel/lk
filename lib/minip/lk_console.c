@@ -136,8 +136,6 @@ minip_usage:
     return 0;
 }
 
-extern int cmd_tcp(int argc, const console_cmd_args *argv);
-
 STATIC_COMMAND_START
 STATIC_COMMAND("arp", "arp commands", &cmd_arp)
 STATIC_COMMAND("mi", "minip commands", &cmd_minip)
