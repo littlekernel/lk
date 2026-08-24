@@ -64,7 +64,7 @@ void arp_cache_update(uint32_t addr, const uint8_t mac[6]) {
         LTRACEF("Adding %u.%u.%u.%u -> %02x:%02x:%02x:%02x:%02x:%02x to cache\n",
                 ip.b[0], ip.b[1], ip.b[2], ip.b[3],
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-        arp = malloc(sizeof(arp_entry_t));
+        arp = (arp_entry_t *)malloc(sizeof(arp_entry_t));
         if (arp == NULL) {
             goto err;
         }
@@ -125,8 +125,8 @@ int arp_send_request(netif_t *netif, ipv4_addr_t addr) {
         return -1;
     }
 
-    eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
-    arp = pktbuf_append(p, sizeof(struct arp_pkt));
+    eth = (struct eth_hdr *)pktbuf_prepend(p, sizeof(struct eth_hdr));
+    arp = (struct arp_pkt *)pktbuf_append(p, sizeof(struct arp_pkt));
     minip_build_mac_hdr(netif, eth, bcast_mac, ETH_TYPE_ARP);
 
     arp->htype = htons(0x0001);
@@ -190,9 +190,9 @@ int handle_arp_pkt(netif_t *netif, pktbuf_t *p) {
 
     LTRACEF("ARP packet, len %u\n", p->dlen);
 
-    eth = (void *) (p->data - sizeof(struct eth_hdr));
+    eth = (struct eth_hdr *)(p->data - sizeof(struct eth_hdr));
 
-    if ((arp = pktbuf_consume(p, sizeof(struct arp_pkt))) == NULL) {
+    if ((arp = (struct arp_pkt *)pktbuf_consume(p, sizeof(struct arp_pkt))) == NULL) {
         return -1;
     }
 
@@ -209,8 +209,8 @@ int handle_arp_pkt(netif_t *netif, pktbuf_t *p) {
 
                 LTRACEF("arp request for us\n");
 
-                reth = pktbuf_prepend(rp, sizeof(struct eth_hdr));
-                rarp = pktbuf_append(rp, sizeof(struct arp_pkt));
+                reth = (struct eth_hdr *)pktbuf_prepend(rp, sizeof(struct eth_hdr));
+                rarp = (struct arp_pkt *)pktbuf_append(rp, sizeof(struct arp_pkt));
 
                 // Eth header
                 minip_build_mac_hdr(netif, reth, eth->src_mac, ETH_TYPE_ARP);

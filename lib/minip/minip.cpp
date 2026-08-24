@@ -280,8 +280,8 @@ status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, 
 
     size_t data_len = p->dlen;
 
-    struct ipv4_hdr *ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
-    struct eth_hdr *eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
+    struct ipv4_hdr *ip = (struct ipv4_hdr *)pktbuf_prepend(p, sizeof(struct ipv4_hdr));
+    struct eth_hdr *eth = (struct eth_hdr *)pktbuf_prepend(p, sizeof(struct eth_hdr));
 
     if (LOCAL_TRACE) {
         printf("sending ipv4\n");
@@ -295,6 +295,10 @@ status_t minip_ipv4_send_raw(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto, 
 
 status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
     status_t ret = 0;
+    netif_t *netif = NULL;
+    const uint8_t *dest_mac = NULL;
+    ipv4_addr_t target_addr = dest_addr;
+    ipv4_addr_t netmask;
 
     // TODO: cache route at socket creation
     ipv4_route_t *route = ipv4_search_route(dest_addr);
@@ -303,18 +307,16 @@ status_t minip_ipv4_send(pktbuf_t *p, ipv4_addr_t dest_addr, uint8_t proto) {
         goto err;
     }
     DEBUG_ASSERT(route->interface);
-    netif_t *netif = route->interface;
+    netif = route->interface;
 
     // are we sending a broadcast packet?
-    const uint8_t *dest_mac;
     if (dest_addr == IPV4_BCAST || dest_addr == netif_get_broadcast_ipv4(netif)) {
         dest_mac = bcast_mac;
         goto ready;
     }
 
     // is this a local subnet packet or do we need to send to the router?
-    ipv4_addr_t target_addr = dest_addr;
-    ipv4_addr_t netmask = netif_get_netmask_ipv4(netif);
+    netmask = netif_get_netmask_ipv4(netif);
     if ((dest_addr & netmask) != (netif->ipv4_addr & netmask)) {
         // need to use the gateway
         if (minip_gateway == IPV4_NONE) {
@@ -357,9 +359,9 @@ static void send_ping_reply(netif_t *netif, uint32_t ipaddr, struct icmp_pkt *re
         return;
     }
 
-    icmp = pktbuf_prepend(p, sizeof(struct icmp_pkt));
-    ip = pktbuf_prepend(p, sizeof(struct ipv4_hdr));
-    eth = pktbuf_prepend(p, sizeof(struct eth_hdr));
+    icmp = (struct icmp_pkt *)pktbuf_prepend(p, sizeof(struct icmp_pkt));
+    ip = (struct ipv4_hdr *)pktbuf_prepend(p, sizeof(struct ipv4_hdr));
+    eth = (struct eth_hdr *)pktbuf_prepend(p, sizeof(struct eth_hdr));
     pktbuf_append_data(p, req->data, reqdatalen);
 
     len = sizeof(struct icmp_pkt) + reqdatalen;
@@ -451,7 +453,7 @@ __NO_INLINE static void handle_ipv4_packet(netif_t *netif, pktbuf_t *p, const ui
     switch (ip->proto) {
         case IP_PROTO_ICMP: {
             struct icmp_pkt *icmp;
-            if ((icmp = pktbuf_consume(p, sizeof(struct icmp_pkt))) == NULL) {
+            if ((icmp = (struct icmp_pkt *)pktbuf_consume(p, sizeof(struct icmp_pkt))) == NULL) {
                 break;
             }
             if (icmp->type == ICMP_ECHO_REQUEST) {
@@ -485,7 +487,7 @@ void minip_rx_driver_callback(netif_t *netif, pktbuf_t *p) {
     LTRACEF("netif %p, p %p, dlen %u\n", netif, p, p->dlen);
 
     struct eth_hdr *eth;
-    if ((eth = (void *) pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
+    if ((eth = (struct eth_hdr *)pktbuf_consume(p, sizeof(struct eth_hdr))) == NULL) {
         return;
     }
 

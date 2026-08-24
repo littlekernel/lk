@@ -17,6 +17,8 @@
 #include <string.h>
 #include <lib/minip/netif.h>
 
+__BEGIN_CDECLS
+
 /* Lib configuration */
 #define MINIP_USE_UDP_CHECKSUM    1
 #define MINIP_MTU_SIZE            1536
@@ -177,3 +179,5 @@ static inline void mac_addr_copy(uint8_t *dest, const uint8_t *src) {
 
 // Whether to trace packet activity
 extern bool minip_trace;
+
+__END_CDECLS

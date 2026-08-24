@@ -45,7 +45,7 @@ netif_t *netif_create(netif_t *n, const char *name) {
     LTRACEF("n %p\n", n);
 
     if (!n) {
-        n = malloc(sizeof(netif_t));
+        n = (netif_t *)malloc(sizeof(netif_t));
     }
     if (!n) {
         return NULL;
