@@ -106,7 +106,6 @@ typedef struct tcp_socket {
     net_timer_t retransmit_timer;
     int      retransmit_count; // consecutive retransmits with no ack in between
     uint32_t dupack_count;   // consecutive duplicate acks from the peer
-    uint16_t tx_last_win;    // window they advertised last, to spot duplicates
 
     /* congestion control (RFC 5681, with NewReno's recovery from 6582) */
     uint32_t cwnd;           // how much may be in flight, bytes
@@ -754,7 +753,6 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
 
                 s->tx_win_high = s->tx_win_low + header->win_size;
                 s->tx_highest_seq = s->tx_win_low;
-                s->tx_last_win = header->win_size;
                 tcp_cwnd_init(s);
 
                 tcp_rtt_ack(s, header->ack_num);
@@ -800,7 +798,6 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             s->tx_win_low++;
             s->tx_win_high = s->tx_win_low + header->win_size;
             s->tx_highest_seq = s->tx_win_low;
-            s->tx_last_win = header->win_size;
             tcp_cwnd_init(s);
 
             tcp_rtt_ack(s, header->ack_num);
@@ -1397,18 +1394,38 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bo
     DEBUG_ASSERT(s);
     DEBUG_ASSERT(is_mutex_held(&s->lock));
 
-    const bool same_window = (win_size == s->tx_last_win);
-    s->tx_last_win = (uint16_t)win_size;
-
     LTRACEF("s %p, tx_win_low %u tx_win_high %u tx_highest_seq %u buffered %u\n",
             s, s->tx_win_low, s->tx_win_high, s->tx_highest_seq, tx_buffered_bytes(s));
     if (SEQUENCE_LTE(sequence, s->tx_win_low)) {
-        /* they're acking stuff we've already received an ack for. an empty
-         * segment repeating the ack we already have, with the window
-         * unchanged and data of ours still outstanding, is the peer
-         * telling us it has a hole */
-        if (bare && sequence == s->tx_win_low && same_window &&
-                s->tx_highest_seq != s->tx_win_low) {
+        /* Nothing new is acknowledged, but the window they advertise
+         * still counts. A receiver whose reader has caught up has no
+         * other way to tell us it can take more, and without this the
+         * send window keeps whatever size our last acked segment happened
+         * to name -- for the rest of the connection, if the peer never
+         * acks anything again. Only ever move the right edge forward, so
+         * an old segment arriving late cannot pull it back.
+         */
+        bool window_opened = false;
+        if (sequence == s->tx_win_low && SEQUENCE_GT(sequence + win_size, s->tx_win_high)) {
+            s->tx_win_high = sequence + win_size;
+            window_opened = true;
+        }
+
+        /* They're acking stuff we've already received an ack for. An
+         * empty segment repeating the ack we already have, while data of
+         * ours is still outstanding, is the peer saying it has a hole.
+         *
+         * RFC 5681 also asks that the advertised window be unchanged, to
+         * tell a duplicate ack apart from a window update. That test is
+         * not usable here: the acks a receiver sends from its out of order
+         * path carry a window that moves as its own reader drains, so
+         * requiring it to hold still loses the duplicates precisely when
+         * the far end is busiest. The ack number alone is a good enough
+         * signal -- it stands still only while the receiver is missing
+         * something, and data of ours being outstanding says that
+         * something is ours.
+         */
+        if (bare && sequence == s->tx_win_low && s->tx_highest_seq != s->tx_win_low) {
             s->stat_dupacks++;
             s->dupack_count++;
 
@@ -1428,6 +1445,11 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bo
             } else if (s->dupack_count == TCP_DUPACK_THRESHOLD) {
                 tcp_enter_recovery(s);
             }
+        }
+
+        /* room we did not have a moment ago */
+        if (window_opened) {
+            tcp_write_pending_data(s);
         }
         return;
     } else if (SEQUENCE_GT(sequence, s->tx_highest_seq)) {
@@ -1971,6 +1993,7 @@ ssize_t tcp_read(tcp_socket_t *socket, void *buf, size_t len) {
     ssize_t ret = 0;
     size_t pos = 0;
     uint32_t new_rx_win_size;
+    uint32_t advertised;
 retry:
     /* block on available data */
     event_wait(&s->rx_event);
@@ -2017,12 +2040,26 @@ retry:
         event_unsignal(&s->rx_event);
     }
 
-    /* we've read something, make sure the other end knows that our window is opening */
+    /* Reading has opened the window; tell them so if it is worth a segment
+     * of its own. RFC 1122 4.2.3.3: an update is worth sending once the
+     * window has grown by two segments or half the buffer beyond what they
+     * last heard, and it is needed outright when the window had closed
+     * below a segment, since they cannot send at all until it moves.
+     *
+     * Waiting only for the second case is not enough. Acks are the only
+     * other thing that carries a window, so a sender that stops writing
+     * while our reader is still draining keeps whatever window our last
+     * ack happened to name -- and resumes into a window several segments
+     * too small. Duplicate acks cannot be raised from a burst that small,
+     * so a loss there costs a full retransmit timeout.
+     */
+    advertised = s->rx_win_high - s->rx_win_low;
     new_rx_win_size = s->rx_win_size - s->rx_contig_bytes;
 
-    /* if we've opened it enough, send an ack */
-    if (new_rx_win_size >= s->mss && s->rx_win_high - s->rx_win_low < s->mss)
+    if ((advertised < s->mss && new_rx_win_size >= s->mss) ||
+            new_rx_win_size >= advertised + MIN(2 * s->mss, s->rx_win_size / 2)) {
         send_ack(s);
+    }
 
 out:
     mutex_release(&s->lock);
