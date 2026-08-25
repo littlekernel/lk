@@ -166,6 +166,9 @@ typedef struct tcp_socket_stats {
     uint32_t dupacks;           // duplicate acks received
     uint32_t rto;               // current retransmit timeout, milliseconds
     uint32_t srtt;              // smoothed round trip time, milliseconds
+    uint32_t cwnd;              // congestion window, bytes
+    uint32_t ssthresh;          // slow start threshold, bytes
+    uint32_t mss;               // segment size in use
 } tcp_socket_stats_t;
 
 void tcp_get_socket_stats(struct tcp_socket *s, tcp_socket_stats_t *out);

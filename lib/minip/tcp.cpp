@@ -107,6 +107,13 @@ typedef struct tcp_socket {
     int      retransmit_count; // consecutive retransmits with no ack in between
     uint32_t dupack_count;   // consecutive duplicate acks from the peer
     uint16_t tx_last_win;    // window they advertised last, to spot duplicates
+
+    /* congestion control (RFC 5681, with NewReno's recovery from 6582) */
+    uint32_t cwnd;           // how much may be in flight, bytes
+    uint32_t cwnd_extra;     // limited transmit's allowance on top of cwnd
+    uint32_t ssthresh;       // above this, growth slows to congestion avoidance
+    uint32_t recover;        // sequence that ends the current loss episode
+    bool     in_recovery;    // a fast recovery episode is under way
     bool     fin_pending;    // tcp_close() has queued a FIN behind the tx data
     bool     fin_sent;       // the FIN has been transmitted at least once
     uint32_t fin_seq;        // the sequence the FIN occupies (valid if fin_sent)
@@ -173,6 +180,12 @@ typedef struct tcp_socket {
  * plain reordering of adjacent segments does not trip it.
  */
 #define TCP_DUPACK_THRESHOLD (3)
+
+/* An upper bound on the congestion window. Nothing here can usefully keep
+ * more in flight than the peer's window and our own transmit queue allow,
+ * so this only keeps an idle-but-growing window from running away.
+ */
+#define TCP_CWND_MAX (1u << 20)
 
 /* The handshake gets its own retry count: it starts from the initial 1s
  * timeout with nothing measured yet, so 4 tries is already ~15 seconds.
@@ -259,6 +272,8 @@ static void send_ack(tcp_socket_t *s);
 static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bool bare);
 static ssize_t tcp_retransmit(tcp_socket_t *s);
 static void tcp_fast_retransmit(tcp_socket_t *s);
+static void tcp_cwnd_init(tcp_socket_t *s);
+static void tcp_enter_recovery(tcp_socket_t *s);
 static ssize_t tcp_write_pending_data(tcp_socket_t *s);
 static uint16_t tcp_advertised_window(tcp_socket_t *s);
 static status_t tcp_send_data_pktbuf(tcp_socket_t *s, pktbuf_t *p, uint32_t sequence);
@@ -370,6 +385,8 @@ static void dump_socket(tcp_socket_t *s) {
     printf("\trto: %u ms (srtt %u rttvar %u%s), retransmits %d, dupacks %u\n",
            s->rto, s->srtt, s->rttvar, s->rtt_valid ? "" : ", unmeasured",
            s->retransmit_count, s->dupack_count);
+    printf("\tcwnd: %u (+%u) ssthresh %u%s\n",
+           s->cwnd, s->cwnd_extra, s->ssthresh, s->in_recovery ? ", recovering" : "");
     printf("\tcounters: retransmit %u fast %u dupack %u\n",
            s->stat_retransmits, s->stat_fast_retransmits, s->stat_dupacks);
     if (s->fin_pending) {
@@ -738,6 +755,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
                 s->tx_win_high = s->tx_win_low + header->win_size;
                 s->tx_highest_seq = s->tx_win_low;
                 s->tx_last_win = header->win_size;
+                tcp_cwnd_init(s);
 
                 tcp_rtt_ack(s, header->ack_num);
                 tcp_timer_cancel(s, &s->retransmit_timer);
@@ -783,6 +801,7 @@ bool tcp_input(netif_t *netif, pktbuf_t *p, uint32_t src_ip, uint32_t dst_ip) {
             s->tx_win_high = s->tx_win_low + header->win_size;
             s->tx_highest_seq = s->tx_win_low;
             s->tx_last_win = header->win_size;
+            tcp_cwnd_init(s);
 
             tcp_rtt_ack(s, header->ack_num);
             tcp_timer_cancel(s, &s->retransmit_timer);
@@ -1288,6 +1307,86 @@ static status_t tcp_send_segment_copy(tcp_socket_t *s, pktbuf_t *q, uint32_t sta
     return tcp_send_data_pktbuf(s, cp, start);
 }
 
+/* Bytes we have sent that the peer has not acknowledged yet. */
+static uint32_t tcp_flight_size(tcp_socket_t *s) {
+    return s->tx_highest_seq - s->tx_win_low;
+}
+
+/* The initial window, sized off the segment size (RFC 3390). It is only
+ * known once the handshake has settled the mss.
+ */
+static void tcp_cwnd_init(tcp_socket_t *s) {
+    if (s->mss > 2190) {
+        s->cwnd = 2 * s->mss;
+    } else if (s->mss > 1095) {
+        s->cwnd = 3 * s->mss;
+    } else {
+        s->cwnd = 4 * s->mss;
+    }
+    s->cwnd_extra = 0;
+    /* start with no threshold, so the connection opens up in slow start
+     * until something actually goes wrong */
+    s->ssthresh = TCP_CWND_MAX;
+    s->in_recovery = false;
+}
+
+/* Open the window for data the peer acknowledged (RFC 5681 3.1). */
+static void tcp_cwnd_grow(tcp_socket_t *s, uint32_t acked) {
+    if (s->cwnd < s->ssthresh) {
+        /* slow start: a segment's worth for every segment that arrived */
+        s->cwnd += MIN(acked, s->mss);
+    } else {
+        /* congestion avoidance: about one segment per round trip */
+        s->cwnd += MAX(s->mss * s->mss / s->cwnd, 1u);
+    }
+
+    s->cwnd = MIN(s->cwnd, (uint32_t)TCP_CWND_MAX);
+}
+
+/* Halve the window and resend, on the evidence of duplicate acks alone.
+ * 'recover' remembers everything already in flight: acks below it belong
+ * to this same loss episode, so a second hole in the same window does not
+ * halve the window a second time (RFC 6582).
+ */
+static void tcp_enter_recovery(tcp_socket_t *s) {
+    if (s->in_recovery || !SEQUENCE_GT(s->tx_win_low, s->recover))
+        return;
+
+    s->ssthresh = MAX(tcp_flight_size(s) / 2, 2 * s->mss);
+    s->cwnd = s->ssthresh + TCP_DUPACK_THRESHOLD * s->mss;
+    s->cwnd_extra = 0;
+    /* the highest sequence transmitted, so an ack of tx_highest_seq --
+     * which acknowledges the byte before it -- reads as a full one */
+    s->recover = s->tx_highest_seq - 1;
+    s->in_recovery = true;
+
+    LTRACEF("s %p, entering recovery: ssthresh %u cwnd %u recover %u\n",
+            s, s->ssthresh, s->cwnd, s->recover);
+
+    tcp_fast_retransmit(s);
+}
+
+/* Everything in flight when the loss was detected is acked: deflate the
+ * window back to what congestion avoidance should be running with.
+ */
+static void tcp_exit_recovery(tcp_socket_t *s) {
+    s->cwnd = MIN(s->ssthresh, MAX(tcp_flight_size(s), s->mss) + s->mss);
+    s->in_recovery = false;
+
+    LTRACEF("s %p, leaving recovery: cwnd %u\n", s, s->cwnd);
+}
+
+/* A timeout is the strongest evidence of congestion there is: drop to one
+ * segment and start over (RFC 5681 3.1).
+ */
+static void tcp_cwnd_timeout(tcp_socket_t *s) {
+    s->ssthresh = MAX(tcp_flight_size(s) / 2, 2 * s->mss);
+    s->cwnd = s->mss;
+    s->cwnd_extra = 0;
+    s->dupack_count = 0;
+    s->in_recovery = false;
+}
+
 /* Process an incoming acknowledgement. 'bare' says the segment carried
  * nothing else -- no payload, no SYN or FIN -- which is what makes an ack
  * of nothing new a duplicate rather than just a window update.
@@ -1311,8 +1410,23 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bo
         if (bare && sequence == s->tx_win_low && same_window &&
                 s->tx_highest_seq != s->tx_win_low) {
             s->stat_dupacks++;
-            if (++s->dupack_count == TCP_DUPACK_THRESHOLD) {
-                tcp_fast_retransmit(s);
+            s->dupack_count++;
+
+            if (s->in_recovery) {
+                /* mid recovery each duplicate ack says one more segment
+                 * has left the network, so one more may enter it */
+                s->cwnd += s->mss;
+                tcp_write_pending_data(s);
+            } else if (s->dupack_count < TCP_DUPACK_THRESHOLD) {
+                /* limited transmit (RFC 3042): each of the first two lets
+                 * one new segment out. It keeps the ack clock running, and
+                 * with a small window it is what produces the third
+                 * duplicate ack at all -- three segments in flight cannot
+                 * otherwise generate one */
+                s->cwnd_extra = s->dupack_count * s->mss;
+                tcp_write_pending_data(s);
+            } else if (s->dupack_count == TCP_DUPACK_THRESHOLD) {
+                tcp_enter_recovery(s);
             }
         }
         return;
@@ -1329,7 +1443,10 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bo
     tcp_rtt_ack(s, sequence);
     s->retransmit_count = 0;
     s->dupack_count = 0;
+    s->cwnd_extra = 0;
     tcp_update_rto(s);
+
+    const uint32_t acked = sequence - s->tx_win_low;
 
     s->tx_win_low = sequence;
     s->tx_win_high = sequence + win_size;
@@ -1345,6 +1462,30 @@ static void handle_ack(tcp_socket_t *s, uint32_t sequence, uint32_t win_size, bo
         DEBUG_ASSERT(s->tx_pktbuf_count > 0);
         s->tx_pktbuf_count--;
         pktbuf_free(q, true);
+    }
+
+    if (s->in_recovery) {
+        if (SEQUENCE_GT(sequence, s->recover)) {
+            /* the whole window that was outstanding when we lost a segment
+             * has been acked; the episode is over */
+            tcp_exit_recovery(s);
+        } else {
+            /* a partial ack uncovers the next hole: resend it immediately
+             * rather than waiting for three more duplicate acks, and
+             * account for the segment that just left the network */
+            s->cwnd = (s->cwnd > acked) ? s->cwnd - acked : 0;
+            if (acked >= s->mss) {
+                s->cwnd += s->mss;
+            }
+            /* never deflate below a segment, or nothing can be sent at all
+             * until a timeout puts the window back */
+            s->cwnd = MAX(s->cwnd, s->mss);
+            if (tcp_retransmit(s) > 0) {
+                s->stat_fast_retransmits++;
+            }
+        }
+    } else {
+        tcp_cwnd_grow(s, acked);
     }
 
     /* cancel or reset our retransmit timer */
@@ -1380,8 +1521,13 @@ static ssize_t tcp_write_pending_data(tcp_socket_t *s) {
         }
     }
 
+    /* the peer's window says what it can hold; the congestion window says
+     * what the path between us can. Send no further than either. */
+    const uint32_t cwnd_edge = s->tx_win_low + s->cwnd + s->cwnd_extra;
+    const uint32_t send_edge = SEQUENCE_LT(cwnd_edge, s->tx_win_high) ? cwnd_edge : s->tx_win_high;
+
     while (q != NULL && SEQUENCE_LT(next, s->tx_buf_top)) {
-        int32_t allowed = (int32_t)(s->tx_win_high - next);
+        int32_t allowed = (int32_t)(send_edge - next);
         if (allowed <= 0)
             break;
 
@@ -1529,6 +1675,8 @@ static void handle_retransmit_timeout(void *_s) {
             }
             break;
         default:
+            tcp_cwnd_timeout(s);
+
             if (++s->retransmit_count >= TCP_MAX_RETRANSMITS) {
                 /* the peer has stopped answering entirely */
                 LTRACEF("s %p, giving up after %d retransmits\n", s, s->retransmit_count);
@@ -1666,6 +1814,10 @@ static tcp_socket_t *create_tcp_socket(void) {
     s->tx_win_low = rand();
     s->tx_win_high = s->tx_win_low;
     s->tx_highest_seq = s->tx_win_low;
+    /* NewReno's recovery point starts at the initial send sequence, so the
+     * first loss on the connection counts as a new episode */
+    s->recover = s->tx_win_low;
+    tcp_cwnd_init(s);
     list_initialize(&s->tx_queue);
     event_init(&s->tx_event, true, 0);
 
@@ -2073,6 +2225,9 @@ void tcp_get_socket_stats(tcp_socket_t *s, tcp_socket_stats_t *out) {
     out->dupacks = s->stat_dupacks;
     out->rto = s->rto;
     out->srtt = s->srtt;
+    out->cwnd = s->cwnd;
+    out->ssthresh = s->ssthresh;
+    out->mss = s->mss;
     mutex_release(&s->lock);
 }
 

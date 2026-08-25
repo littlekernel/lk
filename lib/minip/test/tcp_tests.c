@@ -560,6 +560,105 @@ static bool fast_retransmit(void) {
     END_TEST;
 }
 
+static bool wait_for_bytes(struct sink_server *srv, size_t n, lk_time_t timeout) {
+    for (lk_time_t waited = 0; waited <= timeout; waited += 10) {
+        if (srv->received >= n) {
+            return true;
+        }
+        thread_sleep(10);
+    }
+    return false;
+}
+
+/* Watch the congestion window itself rather than throughput: both ends of
+ * this connection are in one kernel with no path between them, so a
+ * window that opens and collapses correctly looks exactly like one that
+ * does nothing at all from the outside.
+ */
+static bool congestion_window(void) {
+    BEGIN_TEST;
+
+    testnetif_get();
+    testnetif_configure(NULL);
+
+    const uint16_t port = TCP_TEST_PORT_BASE + 11;
+    const size_t clean = 6 * TRANSFER_CHUNK;
+    const size_t lossy = 8 * TRANSFER_CHUNK;
+    const size_t total = clean + lossy;
+
+    uint8_t *expected = (uint8_t *)malloc(total);
+    ASSERT_NONNULL(expected, "");
+
+    struct sink_server srv;
+    memset(&srv, 0, sizeof(srv));
+    srv.buf = (uint8_t *)malloc(total);
+    srv.buflen = total;
+    if (!srv.buf) {
+        free(expected);
+        ASSERT_NONNULL(srv.buf, "");
+    }
+    fill_pattern(expected, total, 0x9d);
+
+    ASSERT_EQ(NO_ERROR, tcp_open_listen(&srv.listener, port), "");
+    srv.thread = thread_create("tcp test sink", &sink_server_worker, &srv,
+                               DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(srv.thread);
+
+    struct connect_result res = { .port = port, .err = 1 };
+    thread_t *t = thread_create("tcp test connect", &connect_worker, &res,
+                                DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    thread_resume(t);
+    ASSERT_EQ(NO_ERROR, thread_join(t, NULL, 15000), "");
+    ASSERT_EQ(NO_ERROR, res.err, "");
+
+    /* a fresh connection starts at the initial window (RFC 3390) with no
+     * threshold, so it is free to open up in slow start */
+    tcp_socket_stats_t fresh;
+    tcp_get_socket_stats(res.sock, &fresh);
+    EXPECT_GE(fresh.cwnd, 2 * fresh.mss, "initial window should be a few segments");
+    EXPECT_LE(fresh.cwnd, 4 * fresh.mss, "initial window should be a few segments");
+    EXPECT_GT(fresh.ssthresh, 64u * 1024, "nothing has gone wrong yet");
+
+    /* a clean transfer: slow start should open the window */
+    ASSERT_EQ((ssize_t)clean, tcp_write(res.sock, expected, clean), "");
+    EXPECT_TRUE(wait_for_bytes(&srv, clean, 10000), "");
+    thread_sleep(2 * 50); /* let the last acks land */
+
+    tcp_socket_stats_t opened;
+    tcp_get_socket_stats(res.sock, &opened);
+    EXPECT_GT(opened.cwnd, fresh.cwnd, "slow start should have opened the window");
+    EXPECT_EQ(fresh.ssthresh, opened.ssthresh, "no loss, so no threshold yet");
+
+    /* now lose a segment: the recovery should halve the window */
+    const testnetif_faults_t faults = { .drop_once_min_len = 512 };
+    testnetif_configure(&faults);
+
+    ASSERT_EQ((ssize_t)lossy, tcp_write(res.sock, expected + clean, lossy), "");
+    EXPECT_TRUE(wait_for_bytes(&srv, total, 10000), "");
+    thread_sleep(2 * 50);
+
+    tcp_socket_stats_t after;
+    tcp_get_socket_stats(res.sock, &after);
+    EXPECT_EQ(1U, after.fast_retransmits, "the loss should be recovered from dupacks");
+    EXPECT_EQ(0U, after.retransmits, "and not from the retransmit timer");
+    EXPECT_LT(after.ssthresh, opened.cwnd, "the loss should have set a threshold below it");
+    EXPECT_GE(after.ssthresh, 2 * after.mss, "but never below two segments");
+    EXPECT_LE(after.cwnd, opened.cwnd, "and the window should have come back down");
+
+    EXPECT_EQ(NO_ERROR, thread_join(srv.thread, NULL, 15000), "");
+    testnetif_configure(NULL);
+
+    EXPECT_EQ(total, srv.received, "the whole stream should arrive");
+    EXPECT_BYTES_EQ(expected, srv.buf, total, "");
+
+    EXPECT_EQ(NO_ERROR, tcp_close(res.sock), "");
+    tcp_close(srv.listener);
+    free(expected);
+    free(srv.buf);
+
+    END_TEST;
+}
+
 /* --- raw frame injection ----------------------------------------------- */
 
 /* the wire header layout (the stack's own struct is private to tcp.cpp) */
@@ -737,6 +836,7 @@ RUN_TEST(reordered_segments)
 RUN_TEST(duplicated_segments)
 RUN_TEST(close_with_unacked_data)
 RUN_TEST(fast_retransmit)
+RUN_TEST(congestion_window)
 RUN_TEST(rst_on_closed_port)
 RUN_TEST(ipv4_input_validation)
 END_TEST_CASE(tcp_tests)
