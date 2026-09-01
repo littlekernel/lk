@@ -28,6 +28,7 @@
 #include <uefi/types.h>
 
 #include "blockio_protocols.h"
+#include "defer.h"
 #include "events.h"
 #include "io_stack.h"
 #include "memory_protocols.h"
@@ -144,6 +145,12 @@ __WEAK EfiStatus open_async_block_device(EfiHandle handle, const void** intf) {
     }
     return status;
   }
+  bool close_dev_on_failure = true;
+  DEFER {
+    if (close_dev_on_failure) {
+      close_tracked_bdev(reinterpret_cast<const char*>(handle));
+    }
+  };
   printf("%s(%s)\n", __FUNCTION__, dev->name);
   auto interface = reinterpret_cast<EfiBlockIo2Interface*>(
       uefi_malloc(sizeof(EfiBlockIo2Interface)));
@@ -162,6 +169,7 @@ __WEAK EfiStatus open_async_block_device(EfiHandle handle, const void** intf) {
   media->last_block = dev->block_count - 1;
   interface->dev = dev;
   *intf = interface;
+  close_dev_on_failure = false;
 
   return EFI_STATUS_SUCCESS;
 }

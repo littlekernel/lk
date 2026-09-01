@@ -372,22 +372,31 @@ EfiStatus rng_get_rng(EfiRngProtocol* self, const EfiRngAlgorithm* rng_algorithm
 __WEAK EfiStatus open_efi_erase_block_protocol(EfiHandle handle, const void** intf) {
   auto* device_name = static_cast<const char*>(handle);
   LTRACEF("handle=%p (%s)\n", handle, device_name);
+  bdev_t* dev = nullptr;
+  EfiStatus status = open_tracked_bdev(device_name, &dev);
+  if (status != EFI_STATUS_SUCCESS) {
+    return status;
+  }
+  bool close_dev_on_failure = true;
+  DEFER {
+    if (close_dev_on_failure) {
+      close_tracked_bdev(device_name);
+    }
+  };
   auto* p = reinterpret_cast<EfiEraseBlockInterface*>(
       uefi_malloc(sizeof(EfiEraseBlockInterface)));
   if (p == nullptr) {
     return EFI_STATUS_OUT_OF_RESOURCES;
   }
   memset(p, 0, sizeof(*p));
-  EfiStatus status = open_tracked_bdev(device_name, &p->dev);
-  if (status != EFI_STATUS_SUCCESS) {
-    return status;
-  }
+  p->dev = dev;
   p->protocol = {
       .revision = EFI_ERASE_BLOCK_PROTOCOL_REVISION,
       .erase_length_granularity = 1,  // Erase block size == 1 filesystem block
       .erase_blocks = erase_blocks,
   };
   *intf = p;
+  close_dev_on_failure = false;
   return EFI_STATUS_SUCCESS;
 }
 

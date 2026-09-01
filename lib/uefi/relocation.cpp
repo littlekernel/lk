@@ -11,9 +11,8 @@ int relocate_image(char *image, size_t image_size) {
   const auto dos_header = reinterpret_cast<IMAGE_DOS_HEADER *>(image);
   const auto pe_header = dos_header->GetPEHeader();
   const auto optional_header = &pe_header->OptionalHeader;
-  // Compute the load adjustment from integer addresses. Subtracting ImageBase
-  // from the image pointer would form a pointer far outside the allocation
-  // (undefined behavior in C++) whenever ImageBase is nonzero.
+  // Compute the load adjustment using integers because pointer arithmetic on
+  // pointers from different allocations is undefined behavior in C++.
   const auto Adjust =
       reinterpret_cast<size_t>(image) - optional_header->ImageBase;
 
@@ -42,14 +41,15 @@ int relocate_image(char *image, size_t image_size) {
       printf("Image relocations stripped but not loaded at its ImageBase\n");
       return -1;
     }
-    printf("%s\n", have_reloc_dir ? "Relocation section empty"
+    printf("%s\n", have_reloc_dir ? "Relocation directory empty"
                                   : "No base relocation directory present");
     return 0;
   }
   // The relocation directory is attacker-controlled. Keep the whole region
   // within the allocated image so a malformed PE cannot walk out of bounds.
-  if (reloc_directory.VirtualAddress > image_size ||
-      reloc_directory.Size > image_size - reloc_directory.VirtualAddress) {
+  const uint64_t reloc_end = static_cast<uint64_t>(reloc_directory.VirtualAddress) +
+                             static_cast<uint64_t>(reloc_directory.Size);
+  if (reloc_end > image_size) {
     printf("Relocation directory out of bounds\n");
     return -1;
   }
