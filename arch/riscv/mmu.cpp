@@ -35,19 +35,21 @@
 
 // the one main kernel top page table, used by the kernel address space
 // when no user space is active. bottom user space parts are empty.
-riscv_pte_t kernel_pgtable[512] __ALIGNED(PAGE_SIZE);
+riscv_pte_t kernel_pgtable[RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 paddr_t kernel_pgtable_phys; // filled in by start.S
 
 // trampoline top level page table is like the kernel page table but additionally
 // holds an identity map of the bottom RISCV_MMU_PHYSMAP_SIZE bytes of ram.
 // used at early bootup and when starting secondary processors.
-riscv_pte_t trampoline_pgtable[512] __ALIGNED(PAGE_SIZE);
+riscv_pte_t trampoline_pgtable[RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 paddr_t trampoline_pgtable_phys; // filled in by start.S
 
-// pre-allocate kernel 2nd level page tables.
-// this makes it very easy to keep user space top level address space page tables
-// in sync, since they can simply take a copy of the kernel ones.
-riscv_pte_t kernel_l2_pgtable[512][RISCV_MMU_KERNEL_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+// pre-allocated second level page tables, one page sized table per kernel
+// entry of the top level table. Every kernel top level entry is populated at
+// boot, so user space top level tables stay in sync with the kernel's by
+// simply taking a copy of those entries.
+riscv_pte_t kernel_l2_pgtable[RISCV_MMU_KERNEL_PT_ENTRIES][RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+static_assert(sizeof(kernel_l2_pgtable[0]) == PAGE_SIZE, "");
 paddr_t kernel_l2_pgtable_phys; // filled in by start.S
 
 // initial memory mappings. VM uses to construct mappings after the fact
@@ -131,6 +133,8 @@ void riscv_set_satp(uint asid, paddr_t pt) {
     satp = RISCV_SATP_MODE_SV48 << RISCV_SATP_MODE_SHIFT;
 #elif RISCV_MMU == 39
     satp = RISCV_SATP_MODE_SV39 << RISCV_SATP_MODE_SHIFT;
+#else
+#error implement
 #endif
 
     // make sure the asid is in range

@@ -212,6 +212,12 @@ LOCAL_FUNCTION(_mmu_init)
     or      t1, t1, t2
     csrw    satp, t1
 
+    // satp.MODE is WARL: a mode this cpu does not implement leaves the whole
+    // write ignored and the MMU off, so park here rather than jump into the
+    // unmapped high half
+    csrr    t2, satp
+    bne     t1, t2, riscv_mmu_mode_unsupported
+
     // global tlb fence
     sfence.vma  zero, zero
 
@@ -239,6 +245,13 @@ LOCAL_FUNCTION(_mmu_init)
     add     ra, ra, t0
     ret
 END_FUNCTION(_mmu_init)
+
+// the cpu refused the compiled in satp mode (RISCV_MMU); spin at a symbol a
+// debugger can name
+LOCAL_FUNCTION(riscv_mmu_mode_unsupported)
+    wfi
+    j       riscv_mmu_mode_unsupported
+END_FUNCTION(riscv_mmu_mode_unsupported)
 #endif // RISCV_MMU
 
 .bss
