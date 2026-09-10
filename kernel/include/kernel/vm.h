@@ -161,8 +161,19 @@ static inline void *pmm_alloc_kpage(void) { return pmm_alloc_kpages(1, NULL); }
 
 size_t pmm_free_kpages(void *ptr, uint count);
 
-// physical to virtual
-void *paddr_to_kvaddr(paddr_t pa);
+// physical to virtual, through the initial mappings that are not temporary
+void *paddr_to_kvaddr_search(paddr_t pa);
+
+// The first initial mapping is the physmap on nearly every platform and takes
+// nearly every lookup, so it is tested inline before the search runs. Page
+// table walkers call this at every level.
+static inline void *paddr_to_kvaddr(paddr_t pa) {
+    const struct mmu_initial_mapping *map = &mmu_initial_mappings[0];
+    if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) && pa - map->phys < map->size) {
+        return (void *)(map->virt + (pa - map->phys));
+    }
+    return paddr_to_kvaddr_search(pa);
+}
 
 // a hint as to which virtual addresses will be returned by pmm_alloc_kpages
 void *kvaddr_get_range(size_t *size_return);
