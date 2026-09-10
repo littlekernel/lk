@@ -606,6 +606,255 @@ bool free_active_aspace() {
     END_TEST;
 }
 
+// page tables an aspace holds, root included; only riscv exposes the list
+bool check_table_count(vmm_aspace_t *as, size_t expected) {
+#if ARCH_RISCV
+    return list_length(&as->arch_aspace.pt_list) == expected;
+#else
+    return true;
+#endif
+}
+
+#if ARCH_RISCV
+constexpr size_t pt_levels = RISCV_MMU_PT_LEVELS;
+#else
+constexpr size_t pt_levels = 0;
+#endif
+
+// the first address above the user base that is aligned to size
+vaddr_t user_boundary(size_t size) {
+    return ROUNDUP(USER_ASPACE_BASE + 1, size);
+}
+
+// A range mapped in one call that crosses table boundaries: after each page
+// the walk resumes in the right table at every level, including where a
+// boundary at every lower level falls at once.
+bool map_across_table_boundaries() {
+    BEGIN_TEST;
+
+    if (!arch_mmu_supports_user_aspaces()) {
+        END_TEST;
+    }
+
+    vmm_aspace_t *as = nullptr;
+    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "boundaries", 0), "create aspace");
+    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+
+    struct list_node pages = LIST_INITIAL_VALUE(pages);
+    paddr_t pa;
+    ASSERT_EQ(4U, pmm_alloc_contiguous(4, PAGE_SIZE_SHIFT, &pa, &pages), "alloc pages");
+    auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
+
+    // two pages either side of a 1GB boundary, then of a 2MB one. On riscv the
+    // first needs a table per level below the 1GB one on each side, the
+    // second two leaf tables under a shared chain.
+    const struct {
+        vaddr_t base;
+        size_t tables;
+    } ranges[] = {
+        { user_boundary(1UL << 30) - 2 * PAGE_SIZE, pt_levels + 2 },
+        { user_boundary(2UL << 20) - 2 * PAGE_SIZE, pt_levels + 1 },
+    };
+    for (const auto &r : ranges) {
+        ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, r.base, pa, 4, ARCH_MMU_FLAG_PERM_USER), "map");
+        EXPECT_TRUE(check_table_count(as, r.tables), "tables after map");
+        for (uint i = 0; i < 4; i++) {
+            paddr_t got;
+            uint flags;
+            EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, r.base + i * PAGE_SIZE, &got, &flags), "query");
+            EXPECT_EQ(pa + i * PAGE_SIZE, got, "paddr");
+            EXPECT_EQ(ARCH_MMU_FLAG_PERM_USER, flags, "flags");
+        }
+        EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, r.base, 4), "unmap");
+        for (uint i = 0; i < 4; i++) {
+            paddr_t got;
+            EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, r.base + i * PAGE_SIZE, &got, nullptr), "gone");
+        }
+        EXPECT_TRUE(check_table_count(as, 1), "tables after unmap");
+    }
+
+    aspace_cleanup.cancel();
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+
+    END_TEST;
+}
+
+// Unmapping steps over holes without losing the pages after them, whether
+// the hole is a few entries or a whole missing table, and a range with
+// nothing in it is not an error.
+bool unmap_range_with_holes() {
+    BEGIN_TEST;
+
+    if (!arch_mmu_supports_user_aspaces()) {
+        END_TEST;
+    }
+
+    vmm_aspace_t *as = nullptr;
+    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "holes", 0), "create aspace");
+    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+
+    const vaddr_t base = USER_ASPACE_BASE;
+    vm_page_t *p2 = map_pattern_page(as, base + 2 * PAGE_SIZE, 2);
+    ASSERT_NONNULL(p2, "map page 2");
+    auto p2_cleanup = lk::make_auto_call([&]() { pmm_free_page(p2); });
+    vm_page_t *p5 = map_pattern_page(as, base + 5 * PAGE_SIZE, 5);
+    ASSERT_NONNULL(p5, "map page 5");
+    auto p5_cleanup = lk::make_auto_call([&]() { pmm_free_page(p5); });
+
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, 8), "unmap around holes");
+    paddr_t pa;
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + 2 * PAGE_SIZE, &pa, nullptr), "page 2 gone");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + 5 * PAGE_SIZE, &pa, nullptr), "page 5 gone");
+    EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, 8), "unmap nothing");
+
+    // a page in the leaf table after a missing one: an unmap starting in the
+    // hole must stop at the end of the hole, not the end of the range
+    const vaddr_t beyond = user_boundary(2UL << 20);
+    vm_page_t *pb = map_pattern_page(as, beyond, 7);
+    ASSERT_NONNULL(pb, "map page beyond the hole");
+    auto pb_cleanup = lk::make_auto_call([&]() { pmm_free_page(pb); });
+    const vaddr_t hole = beyond - (2UL << 20) >= USER_ASPACE_BASE ? beyond - (2UL << 20) : USER_ASPACE_BASE;
+    const uint span = (beyond - hole) / PAGE_SIZE + 512;
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, hole, span), "unmap from inside a hole");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, beyond, &pa, nullptr), "page beyond gone");
+    EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed again");
+
+    aspace_cleanup.cancel();
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+
+    END_TEST;
+}
+
+// A range filling one leaf table and parts of two more, on both sides of a
+// 1GB boundary, goes in and comes out in one call each, and the unmap takes
+// every table it emptied with it, at every level.
+bool reclaim_after_big_range() {
+    BEGIN_TEST;
+
+    if (!arch_mmu_supports_user_aspaces()) {
+        END_TEST;
+    }
+
+    vmm_aspace_t *as = nullptr;
+    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "big_range", 0), "create aspace");
+    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+
+    constexpr uint count = 1024;
+    struct list_node pages = LIST_INITIAL_VALUE(pages);
+    paddr_t pa;
+    ASSERT_EQ((size_t)count, pmm_alloc_contiguous(count, PAGE_SIZE_SHIFT, &pa, &pages), "alloc pages");
+    auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
+
+    // 256 pages before the boundary, 768 after
+    const vaddr_t base = user_boundary(1UL << 30) - 256 * PAGE_SIZE;
+    ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, base, pa, count, ARCH_MMU_FLAG_PERM_USER), "map");
+    // riscv: a chain down to the 1GB level, a 2MB level table on each side, three leaf tables
+    EXPECT_TRUE(check_table_count(as, pt_levels + 3), "tables after map");
+
+    for (uint i = 0; i < count; i += 255) {
+        paddr_t got;
+        EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, base + i * PAGE_SIZE, &got, nullptr), "query");
+        EXPECT_EQ(pa + i * PAGE_SIZE, got, "paddr");
+    }
+
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, count), "unmap");
+    for (uint i = 0; i < count; i += 255) {
+        paddr_t got;
+        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + i * PAGE_SIZE, &got, nullptr), "gone");
+    }
+    EXPECT_TRUE(check_table_count(as, 1), "tables after unmap");
+
+    aspace_cleanup.cancel();
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+
+    END_TEST;
+}
+
+#if ARCH_RISCV && LK_DEBUGLEVEL > 0
+// When a page table cannot be allocated part way through, the pages already
+// mapped are rolled back and the tables linked for the failing page are
+// unlinked again, leaving the aspace as it was and still usable.
+bool map_enomem_rollback() {
+    BEGIN_TEST;
+
+    if (!arch_mmu_supports_user_aspaces()) {
+        END_TEST;
+    }
+
+    vmm_aspace_t *as = nullptr;
+    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "enomem", 0), "create aspace");
+    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    auto budget_cleanup = lk::make_auto_call([]() { riscv_mmu_set_ptable_alloc_budget(-1); });
+
+    struct list_node pages = LIST_INITIAL_VALUE(pages);
+    paddr_t pa;
+    ASSERT_EQ(2U, pmm_alloc_contiguous(2, PAGE_SIZE_SHIFT, &pa, &pages), "alloc pages");
+    auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
+
+    // two pages either side of a leaf table boundary
+    const vaddr_t base = user_boundary(2UL << 20) - PAGE_SIZE;
+    arch_aspace_t *aspace = &as->arch_aspace;
+    paddr_t got;
+
+    // no table at all
+    riscv_mmu_set_ptable_alloc_budget(0);
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map with no tables");
+    EXPECT_TRUE(check_table_count(as, 1), "nothing left behind");
+
+    // the first table links in, the one below it does not: the empty one must go
+    riscv_mmu_set_ptable_alloc_budget(1);
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map with one table");
+    EXPECT_TRUE(check_table_count(as, 1), "empty table unlinked");
+
+    // enough for the first page, not for the second page's leaf table
+    riscv_mmu_set_ptable_alloc_budget(pt_levels - 1);
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map two pages");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, base, &got, nullptr), "first page rolled back");
+    EXPECT_TRUE(check_table_count(as, 1), "first page's tables reclaimed");
+
+    // and with the cap lifted the same mapping works
+    riscv_mmu_set_ptable_alloc_budget(-1);
+    EXPECT_LE(NO_ERROR, arch_mmu_map(aspace, base, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map after rollback");
+    EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, base + PAGE_SIZE, &got, nullptr), "query second page");
+    EXPECT_EQ(pa + PAGE_SIZE, got, "paddr");
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(aspace, base, 2), "unmap");
+    EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+
+    aspace_cleanup.cancel();
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+
+    END_TEST;
+}
+#endif
+
+// The kernel aspace runs to the top of the address space, so its last page
+// is the one place a range's end wraps to zero. The vmm never hands it out;
+// map it directly, unless the platform's initial mappings already reach it.
+bool kernel_aspace_top_page() {
+    BEGIN_TEST;
+
+    vmm_aspace_t *kas = vmm_get_kernel_aspace();
+    vm_page_t *p = pmm_alloc_page();
+    ASSERT_NONNULL(p, "alloc page");
+    auto page_cleanup = lk::make_auto_call([&]() { pmm_free_page(p); });
+
+    const vaddr_t va = KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - PAGE_SIZE;
+    paddr_t pa;
+    if (arch_mmu_query(&kas->arch_aspace, va, &pa, nullptr) == NO_ERROR) {
+        unittest_printf(" (top page already mapped)");
+        END_TEST;
+    }
+    ASSERT_LE(NO_ERROR, arch_mmu_map(&kas->arch_aspace, va, vm_page_to_paddr(p), 1, 0), "map top page");
+
+    EXPECT_EQ(NO_ERROR, arch_mmu_query(&kas->arch_aspace, va, &pa, nullptr), "query");
+    EXPECT_EQ(vm_page_to_paddr(p), pa, "paddr");
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(&kas->arch_aspace, va, 1), "unmap");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&kas->arch_aspace, va, &pa, nullptr), "gone");
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(arch_mmu_tests)
 RUN_TEST(create_user_aspace);
 RUN_TEST(map_user_pages);
@@ -616,6 +865,13 @@ RUN_TEST(two_aspaces);
 RUN_TEST(aspace_churn);
 RUN_TEST(out_of_range);
 RUN_TEST(table_reclaim);
+RUN_TEST(map_across_table_boundaries);
+RUN_TEST(unmap_range_with_holes);
+RUN_TEST(reclaim_after_big_range);
+#if ARCH_RISCV && LK_DEBUGLEVEL > 0
+RUN_TEST(map_enomem_rollback);
+#endif
+RUN_TEST(kernel_aspace_top_page);
 RUN_TEST(free_active_aspace);
 RUN_TEST(smp_shootdown);
 END_TEST_CASE(arch_mmu_tests)
