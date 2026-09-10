@@ -13,3 +13,4 @@ int benchmarks(int argc, const console_cmd_args *argv);
 int clock_bench(int argc, const console_cmd_args *argv);
 int fibo(int argc, const console_cmd_args *argv);
 int mem_test(int argc, const console_cmd_args *argv);
+int mmu_bench(int argc, const console_cmd_args *argv);
