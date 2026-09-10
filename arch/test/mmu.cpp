@@ -771,6 +771,56 @@ bool reclaim_after_big_range() {
     END_TEST;
 }
 
+// A 2MB aligned range with 2MB aligned backing maps as one large page: a
+// query inside it resolves, part of it cannot be unmapped on its own where
+// the arch keeps it whole, and the whole of it can.
+bool large_page_map() {
+    BEGIN_TEST;
+
+    if (!arch_mmu_supports_user_aspaces()) {
+        END_TEST;
+    }
+
+    vmm_aspace_t *as = nullptr;
+    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "large_page", 0), "create aspace");
+    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+
+    constexpr size_t large = 2UL << 20;
+    constexpr uint count = large / PAGE_SIZE;
+    struct list_node pages = LIST_INITIAL_VALUE(pages);
+    paddr_t pa;
+    ASSERT_EQ((size_t)count, pmm_alloc_contiguous(count, 21, &pa, &pages), "alloc 2MB aligned");
+    auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
+
+    const vaddr_t va = user_boundary(large);
+    ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, va, pa, count, ARCH_MMU_FLAG_PERM_USER), "map");
+    // riscv: the chain down to the 2MB level and no leaf table
+    EXPECT_TRUE(check_table_count(as, pt_levels - 1), "no leaf table");
+
+    paddr_t got;
+    uint flags;
+    EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, va + 0x1234, &got, &flags), "query inside");
+    EXPECT_EQ(pa + 0x1234, got, "paddr inside");
+    EXPECT_EQ(ARCH_MMU_FLAG_PERM_USER, flags, "flags");
+
+    int err = arch_mmu_unmap(&as->arch_aspace, va + PAGE_SIZE, 1);
+    if (err == ERR_NOT_SUPPORTED) {
+        EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, va + PAGE_SIZE, &got, nullptr), "still mapped");
+    } else {
+        EXPECT_LE(NO_ERROR, err, "partial unmap");
+        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, va + PAGE_SIZE, &got, nullptr), "page split out");
+    }
+
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, va, count), "unmap whole");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, va, &got, nullptr), "gone");
+    EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+
+    aspace_cleanup.cancel();
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+
+    END_TEST;
+}
+
 #if ARCH_RISCV && LK_DEBUGLEVEL > 0
 // When a page table cannot be allocated part way through, the pages already
 // mapped are rolled back and the tables linked for the failing page are
@@ -868,6 +918,7 @@ RUN_TEST(table_reclaim);
 RUN_TEST(map_across_table_boundaries);
 RUN_TEST(unmap_range_with_holes);
 RUN_TEST(reclaim_after_big_range);
+RUN_TEST(large_page_map);
 #if ARCH_RISCV && LK_DEBUGLEVEL > 0
 RUN_TEST(map_enomem_rollback);
 #endif

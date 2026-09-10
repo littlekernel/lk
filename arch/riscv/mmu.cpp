@@ -611,8 +611,11 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _pad
     const riscv_pte_t leaf_bits = mmu_flags_to_pte(flags) | RISCV_PTE_A | RISCV_PTE_D | RISCV_PTE_V |
                                   ((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) ? RISCV_PTE_G : 0);
 
-    // a page goes in at level 0; an empty entry above needs a table first
-    auto map_cb = [_vaddr, _paddr, leaf_bits](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
+    // An empty entry gets a leaf when the address, its backing and what is
+    // left of the range all line up with the size of page that level holds,
+    // else a table to go further down. The top level never gets a leaf: user
+    // roots copy the kernel's top level entries once, when they are created.
+    auto map_cb = [_vaddr, _paddr, count, leaf_bits](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
         LTRACEF("vaddr %#lx level %u pte %#lx\n", vaddr, level, pte);
 
         if (pte & RISCV_PTE_V) {
@@ -622,14 +625,18 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _pad
             return walk_cb_ret::Halt(ERR_ALREADY_EXISTS);
         }
 
+        const paddr_t paddr = _paddr + (vaddr - _vaddr);
         if (level > 0) {
-            // TODO: map a large page here when the alignment and count allow
-            return walk_cb_ret::AllocPT();
+            const size_t block = page_size_per_level(level);
+            const size_t pages_left = count - (vaddr - _vaddr) / PAGE_SIZE;
+            if (level == RISCV_MMU_PT_LEVELS - 1 || !IS_ALIGNED(vaddr, block) || !IS_ALIGNED(paddr, block) ||
+                pages_left < block / PAGE_SIZE) {
+                return walk_cb_ret::AllocPT();
+            }
         }
 
-        const paddr_t paddr = _paddr + (vaddr - _vaddr);
         const riscv_pte_t new_pte = RISCV_PTE_PPN_TO_PTE(paddr) | leaf_bits;
-        LTRACEF_LEVEL(2, "new terminal entry: pte %#lx\n", new_pte);
+        LTRACEF_LEVEL(2, "new leaf at level %u: pte %#lx\n", level, new_pte);
         return walk_cb_ret::CommitNext(new_pte);
     };
 
@@ -714,15 +721,16 @@ int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint count
         return NO_ERROR;
     }
 
-    // Pages are cleared, holes stepped over, and a large page refused:
-    // splitting one needs a table in its place, and what preceded it is
-    // already gone by then. The span from the first to the last page cleared
-    // is what the shootdown must cover.
+    // Pages are cleared and holes stepped over. A large page goes as a whole
+    // when the range covers it and is refused otherwise: splitting one needs
+    // a table in its place, and what preceded it is already gone by then. The
+    // span from the first to the last page cleared is what the shootdown must
+    // cover.
     struct {
         vaddr_t first;
         size_t pages;
     } cleared = { 0, 0 };
-    auto unmap_cb = [&cleared](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
+    auto unmap_cb = [_vaddr, count, &cleared](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
         LTRACEF("vaddr %#lx level %u pte %#lx\n", vaddr, level, pte);
 
         if (!(pte & RISCV_PTE_V)) {
@@ -730,15 +738,19 @@ int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint count
         }
         DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
 
+        const size_t block_pages = page_size_per_level(level) / PAGE_SIZE;
         if (level > 0) {
-            TRACEF("partial unmap of large page at %#lx (level %u) not supported\n", vaddr, level);
-            return walk_cb_ret::Halt(ERR_NOT_SUPPORTED);
+            const size_t pages_left = count - (vaddr - _vaddr) / PAGE_SIZE;
+            if (!IS_ALIGNED(vaddr, page_size_per_level(level)) || pages_left < block_pages) {
+                TRACEF("partial unmap of large page at %#lx (level %u) not supported\n", vaddr, level);
+                return walk_cb_ret::Halt(ERR_NOT_SUPPORTED);
+            }
         }
 
         if (cleared.pages == 0) {
             cleared.first = vaddr;
         }
-        cleared.pages = (vaddr - cleared.first) / PAGE_SIZE + 1;
+        cleared.pages = (vaddr - cleared.first) / PAGE_SIZE + block_pages;
         return walk_cb_ret::CommitNext(0);
     };
 

@@ -20,8 +20,11 @@
 
 // Times the arch mmu entry points on a private user aspace, in one large
 // range and one page at a time (the vmm_alloc shape). Backing memory comes
-// from the pmm so the map calls take a single physical base.
+// from the pmm so the map calls take a single physical base; it is 2MB
+// aligned and the 4K rows map it one page off so nothing lines up for a
+// large page, while the large page row maps it in place.
 #define BENCH_PAGES 4096
+#define BENCH_ALIGN_SHIFT 21
 #define BENCH_ROUNDS 3
 
 struct sample {
@@ -66,7 +69,7 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
 
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     paddr_t pa;
-    size_t got = pmm_alloc_contiguous(BENCH_PAGES, PAGE_SIZE_SHIFT, &pa, &pages);
+    size_t got = pmm_alloc_contiguous(BENCH_PAGES, BENCH_ALIGN_SHIFT, &pa, &pages);
     if (got != BENCH_PAGES) {
         printf("failed to allocate %u contiguous pages\n", BENCH_PAGES);
         pmm_free(&pages);
@@ -75,11 +78,13 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
     }
 
     arch_aspace_t *aspace = &as->arch_aspace;
-    const vaddr_t va = USER_ASPACE_BASE;
+    const vaddr_t va_large = ROUNDUP(USER_ASPACE_BASE + 1, 1UL << BENCH_ALIGN_SHIFT);
+    const vaddr_t va = va_large + PAGE_SIZE;
     const uint flags = ARCH_MMU_FLAG_PERM_USER;
     struct sample best_map = { .us = ~0ULL }, best_query = best_map, best_unmap = best_map;
     struct sample best_map1 = best_map, best_unmap1 = best_map;
-    size_t tables = 0;
+    struct sample best_map_large = best_map, best_unmap_large = best_map;
+    size_t tables = 0, tables_large = 0;
     int ret = NO_ERROR;
 
     printf("mmu_bench: %u pages, best of %u rounds\n", BENCH_PAGES, BENCH_ROUNDS);
@@ -147,6 +152,26 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
             break;
         }
         keep_best(&best_unmap1, &s);
+
+        // aligned, so large pages where the arch makes them
+        sample_start(&s);
+        ret = arch_mmu_map(aspace, va_large, pa, BENCH_PAGES, flags);
+        sample_stop(&s);
+        if (ret < 0) {
+            printf("aligned map failed: %d\n", ret);
+            break;
+        }
+        keep_best(&best_map_large, &s);
+        tables_large = table_count(as);
+
+        sample_start(&s);
+        ret = arch_mmu_unmap(aspace, va_large, BENCH_PAGES);
+        sample_stop(&s);
+        if (ret < 0) {
+            printf("aligned unmap failed: %d\n", ret);
+            break;
+        }
+        keep_best(&best_unmap_large, &s);
     }
 
     if (ret >= 0) {
@@ -155,7 +180,12 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
         report("unmap, one call", &best_unmap);
         report("map, one page per call", &best_map1);
         report("unmap, one page per call", &best_unmap1);
-        if (tables) printf("page tables after map: %zu (root included)\n", tables);
+        report("map, one call, 2MB aligned", &best_map_large);
+        report("unmap, one call, 2MB aligned", &best_unmap_large);
+        if (tables) {
+            printf("page tables after map: %zu, after the aligned map: %zu (root included)\n",
+                   tables, tables_large);
+        }
     }
 
     pmm_free(&pages);
