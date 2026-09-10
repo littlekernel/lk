@@ -112,6 +112,14 @@ __BEGIN_CDECLS
 void riscv_mmu_set_ptable_alloc_budget(int count);
 #endif
 
+struct arch_aspace;
+
+/* Whether a page fault at vaddr contradicts the aspace's tables: the entry
+ * there permits the access that trapped (cause is the trap cause, from_kernel
+ * whether it was made in supervisor mode), so the hart was using a translation
+ * cached before the entry was written. Such a fault is retried after a fence. */
+bool riscv_mmu_fault_is_stale(struct arch_aspace *aspace, vaddr_t vaddr, long cause, bool from_kernel);
+
 /*
  * Local TLB maintenance. sfence.vma also orders every earlier page table store
  * on this hart before later implicit translations, so a fence follows each table

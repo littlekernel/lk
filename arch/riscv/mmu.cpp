@@ -19,6 +19,7 @@
 #include <arch/mmu.h>
 #include <arch/riscv.h>
 #include <arch/riscv/csr.h>
+#include <arch/riscv/feature.h>
 #include <kernel/mp.h>
 #include <kernel/vm.h>
 #include <kernel/vm/asid.h>
@@ -659,12 +660,63 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _pad
     DEBUG_ASSERT(list_is_empty(&freed_tables));
 
     // A cpu may hold a cached translation for a page that was invalid when it
-    // last looked, so the new entries need a fence before they are usable.
-    // Every cpu gets one: a stale cached entry elsewhere would fault, and there
-    // is no fault handler to fence and retry. Svvptc cpus would not need this.
-    riscv_tlb_shootdown(aspace, _vaddr, mapped, false);
+    // last looked, so the new entries need a fence on every cpu before they
+    // are usable. Svvptc promises the cpu does not cache invalid entries and
+    // sees the new ones within a bounded time; a fault inside that window is
+    // caught by riscv_mmu_fault_is_stale() and retried.
+    if (!riscv_feature_test(RISCV_FEAT_SVVPTC)) {
+        riscv_tlb_shootdown(aspace, _vaddr, mapped, false);
+    }
 
     return NO_ERROR;
+}
+
+// Reads the tables without a lock, which is safe under the same contract the
+// hardware walker relies on: writers publish entries with single word stores,
+// link a table only after zeroing and fencing it, and free an unlinked table
+// only after a shootdown that every hart must acknowledge. With interrupts
+// off this hart cannot acknowledge, so nothing it reads can be freed under it.
+// A fault path that writes entries would need more: A/D updates as atomic
+// read-modify-writes on the leaf, structural changes under a per aspace lock.
+bool riscv_mmu_fault_is_stale(arch_aspace_t *aspace, vaddr_t vaddr, long cause, bool from_kernel) {
+    DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
+    DEBUG_ASSERT(arch_ints_disabled());
+
+    if (!arch_mmu_range_in_aspace(aspace, vaddr, 1)) {
+        return false;
+    }
+
+    // the raw leaf, if any: the access is judged on the bits the hart uses
+    riscv_pte_t pte = 0;
+    auto leaf_cb = [&pte](vaddr_t, uint, riscv_pte_t entry) -> walk_cb_ret {
+        pte = entry;
+        return walk_cb_ret::Halt(NO_ERROR);
+    };
+    riscv_pt_walk(aspace, vaddr, 1, leaf_cb, nullptr, nullptr);
+
+    if (!(pte & RISCV_PTE_V)) {
+        return false;
+    }
+
+    // user pages are open to supervisor loads and stores through SUM but
+    // never to supervisor fetches; kernel pages are closed to user mode
+    const bool user_page = pte & RISCV_PTE_U;
+    if (from_kernel ? (user_page && cause == RISCV_EXCEPTION_INS_PAGE_FAULT) : !user_page) {
+        return false;
+    }
+
+    // A is set on every leaf the kernel writes, and D as well; a leaf without
+    // them faults for real on a cpu that does not update them itself
+    switch (cause) {
+        case RISCV_EXCEPTION_INS_PAGE_FAULT:
+            return (pte & (RISCV_PTE_X | RISCV_PTE_A)) == (RISCV_PTE_X | RISCV_PTE_A);
+        case RISCV_EXCEPTION_LOAD_PAGE_FAULT:
+            return (pte & (RISCV_PTE_R | RISCV_PTE_A)) == (RISCV_PTE_R | RISCV_PTE_A);
+        case RISCV_EXCEPTION_STORE_PAGE_FAULT:
+            return (pte & (RISCV_PTE_W | RISCV_PTE_A | RISCV_PTE_D)) == (RISCV_PTE_W | RISCV_PTE_A | RISCV_PTE_D);
+    }
+    return false;
 }
 
 status_t arch_mmu_query(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t *paddr, uint *flags) {
@@ -856,6 +908,8 @@ extern "C"
 void riscv_mmu_init() {
     dprintf(INFO, "RISCV: MMU ASID mask %#lx, %s\n", riscv_asid_mask,
             riscv_use_asids ? "one asid per user aspace" : "user aspaces share asid 0 and flush on switch");
+    dprintf(INFO, "RISCV: MMU %s\n", riscv_feature_test(RISCV_FEAT_SVVPTC) ?
+            "svvptc, new mappings need no fence" : "fencing every cpu after each new mapping");
 }
 
 #endif

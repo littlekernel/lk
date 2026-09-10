@@ -14,6 +14,10 @@
 #include <kernel/thread.h>
 #include <platform.h>
 #include <arch/riscv/iframe.h>
+#if RISCV_MMU
+#include <arch/riscv/mmu.h>
+#include <kernel/vm.h>
+#endif
 
 #define LOCAL_TRACE 0
 
@@ -138,6 +142,23 @@ void riscv_user_exception(long cause, ulong epc, struct riscv_short_iframe *fram
     riscv_user_exception_unhandled(cause, epc, frame);
 }
 
+#if RISCV_MMU
+// A page fault the tables do not explain is a translation this hart cached
+// before the entry was made valid: drop it and let the access run again.
+// Returns false for a fault that is real.
+static bool riscv_page_fault_retry(long cause, bool kernel) {
+    const vaddr_t addr = riscv_csr_read(RISCV_CSR_XTVAL);
+    vmm_aspace_t *aspace = vaddr_to_aspace((void *)addr);
+    if (!aspace || !riscv_mmu_fault_is_stale(&aspace->arch_aspace, addr, cause, kernel)) {
+        return false;
+    }
+
+    LTRACEF("stale translation for %#lx, cause %ld\n", addr, cause);
+    riscv_tlb_flush_va_all_asids(addr);
+    return true;
+}
+#endif
+
 // called from assembly
 void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel);
 void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *frame, bool kernel) {
@@ -172,6 +193,20 @@ void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *f
                 frame->epc += 4;
                 riscv_syscall_handler(frame);
                 break;
+#if RISCV_MMU
+            case RISCV_EXCEPTION_INS_PAGE_FAULT:
+            case RISCV_EXCEPTION_LOAD_PAGE_FAULT:
+            case RISCV_EXCEPTION_STORE_PAGE_FAULT:
+                if (riscv_page_fault_retry(cause, kernel)) {
+                    break;
+                }
+                if (!kernel) {
+                    riscv_user_exception(cause, epc, frame);
+                } else {
+                    fatal_exception(cause, epc, frame, kernel);
+                }
+                break;
+#endif
             default:
                 // anything else user space did is its own problem, not the kernel's
                 if (!kernel) {
