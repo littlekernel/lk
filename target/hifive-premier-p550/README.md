@@ -38,7 +38,9 @@ FT4232H; closed routes it to the 10 pin header.
 ## Booting from U-Boot
 
 Build, wrap the flat binary in a legacy uImage and load it over TFTP. The load address
-matches `KERNEL_LOAD_OFFSET` above OpenSBI and U-Boot's own `loadaddr`.
+matches `KERNEL_LOAD_OFFSET` above OpenSBI and U-Boot's own `loadaddr`. The build
+defaults to sv48 paging; `RISCV_MMU=sv39` on the make command line selects sv39, and the
+same uImage recipe applies since the load address is physical.
 
 ```
 make hifive-premier-p550-test

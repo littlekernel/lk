@@ -200,6 +200,17 @@ which is also how every cpu boots, so a stray low address faults rather than
 walking whatever TTBR0 holds. On riscv the kernel root table is loaded, whose
 user half is empty.
 
+## Paging mode on riscv
+
+A riscv build picks its paging mode with `RISCV_MMU`, `sv39` or `sv48`, set by
+the platform and overridable on the make command line. The mode fixes the table
+depth, the aspace bases and sizes, and the physmap the boot code writes at the
+bottom of the kernel half: 64 gigapages of 1GB under sv39, one 512GB terapage
+under sv48. It is compiled in rather than probed; `start.S` reads satp back after
+setting it and parks a hart at `riscv_mmu_mode_unsupported` if the cpu refused
+the mode. `qemu-virt-riscv` and the HiFive Premier P550 run sv48; the other
+boards use sv39.
+
 ## ASIDs
 
 The arm64 and riscv ports tag user TLB entries with an address space identifier
