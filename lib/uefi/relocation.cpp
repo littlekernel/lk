@@ -62,7 +62,8 @@ int relocate_image(char *image, size_t image_size) {
   //
   while (reinterpret_cast<char *>(RelocBase) <
          reinterpret_cast<char *>(RelocBaseEnd)) {
-    // Each block must hold at least its header and fit within the directory.
+    // Each block must hold its header and whole relocation entries, and fit
+    // within the directory.
     const size_t block_space = reinterpret_cast<char *>(RelocBaseEnd) -
                                reinterpret_cast<char *>(RelocBase);
     if (block_space < sizeof(EFI_IMAGE_BASE_RELOCATION)) {
@@ -71,7 +72,8 @@ int relocate_image(char *image, size_t image_size) {
     }
     const uint32_t size_of_block = RelocBase->SizeOfBlock;
     if (size_of_block < sizeof(EFI_IMAGE_BASE_RELOCATION) ||
-        size_of_block > block_space) {
+        size_of_block > block_space ||
+        (size_of_block - sizeof(EFI_IMAGE_BASE_RELOCATION)) % sizeof(uint16_t) != 0) {
       printf("Found relocation block of invalid size %u\n", size_of_block);
       return -1;
     }
