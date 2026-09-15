@@ -87,6 +87,18 @@ void efi_set_variable(const char16_t *variable_name,
                       size_t data_len) {
   struct EfiVariable *var = search_existing_variable(variable_name, guid);
 
+  /* A zero-size write deletes the variable, but only when this is not an
+   * append. With EFI_VARIABLE_APPEND_WRITE set, appending zero bytes is a
+   * no-op that must leave any existing value unchanged. */
+  if (data_len == 0) {
+    if ((attribute & EFI_VARIABLE_APPEND_WRITE) == 0 && var) {
+      list_delete(&var->node);
+      free(var->Data);
+      free(var);
+    }
+    return;
+  }
+
   /* alloc new variable if it is not existed */
   if (!var) {
     var = reinterpret_cast<struct EfiVariable *>(malloc(sizeof(struct EfiVariable)));
@@ -98,17 +110,31 @@ void efi_set_variable(const char16_t *variable_name,
     memcpy(var->VariableName, variable_name, name_len * sizeof(char16_t));
     list_add_tail(&variables_in_mem, &var->node);
   }
-  if (var->Data) {
+  /* EFI_VARIABLE_APPEND_WRITE concatenates onto the existing value; a plain
+   * write replaces it. (The data_len == 0 cases were handled above.) */
+  const bool append = (attribute & EFI_VARIABLE_APPEND_WRITE) != 0;
+  if (append && var->Data != nullptr && var->DataLen > 0) {
+    const size_t combined_len = var->DataLen + data_len;
+    char *combined = reinterpret_cast<char *>(malloc(combined_len));
+    if (combined == nullptr) {
+      /* Out of memory: leave the existing value intact instead of losing it. */
+      return;
+    }
+    memcpy(combined, var->Data, var->DataLen);
+    memcpy(combined + var->DataLen, data, data_len);
     free(var->Data);
-  }
-  var->Data = nullptr;
-  var->DataLen = 0;
-  if (data_len > 0) {
+    var->Data = combined;
+    var->DataLen = combined_len;
+  } else {
+    if (var->Data) {
+      free(var->Data);
+    }
     var->Data = reinterpret_cast<char *>(malloc(data_len));
     memcpy(var->Data, data, data_len);
     var->DataLen = data_len;
   }
-  var->Attributes = attribute;
+  /* The append bit is a per-call modifier, not stored variable state. */
+  var->Attributes = attribute & ~EFI_VARIABLE_APPEND_WRITE;
   if (guid) {
     memcpy(&var->VendorGuid, guid, sizeof(EfiGuid));
   }

@@ -282,45 +282,41 @@ EfiStatus sync_partition_buffer(struct GblEfiBootMemoryProtocol* self,
   return EFI_STATUS_SUCCESS;
 }
 
+struct BootBufferSlot {
+  GblEfiBootBufferType type;
+  size_t size;
+  size_t align_log2;
+  void* addr;
+};
+
+// 2^21 = 2MB alignment on the load/kernel buffers, required by linux kernel
+BootBufferSlot boot_buffer_slots[] = {
+    {GBL_EFI_BOOT_BUFFER_TYPE_GENERAL_LOAD, 128ul * 1024 * 1024, 21, nullptr},
+    {GBL_EFI_BOOT_BUFFER_TYPE_KERNEL, 64ul * 1024 * 1024, 21, nullptr},
+    {GBL_EFI_BOOT_BUFFER_TYPE_RAMDISK, 64ul * 1024 * 1024, PAGE_SIZE_SHIFT,
+     nullptr},
+    {GBL_EFI_BOOT_BUFFER_TYPE_FDT, 2ul * 1024 * 1024, PAGE_SIZE_SHIFT,
+     nullptr},
+    {GBL_EFI_BOOT_BUFFER_TYPE_PVMFW_DATA, 1024ul * 1024, PAGE_SIZE_SHIFT,
+     nullptr},
+};
+
 EfiStatus get_boot_buffer(struct GblEfiBootMemoryProtocol* self,
                           /* in */ GblEfiBootBufferType buf_type,
                           /* out */ size_t* size,
                           /* out */ void** addr) {
-  if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_GENERAL_LOAD) {
-    *size = 128ul * 1024 * 1024;
-    // 2^21 = 2MB alignment, required by linux kernel
-    *addr = alloc_page(*size, 21);
-    if (*addr == nullptr) {
+  for (auto& slot : boot_buffer_slots) {
+    if (slot.type != buf_type) {
+      continue;
+    }
+    if (slot.addr == nullptr) {
+      slot.addr = alloc_page(slot.size, slot.align_log2);
+    }
+    if (slot.addr == nullptr) {
       return EFI_STATUS_OUT_OF_RESOURCES;
     }
-    return EFI_STATUS_SUCCESS;
-  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_KERNEL) {
-    *size = 64ul * 1024 * 1024;
-    *addr = alloc_page(*size, 21);
-    if (*addr == nullptr) {
-      return EFI_STATUS_OUT_OF_RESOURCES;
-    }
-    return EFI_STATUS_SUCCESS;
-  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_RAMDISK) {
-    *size = 64ul * 1024 * 1024;
-    *addr = alloc_page(*size, PAGE_SIZE_SHIFT);
-    if (*addr == nullptr) {
-      return EFI_STATUS_OUT_OF_RESOURCES;
-    }
-    return EFI_STATUS_SUCCESS;
-  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_FDT) {
-    *size = 2ul * 1024 * 1024;
-    *addr = alloc_page(*size, PAGE_SIZE_SHIFT);
-    if (*addr == nullptr) {
-      return EFI_STATUS_OUT_OF_RESOURCES;
-    }
-    return EFI_STATUS_SUCCESS;
-  } else if (buf_type == GBL_EFI_BOOT_BUFFER_TYPE_PVMFW_DATA) {
-    *size = 1024ul * 1024;
-    *addr = alloc_page(*size, PAGE_SIZE_SHIFT);
-    if (*addr == nullptr) {
-      return EFI_STATUS_OUT_OF_RESOURCES;
-    }
+    *size = slot.size;
+    *addr = slot.addr;
     return EFI_STATUS_SUCCESS;
   }
   printf("get_boot_buffer(%d, %zu) unsupported\n", buf_type, *size);
@@ -328,6 +324,25 @@ EfiStatus get_boot_buffer(struct GblEfiBootMemoryProtocol* self,
 }
 
 }  // namespace
+
+void release_boot_buffers() {
+  for (auto& slot : boot_buffer_slots) {
+    if (slot.addr == nullptr) {
+      continue;
+    }
+    // Teardown destroys the UEFI address space (reset_heap() runs right after
+    // this), so a retained pointer would be handed back by get_boot_buffer() on
+    // the next run with no valid mapping. Always drop the slot so a fresh,
+    // remapped buffer is allocated next time. free_pages() should succeed now
+    // that pages are returned via paddr_to_kvaddr(); if it ever fails we log it
+    // (the physical pages leak) rather than keep an unusable mapping reusable.
+    if (free_pages(slot.addr, slot.size / PAGE_SIZE) != EFI_STATUS_SUCCESS) {
+      printf("release_boot_buffers: failed to free %p (%zu bytes); dropping "
+             "slot anyway\n", slot.addr, slot.size);
+    }
+    slot.addr = nullptr;
+  }
+}
 
 __WEAK GblEfiBootMemoryProtocol* open_boot_memory_protocol() {
   static GblEfiBootMemoryProtocol protocol = {

@@ -16,7 +16,10 @@
  */
 #include "boot_service_provider.h"
 
+#include <algorithm>
 #include <endian.h>
+#include <limits.h>
+#include <lib/cksum.h>
 #include <lk/compiler.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -258,9 +261,23 @@ EfiStatus uninstall_multiple_protocol_interfaces(EfiHandle handle, ...) {
   printf("%s is unsupported\n", __FUNCTION__);
   return EFI_STATUS_UNSUPPORTED;
 }
-EfiStatus calculate_crc32(void *data, size_t len, uint32_t *crc32) {
-  printf("%s is unsupported\n", __FUNCTION__);
-  return EFI_STATUS_UNSUPPORTED;
+EfiStatus calculate_crc32(void *data, size_t len, uint32_t *crc_out) {
+  if (data == nullptr || crc_out == nullptr) {
+    return EFI_STATUS_INVALID_PARAMETER;
+  }
+  // A non-null zero-length buffer has a well-defined CRC of 0. crc32() takes an
+  // unsigned int length, so feed large buffers in UINT_MAX-sized chunks rather
+  // than silently truncating; the running crc makes the split transparent.
+  unsigned long crc = 0;
+  const auto *buf = static_cast<const unsigned char *>(data);
+  while (len > 0) {
+    const auto chunk = static_cast<unsigned int>(std::min<size_t>(len, UINT_MAX));
+    crc = crc32(crc, buf, chunk);
+    buf += chunk;
+    len -= chunk;
+  }
+  *crc_out = static_cast<uint32_t>(crc);
+  return EFI_STATUS_SUCCESS;
 }
 
 EfiStatus uninstall_protocol_interface(EfiHandle handle,
@@ -414,6 +431,9 @@ EfiStatus close_protocol(EfiHandle handle, const EfiGuid *protocol,
   } else if (guid_eq(protocol, EFI_DEVICE_PATH_PROTOCOL_GUID)) {
     return EFI_STATUS_SUCCESS;
   } else if (guid_eq(protocol, EFI_BLOCK_IO_PROTOCOL_GUID)) {
+    // Balance the bio reference taken by open_block_device(); teardown still
+    // reclaims any opens the app never closed.
+    close_tracked_bdev(reinterpret_cast<const char *>(handle));
     return EFI_STATUS_SUCCESS;
   } else if (guid_eq(protocol, EFI_DT_FIXUP_PROTOCOL_GUID)) {
     return EFI_STATUS_SUCCESS;
@@ -507,6 +527,7 @@ void setup_boot_service_table(EfiBootService *service) {
   service->check_event = switch_stack_wrapper<EfiEvent, check_event>();
   service->create_event = create_event;
   service->close_event = close_event;
+  service->set_timer = set_timer;
   service->stall = stall;
   service->raise_tpl = raise_tpl;
   service->restore_tpl = restore_tpl;

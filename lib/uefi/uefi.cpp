@@ -33,6 +33,7 @@
 #include <uefi/runtime_service.h>
 #include <uefi/system_table.h>
 
+#include "blockio_protocols.h"
 #include "boot_service_provider.h"
 #include "charset.h"
 #include "configuration_table.h"
@@ -54,16 +55,6 @@ constexpr auto EFI_SYSTEM_TABLE_SIGNATURE =
     static_cast<u64>(0x5453595320494249ULL);
 
 using EfiEntry = int (*)(void *, struct EfiSystemTable *);
-
-template <typename T> void fill(T *data, size_t skip, uint8_t begin = 0) {
-  auto ptr = reinterpret_cast<char *>(data);
-  for (size_t i = 0; i < sizeof(T); i++) {
-    if (i < skip) {
-      continue;
-    }
-    ptr[i] = begin++;
-  }
-}
 
 const char16_t firmwareVendor[] = u"Little Kernel";
 
@@ -138,6 +129,8 @@ int load_sections_and_execute(ImageReader *reader,
   }
   setup_heap();
   DEFER { reset_heap(); };
+  DEFER { release_boot_buffers(); };
+  DEFER { close_tracked_bdevs(); };
   const auto &last_section = section_header[sections - 1];
   const auto virtual_size = ROUNDUP(
       last_section.VirtualAddress + last_section.Misc.VirtualSize, PAGE_SIZE);
@@ -170,7 +163,10 @@ int load_sections_and_execute(ImageReader *reader,
   }
   printf("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
          image_base);
-  relocate_image(image_base);
+  if (relocate_image(image_base, virtual_size) != 0) {
+    printf("Failed to relocate image\n");
+    return ERR_BAD_STATE;
+  }
   auto entry = reinterpret_cast<int (*)(void *, void *)>(
       image_base + optional_header->AddressOfEntryPoint);
   printf("Entry function located at %p\n", entry);
@@ -180,8 +176,6 @@ int load_sections_and_execute(ImageReader *reader,
   DEFER { free_pages(&table, 1); };
   EfiBootService boot_service{};
   EfiRuntimeService runtime_service{};
-  fill(&runtime_service, 0);
-  fill(&boot_service, 0);
   setup_runtime_service_table(&runtime_service);
   setup_boot_service_table(&boot_service);
   table.firmware_vendor = reinterpret_cast<const EfiChar16*>(firmwareVendor);
@@ -291,15 +285,20 @@ int load_pe_file(ImageReader *reader) {
   dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
           (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
 
+  const size_t header_bytes = static_cast<size_t>(err);
+  if (header_bytes < sizeof(IMAGE_DOS_HEADER)) {
+    printf("File too small for a DOS header: %zu bytes\n", header_bytes);
+    return ERR_BAD_STATE;
+  }
   const auto dos_header = reinterpret_cast<const IMAGE_DOS_HEADER *>(address);
   if (!dos_header->CheckMagic()) {
     printf("DOS Magic check failed %x\n", dos_header->e_magic);
     return ERR_BAD_STATE;
   }
-  if (dos_header->e_lfanew > kBlocKSize - sizeof(IMAGE_FILE_HEADER)) {
+  if (dos_header->e_lfanew > header_bytes - sizeof(IMAGE_FILE_HEADER)) {
     printf(
         "Invalid PE header offset %d exceeds maximum read size of %zu - %zu\n",
-        dos_header->e_lfanew, kBlocKSize, sizeof(IMAGE_FILE_HEADER));
+        dos_header->e_lfanew, header_bytes, sizeof(IMAGE_FILE_HEADER));
     return ERR_BAD_STATE;
   }
   const auto pe_header = dos_header->GetPEHeader();
@@ -321,10 +320,27 @@ int load_pe_file(ImageReader *reader) {
            file_header->SizeOfOptionalHeader, sizeof(IMAGE_OPTIONAL_HEADER64));
     return ERR_BAD_STATE;
   }
+  const size_t nt_headers_end = static_cast<size_t>(dos_header->e_lfanew) +
+                                sizeof(IMAGE_FILE_HEADER) +
+                                file_header->SizeOfOptionalHeader;
+  if (nt_headers_end > header_bytes) {
+    printf("PE optional header does not fit in the %zu bytes read\n",
+           header_bytes);
+    return ERR_BAD_STATE;
+  }
+  const size_t section_table_end =
+      nt_headers_end + static_cast<size_t>(file_header->NumberOfSections) *
+                           sizeof(IMAGE_SECTION_HEADER);
+  if (section_table_end > header_bytes) {
+    printf("PE section table does not fit in the %zu bytes read\n",
+           header_bytes);
+    return ERR_BAD_STATE;
+  }
   const auto optional_header = &pe_header->OptionalHeader;
   if (optional_header->Subsystem != SubsystemType::EFIApplication) {
     printf("Unsupported Subsystem type: %d %s\n", optional_header->Subsystem,
            ToString(optional_header->Subsystem));
+    return ERR_NOT_SUPPORTED;
   }
   printf("Valid UEFI application found.\n");
   auto ret = load_sections_and_execute(reader, pe_header);

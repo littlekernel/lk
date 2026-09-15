@@ -27,6 +27,7 @@
 vmm_aspace_t *set_boot_aspace();
 void setup_heap();
 void reset_heap();
+void release_boot_buffers();
 
 EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
                          size_t pages, EfiPhysicalAddr *memory);

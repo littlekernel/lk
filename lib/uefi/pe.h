@@ -41,6 +41,9 @@ static constexpr size_t IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16;
 static constexpr size_t IMAGE_SIZEOF_SHORT_NAME = 8;
 
 static constexpr uint32_t kPEHeader = 0x4550;
+// IMAGE_FILE_HEADER::Characteristics flag: relocation info was stripped, so the
+// image must be loaded at its preferred ImageBase.
+static constexpr uint16_t IMAGE_FILE_RELOCS_STRIPPED = 0x0001;
 struct IMAGE_NT_HEADERS64;
 
 struct IMAGE_DOS_HEADER { // DOS .EXE header

@@ -30,6 +30,9 @@ static constexpr uint32_t EFI_VARIABLE_NON_VOLATILE = 0x01;
 static constexpr uint32_t EFI_VARIABLE_BOOTSERVICE_ACCESS = 0x02;
 static constexpr uint32_t EFI_VARIABLE_RUNTIME_ACCESS = 0x04;
 static constexpr uint32_t EFI_VARIABLE_HARDWARE_ERROR_RECORD = 0x08;
+static constexpr uint32_t EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS = 0x10;
+static constexpr uint32_t EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS = 0x20;
+static constexpr uint32_t EFI_VARIABLE_APPEND_WRITE = 0x40;
 
 EfiStatus efi_get_variable(const char16_t *variable_name,
                            const EfiGuid *guid,
