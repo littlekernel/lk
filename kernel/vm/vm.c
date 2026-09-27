@@ -92,12 +92,12 @@ void *kvaddr_get_range(size_t *size_return) {
     return (void *)mmu_initial_mappings->virt;
 }
 
-void *paddr_to_kvaddr(paddr_t pa) {
+void *paddr_to_kvaddr_search(paddr_t pa) {
     /* find the mapping of an address in the initial mappings as set up by the
      * arch or platform layers. Any mapping not marked temporary can serve as a
      * hit to return a pointer.
      */
-    struct mmu_initial_mapping *map = mmu_initial_mappings;
+    const struct mmu_initial_mapping *map = mmu_initial_mappings;
     while (map->size > 0) {
         if (!(map->flags & MMU_INITIAL_MAPPING_TEMPORARY) &&
                 pa >= map->phys &&
@@ -126,7 +126,9 @@ vmm_aspace_t *vaddr_to_aspace(void *ptr) {
     if (is_kernel_address((vaddr_t)ptr)) {
         return vmm_get_kernel_aspace();
     } else if (is_user_address((vaddr_t)ptr)) {
-        return get_current_thread()->aspace;
+        // no thread yet, or a kernel thread: nothing to look in
+        thread_t *t = get_current_thread();
+        return t ? t->aspace : NULL;
     } else {
         return NULL;
     }

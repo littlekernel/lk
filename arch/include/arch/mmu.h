@@ -57,7 +57,12 @@ static inline bool arch_mmu_range_in_aspace(const arch_aspace_t *aspace, vaddr_t
 status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) __NONNULL((1));
 status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) __NONNULL((1));
 
-/* routines to map/unmap/query mappings per address space */
+/* Routines to map/unmap/query mappings per address space. A map that fails
+ * leaves nothing of its range behind. An unmap may refuse part of its range
+ * with ERR_NOT_SUPPORTED where the arch would have to split a large page or
+ * write a top level entry it keeps fixed; what came before that point in the
+ * range is already unmapped by then. The vmm only ever unmaps exactly the
+ * ranges it mapped. */
 int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) __NONNULL((1));
 int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) __NONNULL((1));
 status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) __NONNULL((1));

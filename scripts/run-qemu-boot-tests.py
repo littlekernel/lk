@@ -69,6 +69,13 @@ class QEMUTestRunner:
                 'args': '-6Ss4',
                 'timeout': 90
             },
+            # the same kernel on a cpu without Svvptc, so the fenced map path,
+            # which is what real boards run, stays covered
+            'riscv64-nosvvptc': {
+                'script': 'do-qemuriscv',
+                'args': '-6Ss4 -F svvptc=off',
+                'timeout': 90
+            },
             'x86': {
                 'script': 'do-qemux86',
                 'args': '-s4',
@@ -393,6 +400,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run LK QEMU tests for multiple architectures')
     parser.add_argument('--arch', choices=['arm', 'arm64', 'arm-m3', 'arm-m4', 'arm-m7',
                                           'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv64',
+                                          'riscv64-nosvvptc',
                                           'x86', 'x86-64', 'x86-i440fx', 'x86-64-i440fx',
                                           'x86-64-uefi'], action='append',
                        help='Architecture to test (can be specified multiple times)')

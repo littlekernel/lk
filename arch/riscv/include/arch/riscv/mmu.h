@@ -78,6 +78,14 @@ typedef uintptr_t riscv_pte_t;
 #define RISCV_PTE_PPN(pte) (((pte) & RISCV_PTE_PPN_MASK) << (PAGE_SIZE_SHIFT - RISCV_PTE_PPN_SHIFT))
 #define RISCV_PTE_PPN_TO_PTE(paddr) (((paddr) >> PAGE_SIZE_SHIFT) << RISCV_PTE_PPN_SHIFT)
 
+#if __riscv_xlen == 64
+// bits above the ppn; this kernel writes none of them, and a hart faults on
+// the reserved ones and on the extension ones it does not implement
+#define RISCV_PTE_RSVD_MASK (0x7fUL << 54) // reserved
+#define RISCV_PTE_PBMT_MASK (0x3UL << 61)  // Svpbmt memory type
+#define RISCV_PTE_N         (1UL << 63)    // Svnapot
+#endif
+
 // SATP register, contains the current mmu mode, address space id, and
 // pointer to root page table
 #define RISCV_SATP_MODE_NONE (0UL)
@@ -106,10 +114,27 @@ typedef uintptr_t riscv_pte_t;
 
 __BEGIN_CDECLS
 
+#if LK_DEBUGLEVEL > 0
+/* Cap the page tables the mmu code may allocate from here on: count more, or
+ * -1 for no cap. Lets a test see the out of memory paths. */
+void riscv_mmu_set_ptable_alloc_budget(int count);
+#endif
+
+struct arch_aspace;
+
+/* Whether a page fault at vaddr contradicts the aspace's tables: the entry
+ * there permits the access that trapped (cause is the trap cause, status the
+ * sstatus at the trap, whose SPP tells the mode and SUM whether supervisor
+ * mode may touch user pages), so the hart was using a translation cached
+ * before the entry was written. Such a fault is retried after a fence. Any
+ * entry the hart would reject regardless of permissions counts as real. */
+bool riscv_mmu_fault_is_stale(struct arch_aspace *aspace, vaddr_t vaddr, long cause, ulong status);
+
 /*
  * Local TLB maintenance. sfence.vma also orders every earlier page table store
  * on this hart before later implicit translations, so a fence follows each table
- * update. Other harts get theirs through mp_sync_exec().
+ * update. Other harts get theirs through mp_sync_exec_cpus(), aimed at every
+ * cpu that translates through the kernel's tables, active or not.
  *
  * With rs2 = x0 the fence covers every asid, global entries included; with an
  * asid in a register it leaves global entries alone. The asid is widened to a

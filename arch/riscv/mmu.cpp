@@ -19,6 +19,7 @@
 #include <arch/mmu.h>
 #include <arch/riscv.h>
 #include <arch/riscv/csr.h>
+#include <arch/riscv/feature.h>
 #include <kernel/mp.h>
 #include <kernel/vm.h>
 #include <kernel/vm/asid.h>
@@ -35,19 +36,21 @@
 
 // the one main kernel top page table, used by the kernel address space
 // when no user space is active. bottom user space parts are empty.
-riscv_pte_t kernel_pgtable[512] __ALIGNED(PAGE_SIZE);
+riscv_pte_t kernel_pgtable[RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 paddr_t kernel_pgtable_phys; // filled in by start.S
 
 // trampoline top level page table is like the kernel page table but additionally
 // holds an identity map of the bottom RISCV_MMU_PHYSMAP_SIZE bytes of ram.
 // used at early bootup and when starting secondary processors.
-riscv_pte_t trampoline_pgtable[512] __ALIGNED(PAGE_SIZE);
+riscv_pte_t trampoline_pgtable[RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 paddr_t trampoline_pgtable_phys; // filled in by start.S
 
-// pre-allocate kernel 2nd level page tables.
-// this makes it very easy to keep user space top level address space page tables
-// in sync, since they can simply take a copy of the kernel ones.
-riscv_pte_t kernel_l2_pgtable[512][RISCV_MMU_KERNEL_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+// pre-allocated second level page tables, one page sized table per kernel
+// entry of the top level table. Every kernel top level entry is populated at
+// boot, so user space top level tables stay in sync with the kernel's by
+// simply taking a copy of those entries.
+riscv_pte_t kernel_l2_pgtable[RISCV_MMU_KERNEL_PT_ENTRIES][RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+static_assert(sizeof(kernel_l2_pgtable[0]) == PAGE_SIZE, "");
 paddr_t kernel_l2_pgtable_phys; // filled in by start.S
 
 // initial memory mappings. VM uses to construct mappings after the fact
@@ -84,6 +87,12 @@ asid_allocator_t riscv_asid_allocator;
 uint16_t kernel_asid() {
     return riscv_use_asids ? ASID_KERNEL : 0;
 }
+
+// Every cpu translating through the kernel's page tables, whether or not it
+// has joined the scheduler yet: the shootdowns go to these. A cpu adds itself
+// just before it leaves the boot trampoline for kernel_pgtable, and never
+// leaves.
+mp_cpu_mask_t riscv_mmu_cpus;
 
 // flush one asid on every cpu, from interrupt context on the remote ones
 void flush_asid_task(void *arg) {
@@ -131,6 +140,8 @@ void riscv_set_satp(uint asid, paddr_t pt) {
     satp = RISCV_SATP_MODE_SV48 << RISCV_SATP_MODE_SHIFT;
 #elif RISCV_MMU == 39
     satp = RISCV_SATP_MODE_SV39 << RISCV_SATP_MODE_SHIFT;
+#else
+#error implement
 #endif
 
     // make sure the asid is in range
@@ -146,9 +157,9 @@ void riscv_set_satp(uint asid, paddr_t pt) {
 
 // TLB shootdown of a range of pages in one aspace, run on every cpu. Kernel
 // entries are global, so they are matched under every asid; user entries under
-// the aspace's own. A run longer than this many pages, or one that freed a page
-// table (whose cached intermediate entries a per page fence need not cover), is
-// flushed as a whole instead.
+// the aspace's own. A run longer than this many pages, or one that linked or
+// freed a page table (whose cached intermediate entries a per page fence need
+// not cover), is flushed as a whole instead.
 constexpr size_t tlb_shootdown_max_pages = 16;
 
 struct tlb_shootdown_args {
@@ -181,26 +192,58 @@ void tlb_shootdown_task(void *arg) {
     }
 }
 
+// Run a fence task on every cpu in riscv_mmu_cpus, this one included, and
+// return once all have run it. That includes a secondary that already
+// translates through the kernel's tables but has not joined the scheduler: it
+// runs the task when it first enables interrupts, and the call waits until
+// then. A cpu that adds itself and then never enables interrupts, parked or
+// panicked, stalls every later shootdown. Interrupts must be enabled when
+// other cpus are up.
+void sync_exec_all(mp_sync_task_t fn, void *arg) {
+    // The page table stores must be visible to the other harts before their
+    // fences run, and before the mask is read: a cpu adding itself fences
+    // between its bit and its switch to the kernel's tables, so either it is
+    // in the mask read here or its first walk sees these stores.
+    smp_mb();
+    const mp_cpu_mask_t cpus = __atomic_load_n(&riscv_mmu_cpus, __ATOMIC_RELAXED);
+    DEBUG_ASSERT(cpus & (1u << arch_curr_cpu_num()));
+    DEBUG_ASSERT((mp_get_active_mask() & ~cpus) == 0);
+    mp_sync_exec_cpus(cpus, fn, arg);
+}
+
 // Make every cpu drop what it may have cached for [base, base + count pages) of
-// this aspace. Interrupts must be enabled when other cpus are up; with only this
-// cpu active, as during early boot, the fence simply runs here.
-void riscv_tlb_shootdown(const arch_aspace_t *aspace, vaddr_t base, size_t count, bool tables_freed) {
+// this aspace, or everything it holds for the aspace when a table was linked or
+// unlinked along the way.
+void riscv_tlb_shootdown(const arch_aspace_t *aspace, vaddr_t base, size_t count, bool tables_changed) {
     tlb_shootdown_args args = {
         .base = base,
         .count = count,
         .asid = aspace->asid,
         .global = (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) != 0,
-        .full = tables_freed,
+        .full = tables_changed,
     };
 
     LTRACEF("base %#lx count %zu asid %#x global %d full %d\n", base, count, args.asid, args.global, args.full);
 
-    // the page table stores must be visible to the other harts before their fences run
-    smp_mb();
-    mp_sync_exec(MP_IPI_TARGET_ALL, 0, tlb_shootdown_task, &args);
+    sync_exec_all(tlb_shootdown_task, &args);
 }
 
+#if LK_DEBUGLEVEL > 0
+// how many more tables alloc_ptable may hand out, -1 for no limit; tests use
+// it to drive the out of memory paths
+int ptable_alloc_budget = -1;
+#endif
+
 volatile riscv_pte_t *alloc_ptable(arch_aspace_t *aspace, addr_t *pa) {
+#if LK_DEBUGLEVEL > 0
+    if (ptable_alloc_budget == 0) {
+        return NULL;
+    }
+    if (ptable_alloc_budget > 0) {
+        ptable_alloc_budget--;
+    }
+#endif
+
     // grab a page from the pmm
     vm_page_t *p = pmm_alloc_page();
     if (!p) {
@@ -344,7 +387,7 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
             // needed: every switch flushes asid 0 on the cpu doing it, and no cpu
             // has this aspace loaded any more.
             uint16_t asid = aspace->asid;
-            mp_sync_exec(MP_IPI_TARGET_ALL, 0, flush_asid_task, &asid);
+            sync_exec_all(flush_asid_task, &asid);
             asid_free(&riscv_asid_allocator, asid);
         }
         aspace->asid = 0;
@@ -366,34 +409,24 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
 
 namespace {
 
-enum class walk_cb_ret_op {
-    HALT,
-    RESTART,
-    ALLOC_PT
+enum class walk_action {
+    HALT,        // stop the walk and return err
+    NEXT,        // move past this entry
+    COMMIT_NEXT, // store new_pte over this entry, then move past it
+    ALLOC_PT,    // hang a fresh table off this empty entry and descend into it
 };
 
+// what a walk callback asks the walker to do with the entry it was shown
 struct walk_cb_ret {
-    static walk_cb_ret OpHalt(int err) { return { walk_cb_ret_op::HALT, err, false, 0, false }; }
-    static walk_cb_ret OpRestart() { return { walk_cb_ret_op::RESTART, NO_ERROR, false, 0, false }; }
-    static walk_cb_ret OpCommitHalt(riscv_pte_t pte, bool unmap, int err) { return { walk_cb_ret_op::HALT, err, true, pte, unmap }; }
-    static walk_cb_ret OpCommitRestart(riscv_pte_t pte, bool unmap) { return { walk_cb_ret_op::RESTART, NO_ERROR, true, pte, unmap }; }
-    static walk_cb_ret OpAllocPT() { return { walk_cb_ret_op::ALLOC_PT, 0, false, 0, false }; }
+    static walk_cb_ret Halt(int err) { return { walk_action::HALT, err, 0 }; }
+    static walk_cb_ret Next() { return { walk_action::NEXT, NO_ERROR, 0 }; }
+    static walk_cb_ret CommitNext(riscv_pte_t pte) { return { walk_action::COMMIT_NEXT, NO_ERROR, pte }; }
+    static walk_cb_ret AllocPT() { return { walk_action::ALLOC_PT, NO_ERROR, 0 }; }
 
-    // overall continuation op
-    walk_cb_ret_op op;
-
-    // if halting, return error
-    int err;
-
-    // commit the pte entry
-    bool commit;
-    riscv_pte_t new_pte;
-    bool unmap; // we are unmapping, so test for empty page tables
+    walk_action action;
+    int err;             // HALT
+    riscv_pte_t new_pte; // COMMIT_NEXT; 0 clears the entry
 };
-
-
-// in the callback arg, define a function or lambda that matches this signature
-using page_walk_cb = walk_cb_ret(*)(uint level, uint index, riscv_pte_t pte, vaddr_t *vaddr);
 
 // the page table an entry lives in; tables are page sized and page aligned
 inline volatile riscv_pte_t *table_of(volatile riscv_pte_t *ptep) {
@@ -409,127 +442,191 @@ bool table_is_empty(volatile riscv_pte_t *table) {
     return true;
 }
 
-// After the entry at ptep_at_level[level] was cleared, unlink and collect every
-// table from that level upwards that is now empty. The top level table is never
-// touched, and neither are the kernel aspace's level below it: those are the
-// static kernel_l2_pgtable pages every user root shares. The pages go on
-// freed_tables for the caller to release once no cpu can still be walking them.
-void reclaim_empty_tables(arch_aspace_t *aspace, volatile riscv_pte_t *const ptep_at_level[],
-                          uint level, struct list_node *freed_tables) {
-    const uint top = RISCV_MMU_PT_LEVELS - 1;
-    const uint highest = (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) ? top - 2 : top - 1;
-
-    for (uint l = level; l <= highest; l++) {
-        volatile riscv_pte_t *table = table_of(ptep_at_level[l]);
-        if (!table_is_empty(table)) {
-            break;
-        }
-
-        LTRACEF_LEVEL(2, "level %u table %p empty, unlinking from %p\n", l, table, ptep_at_level[l + 1]);
-        *ptep_at_level[l + 1] = 0;
-
-        vm_page_t *page = paddr_to_vm_page(vaddr_to_paddr(const_cast<riscv_pte_t *>(table)));
-        DEBUG_ASSERT(page);
-        DEBUG_ASSERT(list_in_list(&page->node));
-        list_delete(&page->node);
-        list_add_tail(freed_tables, &page->node);
+// Called as a walk leaves the table at level. If the walk cleared entries in
+// it (its dirty bit) and it is now empty, unlink it from the parent entry and
+// collect its page on freed_tables, which marks the parent's table dirty in
+// turn. Levels above highest are never unlinked, nor is anything without a
+// list to collect on.
+void leave_table(volatile riscv_pte_t *const ptep_at_level[], uint level, uint highest,
+                 uint *dirty, struct list_node *freed_tables) {
+    if (!(*dirty & (1u << level))) {
+        return;
     }
+    *dirty &= ~(1u << level);
+    if (!freed_tables || level > highest) {
+        return;
+    }
+
+    volatile riscv_pte_t *table = table_of(ptep_at_level[level]);
+    if (!table_is_empty(table)) {
+        return;
+    }
+
+    // the table's address comes from the link about to be cut
+    volatile riscv_pte_t *link = ptep_at_level[level + 1];
+    const paddr_t pa = RISCV_PTE_PPN(*link);
+    LTRACEF_LEVEL(2, "level %u table %p (pa %#lx) empty, unlinking from %p\n", level, table, pa, link);
+    *link = 0;
+    *dirty |= 1u << (level + 1);
+
+    vm_page_t *page = paddr_to_vm_page(pa);
+    DEBUG_ASSERT(page);
+    DEBUG_ASSERT(list_in_list(&page->node));
+    list_delete(&page->node);
+    list_add_tail(freed_tables, &page->node);
 }
 
-// generic walker routine to automate drilling through a page table structure.
-// Tables emptied by an unmap are unlinked and collected on freed_tables when
-// one is given; the caller frees them after the TLB shootdown.
+// what a walk did, for the caller's fence and rollback decisions
+struct walk_stats {
+    size_t walked;      // pages stepped past
+    uint tables_linked; // fresh tables hung into the tree
+};
+
+// One walk over [vaddr, vaddr + count pages) of an aspace, which must already
+// have been range checked. Descends to the first entry that is not a table
+// link, shows it to the callback as (vaddr, level, pte), and moves past
+// whatever that entry covers, resuming in the current table rather than from
+// the root. ptep_at_level[l] is the entry walked through at level l and is
+// valid at and above the current level.
+//
+// Tables emptied along the way are unlinked once the walk leaves them, or
+// when it ends, and collected on freed_tables for the caller to release after
+// the TLB shootdown. Without a list nothing is reclaimed. The top level table
+// is never unlinked, and neither is the kernel aspace's level below it: those
+// are the static kernel_l2_pgtable pages every user root shares. The kernel's
+// top level entries are never written at all: user roots copy them once.
+//
+// Returns the callback's HALT error, ERR_NO_MEMORY if a table could not be
+// allocated (the empty tables linked for it are unlinked again), or NO_ERROR
+// once the range is exhausted. stats, when given, is filled on every exit path.
 template <typename F>
-int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, F callback, struct list_node *freed_tables) {
-    LTRACEF("vaddr %#lx\n", vaddr);
+int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, size_t count, F callback,
+                  struct list_node *freed_tables, walk_stats *stats) {
+    LTRACEF("vaddr %#lx count %zu\n", vaddr, count);
 
     DEBUG_ASSERT(aspace);
 
-    // the entry walked through at each level of the current walk
+    constexpr uint top = RISCV_MMU_PT_LEVELS - 1;
+    const uint highest = (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) ? top - 2 : top - 1;
+
     volatile riscv_pte_t *ptep_at_level[RISCV_MMU_PT_LEVELS];
+    uint dirty = 0; // bit per level: an entry in that level's table was cleared
+    uint tables_linked = 0;
+    size_t remaining = count;
+    int err = NO_ERROR;
 
-restart:
-    // bootstrap the top level walk
-    uint level = RISCV_MMU_PT_LEVELS - 1;
-    uint index = vaddr_to_index(vaddr, level);
-    volatile riscv_pte_t *ptep = aspace->pt_virt + index;
-    ptep_at_level[level] = ptep;
+    uint level = top;
+    ptep_at_level[top] = aspace->pt_virt + vaddr_to_index(vaddr, top);
 
-    for (;;) {
-        LTRACEF_LEVEL(2, "level %u, index %u, pte %p (%#lx) va %#lx\n",
-                      level, index, ptep, *ptep, vaddr);
+    while (remaining > 0) {
+        volatile riscv_pte_t *ptep = ptep_at_level[level];
+        const riscv_pte_t pte = *ptep;
 
-        // look at our page table entry
-        riscv_pte_t pte = *ptep;
-        if ((pte & RISCV_PTE_V) && !(pte & RISCV_PTE_PERM_MASK)) {
-            // next level page table pointer (RWX = 0)
-            paddr_t ptp = RISCV_PTE_PPN(pte);
-            volatile riscv_pte_t *ptv = (riscv_pte_t *)paddr_to_kvaddr(ptp);
+        LTRACEF_LEVEL(2, "level %u, pte %p (%#lx) va %#lx remaining %zu\n",
+                      level, ptep, pte, vaddr, remaining);
 
-            LTRACEF_LEVEL(2, "next level page table at %p, pa %#lx\n", ptv, ptp);
+        if (level > 0 && (pte & RISCV_PTE_V) && !(pte & RISCV_PTE_PERM_MASK)) {
+            // link to the next level table (RWX == 0). At level 0 that encoding
+            // faults on the hart, so it goes to the callback as a leaf instead.
+            const paddr_t ptp = RISCV_PTE_PPN(pte);
+            volatile riscv_pte_t *table = (riscv_pte_t *)paddr_to_kvaddr(ptp);
+            DEBUG_ASSERT(table);
+            LTRACEF_LEVEL(2, "next level page table at %p, pa %#lx\n", table, ptp);
 
-            // go one level deeper
             level--;
-            index = vaddr_to_index(vaddr, level);
-            ptep = ptv + index;
-            ptep_at_level[level] = ptep;
-        } else {
-            // it's a non valid page entry or a valid terminal entry
-            // call the callback, seeing what the user wants
-            auto ret = callback(level, index, pte, &vaddr);
-            switch (ret.op) {
-                case walk_cb_ret_op::HALT:
-                case walk_cb_ret_op::RESTART:
-                    // see if we're being asked to commit a change
-                    if (ret.commit) {
-                        // commit the change
-                        *ptep = ret.new_pte;
-                        if (ret.unmap && freed_tables) {
-                            reclaim_empty_tables(aspace, ptep_at_level, level, freed_tables);
-                        }
-                    }
+            ptep_at_level[level] = table + vaddr_to_index(vaddr, level);
+            continue;
+        }
 
-                    if (ret.op == walk_cb_ret_op::HALT) {
-                        // stop here
-                        return ret.err;
-                    } else { // RESTART
-                        // user should have modified vaddr or we'll probably be in a loop
-                        goto restart;
-                    }
-                case walk_cb_ret_op::ALLOC_PT:
-                    // user wants us to add a page table and continue
-                    paddr_t ptp;
-                    volatile riscv_pte_t *ptv = alloc_ptable(aspace, &ptp);
-                    if (!ptv) {
-                        return ERR_NO_MEMORY;
-                    }
+        // an empty entry or a leaf: the callback decides
+        const walk_cb_ret ret = callback(vaddr, level, pte);
+        if (ret.action == walk_action::HALT) {
+            err = ret.err;
+            break;
+        }
 
-                    LTRACEF_LEVEL(2, "new ptable table %p, pa %#lx\n", ptv, ptp);
+        if (ret.action == walk_action::ALLOC_PT) {
+            DEBUG_ASSERT(level > 0);
+            DEBUG_ASSERT((pte & RISCV_PTE_V) == 0);
+            // the kernel's top level is copied into every user root and never changes after
+            DEBUG_ASSERT(level < top || !(aspace->flags & ARCH_ASPACE_FLAG_KERNEL));
 
-                    // link it in. RMW == 0 is a page table link
-                    pte = RISCV_PTE_PPN_TO_PTE(ptp) | RISCV_PTE_V;
-                    *ptep = pte;
+            paddr_t ptp;
+            volatile riscv_pte_t *table = alloc_ptable(aspace, &ptp);
+            if (!table) {
+                // the table this entry is in may have been linked by this
+                // walk and be empty; the exit path takes it out again
+                dirty |= 1u << level;
+                err = ERR_NO_MEMORY;
+                break;
+            }
+            LTRACEF_LEVEL(2, "new page table %p, pa %#lx\n", table, ptp);
 
-                    // go one level deeper
-                    level--;
-                    index = vaddr_to_index(vaddr, level);
-                    ptep = ptv + index;
-                    ptep_at_level[level] = ptep;
-                    break;
+            // link it in. RWX == 0 marks a table
+            *ptep = RISCV_PTE_PPN_TO_PTE(ptp) | RISCV_PTE_V;
+            tables_linked++;
+
+            level--;
+            ptep_at_level[level] = table + vaddr_to_index(vaddr, level);
+            continue;
+        }
+
+        if (ret.action == walk_action::COMMIT_NEXT) {
+            *ptep = ret.new_pte;
+            if (ret.new_pte == 0) {
+                dirty |= 1u << level;
             }
         }
 
-        // make sure we didn't decrement level one too many
-        DEBUG_ASSERT(level < RISCV_MMU_PT_LEVELS);
+        // step past what this entry covers, or to the end of the range
+        const size_t block_pages = (size_t)1 << (level * RISCV_MMU_PT_SHIFT);
+        const size_t page_in_block = (vaddr >> PAGE_SIZE_SHIFT) & (block_pages - 1);
+        const size_t step = MIN(block_pages - page_in_block, remaining);
+        vaddr += step * PAGE_SIZE; // wraps to 0 past the kernel's last page, with nothing remaining
+        remaining -= step;
+        if (remaining == 0) {
+            break;
+        }
+
+        // vaddr is the next entry at this level. Leave every table whose
+        // entries ran out and resume in the first that has more.
+        while (vaddr_to_index(vaddr, level) == 0) {
+            DEBUG_ASSERT(level < top); // the range check keeps the top level from wrapping
+            leave_table(ptep_at_level, level, highest, &dirty, freed_tables);
+            level++;
+        }
+        ptep_at_level[level] = table_of(ptep_at_level[level]) + vaddr_to_index(vaddr, level);
     }
-    // unreachable
+
+    // The walk stopped inside a chain of tables; each that lost an entry gets
+    // its check. Nothing below the current level can be dirty, which is what
+    // keeps ptep_at_level valid at every level the sweep looks at.
+    DEBUG_ASSERT((dirty & ((1u << level) - 1)) == 0);
+    if (dirty) {
+        for (uint l = 0; l <= highest; l++) {
+            leave_table(ptep_at_level, l, highest, &dirty, freed_tables);
+        }
+    }
+
+    if (stats) {
+        stats->walked = count - remaining;
+        stats->tables_linked = tables_linked;
+    }
+    return err;
 }
 
 } // namespace
 
+#if LK_DEBUGLEVEL > 0
+extern "C"
+void riscv_mmu_set_ptable_alloc_budget(int count) {
+    ptable_alloc_budget = count;
+}
+#endif
+
 // routines to map/unmap/query mappings per address space
-int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t paddr, uint count, const uint flags) {
-    LTRACEF("vaddr %#lx paddr %#lx count %u flags %#x\n", _vaddr, paddr, count, flags);
+int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _paddr, const uint count, const uint flags) {
+    LTRACEF("vaddr %#lx paddr %#lx count %u flags %#x\n", _vaddr, _paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
@@ -538,7 +635,7 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t paddr, uin
         return ERR_INVALID_ARGS;
     }
 
-    if (!IS_PAGE_ALIGNED(_vaddr) || !IS_PAGE_ALIGNED(paddr)) {
+    if (!IS_PAGE_ALIGNED(_vaddr) || !IS_PAGE_ALIGNED(_paddr)) {
         return ERR_INVALID_ARGS;
     }
 
@@ -550,69 +647,146 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t paddr, uin
         return NO_ERROR;
     }
 
-    // construct a local callback for the walker routine that
-    // a) tells the walker to build a page table if it's not present
-    // b) fills in a terminal page table entry with a page and tells the walker to start over
-    auto map_cb = [&paddr, &count, aspace, flags](uint level, uint index, riscv_pte_t pte, vaddr_t *vaddr) -> walk_cb_ret {
-        LTRACEF("level %u, index %u, pte %#lx, vaddr %#lx [paddr %#lx count %u flags %#x]\n",
-                level, index, pte, *vaddr, paddr, count, flags);
+    const bool kernel = (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) != 0;
+    const riscv_pte_t leaf_bits = mmu_flags_to_pte(flags) | RISCV_PTE_A | RISCV_PTE_D | RISCV_PTE_V |
+                                  (kernel ? RISCV_PTE_G : 0);
 
-        if ((pte & RISCV_PTE_V)) {
-            // a valid terminal entry, a page or a large page, already covers this address
+    // An empty entry gets a leaf when the address, its backing and what is
+    // left of the range all line up with the size of page that level holds,
+    // else a table to go further down. The top level never gets a leaf, and
+    // the kernel's top level is never written at all: user roots copy it once,
+    // when they are created, so every kernel entry there is filled at boot.
+    auto map_cb = [_vaddr, _paddr, count, leaf_bits, kernel](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
+        LTRACEF("vaddr %#lx level %u pte %#lx\n", vaddr, level, pte);
+
+        if (pte & RISCV_PTE_V) {
+            // a page or large page already covers this address
             DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
-            TRACEF("mapping already exists at %#lx (level %u pte %#lx)\n", *vaddr, level, pte);
-            return walk_cb_ret::OpHalt(ERR_ALREADY_EXISTS);
+            TRACEF("mapping already exists at %#lx (level %u pte %#lx)\n", vaddr, level, pte);
+            return walk_cb_ret::Halt(ERR_ALREADY_EXISTS);
         }
 
-        // hit an open pate table entry
+        const paddr_t paddr = _paddr + (vaddr - _vaddr);
         if (level > 0) {
-            // level is > 0, allocate a page table here
-            // TODO: optimize by allocating large page here if possible
-            return walk_cb_ret::OpAllocPT();
+            if (level == RISCV_MMU_PT_LEVELS - 1) {
+                if (kernel) {
+                    TRACEF("kernel top level entry for %#lx is empty\n", vaddr);
+                    return walk_cb_ret::Halt(ERR_NOT_SUPPORTED);
+                }
+                return walk_cb_ret::AllocPT();
+            }
+            const size_t block = page_size_per_level(level);
+            const size_t pages_left = count - (vaddr - _vaddr) / PAGE_SIZE;
+            if (!IS_ALIGNED(vaddr, block) || !IS_ALIGNED(paddr, block) || pages_left < block / PAGE_SIZE) {
+                return walk_cb_ret::AllocPT();
+            }
         }
 
-        // adding a terminal page at level 0
-        riscv_pte_t temp_pte = RISCV_PTE_PPN_TO_PTE(paddr);
-        temp_pte |= mmu_flags_to_pte(flags);
-        temp_pte |= RISCV_PTE_A | RISCV_PTE_D | RISCV_PTE_V;
-        temp_pte |= (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) ? RISCV_PTE_G : 0;
-
-        LTRACEF_LEVEL(2, "added new terminal entry: pte %#lx\n", temp_pte);
-
-        // modify what the walker handed us
-        *vaddr += PAGE_SIZE;
-
-        // bump our state forward
-        paddr += PAGE_SIZE;
-        count--;
-
-        // if we're done, tell the caller to commit our changes and either restart the walk or halt
-        if (count == 0) {
-            return walk_cb_ret::OpCommitHalt(temp_pte, false, NO_ERROR);
-        } else {
-            return walk_cb_ret::OpCommitRestart(temp_pte, false);
-        }
+        const riscv_pte_t new_pte = RISCV_PTE_PPN_TO_PTE(paddr) | leaf_bits;
+        LTRACEF_LEVEL(2, "new leaf at level %u: pte %#lx\n", level, new_pte);
+        return walk_cb_ret::CommitNext(new_pte);
     };
 
-    const uint total = count;
-    int ret = riscv_pt_walk(aspace, _vaddr, map_cb, nullptr);
-    const uint mapped = total - count;
-
+    struct list_node freed_tables = LIST_INITIAL_VALUE(freed_tables);
+    walk_stats stats = {};
+    int ret = riscv_pt_walk(aspace, _vaddr, count, map_cb, &freed_tables, &stats);
     if (ret < 0) {
-        // leave nothing behind from a partial mapping
-        if (mapped > 0) {
-            arch_mmu_unmap(aspace, _vaddr, mapped);
+        // leave nothing behind: the pages that did go in, and any table that
+        // was linked for one that did not. Only whole blocks were committed,
+        // so the unmap never meets a large page it would have to split.
+        if (stats.walked > 0) {
+            __UNUSED int err = arch_mmu_unmap(aspace, _vaddr, stats.walked);
+            DEBUG_ASSERT(err >= 0);
+        }
+        if (!list_is_empty(&freed_tables)) {
+            // a cpu may have cached the link to an orphaned table
+            riscv_tlb_shootdown(aspace, _vaddr, 0, true);
+            pmm_free(&freed_tables);
         }
         return ret;
     }
+    DEBUG_ASSERT(list_is_empty(&freed_tables));
 
     // A cpu may hold a cached translation for a page that was invalid when it
-    // last looked, so the new entries need a fence before they are usable.
-    // Every cpu gets one: a stale cached entry elsewhere would fault, and there
-    // is no fault handler to fence and retry. Svvptc cpus would not need this.
-    riscv_tlb_shootdown(aspace, _vaddr, mapped, false);
+    // last looked, so the new entries need a fence on every cpu before they
+    // are usable; a cached invalid link to a table is only covered by the
+    // full form, so a walk that linked one gets that. Svvptc promises that an
+    // entry made valid, leaf or link, is seen by every hart within a bounded
+    // time: a fault inside that window is caught by riscv_mmu_fault_is_stale()
+    // and retried, and no barrier is issued here at all, the caller's lock
+    // release is what publishes the entries.
+    if (!riscv_feature_test(RISCV_FEAT_SVVPTC)) {
+        riscv_tlb_shootdown(aspace, _vaddr, stats.walked, stats.tables_linked > 0);
+    }
 
     return NO_ERROR;
+}
+
+// Reads the tables without a lock, which is safe under the same contract the
+// hardware walker relies on: writers publish entries with single word stores,
+// link a table only after zeroing and fencing it, and free an unlinked table
+// only after a shootdown that every hart translating through these tables,
+// active or not, must acknowledge. With interrupts off this hart cannot
+// acknowledge, so nothing it reads can be freed under it.
+// A fault path that writes entries would need more: A/D updates as atomic
+// read-modify-writes on the leaf, structural changes under a per aspace lock.
+bool riscv_mmu_fault_is_stale(arch_aspace_t *aspace, vaddr_t vaddr, long cause, ulong status) {
+    DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
+    DEBUG_ASSERT(arch_ints_disabled());
+
+    if (!arch_mmu_range_in_aspace(aspace, vaddr, 1)) {
+        return false;
+    }
+
+    // the raw leaf, if any, and its level: the access is judged on the bits the hart uses
+    riscv_pte_t pte = 0;
+    uint pte_level = 0;
+    auto leaf_cb = [&pte, &pte_level](vaddr_t, uint level, riscv_pte_t entry) -> walk_cb_ret {
+        pte = entry;
+        pte_level = level;
+        return walk_cb_ret::Halt(NO_ERROR);
+    };
+    riscv_pt_walk(aspace, vaddr, 1, leaf_cb, nullptr, nullptr);
+
+    if (!(pte & RISCV_PTE_V)) {
+        return false;
+    }
+
+    // An entry the hart rejects whatever its permission bits say is a real
+    // fault: bits this kernel never sets (reserved, Svpbmt, Svnapot), write
+    // without read, a link where only a leaf may be, or a large page whose
+    // address is not aligned to its size.
+    if ((pte & (RISCV_PTE_RSVD_MASK | RISCV_PTE_PBMT_MASK | RISCV_PTE_N)) ||
+        (pte & (RISCV_PTE_R | RISCV_PTE_W)) == RISCV_PTE_W ||
+        !(pte & RISCV_PTE_PERM_MASK) ||
+        (RISCV_PTE_PPN(pte) & page_mask_per_level(pte_level))) {
+        return false;
+    }
+
+    // user pages are open to supervisor loads and stores through SUM alone and
+    // never to supervisor fetches; kernel pages are closed to user mode
+    const bool from_kernel = status & RISCV_CSR_XSTATUS_SPP;
+    const bool user_page = pte & RISCV_PTE_U;
+    if (from_kernel) {
+        if (user_page && (cause == RISCV_EXCEPTION_INS_PAGE_FAULT || !(status & RISCV_CSR_XSTATUS_SUM))) {
+            return false;
+        }
+    } else if (!user_page) {
+        return false;
+    }
+
+    // A is set on every leaf the kernel writes, and D as well; a leaf without
+    // them faults for real on a cpu that does not update them itself
+    switch (cause) {
+        case RISCV_EXCEPTION_INS_PAGE_FAULT:
+            return (pte & (RISCV_PTE_X | RISCV_PTE_A)) == (RISCV_PTE_X | RISCV_PTE_A);
+        case RISCV_EXCEPTION_LOAD_PAGE_FAULT:
+            return (pte & (RISCV_PTE_R | RISCV_PTE_A)) == (RISCV_PTE_R | RISCV_PTE_A);
+        case RISCV_EXCEPTION_STORE_PAGE_FAULT:
+            return (pte & (RISCV_PTE_W | RISCV_PTE_A | RISCV_PTE_D)) == (RISCV_PTE_W | RISCV_PTE_A | RISCV_PTE_D);
+    }
+    return false;
 }
 
 status_t arch_mmu_query(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t *paddr, uint *flags) {
@@ -625,45 +799,34 @@ status_t arch_mmu_query(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t *pa
         return ERR_OUT_OF_RANGE;
     }
 
-    // construct a local callback for the walker routine that
-    // a) if it hits a terminal entry construct the flags we want and halt
-    // b) all other cases just halt and return ERR_NOT_FOUND
-    auto query_cb = [paddr, flags](uint level, uint index, riscv_pte_t pte, vaddr_t *vaddr) -> walk_cb_ret {
-        LTRACEF("level %u, index %u, pte %#lx, vaddr %#lx\n", level, index, pte, *vaddr);
+    // a single entry walk: report the leaf covering the address, or its absence
+    auto query_cb = [paddr, flags](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
+        LTRACEF("vaddr %#lx level %u pte %#lx\n", vaddr, level, pte);
 
-        if (pte & RISCV_PTE_V) {
-            // we have hit a valid pte of some kind
-            // assert that it's not a page table pointer, which we shouldn't be hitting in the callback
-            DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
-
-            if (paddr) {
-                // extract the ppn
-                paddr_t pa = RISCV_PTE_PPN(pte);
-                uintptr_t page_mask = page_mask_per_level(level);
-
-                // add the va offset into the physical address
-                *paddr = pa | (*vaddr & page_mask);
-                LTRACEF_LEVEL(3, "raw pa %#lx, page_mask %#lx, final pa %#lx\n", pa, page_mask, *paddr);
-            }
-
-            if (flags) {
-                // compute the flags
-                *flags = pte_flags_to_mmu_flags(pte);
-                LTRACEF_LEVEL(3, "computed flags %#x\n", *flags);
-            }
-            // we found our page, so stop
-            return walk_cb_ret::OpHalt(NO_ERROR);
-        } else {
-            // couldnt find our page, stop
-            return walk_cb_ret::OpHalt(ERR_NOT_FOUND);
+        if (!(pte & RISCV_PTE_V)) {
+            return walk_cb_ret::Halt(ERR_NOT_FOUND);
         }
+        DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
+
+        if (paddr) {
+            // the ppn plus the offset within a page of this level's size
+            const paddr_t pa = RISCV_PTE_PPN(pte);
+            const uintptr_t page_mask = page_mask_per_level(level);
+            *paddr = pa | (vaddr & page_mask);
+            LTRACEF_LEVEL(3, "raw pa %#lx, page_mask %#lx, final pa %#lx\n", pa, page_mask, *paddr);
+        }
+        if (flags) {
+            *flags = pte_flags_to_mmu_flags(pte);
+            LTRACEF_LEVEL(3, "computed flags %#x\n", *flags);
+        }
+        return walk_cb_ret::Halt(NO_ERROR);
     };
 
-    return riscv_pt_walk(aspace, _vaddr, query_cb, nullptr);
+    return riscv_pt_walk(aspace, _vaddr, 1, query_cb, nullptr, nullptr);
 }
 
-int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint _count) {
-    LTRACEF("vaddr %#lx count %u\n", _vaddr, _count);
+int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint count) {
+    LTRACEF("vaddr %#lx count %u\n", _vaddr, count);
 
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
@@ -672,68 +835,63 @@ int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint _coun
         return ERR_INVALID_ARGS;
     }
 
-    if (!arch_mmu_range_in_aspace(aspace, _vaddr, _count)) {
+    if (!arch_mmu_range_in_aspace(aspace, _vaddr, count)) {
         return ERR_OUT_OF_RANGE;
     }
 
-    if (_count == 0) {
+    if (count == 0) {
         return NO_ERROR;
     }
 
-    // construct a local callback for the walker routine that
-    // a) if it hits a terminal 4K entry write zeros to it
-    // b) if it hits an empty spot skips past it
-    auto count = _count;
-    auto unmap_cb = [&count]
-        (uint level, uint index, riscv_pte_t pte, vaddr_t *vaddr) -> walk_cb_ret {
-        LTRACEF("level %u, index %u, pte %#lx, vaddr %#lx\n", level, index, pte, *vaddr);
+    // Pages are cleared and holes stepped over. A large page goes as a whole
+    // when the range covers it and is refused otherwise: splitting one needs
+    // a table in its place, and what preceded it is already gone by then. So
+    // is a top level leaf, the physmap: the kernel's top level is shared with
+    // every user root and never changes. The span from the first to the last
+    // page cleared is what the shootdown must cover.
+    struct {
+        vaddr_t first;
+        size_t pages;
+    } cleared = { 0, 0 };
+    auto unmap_cb = [_vaddr, count, &cleared](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
+        LTRACEF("vaddr %#lx level %u pte %#lx\n", vaddr, level, pte);
 
-        if (pte & RISCV_PTE_V) {
-            // we have hit a valid pte of some kind
-            // assert that it's not a page table pointer, which we shouldn't be hitting in the callback
-            DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
+        if (!(pte & RISCV_PTE_V)) {
+            return walk_cb_ret::Next();
+        }
+        DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
 
-            if (level > 0) {
-                // splitting a large page needs a new table in its place; refuse
-                // before touching anything. What preceded it is already unmapped.
-                TRACEF("partial unmap of large page at %#lx (level %u) not supported\n", *vaddr, level);
-                return walk_cb_ret::OpHalt(ERR_NOT_SUPPORTED);
+        const size_t block_pages = page_size_per_level(level) / PAGE_SIZE;
+        if (level > 0) {
+            if (level == RISCV_MMU_PT_LEVELS - 1) {
+                TRACEF("unmap of top level entry at %#lx not supported\n", vaddr);
+                return walk_cb_ret::Halt(ERR_NOT_SUPPORTED);
             }
-
-            // clear the entry; the walker reclaims any table this empties
-            *vaddr += PAGE_SIZE;
-            count--;
-            if (count == 0) {
-                return walk_cb_ret::OpCommitHalt(0, true, NO_ERROR);
-            } else {
-                return walk_cb_ret::OpCommitRestart(0, true);
-            }
-        } else {
-            // nothing mapped here: skip to the end of whatever this entry covers,
-            // or the end of the range, whichever comes first
-            const vaddr_t block_end = (*vaddr | page_mask_per_level(level)) + 1;
-            const size_t skip = MIN((size_t)count, (block_end - *vaddr) / PAGE_SIZE);
-            *vaddr += skip * PAGE_SIZE;
-            count -= skip;
-            if (count == 0) {
-                return walk_cb_ret::OpHalt(NO_ERROR);
-            } else {
-                return walk_cb_ret::OpRestart();
+            const size_t pages_left = count - (vaddr - _vaddr) / PAGE_SIZE;
+            if (!IS_ALIGNED(vaddr, page_size_per_level(level)) || pages_left < block_pages) {
+                TRACEF("partial unmap of large page at %#lx (level %u) not supported\n", vaddr, level);
+                return walk_cb_ret::Halt(ERR_NOT_SUPPORTED);
             }
         }
+
+        if (cleared.pages == 0) {
+            cleared.first = vaddr;
+        }
+        cleared.pages = (vaddr - cleared.first) / PAGE_SIZE + block_pages;
+        return walk_cb_ret::CommitNext(0);
     };
 
     struct list_node freed_tables = LIST_INITIAL_VALUE(freed_tables);
-    int ret = riscv_pt_walk(aspace, _vaddr, unmap_cb, &freed_tables);
+    int ret = riscv_pt_walk(aspace, _vaddr, count, unmap_cb, &freed_tables, nullptr);
 
-    // Shoot down the pages that were actually cleared, then and only then hand
-    // back any tables that emptied: a cpu may still be walking them until its
-    // fence has run.
-    const uint unmapped = _count - count;
-    if (unmapped > 0 || !list_is_empty(&freed_tables)) {
-        riscv_tlb_shootdown(aspace, _vaddr, unmapped, !list_is_empty(&freed_tables));
+    // Shoot down the span that was cleared, then and only then hand back any
+    // tables that emptied: a cpu may still be walking them until its fence
+    // has run.
+    const bool tables_freed = !list_is_empty(&freed_tables);
+    if (cleared.pages > 0 || tables_freed) {
+        riscv_tlb_shootdown(aspace, cleared.first, cleared.pages, tables_freed);
     }
-    if (!list_is_empty(&freed_tables)) {
+    if (tables_freed) {
         LTRACEF("freeing %zu emptied page tables\n", list_length(&freed_tables));
         pmm_free(&freed_tables);
     }
@@ -780,6 +938,17 @@ bool arch_mmu_supports_user_aspaces(void) { return true; }
 
 extern "C"
 void riscv_mmu_init_secondaries() {
+    // Join the shootdowns before touching the kernel's tables. Until now this
+    // cpu ran on the trampoline, whose only entries it used are the fixed top
+    // level ones (the kernel image and the physmap), so a shootdown it missed
+    // cannot matter; the full flush below drops whatever it cached anyway.
+    // From here on every shootdown reaches it and waits for it, which also
+    // covers a secondary that is not yet active. The fence pairs with the one
+    // in sync_exec_all(): either the other side reads this bit, or the first
+    // walk below sees the other side's page table stores.
+    __atomic_fetch_or(&riscv_mmu_cpus, 1u << arch_curr_cpu_num(), __ATOMIC_RELAXED);
+    smp_mb();
+
     // switch to the proper kernel pgtable, with the trampoline parts unmapped.
     // The trampoline's identity map is global, so everything must go.
     riscv_set_satp(kernel_asid(), kernel_pgtable_phys);
@@ -825,6 +994,8 @@ extern "C"
 void riscv_mmu_init() {
     dprintf(INFO, "RISCV: MMU ASID mask %#lx, %s\n", riscv_asid_mask,
             riscv_use_asids ? "one asid per user aspace" : "user aspaces share asid 0 and flush on switch");
+    dprintf(INFO, "RISCV: MMU %s\n", riscv_feature_test(RISCV_FEAT_SVVPTC) ?
+            "svvptc, new mappings need no fence" : "fencing every cpu after each new mapping");
 }
 
 #endif

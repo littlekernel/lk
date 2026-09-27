@@ -10,8 +10,10 @@ WITH_SMP ?= true
 SMP_MAX_CPUS ?= 4
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 RISCV_FPU := true
-# sv39 physmap is 64GB, enough for peripherals at 0 and up to 32GB of DRAM from 2GB
-RISCV_MMU := sv39
+# The P550 implements sv48, whose 512GB physmap covers the peripherals at 0 and
+# either DRAM size from 2GB with room to spare. sv39 (64GB physmap) also works:
+# make hifive-premier-p550-test RISCV_MMU=sv39
+RISCV_MMU ?= sv48
 RISCV_EXTENSION_LIST ?= zba zbb
 
 MODULE_DEPS += lib/cbuf

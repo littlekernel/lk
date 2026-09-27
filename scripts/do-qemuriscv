@@ -13,6 +13,7 @@ function HELP {
     echo "-m <memory in MB> : memory size (default: 512 MB for virt, 8192 MB for sifive_u)"
     echo "-s <number of cpus> : number of CPUs (default: 1, or 2 for sifive_u)"
     echo "-X                : print QEMU command and exit (dry run)"
+    echo "-F <feature>      : append a cpu feature to -cpu, e.g. svvptc=off (may be used multiple times)"
     echo
     echo "-c                : cmpctmalloc instead of dlmalloc"
     echo "-M                : miniheap instead of dlmalloc"
@@ -49,12 +50,14 @@ PROJECT=""
 DO_DRYRUN=0
 NETDEV=""
 DO_NETDEV_OVERRIDE=0
+CPU_FEATURES=""
 
-while getopts A:cCd:ghm:MntNeu6p:s:SX FLAG; do
+while getopts A:cCd:F:ghm:MntNeu6p:s:SX FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) DO_CMPCTMALLOC=1;;
         C) DO_PCI_VIRTIO=1;;
+        F) CPU_FEATURES+=",$OPTARG";;
         d)
             DISK_IMAGES+=("$OPTARG")
             ;;
@@ -170,6 +173,13 @@ if [[ -n "$CMDLINE" ]]; then
     ARGS+=("-append" "$CMDLINE")
 fi
 
+if [[ -n "$CPU_FEATURES" ]]; then
+    if [[ -z "$CPU" ]]; then
+        echo "-F needs a configuration that selects a cpu model" >&2
+        exit 1
+    fi
+    CPU+="$CPU_FEATURES"
+fi
 if [[ -n "$CPU" ]]; then
     ARGS+=("-cpu" "$CPU")
 fi

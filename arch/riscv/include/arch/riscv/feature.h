@@ -44,6 +44,7 @@ enum riscv_feature {
     RISCV_FEAT_ZICBOZ,
     RISCV_FEAT_SSTC,
     RISCV_FEAT_SVADU,
+    RISCV_FEAT_SVVPTC,
 
     RISCV_FEAT_COUNT
 };

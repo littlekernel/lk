@@ -200,6 +200,21 @@ which is also how every cpu boots, so a stray low address faults rather than
 walking whatever TTBR0 holds. On riscv the kernel root table is loaded, whose
 user half is empty.
 
+## Paging mode on riscv
+
+A riscv build picks its paging mode with `RISCV_MMU`, `sv39` or `sv48`, set by
+the platform and overridable on the make command line. The mode fixes the table
+depth, the aspace bases and sizes, and the physmap the boot code writes at the
+bottom of the kernel half: 64 gigapages of 1GB under sv39, one 512GB terapage
+under sv48. It is compiled in rather than probed; `start.S` reads satp back after
+setting it and parks a hart at `riscv_mmu_mode_unsupported` if the cpu refused
+the mode. `qemu-virt-riscv` and the HiFive Premier P550 run sv48; the other
+boards use sv39. The kernel half of every root table is the same: the kernel's
+top level entries are written once at boot (the physmap, and a static second
+level table behind every other kernel entry) and copied into each user root as
+it is created, so `arch_mmu_map` and `arch_mmu_unmap` never write a top level
+entry of the kernel aspace, and an unmap that would clear one is refused.
+
 ## ASIDs
 
 The arm64 and riscv ports tag user TLB entries with an address space identifier
@@ -225,11 +240,17 @@ every cpu before anything relies on the old translation being gone: freeing a
 page table, reusing an asid, or returning to the caller. On arm64 that is `dsb
 ishst`, a broadcast `tlbi ...is`, then `dsb ish`, with an `isb` for kernel
 mappings. riscv has no broadcast invalidate, so `sfence.vma` runs on every cpu
-through `mp_sync_exec()`, which requires interrupts to be enabled when other
-cpus are up; during early boot with one cpu it simply runs locally. riscv also
-fences after a map, since a cpu may cache a translation for a page that was
-invalid when it last looked. Intermediate tables emptied by an unmap are
-unlinked and freed only after the shootdown.
+that translates through the kernel's tables, through `mp_sync_exec_cpus()`,
+which requires interrupts to be enabled when other cpus are up. That set is not
+the scheduler's active cpus: a secondary joins it just before it switches from
+the boot trampoline to the kernel's tables, well before it is active, and a
+shootdown in between waits until the secondary first enables interrupts.
+riscv also fences after a map, since a cpu may cache a translation for a page
+that was invalid when it last looked, unless the cpu advertises Svvptc, which
+rules that out. Either way a page fault that the tables do not explain is taken
+as such a stale translation: the hart flushes its TLB and retries the access,
+and one that keeps recurring is reported as a real fault. Intermediate tables
+emptied by an unmap are unlinked and freed only after the shootdown.
 
 `arch_mmu_destroy_aspace()` expects every mapping to be gone already, which is
 what frees the lower tables, and no cpu to have the aspace loaded.

@@ -87,11 +87,14 @@ void mp_set_curr_cpu_active(bool active) {
     }
 }
 
-void mp_sync_exec(mp_ipi_target_t target, mp_cpu_mask_t mask, mp_sync_task_t fn, void *context) {
+/* The body of mp_sync_exec() and mp_sync_exec_cpus(); only_active limits the
+ * targets to the cpus in mp.active_cpus. */
+static void mp_sync_exec_etc(mp_ipi_target_t target, mp_cpu_mask_t mask, bool only_active,
+                             mp_sync_task_t fn, void *context) {
     struct mp_sync_task tasks[SMP_MAX_CPUS];
     int outstanding = 0;
 
-    LTRACEF("target %d mask 0x%x, fn %p\n", target, mask, fn);
+    LTRACEF("target %d mask 0x%x only_active %d, fn %p\n", target, mask, only_active, fn);
 
     DEBUG_ASSERT(fn);
 
@@ -101,7 +104,10 @@ void mp_sync_exec(mp_ipi_target_t target, mp_cpu_mask_t mask, mp_sync_task_t fn,
     arch_interrupt_saved_state_t state = arch_interrupt_save();
 
     uint local_cpu = arch_curr_cpu_num();
-    mp_cpu_mask_t cpus = mp_target_to_mask(target, mask, local_cpu) & mp.active_cpus;
+    mp_cpu_mask_t cpus = mp_target_to_mask(target, mask, local_cpu);
+    if (only_active) {
+        cpus &= mp.active_cpus;
+    }
     mp_cpu_mask_t remote = cpus & ~(1U << local_cpu);
 
     if (remote) {
@@ -136,6 +142,14 @@ void mp_sync_exec(mp_ipi_target_t target, mp_cpu_mask_t mask, mp_sync_task_t fn,
     while (__atomic_load_n(&outstanding, __ATOMIC_ACQUIRE) != 0) {
         arch_spinloop_pause();
     }
+}
+
+void mp_sync_exec(mp_ipi_target_t target, mp_cpu_mask_t mask, mp_sync_task_t fn, void *context) {
+    mp_sync_exec_etc(target, mask, true, fn, context);
+}
+
+void mp_sync_exec_cpus(mp_cpu_mask_t cpus, mp_sync_task_t fn, void *context) {
+    mp_sync_exec_etc(MP_IPI_TARGET_MASK, cpus, false, fn, context);
 }
 
 enum handler_return mp_mbx_generic_irq(void) {
