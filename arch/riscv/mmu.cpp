@@ -88,6 +88,12 @@ uint16_t kernel_asid() {
     return riscv_use_asids ? ASID_KERNEL : 0;
 }
 
+// Every cpu translating through the kernel's page tables, whether or not it
+// has joined the scheduler yet: the shootdowns go to these. A cpu adds itself
+// just before it leaves the boot trampoline for kernel_pgtable, and never
+// leaves.
+mp_cpu_mask_t riscv_mmu_cpus;
+
 // flush one asid on every cpu, from interrupt context on the remote ones
 void flush_asid_task(void *arg) {
     riscv_tlb_flush_asid(*static_cast<const uint16_t *>(arg));
@@ -186,18 +192,23 @@ void tlb_shootdown_task(void *arg) {
     }
 }
 
-// Run a fence task on every cpu, this one included. mp_sync_exec() reaches
-// only the active cpus, and this one is not active until its idle thread
-// exists, so until then the task also runs here by hand; the boot thread is
-// pinned to this cpu for as long as that lasts. Interrupts must be enabled
-// when other cpus are up.
+// Run a fence task on every cpu in riscv_mmu_cpus, this one included, and
+// return once all have run it. That includes a secondary that already
+// translates through the kernel's tables but has not joined the scheduler: it
+// runs the task when it first enables interrupts, and the call waits until
+// then. A cpu that adds itself and then never enables interrupts, parked or
+// panicked, stalls every later shootdown. Interrupts must be enabled when
+// other cpus are up.
 void sync_exec_all(mp_sync_task_t fn, void *arg) {
-    // the page table stores must be visible to the other harts before their fences run
+    // The page table stores must be visible to the other harts before their
+    // fences run, and before the mask is read: a cpu adding itself fences
+    // between its bit and its switch to the kernel's tables, so either it is
+    // in the mask read here or its first walk sees these stores.
     smp_mb();
-    if (!mp_is_cpu_active(arch_curr_cpu_num())) {
-        fn(arg);
-    }
-    mp_sync_exec(MP_IPI_TARGET_ALL, 0, fn, arg);
+    const mp_cpu_mask_t cpus = __atomic_load_n(&riscv_mmu_cpus, __ATOMIC_RELAXED);
+    DEBUG_ASSERT(cpus & (1u << arch_curr_cpu_num()));
+    DEBUG_ASSERT((mp_get_active_mask() & ~cpus) == 0);
+    mp_sync_exec_cpus(cpus, fn, arg);
 }
 
 // Make every cpu drop what it may have cached for [base, base + count pages) of
@@ -714,8 +725,9 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _pad
 // Reads the tables without a lock, which is safe under the same contract the
 // hardware walker relies on: writers publish entries with single word stores,
 // link a table only after zeroing and fencing it, and free an unlinked table
-// only after a shootdown that every hart must acknowledge. With interrupts
-// off this hart cannot acknowledge, so nothing it reads can be freed under it.
+// only after a shootdown that every hart translating through these tables,
+// active or not, must acknowledge. With interrupts off this hart cannot
+// acknowledge, so nothing it reads can be freed under it.
 // A fault path that writes entries would need more: A/D updates as atomic
 // read-modify-writes on the leaf, structural changes under a per aspace lock.
 bool riscv_mmu_fault_is_stale(arch_aspace_t *aspace, vaddr_t vaddr, long cause, ulong status) {
@@ -926,6 +938,17 @@ bool arch_mmu_supports_user_aspaces(void) { return true; }
 
 extern "C"
 void riscv_mmu_init_secondaries() {
+    // Join the shootdowns before touching the kernel's tables. Until now this
+    // cpu ran on the trampoline, whose only entries it used are the fixed top
+    // level ones (the kernel image and the physmap), so a shootdown it missed
+    // cannot matter; the full flush below drops whatever it cached anyway.
+    // From here on every shootdown reaches it and waits for it, which also
+    // covers a secondary that is not yet active. The fence pairs with the one
+    // in sync_exec_all(): either the other side reads this bit, or the first
+    // walk below sees the other side's page table stores.
+    __atomic_fetch_or(&riscv_mmu_cpus, 1u << arch_curr_cpu_num(), __ATOMIC_RELAXED);
+    smp_mb();
+
     // switch to the proper kernel pgtable, with the trampoline parts unmapped.
     // The trampoline's identity map is global, so everything must go.
     riscv_set_satp(kernel_asid(), kernel_pgtable_phys);

@@ -240,13 +240,17 @@ every cpu before anything relies on the old translation being gone: freeing a
 page table, reusing an asid, or returning to the caller. On arm64 that is `dsb
 ishst`, a broadcast `tlbi ...is`, then `dsb ish`, with an `isb` for kernel
 mappings. riscv has no broadcast invalidate, so `sfence.vma` runs on every cpu
-through `mp_sync_exec()`, which requires interrupts to be enabled when other
-cpus are up; during early boot with one cpu it simply runs locally. riscv also
-fences after a map, since a cpu may cache a translation for a page that was
-invalid when it last looked, unless the cpu advertises Svvptc, which rules that
-out. Either way a page fault that the tables do not explain is taken as such a
-stale translation: the hart fences the address and retries the access. Intermediate
-tables emptied by an unmap are unlinked and freed only after the shootdown.
+that translates through the kernel's tables, through `mp_sync_exec_cpus()`,
+which requires interrupts to be enabled when other cpus are up. That set is not
+the scheduler's active cpus: a secondary joins it just before it switches from
+the boot trampoline to the kernel's tables, well before it is active, and a
+shootdown in between waits until the secondary first enables interrupts.
+riscv also fences after a map, since a cpu may cache a translation for a page
+that was invalid when it last looked, unless the cpu advertises Svvptc, which
+rules that out. Either way a page fault that the tables do not explain is taken
+as such a stale translation: the hart flushes its TLB and retries the access,
+and one that keeps recurring is reported as a real fault. Intermediate tables
+emptied by an unmap are unlinked and freed only after the shootdown.
 
 `arch_mmu_destroy_aspace()` expects every mapping to be gone already, which is
 what frees the lower tables, and no cpu to have the aspace loaded.

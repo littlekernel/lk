@@ -133,7 +133,8 @@ bool riscv_mmu_fault_is_stale(struct arch_aspace *aspace, vaddr_t vaddr, long ca
 /*
  * Local TLB maintenance. sfence.vma also orders every earlier page table store
  * on this hart before later implicit translations, so a fence follows each table
- * update. Other harts get theirs through mp_sync_exec().
+ * update. Other harts get theirs through mp_sync_exec_cpus(), aimed at every
+ * cpu that translates through the kernel's tables, active or not.
  *
  * With rs2 = x0 the fence covers every asid, global entries included; with an
  * asid in a register it leaves global entries alone. The asid is widened to a
