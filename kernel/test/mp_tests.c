@@ -111,6 +111,26 @@ static bool test_sync_exec_inactive(void) {
     END_TEST;
 }
 
+/* mp_sync_exec_cpus() runs on exactly the cpus named, once each. Only cpus
+ * that are running can be named here: a cpu that never starts would never
+ * answer, and the call would not return. */
+static bool test_sync_exec_cpus(void) {
+    BEGIN_TEST;
+
+    struct hit_counts hits = {};
+    mp_sync_exec_cpus(mp_get_active_mask(), count_hit, &hits);
+    EXPECT_EQ(__builtin_popcount(mp_get_active_mask()), total_hits(&hits), "hits");
+    for (uint cpu = 0; cpu < SMP_MAX_CPUS; cpu++) {
+        EXPECT_EQ(mp_is_cpu_active(cpu) ? 1 : 0, hits.per_cpu[cpu], "hits on one cpu");
+    }
+
+    struct hit_counts none = {};
+    mp_sync_exec_cpus(0, count_hit, &none);
+    EXPECT_EQ(0, total_hits(&none), "hits");
+
+    END_TEST;
+}
+
 /* back to back calls must not lose or double count a target */
 static bool test_sync_exec_repeat(void) {
     BEGIN_TEST;
@@ -196,6 +216,7 @@ RUN_TEST(test_sync_exec_all);
 RUN_TEST(test_sync_exec_single);
 RUN_TEST(test_sync_exec_all_but_local);
 RUN_TEST(test_sync_exec_inactive);
+RUN_TEST(test_sync_exec_cpus);
 RUN_TEST(test_sync_exec_repeat);
 RUN_TEST(test_sync_exec_concurrent);
 END_TEST_CASE(mp_tests)

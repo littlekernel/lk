@@ -63,6 +63,14 @@ void mp_set_curr_cpu_active(bool active);
 // targeted: that cpu may be waiting on this one the same way.
 void mp_sync_exec(mp_ipi_target_t target, mp_cpu_mask_t mask, mp_sync_task_t fn, void *context);
 
+// mp_sync_exec() on exactly the cpus in the mask, whether or not they are active
+// yet. A cpu that is started but not yet active runs fn when it first enables
+// interrupts, and the caller waits until then, so the caller must know every
+// cpu in the mask gets there without waiting on the caller. For work that must
+// also reach a cpu before it joins the scheduler, such as a TLB shootdown on a
+// cpu that already translates through the kernel's page tables.
+void mp_sync_exec_cpus(mp_cpu_mask_t cpus, mp_sync_task_t fn, void *context);
+
 // Called from arch code during reschedule irq
 enum handler_return mp_mbx_reschedule_irq(void);
 
@@ -127,6 +135,12 @@ static inline void mp_set_curr_cpu_active(bool active) {}
 // the only cpu is cpu 0; run the task here if it was asked for
 static inline void mp_sync_exec(mp_ipi_target_t target, mp_cpu_mask_t mask, mp_sync_task_t fn, void *context) {
     if (target == MP_IPI_TARGET_ALL || (target == MP_IPI_TARGET_MASK && (mask & 1))) {
+        fn(context);
+    }
+}
+
+static inline void mp_sync_exec_cpus(mp_cpu_mask_t cpus, mp_sync_task_t fn, void *context) {
+    if (cpus & 1) {
         fn(context);
     }
 }
