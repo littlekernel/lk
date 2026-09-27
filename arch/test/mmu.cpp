@@ -19,6 +19,10 @@
 #include <kernel/mp.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
+#if ARCH_RISCV
+#include <arch/riscv.h>
+#include <arch/riscv/mmu.h>
+#endif
 
 namespace {
 
@@ -863,6 +867,16 @@ bool map_enomem_rollback() {
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, base, &got, nullptr), "first page rolled back");
     EXPECT_TRUE(check_table_count(as, 1), "first page's tables reclaimed");
 
+    // Across a 1GB boundary: the first page's chain goes in, the second needs
+    // a fresh table below the 1GB level and one more under it, which fails.
+    // Both cleanup legs run: the page that went in is rolled back and the
+    // fresh table, orphaned, is unlinked again.
+    const vaddr_t gb = user_boundary(1UL << 30) - PAGE_SIZE;
+    riscv_mmu_set_ptable_alloc_budget(pt_levels);
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, gb, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map across 1GB");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, gb, &got, nullptr), "page before the boundary rolled back");
+    EXPECT_TRUE(check_table_count(as, 1), "chain and orphaned table reclaimed");
+
     // and with the cap lifted the same mapping works
     riscv_mmu_set_ptable_alloc_budget(-1);
     EXPECT_LE(NO_ERROR, arch_mmu_map(aspace, base, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map after rollback");
@@ -877,6 +891,205 @@ bool map_enomem_rollback() {
     END_TEST;
 }
 #endif
+
+#if ARCH_RISCV && LK_DEBUGLEVEL > 0
+// The kernel aspace's tables below the static level come and go like a user
+// aspace's: a map that runs out of tables part way leaves nothing linked, so
+// the same number is needed again (a table left behind would let a smaller
+// budget succeed), and an unmap takes the chain with it. The top level holds
+// the physmap and is shared with every user root, so no unmap may touch it.
+bool kernel_map_enomem_rollback() {
+    BEGIN_TEST;
+
+    vmm_aspace_t *kas = vmm_get_kernel_aspace();
+    arch_aspace_t *aspace = &kas->arch_aspace;
+    auto budget_cleanup = lk::make_auto_call([]() { riscv_mmu_set_ptable_alloc_budget(-1); });
+
+    vm_page_t *p = pmm_alloc_page();
+    ASSERT_NONNULL(p, "alloc page");
+    auto page_cleanup = lk::make_auto_call([&]() { pmm_free_page(p); });
+    const paddr_t pa = vm_page_to_paddr(p);
+
+    // the last 2MB of the kernel aspace, which the vmm never hands out
+    const vaddr_t va = KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - (2UL << 20);
+    paddr_t got;
+    if (arch_mmu_query(aspace, va, &got, nullptr) == NO_ERROR) {
+        unittest_printf(" (region already mapped)");
+        END_TEST;
+    }
+
+    // a page there needs a table at every level below the static one
+    constexpr int needed = pt_levels - 2;
+    for (int pass = 0; pass < 2; pass++) {
+        for (int budget = 0; budget < needed; budget++) {
+            riscv_mmu_set_ptable_alloc_budget(budget);
+            EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, va, pa, 1, 0), "map with too few tables");
+            EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, va, &got, nullptr), "nothing mapped");
+        }
+        riscv_mmu_set_ptable_alloc_budget(needed);
+        ASSERT_LE(NO_ERROR, arch_mmu_map(aspace, va, pa, 1, 0), "map with just enough");
+        EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, va, &got, nullptr), "query");
+        EXPECT_EQ(pa, got, "paddr");
+        // the second pass shows the unmap took the chain with it
+        EXPECT_LE(NO_ERROR, arch_mmu_unmap(aspace, va, 1), "unmap");
+        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, va, &got, nullptr), "gone");
+    }
+
+    // the physmap is a top level leaf
+    riscv_mmu_set_ptable_alloc_budget(-1);
+    EXPECT_EQ(ERR_NOT_SUPPORTED,
+              arch_mmu_unmap(aspace, RISCV_MMU_PHYSMAP_BASE_VIRT, RISCV_MMU_PHYSMAP_PAGE_SIZE / PAGE_SIZE),
+              "top level unmap refused");
+    EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, RISCV_MMU_PHYSMAP_BASE_VIRT, &got, nullptr), "physmap intact");
+    EXPECT_EQ((paddr_t)0, got, "physmap base");
+
+    END_TEST;
+}
+#endif
+
+#if ARCH_RISCV
+// The stale fault predicate against every kind of page and both modes: a
+// fault is stale only where the entry permits that access from that mode.
+bool stale_fault_predicate() {
+    BEGIN_TEST;
+
+    if (!arch_mmu_supports_user_aspaces()) {
+        END_TEST;
+    }
+
+    vmm_aspace_t *as = nullptr;
+    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "stale", 0), "create aspace");
+    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    arch_aspace_t *aspace = &as->arch_aspace;
+
+    // one page of each kind; the last is a kernel page, which user mode may not touch at all
+    const struct {
+        uint flags;
+        bool load, store, fetch; // what user mode may do to it
+    } kinds[] = {
+        { ARCH_MMU_FLAG_PERM_USER, true, true, true },
+        { ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO, true, false, true },
+        { ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE, true, true, false },
+        { 0, false, false, false },
+    };
+    constexpr uint count = countof(kinds);
+
+    struct list_node pages = LIST_INITIAL_VALUE(pages);
+    paddr_t pa;
+    ASSERT_EQ(count, pmm_alloc_contiguous(count, PAGE_SIZE_SHIFT, &pa, &pages), "alloc pages");
+    auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
+
+    const vaddr_t base = USER_ASPACE_BASE;
+    for (uint i = 0; i < count; i++) {
+        ASSERT_LE(NO_ERROR, arch_mmu_map(aspace, base + i * PAGE_SIZE, pa + i * PAGE_SIZE, 1, kinds[i].flags), "map");
+    }
+    auto unmap_cleanup = lk::make_auto_call([&]() { arch_mmu_unmap(aspace, base, count); });
+
+    // the status word of the trap: from user mode, from the kernel with and without SUM
+    const ulong user = 0;
+    const ulong kernel = RISCV_CSR_XSTATUS_SPP | RISCV_CSR_XSTATUS_SUM;
+    const ulong kernel_no_sum = RISCV_CSR_XSTATUS_SPP;
+
+    // the predicate belongs to the fault path, which runs with interrupts off
+    auto stale = [aspace](vaddr_t va, long cause, ulong status) {
+        arch_interrupt_saved_state_t state = arch_interrupt_save();
+        const bool r = riscv_mmu_fault_is_stale(aspace, va, cause, status);
+        arch_interrupt_restore(state);
+        return r;
+    };
+
+    for (uint i = 0; i < count; i++) {
+        const vaddr_t va = base + i * PAGE_SIZE + 0x123;
+        const bool user_page = kinds[i].flags & ARCH_MMU_FLAG_PERM_USER;
+        const bool ro = kinds[i].flags & ARCH_MMU_FLAG_PERM_RO;
+        const bool nx = kinds[i].flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+
+        EXPECT_EQ(kinds[i].load, stale(va, RISCV_EXCEPTION_LOAD_PAGE_FAULT, user), "user load");
+        EXPECT_EQ(kinds[i].store, stale(va, RISCV_EXCEPTION_STORE_PAGE_FAULT, user), "user store");
+        EXPECT_EQ(kinds[i].fetch, stale(va, RISCV_EXCEPTION_INS_PAGE_FAULT, user), "user fetch");
+
+        // the kernel reaches user pages for loads and stores through SUM only, never for fetches
+        EXPECT_EQ(true, stale(va, RISCV_EXCEPTION_LOAD_PAGE_FAULT, kernel), "kernel load");
+        EXPECT_EQ(!ro, stale(va, RISCV_EXCEPTION_STORE_PAGE_FAULT, kernel), "kernel store");
+        EXPECT_EQ(!user_page && !nx, stale(va, RISCV_EXCEPTION_INS_PAGE_FAULT, kernel), "kernel fetch");
+        EXPECT_EQ(!user_page, stale(va, RISCV_EXCEPTION_LOAD_PAGE_FAULT, kernel_no_sum), "kernel load without SUM");
+        EXPECT_EQ(!user_page && !ro, stale(va, RISCV_EXCEPTION_STORE_PAGE_FAULT, kernel_no_sum), "kernel store without SUM");
+    }
+
+    // nothing mapped, from either mode: never stale
+    const vaddr_t hole = base + count * PAGE_SIZE;
+    EXPECT_FALSE(stale(hole, RISCV_EXCEPTION_LOAD_PAGE_FAULT, user), "unmapped user load");
+    EXPECT_FALSE(stale(hole, RISCV_EXCEPTION_STORE_PAGE_FAULT, user), "unmapped user store");
+    EXPECT_FALSE(stale(hole, RISCV_EXCEPTION_INS_PAGE_FAULT, user), "unmapped user fetch");
+    EXPECT_FALSE(stale(hole, RISCV_EXCEPTION_LOAD_PAGE_FAULT, kernel), "unmapped kernel load");
+
+    // and once unmapped the pages are real faults again
+    unmap_cleanup.cancel();
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(aspace, base, count), "unmap");
+    EXPECT_FALSE(stale(base + 0x123, RISCV_EXCEPTION_LOAD_PAGE_FAULT, user), "unmapped after");
+    EXPECT_FALSE(stale(base + 0x123, RISCV_EXCEPTION_LOAD_PAGE_FAULT, kernel), "unmapped after, kernel");
+
+    aspace_cleanup.cancel();
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+
+    END_TEST;
+}
+#endif
+
+// A range that runs into a page already mapped part way through fails, and
+// the page that was there stays. Where the arch rolls back, the pages before
+// it are gone again and their tables with them. An arch that replaces the
+// entry without noticing has nothing to roll back and is only reported.
+bool map_already_mapped_rollback() {
+    BEGIN_TEST;
+
+    if (!arch_mmu_supports_user_aspaces()) {
+        END_TEST;
+    }
+
+    vmm_aspace_t *as = nullptr;
+    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "already", 0), "create aspace");
+    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+
+    struct list_node pages = LIST_INITIAL_VALUE(pages);
+    paddr_t pa;
+    ASSERT_EQ(4U, pmm_alloc_contiguous(4, PAGE_SIZE_SHIFT, &pa, &pages), "alloc pages");
+    auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
+
+    const vaddr_t base = USER_ASPACE_BASE;
+    vm_page_t *p = map_pattern_page(as, base + 2 * PAGE_SIZE, 2);
+    ASSERT_NONNULL(p, "map page 2");
+    auto p_cleanup = lk::make_auto_call([&]() { pmm_free_page(p); });
+
+    const int err = arch_mmu_map(&as->arch_aspace, base, pa, 4, ARCH_MMU_FLAG_PERM_USER);
+    paddr_t got;
+    if (err >= 0) {
+        unittest_printf(" (arch overwrote the existing mapping)");
+        EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, 4), "unmap");
+        aspace_cleanup.cancel();
+        EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+        END_TEST;
+    }
+    EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, base + 2 * PAGE_SIZE, &got, nullptr), "page 2 intact");
+    EXPECT_EQ(vm_page_to_paddr(p), got, "page 2 paddr");
+#if ARCH_RISCV
+    EXPECT_EQ(ERR_ALREADY_EXISTS, err, "error");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base, &got, nullptr), "page 0 rolled back");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + PAGE_SIZE, &got, nullptr), "page 1 rolled back");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + 3 * PAGE_SIZE, &got, nullptr), "page 3 never mapped");
+    EXPECT_TRUE(check_table_count(as, pt_levels), "only page 2's chain left");
+#endif
+
+    // whatever went in before the collision goes too
+    EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, 4), "unmap");
+    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + 2 * PAGE_SIZE, &got, nullptr), "page 2 gone");
+    EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+
+    aspace_cleanup.cancel();
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+
+    END_TEST;
+}
 
 // The kernel aspace runs to the top of the address space, so its last page
 // is the one place a range's end wraps to zero. The vmm never hands it out;
@@ -921,7 +1134,12 @@ RUN_TEST(reclaim_after_big_range);
 RUN_TEST(large_page_map);
 #if ARCH_RISCV && LK_DEBUGLEVEL > 0
 RUN_TEST(map_enomem_rollback);
+RUN_TEST(kernel_map_enomem_rollback);
 #endif
+#if ARCH_RISCV
+RUN_TEST(stale_fault_predicate);
+#endif
+RUN_TEST(map_already_mapped_rollback);
 RUN_TEST(kernel_aspace_top_page);
 RUN_TEST(free_active_aspace);
 RUN_TEST(smp_shootdown);
