@@ -126,7 +126,9 @@ vmm_aspace_t *vaddr_to_aspace(void *ptr) {
     if (is_kernel_address((vaddr_t)ptr)) {
         return vmm_get_kernel_aspace();
     } else if (is_user_address((vaddr_t)ptr)) {
-        return get_current_thread()->aspace;
+        // no thread yet, or a kernel thread: nothing to look in
+        thread_t *t = get_current_thread();
+        return t ? t->aspace : NULL;
     } else {
         return NULL;
     }
