@@ -630,6 +630,13 @@ vaddr_t user_boundary(size_t size) {
     return ROUNDUP(USER_ASPACE_BASE + 1, size);
 }
 
+// Whether [base, base + pages) lies in the user aspace. Some arches end it
+// below a boundary these tests straddle: arm32's stops short of 1GB.
+bool user_range_fits(vaddr_t base, size_t pages) {
+    const vaddr_t last = USER_ASPACE_BASE + (USER_ASPACE_SIZE - 1);
+    return base >= USER_ASPACE_BASE && base <= last && pages <= (last - base) / PAGE_SIZE + 1;
+}
+
 // A range mapped in one call that crosses table boundaries: after each page
 // the walk resumes in the right table at every level, including where a
 // boundary at every lower level falls at once.
@@ -660,6 +667,10 @@ bool map_across_table_boundaries() {
         { user_boundary(2UL << 20) - 2 * PAGE_SIZE, pt_levels + 1 },
     };
     for (const auto &r : ranges) {
+        if (!user_range_fits(r.base, 4)) {
+            unittest_printf(" (range at %#lx is past the user aspace)", r.base);
+            continue;
+        }
         ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, r.base, pa, 4, ARCH_MMU_FLAG_PERM_USER), "map");
         EXPECT_TRUE(check_table_count(as, r.tables), "tables after map");
         for (uint i = 0; i < 4; i++) {
@@ -752,6 +763,10 @@ bool reclaim_after_big_range() {
 
     // 256 pages before the boundary, 768 after
     const vaddr_t base = user_boundary(1UL << 30) - 256 * PAGE_SIZE;
+    if (!user_range_fits(base, count)) {
+        unittest_printf(" (range at %#lx is past the user aspace)", base);
+        END_TEST;
+    }
     ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, base, pa, count, ARCH_MMU_FLAG_PERM_USER), "map");
     // riscv: a chain down to the 1GB level, a 2MB level table on each side, three leaf tables
     EXPECT_TRUE(check_table_count(as, pt_levels + 3), "tables after map");
