@@ -214,9 +214,12 @@ LOCAL_FUNCTION(_mmu_init)
 
     // satp.MODE is WARL: a mode this cpu does not implement leaves the whole
     // write ignored and the MMU off, so park here rather than jump into the
-    // unmapped high half
+    // unmapped high half. Only the mode field is compared, since a cpu may
+    // hold fewer ppn bits than were written.
     csrr    t2, satp
-    bne     t1, t2, riscv_mmu_mode_unsupported
+    srli    t2, t2, RISCV_SATP_MODE_SHIFT
+    srli    t3, t1, RISCV_SATP_MODE_SHIFT
+    bne     t2, t3, riscv_mmu_mode_unsupported
 
     // global tlb fence
     sfence.vma  zero, zero
