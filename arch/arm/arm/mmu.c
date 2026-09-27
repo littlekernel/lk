@@ -605,9 +605,11 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
                     count -= SECTION_SIZE / PAGE_SIZE;
                     unmapped += SECTION_SIZE / PAGE_SIZE;
                 } else {
-                    // XXX handle unmapping just part of a section
-                    // will need to convert to a L2 table and then unmap the parts we are asked to
-                    PANIC_UNIMPLEMENTED;
+                    // Part of a section would need an L2 table in its place;
+                    // refuse, as arch_mmu_unmap() allows. What came before in
+                    // the range is already gone, and still gets the barrier.
+                    unmapped = ERR_NOT_SUPPORTED;
+                    goto done;
                 }
                 break;
             case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE: {
@@ -657,6 +659,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
                 PANIC_UNIMPLEMENTED;
         }
     }
+done:
     arm_after_invalidate_tlb_barrier();
     return unmapped;
 }
