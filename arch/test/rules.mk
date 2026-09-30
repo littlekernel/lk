@@ -4,6 +4,7 @@ MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS := \
 	$(LOCAL_DIR)/mmu.cpp \
+	$(LOCAL_DIR)/mmu_contract.cpp \
 
 # The user mode tests take over the arch's user exception hooks for the whole
 # image, so a project that hosts its own user space sets this to 0 to leave

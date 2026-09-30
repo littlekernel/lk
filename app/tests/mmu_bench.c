@@ -82,6 +82,7 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
     const vaddr_t va = va_large + PAGE_SIZE;
     const uint flags = ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE;
     struct sample best_map = { .us = ~0ULL }, best_query = best_map, best_unmap = best_map;
+    struct sample best_protect = best_map;
     struct sample best_map1 = best_map, best_unmap1 = best_map;
     struct sample best_map_large = best_map, best_unmap_large = best_map;
     size_t tables = 0, tables_large = 0;
@@ -116,6 +117,17 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
         sample_stop(&s);
         if (ret < 0) break;
         keep_best(&best_query, &s);
+
+        // every page made read only in one call
+        sample_start(&s);
+        ret = arch_mmu_protect(aspace, va, BENCH_PAGES, ARCH_MMU_FLAG_PERM_READ);
+        sample_stop(&s);
+        if (ret < 0) {
+            printf("protect failed: %d\n", ret);
+            arch_mmu_unmap(aspace, va, BENCH_PAGES);
+            break;
+        }
+        keep_best(&best_protect, &s);
 
         sample_start(&s);
         ret = arch_mmu_unmap(aspace, va, BENCH_PAGES);
@@ -177,6 +189,7 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
     if (ret >= 0) {
         report("map, one call", &best_map);
         report("query, per page", &best_query);
+        report("protect, one call", &best_protect);
         report("unmap, one call", &best_unmap);
         report("map, one page per call", &best_map1);
         report("unmap, one page per call", &best_unmap1);
@@ -194,7 +207,7 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("mmu_bench", "time arch_mmu map/query/unmap on a private aspace", &mmu_bench)
+STATIC_COMMAND("mmu_bench", "time arch_mmu map/query/protect/unmap on a private aspace", &mmu_bench)
 STATIC_COMMAND_END(mmu_bench);
 
 #endif // WITH_KERNEL_VM

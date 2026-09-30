@@ -66,4 +66,67 @@ uspace_stub_fault_start:
 .global uspace_stub_fault_end
 uspace_stub_fault_end:
 
+.balign 16
+
+/* store to the address the test patches into the literal, then make the
+ * syscall, so a store that goes through ends in the syscall hook */
+.global uspace_stub_store_start
+uspace_stub_store_start:
+#if ARCH_ARM64
+    ldr     x0, uspace_stub_store_target
+    movz    x1, #0x5678
+    str     x1, [x0]
+    movz    x0, #0x1234
+    svc     #0
+1:
+    b       1b
+    .balign 8
+#else
+.option push
+.option norelax
+    lla     t0, uspace_stub_store_target
+    ld      t0, (t0)
+    li      t1, 0x5678
+    sd      t1, (t0)
+    li      a0, 0x1234
+    ecall
+1:
+    j       1b
+    .balign 8
+.option pop
+#endif
+.global uspace_stub_store_target
+uspace_stub_store_target:
+    .quad   0
+.global uspace_stub_store_end
+uspace_stub_store_end:
+
+.balign 16
+
+/* jump to the address the test patches into the literal */
+.global uspace_stub_jump_start
+uspace_stub_jump_start:
+#if ARCH_ARM64
+    ldr     x0, uspace_stub_jump_target
+    br      x0
+1:
+    b       1b
+    .balign 8
+#else
+.option push
+.option norelax
+    lla     t0, uspace_stub_jump_target
+    ld      t0, (t0)
+    jr      t0
+1:
+    j       1b
+    .balign 8
+.option pop
+#endif
+.global uspace_stub_jump_target
+uspace_stub_jump_target:
+    .quad   0
+.global uspace_stub_jump_end
+uspace_stub_jump_end:
+
 #endif

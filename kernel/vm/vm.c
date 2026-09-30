@@ -169,8 +169,10 @@ usage:
         printf("%s virt2phys <address>\n", argv[0].str);
         printf("%s map <phys> <virt> <count> <flags>\n", argv[0].str);
         printf("%s unmap <virt> <count>\n", argv[0].str);
+        printf("%s protect <virt> <count> <flags>\n", argv[0].str);
         printf("map flags: 0x8 read (required), 0x10 write, 0x20 execute, 0x4 user,\n");
         printf("           0x0 cached, 0x1 uncached, 0x2 device\n");
+        printf("protect flags: read, write and execute only\n");
         return ERR_GENERIC;
     }
 
@@ -217,6 +219,17 @@ usage:
 
         status_t err = arch_mmu_unmap(&aspace->arch_aspace, argv[2].u, argv[3].u);
         printf("arch_mmu_unmap returns %d\n", err);
+    } else if (!strcmp(argv[1].str, "protect")) {
+        if (argc < 5) goto notenoughargs;
+
+        vmm_aspace_t *aspace = vaddr_to_aspace((void *)argv[2].u);
+        if (!aspace) {
+            printf("ERROR: outside of any address space\n");
+            return -1;
+        }
+
+        status_t err = arch_mmu_protect(&aspace->arch_aspace, argv[2].u, argv[3].u, argv[4].u);
+        printf("arch_mmu_protect returns %d\n", err);
     } else {
         printf("unknown command\n");
         goto usage;
