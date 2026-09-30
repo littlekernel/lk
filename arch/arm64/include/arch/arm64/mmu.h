@@ -162,6 +162,9 @@
 #define MMU_PTE_ATTR_AP_P_RO_U_NA BM(6, 2, 2)
 #define MMU_PTE_ATTR_AP_P_RO_U_RO BM(6, 2, 3)
 #define MMU_PTE_ATTR_AP_MASK      BM(6, 2, 3)
+/* the two AP bits on their own: AP[2] makes the entry read only, AP[1] opens it to EL0 */
+#define MMU_PTE_ATTR_AP_RO        BM(7, 1, 1)
+#define MMU_PTE_ATTR_AP_USER      BM(6, 1, 1)
 
 #define MMU_PTE_ATTR_NON_SECURE BM(5, 1, 1)
 
@@ -260,21 +263,12 @@ __BEGIN_CDECLS
 #define ARM64_TLBI_NOADDR(op) __asm__ volatile("tlbi " #op ::: "memory")
 #define ARM64_TLBI(op, val)   __asm__ volatile("tlbi " #op ", %0" ::"r"(val) : "memory")
 
-/* asid argument to arm64_mmu_map/unmap for the kernel's global mappings, which
- * carry no asid and are invalidated with the all-asid forms */
+/* the asid the kernel's global mappings are invalidated under: they carry no
+ * asid and take the all-asid forms */
 #define MMU_ARM64_GLOBAL_ASID (~0U)
 
 /* base TCR value computed by start.S; MMU_TCR_AS is set in it when the cpu has 16 bit asids */
 extern uint64_t arm64_mmu_tcr_flags;
-
-int arm64_mmu_map(vaddr_t vaddr, paddr_t paddr, size_t size, pte_t attrs,
-                  vaddr_t vaddr_base, uint top_size_shift,
-                  uint top_index_shift, uint page_size_shift,
-                  pte_t *top_page_table, uint asid);
-int arm64_mmu_unmap(vaddr_t vaddr, size_t size,
-                    vaddr_t vaddr_base, uint top_size_shift,
-                    uint top_index_shift, uint page_size_shift,
-                    pte_t *top_page_table, uint asid);
 
 __END_CDECLS
 #endif /* ASSEMBLY */
