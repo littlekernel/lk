@@ -604,6 +604,71 @@ int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, size_t count, F callback
     return err;
 }
 
+// the widest physical address a leaf can hold
+#if __riscv_xlen == 64
+constexpr uint phys_addr_bits = 56;
+#else
+constexpr uint phys_addr_bits = 34;
+#endif
+
+// the leaf covering vaddr and its level; pte is 0 where nothing does
+struct leaf {
+    riscv_pte_t pte;
+    uint level;
+};
+
+leaf leaf_at(arch_aspace_t *aspace, vaddr_t vaddr) {
+    leaf l = {};
+    auto leaf_cb = [&l](vaddr_t, uint level, riscv_pte_t pte) -> walk_cb_ret {
+        l = { pte, level };
+        return walk_cb_ret::Halt(NO_ERROR);
+    };
+    riscv_pt_walk(aspace, vaddr, 1, leaf_cb, nullptr, nullptr);
+    return l;
+}
+
+// Whether unmap or protect may change [vaddr, vaddr + count pages), decided
+// before either touches anything. The physmap's top level leaves are fixed:
+// every user root holds a copy of them. Nor may a large page be split, and
+// only the two ends of the range can cut one.
+static_assert(RISCV_MMU_PHYSMAP_BASE_VIRT == KERNEL_ASPACE_BASE, "a range touching the physmap starts in it");
+status_t check_range_ends(arch_aspace_t *aspace, vaddr_t vaddr, size_t count) {
+    if ((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) &&
+        vaddr - RISCV_MMU_PHYSMAP_BASE_VIRT < RISCV_MMU_PHYSMAP_SIZE) {
+        TRACEF("range at %#lx touches the physmap\n", vaddr);
+        return ERR_NOT_SUPPORTED;
+    }
+
+    const vaddr_t last = vaddr + (count - 1) * PAGE_SIZE;
+    const vaddr_t ends[] = { vaddr, last };
+    for (const vaddr_t va : ends) {
+        const leaf l = leaf_at(aspace, va);
+        if (!(l.pte & RISCV_PTE_V) || l.level == 0) {
+            continue;
+        }
+        const vaddr_t block = ROUNDDOWN(va, page_size_per_level(l.level));
+        const vaddr_t block_last = block + page_mask_per_level(l.level);
+        if (block < vaddr || block_last > last + (PAGE_SIZE - 1)) {
+            TRACEF("range at %#lx covers part of a large page at %#lx (level %u)\n", vaddr, block, l.level);
+            return ERR_NOT_SUPPORTED;
+        }
+    }
+    return NO_ERROR;
+}
+
+// the pages from the first entry changed to the end of the last, for the shootdown
+struct changed_span {
+    vaddr_t first = 0;
+    size_t pages = 0;
+
+    void add(vaddr_t vaddr, size_t block_pages) {
+        if (pages == 0) {
+            first = vaddr;
+        }
+        pages = (vaddr - first) / PAGE_SIZE + block_pages;
+    }
+};
+
 } // namespace
 
 // routines to map/unmap/query mappings per address space
@@ -613,16 +678,8 @@ status_t arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
 
-    if (flags & ARCH_MMU_FLAG_NS) {
-        return ERR_INVALID_ARGS;
-    }
-
-    // there are no write-only or execute-only mappings
-    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
-        return ERR_INVALID_ARGS;
-    }
-
-    if (!IS_PAGE_ALIGNED(_vaddr) || !IS_PAGE_ALIGNED(_paddr)) {
+    if (!IS_PAGE_ALIGNED(_vaddr) || !IS_PAGE_ALIGNED(_paddr) ||
+        !arch_mmu_paddr_range_valid(_paddr, count, phys_addr_bits) || !arch_mmu_flags_valid(flags)) {
         return ERR_INVALID_ARGS;
     }
 
@@ -683,7 +740,7 @@ status_t arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t
         // so the unmap never meets a large page it would have to split.
         if (stats.walked > 0) {
             __UNUSED status_t err = arch_mmu_unmap(aspace, _vaddr, stats.walked);
-            DEBUG_ASSERT(err >= 0);
+            DEBUG_ASSERT(err == NO_ERROR);
         }
         if (!list_is_empty(&freed_tables)) {
             // a cpu may have cached the link to an orphaned table
@@ -830,16 +887,15 @@ status_t arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint 
         return NO_ERROR;
     }
 
-    // Pages are cleared and holes stepped over. A large page goes as a whole
-    // when the range covers it and is refused otherwise: splitting one needs
-    // a table in its place, and what preceded it is already gone by then. So
-    // is a top level leaf, the physmap: the kernel's top level is shared with
-    // every user root and never changes. The span from the first to the last
-    // page cleared is what the shootdown must cover.
-    struct {
-        vaddr_t first;
-        size_t pages;
-    } cleared = { 0, 0 };
+    status_t err = check_range_ends(aspace, _vaddr, count);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    // Pages are cleared and holes stepped over. A large page goes as a whole:
+    // the check above made sure the range covers every one it meets. The span
+    // from the first to the last page cleared is what the shootdown must cover.
+    changed_span cleared;
     auto unmap_cb = [_vaddr, count, &cleared](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
         LTRACEF("vaddr %#lx level %u pte %#lx\n", vaddr, level, pte);
 
@@ -850,26 +906,20 @@ status_t arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint 
 
         const size_t block_pages = page_size_per_level(level) / PAGE_SIZE;
         if (level > 0) {
-            if (level == RISCV_MMU_PT_LEVELS - 1) {
-                TRACEF("unmap of top level entry at %#lx not supported\n", vaddr);
-                return walk_cb_ret::Halt(ERR_NOT_SUPPORTED);
-            }
             const size_t pages_left = count - (vaddr - _vaddr) / PAGE_SIZE;
-            if (!IS_ALIGNED(vaddr, page_size_per_level(level)) || pages_left < block_pages) {
-                TRACEF("partial unmap of large page at %#lx (level %u) not supported\n", vaddr, level);
+            if (level == RISCV_MMU_PT_LEVELS - 1 ||
+                !IS_ALIGNED(vaddr, page_size_per_level(level)) || pages_left < block_pages) {
+                DEBUG_ASSERT_MSG(false, "unmap met a large page at %#lx (level %u) past the check\n", vaddr, level);
                 return walk_cb_ret::Halt(ERR_NOT_SUPPORTED);
             }
         }
 
-        if (cleared.pages == 0) {
-            cleared.first = vaddr;
-        }
-        cleared.pages = (vaddr - cleared.first) / PAGE_SIZE + block_pages;
+        cleared.add(vaddr, block_pages);
         return walk_cb_ret::CommitNext(0);
     };
 
     struct list_node freed_tables = LIST_INITIAL_VALUE(freed_tables);
-    int ret = riscv_pt_walk(aspace, _vaddr, count, unmap_cb, &freed_tables, nullptr);
+    err = riscv_pt_walk(aspace, _vaddr, count, unmap_cb, &freed_tables, nullptr);
 
     // Shoot down the span that was cleared, then and only then hand back any
     // tables that emptied: a cpu may still be walking them until its fence
@@ -883,7 +933,64 @@ status_t arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint 
         pmm_free(&freed_tables);
     }
 
-    return ret;
+    return err;
+}
+
+status_t arch_mmu_protect(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint count, const uint flags) {
+    LTRACEF("vaddr %#lx count %u flags %#x\n", _vaddr, count, flags);
+
+    DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
+
+    if (!IS_PAGE_ALIGNED(_vaddr) || !arch_mmu_protect_flags_valid(flags)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    if (!arch_mmu_range_in_aspace(aspace, _vaddr, count)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    if (count == 0) {
+        return NO_ERROR;
+    }
+
+    status_t err = check_range_ends(aspace, _vaddr, count);
+    if (err != NO_ERROR) {
+        return err;
+    }
+
+    // Without Svpbmt every page is cached, so EXECUTE is never refused. Each
+    // leaf keeps everything but R, W and X, including the A and D bits map
+    // presets; a permission change never needs the entry invalid in between.
+    const riscv_pte_t perms = mmu_flags_to_pte(flags);
+    changed_span changed;
+    auto protect_cb = [perms, &changed](vaddr_t vaddr, uint level, riscv_pte_t pte) -> walk_cb_ret {
+        LTRACEF("vaddr %#lx level %u pte %#lx\n", vaddr, level, pte);
+
+        if (!(pte & RISCV_PTE_V)) {
+            return walk_cb_ret::Next();
+        }
+        DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
+        DEBUG_ASSERT(level < RISCV_MMU_PT_LEVELS - 1);
+
+        const riscv_pte_t new_pte = (pte & ~RISCV_PTE_PERM_MASK) | perms;
+        if (new_pte == pte) {
+            return walk_cb_ret::Next();
+        }
+        changed.add(vaddr, page_size_per_level(level) / PAGE_SIZE);
+        return walk_cb_ret::CommitNext(new_pte);
+    };
+
+    // a non-zero entry never empties a table, so there is nothing to free
+    err = riscv_pt_walk(aspace, _vaddr, count, protect_cb, nullptr, nullptr);
+    DEBUG_ASSERT(err == NO_ERROR);
+
+    // Svvptc covers only entries made valid, so upgrades are fenced as well
+    if (changed.pages > 0) {
+        riscv_tlb_shootdown(aspace, changed.first, changed.pages, false);
+    }
+
+    return err;
 }
 
 // load a new user address space context.

@@ -212,8 +212,9 @@ the mode. `qemu-virt-riscv` and the HiFive Premier P550 run sv48; the other
 boards use sv39. The kernel half of every root table is the same: the kernel's
 top level entries are written once at boot (the physmap, and a static second
 level table behind every other kernel entry) and copied into each user root as
-it is created, so `arch_mmu_map` and `arch_mmu_unmap` never write a top level
-entry of the kernel aspace, and an unmap that would clear one is refused.
+it is created, so `arch_mmu_map`, `arch_mmu_unmap` and `arch_mmu_protect` never
+write a top level entry of the kernel aspace, and an unmap or protect that would
+touch the physmap is refused.
 
 ## ASIDs
 
