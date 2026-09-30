@@ -36,7 +36,6 @@ STATIC_ASSERT((KERNEL_ASPACE_BASE & (KERNEL_ASPACE_BASE - 1)) == 0 &&
 
 /* locals */
 static void arm_mmu_map_section(arch_aspace_t *aspace, addr_t paddr, addr_t vaddr, uint flags);
-static void arm_mmu_unmap_section(arch_aspace_t *aspace, addr_t vaddr);
 
 /* the main translation table */
 uint32_t arm_kernel_translation_table[TT_ENTRY_COUNT] __ALIGNED(16384) __SECTION(".bss.prebss.translation_table");
@@ -58,9 +57,9 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags) {
             arch_flags |= MMU_MEMORY_L1_TYPE_DEVICE_SHARED;
             break;
         default:
-            /* invalid user-supplied flag */
-            DEBUG_ASSERT(1);
-            return ERR_INVALID_ARGS;
+            /* arch_mmu_flags_valid() refuses the fourth policy */
+            DEBUG_ASSERT_MSG(false, "flags 0x%x\n", flags);
+            break;
     }
 
     switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE)) {
@@ -109,9 +108,9 @@ static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags) {
             arch_flags |= MMU_MEMORY_L2_TYPE_DEVICE_SHARED;
             break;
         default:
-            /* invalid user-supplied flag */
-            DEBUG_ASSERT(1);
-            return ERR_INVALID_ARGS;
+            /* arch_mmu_flags_valid() refuses the fourth policy */
+            DEBUG_ASSERT_MSG(false, "flags 0x%x\n", flags);
+            break;
     }
 
     switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE)) {
@@ -167,12 +166,6 @@ static void arm_mmu_unmap_l1_entry(uint32_t *translation_table, uint32_t index) 
     translation_table[index] = 0;
     DSB;
     arm_invalidate_tlb_mva_no_barrier((vaddr_t)index * SECTION_SIZE);
-}
-
-static void arm_mmu_unmap_section(arch_aspace_t *aspace, addr_t vaddr) {
-    DEBUG_ASSERT(aspace);
-    DEBUG_ASSERT(IS_SECTION_ALIGNED(vaddr));
-    arm_mmu_unmap_l1_entry(aspace->tt_virt, vaddr / SECTION_SIZE);
 }
 
 /*
@@ -395,7 +388,27 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
  *  L2:   [       0       | .....[      (N/4)            |
  */
 #define L1E_PER_PAGE 4
+#define L2E_PER_TABLE (SECTION_SIZE / PAGE_SIZE)
 
+/* a section or supersection; bit 0 of either is PXN where that is implemented */
+static inline bool l1_is_section(uint32_t tt_entry) {
+    return tt_entry & MMU_MEMORY_L1_DESCRIPTOR_SECTION;
+}
+
+static inline bool l1_is_supersection(uint32_t tt_entry) {
+    return l1_is_section(tt_entry) && (tt_entry & (1 << 18));
+}
+
+static inline uint32_t *l1_l2_table(uint32_t tt_entry) {
+    return paddr_to_kvaddr(MMU_MEMORY_L1_PAGE_TABLE_ADDR(tt_entry));
+}
+
+static inline bool l2_is_valid(uint32_t l2_entry) {
+    return (l2_entry & MMU_MEMORY_L2_DESCRIPTOR_MASK) != MMU_MEMORY_L2_DESCRIPTOR_INVALID;
+}
+
+/* The L2 table for l1_index: in the page a neighbouring entry already uses, or in
+ * a fresh zeroed one. Either way it holds no valid entry. */
 static status_t get_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t *ppa) {
     status_t ret;
     paddr_t pa;
@@ -439,8 +452,10 @@ static status_t get_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t *
     return NO_ERROR;
 }
 
-
-static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa) {
+/* Move the page holding l1_index's L2 table from the aspace's list to freed,
+ * once none of the entries sharing the page points to a table. */
+static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa,
+                         struct list_node *freed) {
     DEBUG_ASSERT(aspace);
 
     /* check if any l1 entry points to this l2 table */
@@ -463,7 +478,91 @@ static void put_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t l2_pa
     list_delete(&page->node);
 
     LTRACEF("freeing pagetable at 0x%lx\n", l2_pa);
-    pmm_free_page(page);
+    list_add_tail(freed, &page->node);
+}
+
+/*
+ * Clear [vaddr, last], last inclusive since the kernel aspace ends at 4GB,
+ * stepping over holes. The caller has made sure no section is only partly
+ * covered. A page table left empty is unlinked; the pages that held them are
+ * freed after the TLB maintenance has completed on every cpu.
+ */
+static void arm_mmu_unmap_range(arch_aspace_t *aspace, vaddr_t vaddr, vaddr_t last) {
+    struct list_node freed = LIST_INITIAL_VALUE(freed);
+
+    for (;;) {
+        const uint l1_index = vaddr / SECTION_SIZE;
+        const uint32_t tt_entry = aspace->tt_virt[l1_index];
+        const vaddr_t section_base = ROUNDDOWN(vaddr, SECTION_SIZE);
+        const vaddr_t entry_last = MIN(section_base + (SECTION_SIZE - 1), last);
+
+        switch (tt_entry & MMU_MEMORY_L1_DESCRIPTOR_MASK) {
+            case MMU_MEMORY_L1_DESCRIPTOR_INVALID:
+                break;
+            case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE: {
+                uint32_t *l2_table = l1_l2_table(tt_entry);
+                const uint end = (entry_last - section_base) / PAGE_SIZE + 1;
+                uint first_cleared = end;
+                uint last_cleared = 0;
+                for (uint i = (vaddr - section_base) / PAGE_SIZE; i < end; i++) {
+                    if (l2_is_valid(l2_table[i])) {
+                        l2_table[i] = 0;
+                        first_cleared = MIN(first_cleared, i);
+                        last_cleared = i;
+                    }
+                }
+                DSB;
+                for (uint i = first_cleared; i <= last_cleared; i++) {
+                    arm_invalidate_tlb_mva_no_barrier(section_base + i * PAGE_SIZE);
+                }
+
+                bool empty = true;
+                for (uint i = 0; i < L2E_PER_TABLE && empty; i++) {
+                    empty = !l2_is_valid(l2_table[i]);
+                }
+                if (empty) {
+                    /* the invalidate also drops a walk cached through the entry */
+                    aspace->tt_virt[l1_index] = 0;
+                    DSB;
+                    arm_invalidate_tlb_mva_no_barrier(section_base);
+                    put_l2_table(aspace, l1_index, MMU_MEMORY_L1_PAGE_TABLE_ADDR(tt_entry), &freed);
+                }
+                break;
+            }
+            default:
+                /* a whole section, or one of a supersection's sixteen entries */
+                aspace->tt_virt[l1_index] = 0;
+                DSB;
+                arm_invalidate_tlb_mva_no_barrier(section_base);
+                break;
+        }
+
+        if (entry_last == last)
+            break;
+        vaddr = entry_last + 1;
+    }
+
+    arm_after_invalidate_tlb_barrier();
+    pmm_free(&freed);
+}
+
+/* Unmap (and protect) change whole sections only. Only the two ends of a range
+ * can cut one, and a supersection, which map never makes, is refused at either. */
+static status_t arm_mmu_check_range_ends(const arch_aspace_t *aspace, vaddr_t vaddr, vaddr_t last) {
+    const uint32_t first_entry = aspace->tt_virt[vaddr / SECTION_SIZE];
+    const uint32_t last_entry = aspace->tt_virt[last / SECTION_SIZE];
+
+    if (l1_is_section(first_entry) &&
+            (l1_is_supersection(first_entry) || !IS_SECTION_ALIGNED(vaddr))) {
+        LTRACEF("range at 0x%lx starts inside a section\n", vaddr);
+        return ERR_NOT_SUPPORTED;
+    }
+    if (l1_is_section(last_entry) &&
+            (l1_is_supersection(last_entry) || !IS_SECTION_ALIGNED(last + 1))) {
+        LTRACEF("range ending at 0x%lx ends inside a section\n", last);
+        return ERR_NOT_SUPPORTED;
+    }
+    return NO_ERROR;
 }
 
 #if WITH_ARCH_MMU_PICK_SPOT
@@ -482,7 +581,8 @@ static inline bool are_regions_compatible(uint new_region_flags,
 }
 
 
-vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_flags,
+vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace,
+                           vaddr_t base, uint prev_region_flags,
                            vaddr_t end,  uint next_region_flags,
                            vaddr_t align, size_t size, uint flags) {
     LTRACEF("base 0x%lx, end 0x%lx, align %ld, size %zd, flags 0x%x\n",
@@ -517,191 +617,116 @@ status_t arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint c
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->tt_virt);
 
+    if (!IS_PAGE_ALIGNED(vaddr) || !IS_PAGE_ALIGNED(paddr) ||
+            !arch_mmu_paddr_range_valid(paddr, count, 32) || !arch_mmu_flags_valid(flags))
+        return ERR_INVALID_ARGS;
+
     if (!arch_mmu_range_in_aspace(aspace, vaddr, count))
         return ERR_OUT_OF_RANGE;
-
-#if !WITH_ARCH_MMU_PICK_SPOT
-    if (flags & ARCH_MMU_FLAG_NS) {
-        /* WITH_ARCH_MMU_PICK_SPOT is required to support NS memory */
-        panic("NS mem is not supported\n");
-    }
-#endif
-
-    /* paddr and vaddr must be aligned */
-    DEBUG_ASSERT(IS_PAGE_ALIGNED(vaddr));
-    DEBUG_ASSERT(IS_PAGE_ALIGNED(paddr));
-    if (!IS_PAGE_ALIGNED(vaddr) || !IS_PAGE_ALIGNED(paddr))
-        return ERR_INVALID_ARGS;
-
-    /* there are no write-only or execute-only mappings */
-    if (!(flags & ARCH_MMU_FLAG_PERM_READ))
-        return ERR_INVALID_ARGS;
 
     if (count == 0)
         return NO_ERROR;
 
-    /* see what kind of mapping we can use */
+    const uint32_t section_flags = mmu_flags_to_l1_arch_flags(flags) |
+                                   MMU_MEMORY_L1_DESCRIPTOR_SECTION;
+    const uint32_t page_flags = mmu_flags_to_l2_arch_flags_small_page(flags);
+    const uint32_t table_ns = (flags & ARCH_MMU_FLAG_NS) ? MMU_MEMORY_L1_PAGETABLE_NON_SECURE : 0;
+
+    vaddr_t va = vaddr;
+    paddr_t pa = paddr;
+    uint left = count;
     status_t err = NO_ERROR;
-    while (count > 0) {
-        if (IS_SECTION_ALIGNED(vaddr) && IS_SECTION_ALIGNED(paddr) && count >= SECTION_SIZE / PAGE_SIZE) {
-            /* we can use a section */
+    while (left > 0 && err == NO_ERROR) {
+        const uint l1_index = va / SECTION_SIZE;
+        uint32_t tt_entry = aspace->tt_virt[l1_index];
 
-            /* compute the arch flags for L1 sections */
-            uint arch_flags = mmu_flags_to_l1_arch_flags(flags) |
-                              MMU_MEMORY_L1_DESCRIPTOR_SECTION;
-
-            /* map it */
-            arm_mmu_map_section(aspace, paddr, vaddr, arch_flags);
-            count -= SECTION_SIZE / PAGE_SIZE;
-            vaddr += SECTION_SIZE;
-            paddr += SECTION_SIZE;
-        } else {
-            /* will have to use a L2 mapping */
-            uint l1_index = vaddr / SECTION_SIZE;
-            uint32_t tt_entry = aspace->tt_virt[l1_index];
-
-            LTRACEF("tt_entry 0x%x\n", tt_entry);
-            switch (tt_entry & MMU_MEMORY_L1_DESCRIPTOR_MASK) {
-                case MMU_MEMORY_L1_DESCRIPTOR_SECTION:
-                    // XXX will have to break L1 mapping into a L2 page table
-                    PANIC_UNIMPLEMENTED;
-                    break;
-                case MMU_MEMORY_L1_DESCRIPTOR_INVALID: {
-                    paddr_t l2_pa = 0;
-                    err = get_l2_table(aspace, l1_index, &l2_pa);
-                    if (err != NO_ERROR) {
-                        TRACEF("failed to allocate pagetable\n");
-                        goto done;
-                    }
-                    tt_entry = l2_pa | MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
-                    if (flags & ARCH_MMU_FLAG_NS)
-                        tt_entry |= MMU_MEMORY_L1_PAGETABLE_NON_SECURE;
-
-                    aspace->tt_virt[l1_index] = tt_entry;
+        LTRACEF("tt_entry 0x%x\n", tt_entry);
+        switch (tt_entry & MMU_MEMORY_L1_DESCRIPTOR_MASK) {
+            case MMU_MEMORY_L1_DESCRIPTOR_INVALID: {
+                if (IS_SECTION_ALIGNED(va) && IS_SECTION_ALIGNED(pa) && left >= L2E_PER_TABLE) {
+                    arm_mmu_map_section(aspace, pa, va, section_flags);
+                    va += SECTION_SIZE;
+                    pa += SECTION_SIZE;
+                    left -= L2E_PER_TABLE;
+                    continue;
                 }
-                /* fallthrough */
-                case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE: {
-                    uint32_t *l2_table = paddr_to_kvaddr(MMU_MEMORY_L1_PAGE_TABLE_ADDR(tt_entry));
-                    LTRACEF("l2_table at %p\n", l2_table);
 
-                    DEBUG_ASSERT(l2_table);
-
-                    // XXX handle 64K pages here
-
-                    /* compute the arch flags for L2 4K pages */
-                    uint arch_flags = mmu_flags_to_l2_arch_flags_small_page(flags);
-
-                    uint l2_index = (vaddr % SECTION_SIZE) / PAGE_SIZE;
-                    do {
-                        l2_table[l2_index++] = paddr | arch_flags;
-                        count--;
-                        vaddr += PAGE_SIZE;
-                        paddr += PAGE_SIZE;
-                    } while (count && (l2_index != (SECTION_SIZE / PAGE_SIZE)));
-                    break;
+                paddr_t l2_pa = 0;
+                err = get_l2_table(aspace, l1_index, &l2_pa);
+                if (err != NO_ERROR) {
+                    LTRACEF("failed to allocate pagetable\n");
+                    continue;
                 }
-                default:
-                    PANIC_UNIMPLEMENTED;
+
+                /* the table reads as empty before an entry points at it */
+                tt_entry = l2_pa | table_ns | MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE;
+                DSB;
+                aspace->tt_virt[l1_index] = tt_entry;
+                break;
             }
+            case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE:
+                /* the security state is the table's, for all of its pages */
+                if ((tt_entry & MMU_MEMORY_L1_PAGETABLE_NON_SECURE) != table_ns) {
+                    err = ERR_ALREADY_EXISTS;
+                    continue;
+                }
+                break;
+            default:
+                /* a section or supersection covers the page */
+                err = ERR_ALREADY_EXISTS;
+                continue;
         }
+
+        uint32_t *l2_table = l1_l2_table(tt_entry);
+        uint l2_index = (va % SECTION_SIZE) / PAGE_SIZE;
+        do {
+            if (l2_is_valid(l2_table[l2_index])) {
+                err = ERR_ALREADY_EXISTS;
+                break;
+            }
+            l2_table[l2_index++] = pa | page_flags;
+            va += PAGE_SIZE;
+            pa += PAGE_SIZE;
+            left--;
+        } while (left && l2_index != L2E_PER_TABLE);
     }
 
-done:
+    if (err != NO_ERROR) {
+        /* [vaddr, va) is what went in, tables linked for it included */
+        if (va != vaddr) {
+            arm_mmu_unmap_range(aspace, vaddr, va - 1);
+        }
+        return err;
+    }
+
+    /* the entries were all invalid before, and no TLB holds an invalid entry */
     DSB;
-    return err;
+    ISB;
+    return NO_ERROR;
 }
 
 status_t arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
+    LTRACEF("vaddr 0x%lx count %u\n", vaddr, count);
+
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->tt_virt);
+
+    if (!IS_PAGE_ALIGNED(vaddr))
+        return ERR_INVALID_ARGS;
 
     if (!arch_mmu_range_in_aspace(aspace, vaddr, count))
         return ERR_OUT_OF_RANGE;
 
-    DEBUG_ASSERT(IS_PAGE_ALIGNED(vaddr));
-    if (!IS_PAGE_ALIGNED(vaddr))
-        return ERR_INVALID_ARGS;
+    if (count == 0)
+        return NO_ERROR;
 
-    LTRACEF("vaddr 0x%lx count %u\n", vaddr, count);
+    const vaddr_t last = vaddr + ((vaddr_t)count * PAGE_SIZE - 1);
+    status_t err = arm_mmu_check_range_ends(aspace, vaddr, last);
+    if (err != NO_ERROR)
+        return err;
 
-    status_t err = NO_ERROR;
-    while (count > 0) {
-        uint l1_index = vaddr / SECTION_SIZE;
-        uint32_t tt_entry = aspace->tt_virt[l1_index];
-
-        switch (tt_entry & MMU_MEMORY_L1_DESCRIPTOR_MASK) {
-            case MMU_MEMORY_L1_DESCRIPTOR_INVALID: {
-                /* this top level page is not mapped, move on to the next one */
-                uint page_cnt = MIN((SECTION_SIZE - (vaddr % SECTION_SIZE)) / PAGE_SIZE, count);
-                vaddr += page_cnt * PAGE_SIZE;
-                count -= page_cnt;
-                break;
-            }
-            case MMU_MEMORY_L1_DESCRIPTOR_SECTION:
-                if (IS_SECTION_ALIGNED(vaddr) && count >= SECTION_SIZE / PAGE_SIZE) {
-                    /* we're asked to remove at least all of this section, so just zero it out */
-                    // XXX test for supersection
-                    arm_mmu_unmap_section(aspace, vaddr);
-
-                    vaddr += SECTION_SIZE;
-                    count -= SECTION_SIZE / PAGE_SIZE;
-                } else {
-                    // Part of a section would need an L2 table in its place;
-                    // refuse, as arch_mmu_unmap() allows. What came before in
-                    // the range is already gone, and still gets the barrier.
-                    err = ERR_NOT_SUPPORTED;
-                    goto done;
-                }
-                break;
-            case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE: {
-                uint32_t *l2_table = paddr_to_kvaddr(MMU_MEMORY_L1_PAGE_TABLE_ADDR(tt_entry));
-                uint page_idx = (vaddr % SECTION_SIZE) / PAGE_SIZE;
-                uint page_cnt = MIN((SECTION_SIZE / PAGE_SIZE) - page_idx, count);
-
-                /* unmap page run */
-                for (uint i = 0; i < page_cnt; i++) {
-                    l2_table[page_idx++] = 0;
-                }
-                DSB;
-
-                /* invalidate tlb */
-                for (uint i = 0; i < page_cnt; i++) {
-                    arm_invalidate_tlb_mva_no_barrier(vaddr);
-                    vaddr += PAGE_SIZE;
-                }
-                count -= page_cnt;
-
-                /*
-                 * Check if all pages related to this l1 entry are deallocated.
-                 * We only need to check pages that we did not clear above starting
-                 * from page_idx and wrapped around SECTION.
-                 */
-                page_cnt = (SECTION_SIZE / PAGE_SIZE) - page_cnt;
-                while (page_cnt) {
-                    if (page_idx == (SECTION_SIZE / PAGE_SIZE))
-                        page_idx = 0;
-                    if (l2_table[page_idx++])
-                        break;
-                    page_cnt--;
-                }
-                if (!page_cnt) {
-                    /* we can kill l1 entry */
-                    arm_mmu_unmap_l1_entry(aspace->tt_virt, l1_index);
-
-                    /* try to free l2 page itself */
-                    put_l2_table(aspace, l1_index, MMU_MEMORY_L1_PAGE_TABLE_ADDR(tt_entry));
-                }
-                break;
-            }
-
-            default:
-                // XXX not implemented supersections or L2 tables
-                PANIC_UNIMPLEMENTED;
-        }
-    }
-done:
-    arm_after_invalidate_tlb_barrier();
-    return err;
+    arm_mmu_unmap_range(aspace, vaddr, last);
+    return NO_ERROR;
 }
 
 status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {
@@ -729,9 +754,12 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
         aspace->base = base;
         aspace->size = size;
 
+        /* on the page list with the L2 tables, freed with them in destroy */
         uint32_t *va = pmm_alloc_kpages(1, &aspace->pt_page_list);
         if (!va)
             return ERR_NO_MEMORY;
+        memset(va, 0, PAGE_SIZE);
+        DSB;
 
         aspace->tt_virt = va;
         aspace->tt_phys = vaddr_to_paddr(aspace->tt_virt);
@@ -745,7 +773,14 @@ status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, 
 status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     LTRACEF("aspace %p\n", aspace);
 
-    // XXX free all of the pages allocated in aspace->pt_page_list
+    DEBUG_ASSERT(aspace->tt_virt != arm_kernel_translation_table);
+
+    /* nothing mapped means no L2 table either, which leaves the root on the list */
+    for (uint i = aspace->base / SECTION_SIZE; i <= (aspace->base + aspace->size - 1) / SECTION_SIZE; i++) {
+        DEBUG_ASSERT_MSG(aspace->tt_virt[i] == 0, "aspace %p still maps 0x%lx\n", aspace,
+                         (vaddr_t)i * SECTION_SIZE);
+    }
+
     vm_page_t *p;
     while ((p = list_remove_head_type(&aspace->pt_page_list, vm_page_t, node)) != NULL) {
         LTRACEF("freeing page %p\n", p);
@@ -756,7 +791,16 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
 }
 
 bool arch_mmu_supports_nx_mappings(void) { return true; }
-bool arch_mmu_supports_ns_mappings(void) { return true; }
 bool arch_mmu_supports_user_aspaces(void) { return true; }
+
+/* arch_mmu_pick_spot() keeps secure and non-secure regions out of each other's
+ * sections, since a page table's security state covers all of its pages */
+bool arch_mmu_supports_ns_mappings(void) {
+#if WITH_ARCH_MMU_PICK_SPOT
+    return true;
+#else
+    return false;
+#endif
+}
 
 #endif // ARCH_HAS_MMU
