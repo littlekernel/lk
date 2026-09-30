@@ -101,6 +101,10 @@
 #define MMU_MEMORY_L2_AP_P_RO_U_NA          ((0x1 << 9) | (0x1 << 4))
 #define MMU_MEMORY_L2_AP_MASK               ((0x1 << 9) | (0x3 << 4))
 
+/* AP[2] alone: read only, for privileged and user access alike */
+#define MMU_MEMORY_L1_AP_RO                 (0x1 << 15)
+#define MMU_MEMORY_L2_AP_RO                 (0x1 << 9)
+
 #define MMU_MEMORY_L1_PAGETABLE_NON_SECURE  (1 << 3)
 
 #define MMU_MEMORY_L1_SECTION_NON_SECURE    (1 << 19)
@@ -115,6 +119,7 @@
 #define MMU_MEMORY_SET_L1_OUTER(val)        (((val) & 0x3) << MMU_MEMORY_L1_TEX_SHIFT)
 #define MMU_MEMORY_SET_L1_CACHEABLE_MEM     (0x4 << MMU_MEMORY_L1_TEX_SHIFT)
 
+#define MMU_MEMORY_L2_SMALL_PAGE_XN         (1 << 0)
 #define MMU_MEMORY_L2_SHAREABLE             (1 << 10)
 #define MMU_MEMORY_L2_NON_GLOBAL            (1 << 11)
 

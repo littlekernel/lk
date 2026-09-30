@@ -546,7 +546,7 @@ static void arm_mmu_unmap_range(arch_aspace_t *aspace, vaddr_t vaddr, vaddr_t la
     pmm_free(&freed);
 }
 
-/* Unmap (and protect) change whole sections only. Only the two ends of a range
+/* Unmap and protect change whole sections only. Only the two ends of a range
  * can cut one, and a supersection, which map never makes, is refused at either. */
 static status_t arm_mmu_check_range_ends(const arch_aspace_t *aspace, vaddr_t vaddr, vaddr_t last) {
     const uint32_t first_entry = aspace->tt_virt[vaddr / SECTION_SIZE];
@@ -727,6 +727,148 @@ status_t arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
 
     arm_mmu_unmap_range(aspace, vaddr, last);
     return NO_ERROR;
+}
+
+static inline bool l1_is_uncached(uint32_t tt_entry) {
+    switch (tt_entry & MMU_MEMORY_L1_TYPE_MASK) {
+        case MMU_MEMORY_L1_TYPE_STRONGLY_ORDERED:
+        case MMU_MEMORY_L1_TYPE_DEVICE_SHARED:
+        case MMU_MEMORY_L1_TYPE_DEVICE_NON_SHARED:
+            return true;
+    }
+    return false;
+}
+
+static inline bool l2_is_uncached(uint32_t l2_entry) {
+    switch (l2_entry & MMU_MEMORY_L2_TYPE_MASK) {
+        case MMU_MEMORY_L2_TYPE_STRONGLY_ORDERED:
+        case MMU_MEMORY_L2_TYPE_DEVICE_SHARED:
+        case MMU_MEMORY_L2_TYPE_DEVICE_NON_SHARED:
+            return true;
+    }
+    return false;
+}
+
+/*
+ * Give every section and small page in [vaddr, last] the read only and XN bits
+ * flags asks for, invalidating the ones that change. With check_only nothing is
+ * written, and the walk only reports ERR_INVALID_ARGS on an uncached page when
+ * flags asks for execute.
+ */
+static status_t arm_mmu_protect_range(arch_aspace_t *aspace, vaddr_t vaddr, vaddr_t last, uint flags,
+                                      bool check_only) {
+    const bool execute = flags & ARCH_MMU_FLAG_PERM_EXECUTE;
+    const bool read_only = !(flags & ARCH_MMU_FLAG_PERM_WRITE);
+    const uint32_t l1_bits = (read_only ? MMU_MEMORY_L1_AP_RO : 0) |
+                             (execute ? 0 : MMU_MEMORY_L1_SECTION_XN);
+    const uint32_t l2_bits = (read_only ? MMU_MEMORY_L2_AP_RO : 0) |
+                             (execute ? 0 : MMU_MEMORY_L2_SMALL_PAGE_XN);
+    bool changed = false;
+
+    for (;;) {
+        const uint l1_index = vaddr / SECTION_SIZE;
+        const uint32_t tt_entry = aspace->tt_virt[l1_index];
+        const vaddr_t section_base = ROUNDDOWN(vaddr, SECTION_SIZE);
+        const vaddr_t entry_last = MIN(section_base + (SECTION_SIZE - 1), last);
+
+        switch (tt_entry & MMU_MEMORY_L1_DESCRIPTOR_MASK) {
+            case MMU_MEMORY_L1_DESCRIPTOR_INVALID:
+                break;
+            case MMU_MEMORY_L1_DESCRIPTOR_PAGE_TABLE: {
+                uint32_t *l2_table = l1_l2_table(tt_entry);
+                const uint end = (entry_last - section_base) / PAGE_SIZE + 1;
+                uint first_changed = end;
+                uint last_changed = 0;
+                for (uint i = (vaddr - section_base) / PAGE_SIZE; i < end; i++) {
+                    const uint32_t l2_entry = l2_table[i];
+                    if (!l2_is_valid(l2_entry)) {
+                        continue;
+                    }
+                    if (check_only) {
+                        if (execute && l2_is_uncached(l2_entry)) {
+                            return ERR_INVALID_ARGS;
+                        }
+                        continue;
+                    }
+                    /* map makes small pages only, whose XN is descriptor bit 0 */
+                    DEBUG_ASSERT((l2_entry & MMU_MEMORY_L2_DESCRIPTOR_MASK) !=
+                                 MMU_MEMORY_L2_DESCRIPTOR_LARGE_PAGE);
+                    const uint32_t new_entry =
+                        (l2_entry & ~(MMU_MEMORY_L2_AP_RO | MMU_MEMORY_L2_SMALL_PAGE_XN)) | l2_bits;
+                    if (new_entry != l2_entry) {
+                        l2_table[i] = new_entry;
+                        first_changed = MIN(first_changed, i);
+                        last_changed = i;
+                    }
+                }
+                if (first_changed != end) {
+                    DSB;
+                    for (uint i = first_changed; i <= last_changed; i++) {
+                        arm_invalidate_tlb_mva_no_barrier(section_base + i * PAGE_SIZE);
+                    }
+                    changed = true;
+                }
+                break;
+            }
+            default: {
+                /* a whole section, or one of a supersection's sixteen entries */
+                if (check_only) {
+                    if (execute && l1_is_uncached(tt_entry)) {
+                        return ERR_INVALID_ARGS;
+                    }
+                    break;
+                }
+                const uint32_t new_entry =
+                    (tt_entry & ~(MMU_MEMORY_L1_AP_RO | MMU_MEMORY_L1_SECTION_XN)) | l1_bits;
+                if (new_entry != tt_entry) {
+                    aspace->tt_virt[l1_index] = new_entry;
+                    DSB;
+                    arm_invalidate_tlb_mva_no_barrier(section_base);
+                    changed = true;
+                }
+                break;
+            }
+        }
+
+        if (entry_last == last)
+            break;
+        vaddr = entry_last + 1;
+    }
+
+    /* upgrades included: a cpu may otherwise fault on the entry it has cached */
+    if (changed) {
+        arm_after_invalidate_tlb_barrier();
+    }
+    return NO_ERROR;
+}
+
+status_t arch_mmu_protect(arch_aspace_t *aspace, vaddr_t vaddr, uint count, uint flags) {
+    LTRACEF("aspace %p, vaddr 0x%lx, count %u, flags 0x%x\n", aspace, vaddr, count, flags);
+
+    DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(aspace->tt_virt);
+
+    if (!IS_PAGE_ALIGNED(vaddr) || !arch_mmu_protect_flags_valid(flags))
+        return ERR_INVALID_ARGS;
+
+    if (!arch_mmu_range_in_aspace(aspace, vaddr, count))
+        return ERR_OUT_OF_RANGE;
+
+    if (count == 0)
+        return NO_ERROR;
+
+    const vaddr_t last = vaddr + ((vaddr_t)count * PAGE_SIZE - 1);
+    status_t err = arm_mmu_check_range_ends(aspace, vaddr, last);
+    if (err != NO_ERROR)
+        return err;
+
+    if (flags & ARCH_MMU_FLAG_PERM_EXECUTE) {
+        err = arm_mmu_protect_range(aspace, vaddr, last, flags, true);
+        if (err != NO_ERROR)
+            return err;
+    }
+
+    return arm_mmu_protect_range(aspace, vaddr, last, flags, false);
 }
 
 status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {
