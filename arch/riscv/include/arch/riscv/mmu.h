@@ -114,12 +114,6 @@ typedef uintptr_t riscv_pte_t;
 
 __BEGIN_CDECLS
 
-#if LK_DEBUGLEVEL > 0
-/* Cap the page tables the mmu code may allocate from here on: count more, or
- * -1 for no cap. Lets a test see the out of memory paths. */
-void riscv_mmu_set_ptable_alloc_budget(int count);
-#endif
-
 struct arch_aspace;
 
 /* Whether a page fault at vaddr contradicts the aspace's tables: the entry

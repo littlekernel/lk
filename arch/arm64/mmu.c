@@ -264,6 +264,10 @@ static int alloc_page_table(paddr_t *paddrp, uint page_size_shift) {
 
     LTRACEF("page_size_shift %u\n", page_size_shift);
 
+    if (!vm_ptable_budget_take()) {
+        return ERR_NO_MEMORY;
+    }
+
     if (size == PAGE_SIZE) {
         vm_page_t *p = pmm_alloc_page();
         if (!p) {

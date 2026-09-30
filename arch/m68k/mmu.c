@@ -152,6 +152,10 @@ paddr_t kernel_pgtable_phys;
 #endif
 
 static status_t alloc_pgtable(paddr_t *paddrp) {
+    if (!vm_ptable_budget_take()) {
+        return ERR_NO_MEMORY;
+    }
+
     vm_page_t *p = pmm_alloc_page();
     if (!p) {
         return ERR_NO_MEMORY;

@@ -325,6 +325,30 @@ status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, 
     return r ? NO_ERROR : ERR_NO_MEMORY;
 }
 
+status_t vmm_reserve_range(vmm_aspace_t *aspace, const char *name, size_t size,
+                           uint8_t align_log2, vaddr_t *va) {
+    LTRACEF("aspace %p name '%s' size 0x%zx align %hhu\n", aspace, name, size, align_log2);
+
+    DEBUG_ASSERT(aspace);
+    DEBUG_ASSERT(va);
+
+    if (!name)
+        name = "";
+
+    size = ROUNDUP(size, PAGE_SIZE);
+    if (size == 0)
+        return ERR_INVALID_ARGS;
+
+    mutex_acquire(&vmm_lock);
+    vmm_region_t *r = alloc_region(aspace, name, size, 0, align_log2, 0,
+                                   VMM_REGION_FLAG_RESERVED, ARCH_MMU_FLAG_INVALID);
+    if (r)
+        *va = r->base;
+    mutex_release(&vmm_lock);
+
+    return r ? NO_ERROR : ERR_NO_MEMORY;
+}
+
 status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
                             void **ptr, uint8_t align_log2, paddr_t paddr, uint vmm_flags, uint arch_mmu_flags) {
     status_t err;

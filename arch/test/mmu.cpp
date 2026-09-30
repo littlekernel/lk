@@ -854,7 +854,7 @@ bool map_enomem_rollback() {
     vmm_aspace_t *as = nullptr;
     ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "enomem", 0), "create aspace");
     auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
-    auto budget_cleanup = lk::make_auto_call([]() { riscv_mmu_set_ptable_alloc_budget(-1); });
+    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_budget_set(-1); });
 
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     paddr_t pa;
@@ -867,17 +867,17 @@ bool map_enomem_rollback() {
     paddr_t got;
 
     // no table at all
-    riscv_mmu_set_ptable_alloc_budget(0);
+    vm_ptable_budget_set(0);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map with no tables");
     EXPECT_TRUE(check_table_count(as, 1), "nothing left behind");
 
     // the first table links in, the one below it does not: the empty one must go
-    riscv_mmu_set_ptable_alloc_budget(1);
+    vm_ptable_budget_set(1);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map with one table");
     EXPECT_TRUE(check_table_count(as, 1), "empty table unlinked");
 
     // enough for the first page, not for the second page's leaf table
-    riscv_mmu_set_ptable_alloc_budget(pt_levels - 1);
+    vm_ptable_budget_set(pt_levels - 1);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map two pages");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, base, &got, nullptr), "first page rolled back");
     EXPECT_TRUE(check_table_count(as, 1), "first page's tables reclaimed");
@@ -887,13 +887,13 @@ bool map_enomem_rollback() {
     // Both cleanup legs run: the page that went in is rolled back and the
     // fresh table, orphaned, is unlinked again.
     const vaddr_t gb = user_boundary(1UL << 30) - PAGE_SIZE;
-    riscv_mmu_set_ptable_alloc_budget(pt_levels);
+    vm_ptable_budget_set(pt_levels);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, gb, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map across 1GB");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, gb, &got, nullptr), "page before the boundary rolled back");
     EXPECT_TRUE(check_table_count(as, 1), "chain and orphaned table reclaimed");
 
     // and with the cap lifted the same mapping works
-    riscv_mmu_set_ptable_alloc_budget(-1);
+    vm_ptable_budget_set(-1);
     EXPECT_LE(NO_ERROR, arch_mmu_map(aspace, base, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map after rollback");
     EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, base + PAGE_SIZE, &got, nullptr), "query second page");
     EXPECT_EQ(pa + PAGE_SIZE, got, "paddr");
@@ -918,7 +918,7 @@ bool kernel_map_enomem_rollback() {
 
     vmm_aspace_t *kas = vmm_get_kernel_aspace();
     arch_aspace_t *aspace = &kas->arch_aspace;
-    auto budget_cleanup = lk::make_auto_call([]() { riscv_mmu_set_ptable_alloc_budget(-1); });
+    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_budget_set(-1); });
 
     vm_page_t *p = pmm_alloc_page();
     ASSERT_NONNULL(p, "alloc page");
@@ -937,11 +937,11 @@ bool kernel_map_enomem_rollback() {
     constexpr int needed = pt_levels - 2;
     for (int pass = 0; pass < 2; pass++) {
         for (int budget = 0; budget < needed; budget++) {
-            riscv_mmu_set_ptable_alloc_budget(budget);
+            vm_ptable_budget_set(budget);
             EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, va, pa, 1, 0), "map with too few tables");
             EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, va, &got, nullptr), "nothing mapped");
         }
-        riscv_mmu_set_ptable_alloc_budget(needed);
+        vm_ptable_budget_set(needed);
         ASSERT_LE(NO_ERROR, arch_mmu_map(aspace, va, pa, 1, 0), "map with just enough");
         EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, va, &got, nullptr), "query");
         EXPECT_EQ(pa, got, "paddr");
@@ -951,7 +951,7 @@ bool kernel_map_enomem_rollback() {
     }
 
     // the physmap is a top level leaf
-    riscv_mmu_set_ptable_alloc_budget(-1);
+    vm_ptable_budget_set(-1);
     EXPECT_EQ(ERR_NOT_SUPPORTED,
               arch_mmu_unmap(aspace, RISCV_MMU_PHYSMAP_BASE_VIRT, RISCV_MMU_PHYSMAP_PAGE_SIZE / PAGE_SIZE),
               "top level unmap refused");

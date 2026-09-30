@@ -87,6 +87,31 @@ static void vm_init_postheap(uint level) {
     }
 }
 
+#if LK_DEBUGLEVEL > 0
+/* the thread whose allocations the budget counts, NULL for none */
+static thread_t *ptable_budget_thread;
+static int ptable_budget;
+
+void vm_ptable_budget_set(int count) {
+    __atomic_store_n(&ptable_budget, count, __ATOMIC_RELAXED);
+    __atomic_store_n(&ptable_budget_thread, count >= 0 ? get_current_thread() : NULL,
+                     __ATOMIC_RELAXED);
+}
+
+bool vm_ptable_budget_take(void) {
+    thread_t *t = __atomic_load_n(&ptable_budget_thread, __ATOMIC_RELAXED);
+    if (!t || t != get_current_thread()) {
+        return true;
+    }
+    /* only the owning thread gets here, so the count needs no atomic update */
+    if (ptable_budget == 0) {
+        return false;
+    }
+    ptable_budget--;
+    return true;
+}
+#endif
+
 void *kvaddr_get_range(size_t *size_return) {
     *size_return = mmu_initial_mappings->size;
     return (void *)mmu_initial_mappings->virt;

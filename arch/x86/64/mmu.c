@@ -326,6 +326,10 @@ static void update_pml4_entry(vaddr_t vaddr, uint64_t *pml4_table, map_addr_t pa
  * @brief Allocating a new page table
  */
 static map_addr_t *alloc_page_table(paddr_t *pa_out) {
+    if (!vm_ptable_budget_take()) {
+        return NULL;
+    }
+
     vm_page_t *page = pmm_alloc_page();
     if (!page) {
         return NULL;

@@ -189,6 +189,10 @@ static void update_pd_entry(const vaddr_t vaddr, map_addr_t *const pd_table, con
  * @brief Allocating a new page table
  */
 static map_addr_t *alloc_page_table(paddr_t *pa_out) {
+    if (!vm_ptable_budget_take()) {
+        return NULL;
+    }
+
     vm_page_t *page = pmm_alloc_page();
     if (!page) {
         return NULL;

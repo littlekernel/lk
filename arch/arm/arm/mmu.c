@@ -379,6 +379,8 @@ static status_t get_l2_table(arch_aspace_t *aspace, uint32_t l1_index, paddr_t *
     }
 
     /* not found: allocate it */
+    if (!vm_ptable_budget_take())
+        return ERR_NO_MEMORY;
     uint32_t *l2_va = pmm_alloc_kpages(1, &aspace->pt_page_list);
     if (!l2_va)
         return ERR_NO_MEMORY;

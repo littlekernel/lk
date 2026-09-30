@@ -228,21 +228,10 @@ void riscv_tlb_shootdown(const arch_aspace_t *aspace, vaddr_t base, size_t count
     sync_exec_all(tlb_shootdown_task, &args);
 }
 
-#if LK_DEBUGLEVEL > 0
-// how many more tables alloc_ptable may hand out, -1 for no limit; tests use
-// it to drive the out of memory paths
-int ptable_alloc_budget = -1;
-#endif
-
 volatile riscv_pte_t *alloc_ptable(arch_aspace_t *aspace, addr_t *pa) {
-#if LK_DEBUGLEVEL > 0
-    if (ptable_alloc_budget == 0) {
+    if (!vm_ptable_budget_take()) {
         return NULL;
     }
-    if (ptable_alloc_budget > 0) {
-        ptable_alloc_budget--;
-    }
-#endif
 
     // grab a page from the pmm
     vm_page_t *p = pmm_alloc_page();
@@ -616,13 +605,6 @@ int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, size_t count, F callback
 }
 
 } // namespace
-
-#if LK_DEBUGLEVEL > 0
-extern "C"
-void riscv_mmu_set_ptable_alloc_budget(int count) {
-    ptable_alloc_budget = count;
-}
-#endif
 
 // routines to map/unmap/query mappings per address space
 int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _paddr, const uint count, const uint flags) {

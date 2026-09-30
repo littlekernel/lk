@@ -175,6 +175,18 @@ static inline void *paddr_to_kvaddr(paddr_t pa) {
     return paddr_to_kvaddr_search(pa);
 }
 
+// Page table allocation budget, a test hook for the out of memory paths of the arch
+// mmu code. vm_ptable_budget_set(n) lets the calling thread's next n page table
+// allocations succeed and fails every one after that; -1 lifts the limit. Tables
+// allocated on other threads are neither counted nor refused. Each arch's page
+// table allocator calls vm_ptable_budget_take() first and fails if it returns false.
+#if LK_DEBUGLEVEL > 0
+void vm_ptable_budget_set(int count);
+bool vm_ptable_budget_take(void);
+#else
+static inline bool vm_ptable_budget_take(void) { return true; }
+#endif
+
 // a hint as to which virtual addresses will be returned by pmm_alloc_kpages
 void *kvaddr_get_range(size_t *size_return);
 
@@ -232,6 +244,14 @@ struct vmm_aspace *vaddr_to_aspace(void *ptr);
 // reserve a chunk of address space to prevent allocations from that space
 status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr)
 __NONNULL((1));
+
+// Reserve size bytes of address space wherever vmm_alloc would place them, aligned
+// to 1 << align_log2, with nothing mapped behind it; returns the base in *va. The
+// caller maps into it with arch_mmu_map() and must unmap what it mapped before
+// vmm_free_region() releases the range.
+status_t vmm_reserve_range(vmm_aspace_t *aspace, const char *name, size_t size,
+                           uint8_t align_log2, vaddr_t *va)
+__NONNULL((1, 5));
 
 // allocate a region of virtual space that maps a physical piece of address space.
 // the physical pages that back this are not allocated from the pmm.
