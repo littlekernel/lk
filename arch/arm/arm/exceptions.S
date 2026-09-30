@@ -85,6 +85,19 @@
     save
 .endm
 
+/* \reg = &__arm_in_handler[cpu], with MPIDR decoded as arch_curr_cpu_num() does */
+.macro this_cpu_in_handler, reg, temp
+    LOADCONST(\reg, __arm_in_handler)
+#if WITH_SMP && ARM_ISA_ARMV7
+    mrc     p15, 0, \temp, c0, c0, 5
+    uxtab   \reg, \reg, \temp
+#if SMP_CPU_ID_BITS > 8
+    ubfx    \temp, \temp, #8, #(SMP_CPU_ID_BITS - 8)
+    add     \reg, \reg, \temp, lsl #SMP_CPU_CLUSTER_SHIFT
+#endif
+#endif
+.endm
+
 .macro restore
     /* undo the stack alignment we did before */
     stack_restore r0
@@ -204,18 +217,18 @@ FUNCTION(arm_irq)
 
     /* r0 now holds pointer to iframe */
 
-    /* track that we're inside an irq handler */
-    LOADCONST(r2, __arm_in_handler)
+    /* track that this cpu is inside an irq handler */
+    this_cpu_in_handler r2, r1
     mov     r1, #1
-    str     r1, [r2]
+    strb    r1, [r2]
 
     /* call into higher level code */
     bl  platform_irq
 
-    /* clear the irq handler status */
-    LOADCONST(r1, __arm_in_handler)
+    /* clear the irq handler status, keeping the result in r0 */
+    this_cpu_in_handler r1, r2
     mov     r2, #0
-    str     r2, [r1]
+    strb    r2, [r1]
 
     /* reschedule if the handler returns nonzero */
     cmp     r0, #0
@@ -240,4 +253,4 @@ DATA(__irq_cycle_count)
 
 .data
 DATA(__arm_in_handler)
-    .word   0
+    .skip   SMP_MAX_CPUS

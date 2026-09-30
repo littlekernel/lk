@@ -53,10 +53,10 @@ static inline bool arch_in_int_handler(void) {
     __asm volatile ("MRS %0, ipsr" : "=r" (ipsr) );
     return (ipsr & IPSR_ISR_Msk);
 #else
-    /* set by the interrupt glue to track that the cpu is inside a handler */
-    extern bool __arm_in_handler;
+    /* set by the interrupt glue while each cpu is inside a handler */
+    extern bool __arm_in_handler[SMP_MAX_CPUS];
 
-    return __arm_in_handler;
+    return __arm_in_handler[arch_curr_cpu_num()];
 #endif
 }
 
