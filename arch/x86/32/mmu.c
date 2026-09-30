@@ -10,6 +10,7 @@
 
 #include <arch.h>
 #include <arch/arch_ops.h>
+#include <arch/interrupts.h>
 #include <arch/mmu.h>
 #include <arch/x86.h>
 #include <arch/x86/feature.h>
@@ -25,7 +26,6 @@
 #include <sys/types.h>
 
 // TODO:
-// - proper tlb flush (local and SMP)
 // - synchronization of top level page tables for user space aspaces
 
 #define LOCAL_TRACE          0
@@ -39,28 +39,34 @@ map_addr_t kernel_pt[NO_OF_PT_ENTRIES][4] __ALIGNED(PAGE_SIZE);
 map_addr_t kernel_pd[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 paddr_t kernel_pd_phys;
 
-static inline paddr_t get_pfn_from_pde(map_addr_t pde) {
-    return pde & X86_4MB_PAGE_FRAME;
+/* Levels count down from PD_L to PT_L, whose entries map 4K pages. */
+static inline uint x86_index(vaddr_t vaddr, int level) {
+    return (vaddr >> (PT_SHIFT + (level - PT_L) * ADDR_OFFSET)) & (NO_OF_PT_ENTRIES - 1);
 }
 
-static inline paddr_t get_pfn_from_pte(map_addr_t pte) {
-    return pte & X86_PG_FRAME;
+/* the span an entry at level covers */
+static inline vaddr_t x86_entry_span(int level) {
+    return 1UL << (PT_SHIFT + (level - PT_L) * ADDR_OFFSET);
 }
 
-static inline map_addr_t get_pd_entry_from_pd_table(vaddr_t vaddr, const map_addr_t *pdt) {
-    uint32_t pd_index = ((vaddr >> PD_SHIFT) & ((1 << ADDR_OFFSET) - 1));
-    return pdt[pd_index];
+/* a page at PT_L, or a 4MB page (PS) at PD_L */
+static inline bool x86_is_leaf(map_addr_t entry, int level) {
+    return level == PT_L || (entry & X86_MMU_PG_PS);
 }
 
-static inline map_addr_t get_pt_entry_from_page_table(vaddr_t vaddr, const map_addr_t *pt) {
-    uint32_t pt_index = ((vaddr >> PT_SHIFT) & ((1 << ADDR_OFFSET) - 1));
-    return pt[pt_index];
+/* the frame a leaf maps, or the table a directory entry points to */
+static inline paddr_t x86_entry_paddr(map_addr_t entry, int level) {
+    return entry & ~(map_addr_t)(x86_entry_span(level) - 1);
+}
+
+static inline map_addr_t *x86_next_table(map_addr_t entry) {
+    return paddr_to_kvaddr(x86_entry_paddr(entry, PT_L));
 }
 
 /**
  * @brief Returning the x86 arch flags from generic mmu flags
  */
-static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
+static arch_flags_t get_x86_arch_flags(uint flags) {
     arch_flags_t arch_flags = 0;
 
     if (flags & ARCH_MMU_FLAG_PERM_WRITE) {
@@ -71,8 +77,14 @@ static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
         arch_flags |= X86_MMU_PG_U;
     }
 
-    if (flags & ARCH_MMU_FLAG_UNCACHED) {
-        arch_flags |= X86_MMU_CACHE_DISABLE;
+    /* PAT indexes 2 and 3 of X86_PAT_DEFAULT */
+    switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
+        case ARCH_MMU_FLAG_UNCACHED:
+            arch_flags |= X86_MMU_CACHE_DISABLE;
+            break;
+        case ARCH_MMU_FLAG_UNCACHED_DEVICE:
+            arch_flags |= X86_MMU_CACHE_DISABLE | X86_MMU_PG_PWT;
+            break;
     }
 
     return arch_flags;
@@ -83,7 +95,7 @@ static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
  */
 static uint get_arch_mmu_flags(arch_flags_t flags) {
     /* without NX every page can be executed */
-    arch_flags_t mmu_flags = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_EXECUTE;
+    uint mmu_flags = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_EXECUTE;
 
     if (flags & X86_MMU_PG_RW) {
         mmu_flags |= ARCH_MMU_FLAG_PERM_WRITE;
@@ -94,96 +106,22 @@ static uint get_arch_mmu_flags(arch_flags_t flags) {
     }
 
     if (flags & X86_MMU_CACHE_DISABLE) {
-        mmu_flags |= ARCH_MMU_FLAG_UNCACHED;
+        mmu_flags |= (flags & X86_MMU_PG_PWT) ? ARCH_MMU_FLAG_UNCACHED_DEVICE : ARCH_MMU_FLAG_UNCACHED;
     }
 
-    return (uint)mmu_flags;
+    return mmu_flags;
 }
 
-/**
- * @brief  Walk the page table structures - supported for both PAE & non-PAE modes
- *
- */
-static status_t x86_mmu_get_mapping(map_addr_t *const init_table, const vaddr_t vaddr,
-                                    uint32_t *const ret_level, arch_flags_t *const mmu_flags,
-                                    paddr_t *const paddr) {
-    DEBUG_ASSERT(init_table);
-    DEBUG_ASSERT(ret_level);
-    DEBUG_ASSERT(mmu_flags);
-    DEBUG_ASSERT(paddr);
-
-    *ret_level = PD_L;
-    *paddr = 0;
-    *mmu_flags = 0;
-
-    map_addr_t *const pdt = init_table; /* First table in non PAE mode is pdt */
-    LTRACEF("pdt %p\n", pdt);
-
-    const map_addr_t pde = get_pd_entry_from_pd_table(vaddr, pdt);
-    LTRACEF("pde %#x\n", pde);
-    if ((pde & X86_MMU_PG_P) == 0) {
-        return ERR_NOT_FOUND;
+/* The entry that ends the walk for vaddr from the directory: a present leaf, or
+ * the first entry that is not present. *level is the level of its table. */
+static map_addr_t *x86_mmu_lookup(map_addr_t *pd, vaddr_t vaddr, int *level) {
+    map_addr_t *entry = &pd[x86_index(vaddr, PD_L)];
+    if (!(*entry & X86_MMU_PG_P) || (*entry & X86_MMU_PG_PS)) {
+        *level = PD_L;
+        return entry;
     }
-
-    /* 4 MB pages */
-    /* In this case, the page directory entry is NOT actually a PT (page table) */
-    if (pde & X86_MMU_PG_PS) {
-        /* Getting the Page frame & adding the 4MB page offset from the vaddr */
-        *paddr = get_pfn_from_pde(pde) + (vaddr & PAGE_OFFSET_MASK_4MB);
-        *mmu_flags = get_arch_mmu_flags(pde & X86_FLAGS_MASK);
-        *ret_level = PT_L;
-        return NO_ERROR;
-    }
-
-    /* 4 KB pages */
-    map_addr_t *const pt = paddr_to_kvaddr(get_pfn_from_pte(pde));
-    const map_addr_t pte = get_pt_entry_from_page_table(vaddr, pt);
-    LTRACEF("pte %#x\n", pte);
-    if ((pte & X86_MMU_PG_P) == 0) {
-        *ret_level = PT_L;
-        *paddr = 0;
-        return ERR_NOT_FOUND;
-    }
-
-    /* Getting the Page frame & adding the 4KB page offset from the vaddr */
-    *paddr = get_pfn_from_pte(pte) + (vaddr & PAGE_OFFSET_MASK_4KB);
-    *mmu_flags = get_arch_mmu_flags(pte & X86_FLAGS_MASK);
-
-last:
-    *ret_level = PF_L;
-    return NO_ERROR;
-}
-
-static void update_pt_entry(const vaddr_t vaddr, map_addr_t *const pt_table, const paddr_t paddr,
-                            const arch_flags_t flags) {
-    const uint32_t pt_index = ((vaddr >> PT_SHIFT) & ((1 << ADDR_OFFSET) - 1));
-
-    map_addr_t entry = paddr;
-    entry |= flags | X86_MMU_PG_P; /* last level - actual page being mapped */
-    if (!(flags & X86_MMU_PG_U)) {
-        entry |= X86_MMU_PG_G; /* setting global flag for kernel pages */
-    }
-
-    pt_table[pt_index] = entry;
-    LTRACEF_LEVEL(2, "writing entry %#x in pt %p at index %u\n", pt_table[pt_index], pt_table,
-                  pt_index);
-}
-
-static void update_pd_entry(const vaddr_t vaddr, map_addr_t *const pd_table, const paddr_t paddr,
-                            const arch_flags_t flags) {
-    const uint32_t pd_index = ((vaddr >> PD_SHIFT) & ((1 << ADDR_OFFSET) - 1));
-
-    map_addr_t entry = paddr;
-    entry |= X86_MMU_PG_P | X86_MMU_PG_RW;
-    if (flags & X86_MMU_PG_U) {
-        entry |= X86_MMU_PG_U;
-    } else {
-        entry |= X86_MMU_PG_G; /* setting global flag for kernel pages */
-    }
-
-    pd_table[pd_index] = entry;
-    LTRACEF_LEVEL(2, "writing entry %#x in pd %p at index %u\n", pd_table[pd_index], pd_table,
-                  pd_index);
+    *level = PT_L;
+    return &x86_next_table(*entry)[x86_index(vaddr, PT_L)];
 }
 
 /**
@@ -206,6 +144,9 @@ static map_addr_t *alloc_page_table(paddr_t *pa_out) {
     DEBUG_ASSERT(page_ptr);
 
     memset(page_ptr, 0, PAGE_SIZE);
+    /* the zeroes are stored before the entry that links the table; x86 keeps
+     * stores in order, so only the compiler has to be told */
+    __asm__ volatile("" ::: "memory");
     if (pa_out) {
         *pa_out = pa;
     }
@@ -213,132 +154,206 @@ static map_addr_t *alloc_page_table(paddr_t *pa_out) {
     return page_ptr;
 }
 
-/**
- * @brief  Add a new mapping for the given virtual address & physical address
- *
- * This is a API which handles the mapping b/w a virtual address & physical address
- * either by checking if the mapping already exists and is valid OR by adding a
- * new mapping with the required flags.
- *
- */
-static status_t x86_mmu_add_mapping(map_addr_t *const init_table, const map_addr_t paddr,
-                                    const vaddr_t vaddr, const arch_flags_t mmu_flags) {
-    status_t ret;
-
-    DEBUG_ASSERT(init_table);
-    if ((!IS_ALIGNED(vaddr, PAGE_SIZE)) || (!IS_ALIGNED(paddr, PAGE_SIZE))) {
-        return ERR_INVALID_ARGS;
-    }
-
-    map_addr_t *pt;
-
-    const map_addr_t pte = get_pd_entry_from_pd_table(vaddr, init_table);
-    if ((pte & X86_MMU_PG_P) == 0) {
-        /* Creating a new pt */
-        paddr_t pd_paddr;
-        map_addr_t *m = alloc_page_table(&pd_paddr);
-        if (m == NULL) {
-            ret = ERR_NO_MEMORY;
-            goto clean;
+/* Map one page, linking a page table if it needs one. ERR_ALREADY_EXISTS if a
+ * page or a 4MB page is in the way, ERR_NO_MEMORY if the table cannot be
+ * allocated. A directory entry grants everything and leaves access to the
+ * leaf, and in a user aspace that includes user access. A table linked under
+ * a kernel directory entry reaches the user directories created from then on,
+ * not the ones that already copied the kernel half. */
+static status_t x86_mmu_map_page(map_addr_t *pd, vaddr_t vaddr, map_addr_t leaf, bool user) {
+    map_addr_t *entry = &pd[x86_index(vaddr, PD_L)];
+    map_addr_t e = *entry;
+    if (!(e & X86_MMU_PG_P)) {
+        paddr_t pa;
+        if (!alloc_page_table(&pa)) {
+            return ERR_NO_MEMORY;
         }
-
-        DEBUG_ASSERT(pd_paddr);
-
-        update_pd_entry(vaddr, init_table, pd_paddr, get_x86_arch_flags(mmu_flags));
-        pt = m;
-    } else {
-        pt = paddr_to_kvaddr(get_pfn_from_pte(pte));
+        e = pa | X86_MMU_PG_P | X86_MMU_PG_RW | (user ? X86_MMU_PG_U : 0);
+        *entry = e;
+        LTRACEF_LEVEL(2, "new page table for %#lx: %#x\n", vaddr, e);
+    } else if (e & X86_MMU_PG_PS) {
+        return ERR_ALREADY_EXISTS;
     }
 
-    /* Updating the page table entry with the paddr and access flags required for the mapping */
-    update_pt_entry(vaddr, pt, paddr, get_x86_arch_flags(mmu_flags));
-    ret = NO_ERROR;
-clean:
-    return ret;
-}
-
-/**
- * @brief  x86 MMU unmap an entry in the page tables recursively and clear out tables
- *
- */
-static void x86_mmu_unmap_entry(const vaddr_t vaddr, const int level, map_addr_t *const table) {
-    LTRACEF("vaddr %#lx, level %d, table %p\n", vaddr, level, table);
-
-    uint32_t index = 0;
-    map_addr_t *next_table_addr = NULL;
-    paddr_t next_table_pa = 0;
-    switch (level) {
-        case PD_L:
-            index = ((vaddr >> PD_SHIFT) & ((1 << ADDR_OFFSET) - 1));
-            LTRACEF_LEVEL(2, "index %u\n", index);
-            if ((table[index] & X86_MMU_PG_P) == 0) {
-                return;
-            }
-            next_table_pa = get_pfn_from_pte(table[index]);
-            next_table_addr = paddr_to_kvaddr(next_table_pa);
-            LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-            break;
-        case PT_L:
-            index = ((vaddr >> PT_SHIFT) & ((1 << ADDR_OFFSET) - 1));
-            LTRACEF_LEVEL(2, "index %u\n", index);
-            if ((table[index] & X86_MMU_PG_P) == 0) {
-                return;
-            }
-
-            /* page frame is present, wipe it out */
-            LTRACEF_LEVEL(2, "writing zero to entry, old val %#x\n", table[index]);
-            table[index] = 0;
-            tlbsync_local(vaddr);
-            return;
-        default:
-            // shouldn't recurse this far
-            DEBUG_ASSERT(0);
+    map_addr_t *pte = &x86_next_table(e)[x86_index(vaddr, PT_L)];
+    if (*pte & X86_MMU_PG_P) {
+        return ERR_ALREADY_EXISTS;
     }
-
-    LTRACEF_LEVEL(2, "recursing\n");
-
-    x86_mmu_unmap_entry(vaddr, level - 1, next_table_addr);
-
-    LTRACEF_LEVEL(2, "next_table_addr %p\n", next_table_addr);
-
-    if (level > PT_L) {
-        /* Check all entries of next level table for present bit */
-        for (uint32_t next_level_offset = 0; next_level_offset < NO_OF_PT_ENTRIES;
-             next_level_offset++) {
-            if ((next_table_addr[next_level_offset] & X86_MMU_PG_P) != 0) {
-                return; /* There is an entry in the next level table */
-            }
-        }
-        /* All present bits for all entries in next level table for this address are 0, so we
-         * can unlink this page table.
-         */
-        if ((table[index] & X86_MMU_PG_P) != 0) {
-            table[index] = 0;
-            tlbsync_local(vaddr);
-        }
-        pmm_free_page(paddr_to_vm_page(next_table_pa));
-    }
-}
-
-static status_t x86_mmu_unmap(map_addr_t *const init_table, const vaddr_t vaddr, uint count) {
-    LTRACEF("init_table %p, vaddr %#lx, count %u\n", init_table, vaddr, count);
-
-    DEBUG_ASSERT(init_table);
-    if (!IS_ALIGNED(vaddr, PAGE_SIZE)) {
-        return ERR_INVALID_ARGS;
-    }
-
-    if (count == 0) {
-        return NO_ERROR;
-    }
-
-    vaddr_t next_aligned_v_addr = vaddr;
-    while (count > 0) {
-        x86_mmu_unmap_entry(next_aligned_v_addr, X86_PAGING_LEVELS, init_table);
-        next_aligned_v_addr += PAGE_SIZE;
-        count--;
-    }
+    *pte = leaf;
+    LTRACEF_LEVEL(2, "pte for %#lx: %#x\n", vaddr, leaf);
     return NO_ERROR;
+}
+
+/* Replace *entry with desired if it still holds *expected, else load what it
+ * holds into *expected. The cpu sets A and D in entries on its own, so a plain
+ * read and write could lose one. */
+static bool x86_entry_replace(map_addr_t *entry, map_addr_t *expected, map_addr_t desired) {
+#if X86_LEGACY
+    /* A 386 has no cmpxchg, and no second cpu: with interrupts off nothing
+     * touches the page between the read and the write. */
+    struct arch_interrupt_saved_state state = arch_interrupt_save();
+    const bool same = *entry == *expected;
+    if (same) {
+        *entry = desired;
+    } else {
+        *expected = *entry;
+    }
+    arch_interrupt_restore(state);
+    return same;
+#else
+    return __atomic_compare_exchange_n(entry, expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+#endif
+}
+
+/* the pages from the first entry changed to the end of the last, for the shootdown */
+struct x86_span {
+    vaddr_t first;
+    size_t pages;
+};
+
+static void x86_span_add(struct x86_span *span, vaddr_t vaddr, size_t pages) {
+    if (span->pages == 0) {
+        span->first = vaddr;
+    }
+    span->pages = (vaddr - span->first) / PAGE_SIZE + pages;
+}
+
+static bool x86_table_is_empty(const map_addr_t *table) {
+    for (uint i = 0; i < NO_OF_PT_ENTRIES; i++) {
+        if (table[i] & X86_MMU_PG_P) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* Clear the entries covering [vaddr, last] (last inclusive) in table at level,
+ * stepping over what is not present and adding what it clears to span. A page
+ * table that ends up empty is unlinked and put on freed, unless it hangs off a
+ * kernel directory entry: every user directory holds a copy of those, so such
+ * a table stays for good, the static ones of a legacy build included. The
+ * caller has made sure the range touches no 4MB page. */
+static void x86_mmu_unmap_table(map_addr_t *table, int level, vaddr_t vaddr, vaddr_t last,
+                                bool kernel, struct list_node *freed, struct x86_span *span) {
+    const vaddr_t entry_span = x86_entry_span(level);
+    for (;;) {
+        map_addr_t *entry = &table[x86_index(vaddr, level)];
+        const map_addr_t e = *entry;
+        const vaddr_t entry_base = ROUNDDOWN(vaddr, entry_span);
+        const vaddr_t entry_last = MIN(entry_base + (entry_span - 1), last);
+
+        if (!(e & X86_MMU_PG_P)) {
+            /* a hole: step over what the entry covers */
+        } else if (x86_is_leaf(e, level)) {
+            if (level > PT_L) {
+                DEBUG_ASSERT_MSG(false, "unmap of a 4MB page at %#lx\n", entry_base);
+            } else {
+                *entry = 0;
+                x86_span_add(span, entry_base, 1);
+            }
+        } else {
+            map_addr_t *next = x86_next_table(e);
+            x86_mmu_unmap_table(next, level - 1, vaddr, entry_last, kernel, freed, span);
+
+            if (!kernel && x86_table_is_empty(next)) {
+                const paddr_t pa = x86_entry_paddr(e, PT_L);
+                LTRACEF_LEVEL(2, "unlinking empty page table %#lx\n", pa);
+                *entry = 0;
+                vm_page_t *page = paddr_to_vm_page(pa);
+                DEBUG_ASSERT(page);
+                list_add_tail(freed, &page->node);
+            }
+        }
+
+        if (entry_last == last) {
+            return;
+        }
+        vaddr = entry_last + 1;
+    }
+}
+
+/* Unmap [vaddr, vaddr + count pages), then make sure no cpu uses what was
+ * there or walks a table that was unlinked before handing those back. */
+static void x86_mmu_unmap_range(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
+    struct list_node freed = LIST_INITIAL_VALUE(freed);
+    struct x86_span span = { 0, 0 };
+    const bool kernel = aspace->flags & ARCH_ASPACE_FLAG_KERNEL;
+
+    x86_mmu_unmap_table(aspace->cr3, PD_L, vaddr, vaddr + ((vaddr_t)count * PAGE_SIZE - 1),
+                        kernel, &freed, &span);
+
+    /* Any invlpg drops every cached directory entry, so the unlinked tables
+     * are covered even if they held nothing to clear. */
+    if (span.pages > 0) {
+        x86_tlb_shootdown(span.first, span.pages);
+    } else if (!list_is_empty(&freed)) {
+        x86_tlb_shootdown(vaddr, 1);
+    }
+    pmm_free(&freed);
+}
+
+/* Whether unmap or protect may change [vaddr, vaddr + count pages), decided
+ * before either touches anything. The kernel's 4MB physmap entries are fixed:
+ * every user directory holds a copy of them, and map makes no large pages
+ * anywhere else. */
+static status_t x86_mmu_check_range(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
+#if !X86_LEGACY
+    if ((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) && vaddr - KERNEL_ASPACE_BASE < PHYSMAP_SIZE) {
+        TRACEF("range at %#lx touches the physmap\n", vaddr);
+        return ERR_NOT_SUPPORTED;
+    }
+#endif
+    return NO_ERROR;
+}
+
+/* Give every page covering [vaddr, last] in table the RW bit in bits, adding
+ * the ones that change to span. With check_only nothing is written, and the
+ * walk only reports ERR_INVALID_ARGS on an uncached page when execute is asked
+ * for. */
+static status_t x86_mmu_protect_table(map_addr_t *table, int level, vaddr_t vaddr, vaddr_t last,
+                                      map_addr_t bits, bool execute, bool check_only,
+                                      struct x86_span *span) {
+    const vaddr_t entry_span = x86_entry_span(level);
+    for (;;) {
+        map_addr_t *entry = &table[x86_index(vaddr, level)];
+        map_addr_t e = *entry;
+        const vaddr_t entry_base = ROUNDDOWN(vaddr, entry_span);
+        const vaddr_t entry_last = MIN(entry_base + (entry_span - 1), last);
+
+        if (!(e & X86_MMU_PG_P)) {
+            /* a hole */
+        } else if (x86_is_leaf(e, level)) {
+            DEBUG_ASSERT(level == PT_L);
+            if (check_only) {
+                if (execute && (e & X86_MMU_CACHE_DISABLE)) {
+                    LTRACEF("execute asked for on uncached memory at %#lx\n", vaddr);
+                    return ERR_INVALID_ARGS;
+                }
+            } else {
+                for (;;) {
+                    const map_addr_t new_e = (e & ~X86_MMU_PG_RW) | bits;
+                    if (new_e == e) {
+                        break;
+                    }
+                    if (x86_entry_replace(entry, &e, new_e)) {
+                        x86_span_add(span, entry_base, 1);
+                        break;
+                    }
+                }
+            }
+        } else {
+            status_t err = x86_mmu_protect_table(x86_next_table(e), level - 1, vaddr, entry_last, bits,
+                                                 execute, check_only, span);
+            if (err != NO_ERROR) {
+                return err;
+            }
+        }
+
+        if (entry_last == last) {
+            return NO_ERROR;
+        }
+        vaddr = entry_last + 1;
+    }
 }
 
 status_t arch_mmu_unmap(arch_aspace_t *const aspace, const vaddr_t vaddr, const uint count) {
@@ -358,107 +373,22 @@ status_t arch_mmu_unmap(arch_aspace_t *const aspace, const vaddr_t vaddr, const 
         return NO_ERROR;
     }
 
-    status_t err = x86_mmu_unmap(aspace->cr3, vaddr, count);
-    if (err < 0) {
+    status_t err = x86_mmu_check_range(aspace, vaddr, count);
+    if (err != NO_ERROR) {
         return err;
     }
 
-    /* the unmap only invalidated this cpu's translations */
-    x86_tlb_shootdown(vaddr, count);
+    x86_mmu_unmap_range(aspace, vaddr, count);
     return NO_ERROR;
 }
 
-/**
- * @brief  Mapping a section/range with specific permissions
- *
- */
-static status_t x86_mmu_map_range(map_addr_t *const init_table, struct map_range *const range,
-                                  const arch_flags_t flags) {
-
-    LTRACEF("table %p, range vaddr 0x%lx paddr 0x%lx size %u\n", init_table, range->start_vaddr,
-            range->start_paddr, range->size);
-
-    DEBUG_ASSERT(init_table);
-    if (!range) {
-        return ERR_INVALID_ARGS;
-    }
-
-    /* Calculating the number of 4k pages */
-    uint32_t no_of_pages;
-    if (IS_ALIGNED(range->size, PAGE_SIZE)) {
-        no_of_pages = (range->size) >> PAGE_DIV_SHIFT;
-    } else {
-        no_of_pages = ((range->size) >> PAGE_DIV_SHIFT) + 1;
-    }
-
-    vaddr_t next_aligned_v_addr = range->start_vaddr;
-    map_addr_t next_aligned_p_addr = range->start_paddr;
-
-    for (uint32_t index = 0; index < no_of_pages; index++) {
-        status_t map_status =
-            x86_mmu_add_mapping(init_table, next_aligned_p_addr, next_aligned_v_addr, flags);
-        if (map_status) {
-            dprintf(SPEW, "Add mapping failed with err=%d\n", map_status);
-            /* Unmap the partial mapping - if any */
-            x86_mmu_unmap(init_table, range->start_vaddr, index);
-            return map_status;
-        }
-        next_aligned_v_addr += PAGE_SIZE;
-        next_aligned_p_addr += PAGE_SIZE;
-    }
-
-    return NO_ERROR;
-}
-
-status_t arch_mmu_query(arch_aspace_t *const aspace, const vaddr_t vaddr, paddr_t *const paddr,
-                        uint *const flags) {
-    LTRACEF("aspace %p, vaddr 0x%lx, paddr %p, flags %p\n", aspace, vaddr, paddr, flags);
+status_t arch_mmu_protect(arch_aspace_t *const aspace, const vaddr_t vaddr, const uint count,
+                          const uint flags) {
+    LTRACEF("aspace %p, vaddr %#lx, count %u, flags %#x\n", aspace, vaddr, count, flags);
 
     DEBUG_ASSERT(aspace);
 
-    if (!paddr) {
-        return ERR_INVALID_ARGS;
-    }
-
-    if (!arch_mmu_range_in_aspace(aspace, vaddr, 1)) {
-        return ERR_OUT_OF_RANGE;
-    }
-
-    arch_flags_t ret_flags;
-    uint32_t ret_level;
-    status_t stat = x86_mmu_get_mapping(aspace->cr3, vaddr, &ret_level, &ret_flags, paddr);
-    if (stat) {
-        return stat;
-    }
-
-    /* converting x86 arch specific flags to arch mmu flags */
-    if (flags) {
-        *flags = ret_flags;
-    }
-
-    LTRACEF("returning paddr %#lx flags %#x\n", *paddr, ret_flags);
-
-    return NO_ERROR;
-}
-
-status_t arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t paddr,
-                      const uint count, const uint flags) {
-    LTRACEF("aspace %p, vaddr %#lx, paddr %#lx, count %u, flags %#x\n", aspace, vaddr, paddr, count,
-            flags);
-
-    DEBUG_ASSERT(aspace);
-
-    if (flags & ARCH_MMU_FLAG_NS) {
-        return ERR_INVALID_ARGS;
-    }
-
-    /* There are no write-only or execute-only mappings. Leaving out EXECUTE is
-     * accepted, but without NX the page stays executable. */
-    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
-        return ERR_INVALID_ARGS;
-    }
-
-    if ((!IS_ALIGNED(paddr, PAGE_SIZE)) || (!IS_ALIGNED(vaddr, PAGE_SIZE))) {
+    if (!IS_ALIGNED(vaddr, PAGE_SIZE) || !arch_mmu_protect_flags_valid(flags)) {
         return ERR_INVALID_ARGS;
     }
 
@@ -470,12 +400,107 @@ status_t arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const pa
         return NO_ERROR;
     }
 
-    struct map_range range;
-    range.start_vaddr = vaddr;
-    range.start_paddr = (map_addr_t)paddr;
-    range.size = count * PAGE_SIZE;
+    status_t err = x86_mmu_check_range(aspace, vaddr, count);
+    if (err != NO_ERROR) {
+        return err;
+    }
 
-    return (x86_mmu_map_range(aspace->cr3, &range, flags));
+    /* without NX, EXECUTE changes nothing but is still refused on uncached memory */
+    const bool execute = flags & ARCH_MMU_FLAG_PERM_EXECUTE;
+    const map_addr_t bits = get_x86_arch_flags(flags) & X86_MMU_PG_RW;
+    const vaddr_t last = vaddr + ((vaddr_t)count * PAGE_SIZE - 1);
+    struct x86_span span = { 0, 0 };
+
+    if (execute) {
+        err = x86_mmu_protect_table(aspace->cr3, PD_L, vaddr, last, bits, true, true, &span);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+
+    err = x86_mmu_protect_table(aspace->cr3, PD_L, vaddr, last, bits, execute, false, &span);
+    DEBUG_ASSERT(err == NO_ERROR);
+
+    /* upgrades included: a cpu may otherwise fault on a stale entry */
+    if (span.pages > 0) {
+        x86_tlb_shootdown(span.first, span.pages);
+    }
+    return err;
+}
+
+status_t arch_mmu_query(arch_aspace_t *const aspace, const vaddr_t vaddr, paddr_t *const paddr,
+                        uint *const flags) {
+    LTRACEF("aspace %p, vaddr 0x%lx, paddr %p, flags %p\n", aspace, vaddr, paddr, flags);
+
+    DEBUG_ASSERT(aspace);
+
+    if (!arch_mmu_range_in_aspace(aspace, vaddr, 1)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    int level;
+    const map_addr_t e = *x86_mmu_lookup(aspace->cr3, vaddr, &level);
+    if (!(e & X86_MMU_PG_P)) {
+        return ERR_NOT_FOUND;
+    }
+
+    if (paddr) {
+        *paddr = x86_entry_paddr(e, level) | (vaddr & (x86_entry_span(level) - 1));
+    }
+    if (flags) {
+        *flags = get_arch_mmu_flags(e);
+    }
+    LTRACEF("entry %#x at level %d\n", e, level);
+
+    return NO_ERROR;
+}
+
+status_t arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t paddr,
+                      const uint count, const uint flags) {
+    LTRACEF("aspace %p, vaddr %#lx, paddr %#lx, count %u, flags %#x\n", aspace, vaddr, paddr, count,
+            flags);
+
+    DEBUG_ASSERT(aspace);
+
+    /* Leaving out EXECUTE is accepted, but without NX the page stays executable. */
+    if (!IS_ALIGNED(vaddr, PAGE_SIZE) || !IS_ALIGNED(paddr, PAGE_SIZE) ||
+        !arch_mmu_paddr_range_valid(paddr, count, 32) || !arch_mmu_flags_valid(flags)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    if (!arch_mmu_range_in_aspace(aspace, vaddr, count)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    if (count == 0) {
+        return NO_ERROR;
+    }
+
+    /* A leaf is global exactly when it belongs to the kernel aspace: a global
+     * entry survives the cr3 load of a context switch, so one in a user aspace
+     * would leak into the next. Before PGE the bit was reserved. */
+    const bool kernel = aspace->flags & ARCH_ASPACE_FLAG_KERNEL;
+    const map_addr_t global = (kernel && x86_feature_test(X86_FEATURE_PGE)) ? X86_MMU_PG_G : 0;
+    const map_addr_t leaf_flags = get_x86_arch_flags(flags) | X86_MMU_PG_P | global;
+
+    for (uint i = 0; i < count; i++) {
+        const vaddr_t offset = (vaddr_t)i * PAGE_SIZE;
+        status_t err = x86_mmu_map_page(aspace->cr3, vaddr + offset, (paddr + offset) | leaf_flags, !kernel);
+        if (err != NO_ERROR) {
+            /* Take back what went in: the pages before a collision, or through
+             * the page a table was missing for, so an empty table linked for it
+             * is reclaimed as well where that is allowed. */
+            const uint done = i + (err == ERR_NO_MEMORY ? 1 : 0);
+            if (done > 0) {
+                x86_mmu_unmap_range(aspace, vaddr, done);
+            }
+            return err;
+        }
+    }
+
+    /* A present bit going from 0 to 1 needs no invalidate: no cpu caches an
+     * entry that is not present, at either level. */
+    return NO_ERROR;
 }
 
 bool arch_mmu_supports_nx_mappings(void) {
@@ -508,6 +533,13 @@ void x86_mmu_early_init_percpu(void) {
         cr4 |= bits;
         x86_set_cr4(cr4);
     }
+
+    /* The encoding of the cache policies relies on the default PAT. Nothing is
+     * mapped through an entry other than index 0 (write back in both) yet, so
+     * it can be rewritten in place. */
+    if (x86_feature_test(X86_FEATURE_PAT) && read_msr(X86_MSR_IA32_PAT) != X86_PAT_DEFAULT) {
+        write_msr(X86_MSR_IA32_PAT, X86_PAT_DEFAULT);
+    }
 }
 
 void x86_mmu_early_init(void) {
@@ -536,7 +568,6 @@ status_t arch_mmu_init_aspace(arch_aspace_t *const aspace, const vaddr_t base, c
     DEBUG_ASSERT(size > PAGE_SIZE);
     DEBUG_ASSERT(base + size - 1 > base);
 
-    aspace->flags = flags;
     aspace->flags = flags;
     if (flags & ARCH_ASPACE_FLAG_KERNEL) {
         /* at the moment we can only deal with address spaces as globally defined */
@@ -573,11 +604,17 @@ status_t arch_mmu_init_aspace(arch_aspace_t *const aspace, const vaddr_t base, c
 }
 
 status_t arch_mmu_destroy_aspace(arch_aspace_t *const aspace) {
-    // TODO: assert that we're not active on any cpus
     if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
         // can't destroy the kernel aspace
         panic("attempt to destroy kernel aspace\n");
         return ERR_NOT_ALLOWED;
+    }
+
+    // Every mapping must already be gone: unmapping is what frees the page
+    // tables, so only the directory is left. Whether a cpu still has the
+    // aspace loaded cannot be checked here, since x86 does not count them.
+    for (uint i = 0; i < NO_OF_PT_ENTRIES / 2; i++) {
+        DEBUG_ASSERT_MSG(aspace->cr3[i] == 0, "user directory entry %u still %#x\n", i, aspace->cr3[i]);
     }
 
     // free the page table

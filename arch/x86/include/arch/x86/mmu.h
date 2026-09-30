@@ -106,12 +106,6 @@ enum page_table_levels {
 #endif
 };
 
-struct map_range {
-    vaddr_t start_vaddr;
-    paddr_t start_paddr; /* Physical address in the PAE mode is 32 bits wide */
-    uint32_t size;
-};
-
 #if ARCH_X86_64
 typedef uint64_t map_addr_t;
 typedef uint64_t arch_flags_t;
