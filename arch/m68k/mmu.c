@@ -50,47 +50,40 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
 //                           L0,         L1,           L2
 // entries:                  128,        8*128 (1024), 16*64 (1024)
 // usable entries per level: 128/8 (16), 1024/16 (64), 1024
+//
+// Each usable entry at L0 and L1 is a run of 8 or 16 hardware entries that point
+// at consecutive tables in one 4K page, so the first entry of a run points at
+// the page itself.
 
 // aspace coverage per level with this scheme:
-// L0: 16 * 512MB = 4GB
-// L1: 64 * 4MB = 512MB
+// L0: 16 * 256MB = 4GB
+// L1: 64 * 4MB = 256MB
 // L2: 1024 * 4KB = 4MB
 
-// 68040 L2 table entry
-typedef struct pte {
-    uint32_t page_address : 20;
-    uint32_t ur : 1;
-    uint32_t g : 1;
-    uint32_t u1 : 1;
-    uint32_t u0 : 1;
-    uint32_t s : 1;
-    uint32_t cm : 2;
-    uint32_t m : 1;
-    uint32_t u : 1;
-    uint32_t w : 1;
-    uint32_t pdt : 2;
-} pte_t;
-static_assert(sizeof(pte_t) == 4, "");
+// Descriptor bits (68040 UM section 3.2). A root or pointer descriptor is
+// resident when UDT is 2 or 3, a page descriptor when PDT is 1 or 3; PDT 2 is
+// an indirect descriptor, which is never made here. New ones get 3.
+#define DESC_DT_MASK        3u
+#define DESC_DT_RESIDENT    3u
+#define DESC_W              (1u << 2)   // write protected
+#define PTE_CM_SHIFT        5
+#define PTE_CM_MASK         (3u << PTE_CM_SHIFT)
+#define PTE_S               (1u << 7)   // supervisor only
+#define PTE_PAGE_MASK       0xfffff000u
 
-// 68040 L1 table entry
-typedef struct ptp {
-    uint32_t table_address : 24;
-    uint32_t _1 : 4;
-    uint32_t u : 1;
-    uint32_t w : 1;
-    uint32_t udt : 2;
-} ptp_t;
-static_assert(sizeof(ptp_t) == 4, "");
+static inline bool udt_resident(uint32_t desc) {
+    return desc & 2;
+}
 
-// 68040 L0 table entry
-typedef struct root_ptp {
-    uint32_t table_address : 23;
-    uint32_t _1 : 5;
-    uint32_t u : 1;
-    uint32_t w : 1;
-    uint32_t udt : 2;
-} root_ptp_t;
-static_assert(sizeof(root_ptp_t) == 4, "");
+static inline bool pdt_resident(uint32_t desc) {
+    return desc & 1;
+}
+
+// cache modes
+#define CM_CACHED_WRITETHROUGH  0
+#define CM_CACHED_COPYBACK      1
+#define CM_UNCACHED_SERIALIZED  2
+#define CM_UNCACHED             3
 
 // some constants based on this
 #define L0_SHIFT_RAW 7
@@ -115,9 +108,9 @@ static_assert(L1_ENTRIES_RAW == 1024, "");
 static_assert(L2_ENTRIES_RAW == 1024, "");
 
 // number of bytes per level
-#define L0_BYTES (L0_ENTRIES_RAW * sizeof(root_ptp_t))
-#define L1_BYTES (L1_ENTRIES_RAW * sizeof(ptp_t))
-#define L2_BYTES (L2_ENTRIES_RAW * sizeof(pte_t))
+#define L0_BYTES (L0_ENTRIES_RAW * sizeof(uint32_t))
+#define L1_BYTES (L1_ENTRIES_RAW * sizeof(uint32_t))
+#define L2_BYTES (L2_ENTRIES_RAW * sizeof(uint32_t))
 static_assert(L0_BYTES == 512, "");
 static_assert(L1_BYTES == 4096, "");
 static_assert(L2_BYTES == 4096, "");
@@ -143,7 +136,7 @@ static_assert(L2_VADDR_SHIFT == 12, "");
 // statically allocated kernel page table, initialized in start.S
 // NOTE: smaller than a full 4K page, but is actually all hardware cares
 // about at the root level. (128 * 4 = 512 bytes)
-volatile root_ptp_t kernel_pgtable[L0_ENTRIES_RAW] __ALIGNED(L0_BYTES);
+volatile uint32_t kernel_pgtable[L0_ENTRIES_RAW] __ALIGNED(L0_BYTES);
 paddr_t kernel_pgtable_phys;
 
 #else
@@ -164,168 +157,199 @@ static status_t alloc_pgtable(paddr_t *paddrp) {
     return NO_ERROR;
 }
 
-static status_t free_pgtable(paddr_t ptable) {
-    vm_page_t *page = paddr_to_vm_page(ptable);
-    if (!page) {
-        return ERR_NOT_FOUND;
+// The span one usable entry covers at a level (0 and 1; 2 holds the pages),
+// how many hardware entries it repeats over, and the table size they step by.
+static const vaddr_t level_span[2] = { 1u << (L0_VADDR_SHIFT + L0_REPEAT_SHIFT),
+                                       1u << (L1_VADDR_SHIFT + L1_REPEAT_SHIFT) };
+static const uint level_repeats[2] = { L0_REPEATS, L1_REPEATS };
+static const uint level_next_bytes[2] = { L1_ENTRIES_RAW / L0_REPEATS * sizeof(uint32_t),
+                                          L2_ENTRIES_RAW / L1_REPEATS * sizeof(uint32_t) };
+
+// the first hardware entry of the run for vaddr at level 0 or 1
+static volatile uint32_t *level_entry(volatile uint32_t *table, int level, vaddr_t vaddr) {
+    const uint index = (vaddr / level_span[level]) & (level == 0 ? L0_ENTRIES - 1 : L1_ENTRIES - 1);
+    return &table[index * level_repeats[level]];
+}
+
+static volatile uint32_t *next_table(uint32_t entry) {
+    return (volatile uint32_t *)paddr_to_kvaddr(entry & ~(PAGE_SIZE - 1));
+}
+
+static volatile uint32_t *pte_entry(volatile uint32_t *table, vaddr_t vaddr) {
+    return &table[(vaddr >> L2_VADDR_SHIFT) & (L2_ENTRIES - 1)];
+}
+
+static void link_table(volatile uint32_t *entry, int level, paddr_t table) {
+    for (uint i = 0; i < level_repeats[level]; i++) {
+        entry[i] = (table + i * level_next_bytes[level]) | DESC_DT_RESIDENT;
     }
-    pmm_free_page(page);
+}
+
+static void unlink_table(volatile uint32_t *entry, int level) {
+    for (uint i = 0; i < level_repeats[level]; i++) {
+        entry[i] = 0;
+    }
+}
+
+static bool table_is_empty(const volatile uint32_t *table) {
+    for (uint i = 0; i < PAGE_SIZE / sizeof(uint32_t); i++) {
+        if (table[i] & DESC_DT_MASK) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// the boot tables start.S fills in for the physmap, which live in the image's bss
+static bool table_is_static(paddr_t table) {
+    extern uint8_t __bss_start[], __bss_end[];
+    const uint8_t *va = paddr_to_kvaddr(table);
+    return va >= __bss_start && va < __bss_end;
+}
+
+// The 68040 ATC also caches a walk that ended at an invalid descriptor, so a
+// new mapping needs the flush as much as a removed or changed one.
+static inline void tlb_flush_all(void) {
+    asm volatile("pflusha" ::: "memory");
+}
+
+static inline void tlb_flush_user(void) {
+    // Fallback: flush all translations; selective user flush requires proper pflush encoding
+    asm volatile("pflusha" ::: "memory");
+}
+
+// The page descriptor for vaddr, or NULL if a table on the way is missing.
+static volatile uint32_t *lookup_pte(volatile uint32_t *root, vaddr_t vaddr) {
+    volatile uint32_t *table = root;
+    for (int level = 0; level < 2; level++) {
+        const uint32_t entry = *level_entry(table, level, vaddr);
+        if (!udt_resident(entry)) {
+            return NULL;
+        }
+        table = next_table(entry);
+    }
+    return pte_entry(table, vaddr);
+}
+
+// Point vaddr's page descriptor at pte, linking in zeroed tables on the way.
+static status_t map_page(volatile uint32_t *root, vaddr_t vaddr, uint32_t pte) {
+    volatile uint32_t *table = root;
+    for (int level = 0; level < 2; level++) {
+        volatile uint32_t *entry = level_entry(table, level, vaddr);
+        if (!udt_resident(*entry)) {
+            paddr_t pa;
+            status_t err = alloc_pgtable(&pa);
+            if (err != NO_ERROR) {
+                LTRACEF("out of page tables at level %d\n", level + 1);
+                return err;
+            }
+            memset(paddr_to_kvaddr(pa), 0, PAGE_SIZE);
+            link_table(entry, level, pa);
+        }
+        table = next_table(*entry);
+    }
+
+    volatile uint32_t *entry = pte_entry(table, vaddr);
+    if (*entry & DESC_DT_MASK) {
+        return ERR_ALREADY_EXISTS;
+    }
+    *entry = pte;
     return NO_ERROR;
 }
 
-// given a vaddr, generate the virtual index of the page table at that level.
-// Needs to be shifted by Ln_REPEAT_SHIFT to get the raw entry
-static uint get_l0_index(vaddr_t vaddr) {
-    return (vaddr >> (L0_VADDR_SHIFT + L0_REPEAT_SHIFT)) & (L0_ENTRIES - 1);
-}
-
-static uint get_l1_index(vaddr_t vaddr) {
-    return (vaddr >> (L1_VADDR_SHIFT + L1_REPEAT_SHIFT)) & (L1_ENTRIES - 1);
-}
-
-static uint get_l2_index(vaddr_t vaddr) {
-    return (vaddr >> L2_VADDR_SHIFT) & (L2_ENTRIES - 1);
-}
-
-// Return a pointer to the first, possibly repeated, page table pointer in this level.
-// Any updates will need to be repeated L0_REPEATS
-static volatile root_ptp_t *get_l0_ptp_base_ptr(volatile root_ptp_t *table, vaddr_t vaddr) {
-    const unsigned int idx = get_l0_index(vaddr) << L0_REPEAT_SHIFT;
-    LTRACEF_LEVEL(3, "vaddr %#lx shifted idx: %u\n", vaddr, idx);
-
-    return &table[idx];
-}
-
-// Return a pointer to the first, possibly repeated, page table pointer in this level.
-// Any updates will need to be repeated L1_REPEATS
-static volatile ptp_t *get_l1_ptp_base_ptr(volatile ptp_t *table, vaddr_t vaddr) {
-    const unsigned int idx = get_l1_index(vaddr) << L1_REPEAT_SHIFT;
-    LTRACEF_LEVEL(3, "vaddr %#lx shifted idx: %u\n", vaddr, idx);
-
-    return &table[idx];
-}
-
-__NO_INLINE static void map_l0(volatile root_ptp_t *root_table, vaddr_t vaddr, paddr_t paddr) {
-    LTRACEF("vaddr %#lx paddr %#lx\n", vaddr, paddr);
-
-    volatile root_ptp_t *entry = get_l0_ptp_base_ptr(root_table, vaddr);
-    for (uint i = 0; i < L0_REPEATS; i++) {
-        const paddr_t pa = paddr + i * (1u << L1_SHIFT_RAW) * sizeof(ptp_t);
-
-        const root_ptp_t ptp = {
-            .table_address = pa >> 9,
-            .u = 0,   // not used
-            .w = 0,   // not write protected
-            .udt = 3, // resident
-        };
-        entry[i] = ptp;
-        LTRACEF_LEVEL(2, "real addr: %lx, index %u, shifted index %u\n", pa, get_l0_index(vaddr), (get_l0_index(vaddr) << L0_REPEAT_SHIFT) + i);
-    }
-}
-
-__NO_INLINE static void map_l1(volatile ptp_t *table, vaddr_t vaddr, paddr_t paddr) {
-    LTRACEF("vaddr %#lx paddr %#lx\n", vaddr, paddr);
-
-    volatile ptp_t *entry = get_l1_ptp_base_ptr(table, vaddr);
-    for (unsigned int i = 0; i < L1_REPEATS; i++) {
-        const paddr_t pa = paddr + i * (1u << L2_SHIFT_RAW) * sizeof(ptp_t);
-
-        const ptp_t ptp = {
-            .table_address = pa >> 8,
-            .u = 0,   // not used
-            .w = 0,   // not write protected
-            .udt = 3, // resident
-        };
-        entry[i] = ptp;
-        LTRACEF_LEVEL(2, "real addr: %lx, index %u, shifted index %u\n", pa, get_l1_index(vaddr), (get_l1_index(vaddr) << L1_REPEAT_SHIFT) + i);
-    }
-}
-
-__NO_INLINE static void map_l2(volatile pte_t *table, vaddr_t vaddr, paddr_t addr, uint flags) {
-    const unsigned int idx = get_l2_index(vaddr);
-    LTRACEF_LEVEL(2, "vaddr %#lx paddr %#lx, shifted idx: %u\n", vaddr, addr, idx);
-
-    DEBUG_ASSERT(idx < L2_ENTRIES);
-
-    // derive permissions from ARCH_MMU flags
-    const bool user = (flags & ARCH_MMU_FLAG_PERM_USER) != 0;
-    const bool ro = (flags & ARCH_MMU_FLAG_PERM_WRITE) == 0;
-    uint cm;
-    switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
-        case ARCH_MMU_FLAG_UNCACHED:
-            cm = 3; // uncached
-            break;
-        case ARCH_MMU_FLAG_UNCACHED_DEVICE:
-            cm = 2; // device
-            break;
-        case ARCH_MMU_FLAG_CACHED:
-        default:
-            cm = 0; // cacheable
-            break;
-    }
-
-    const pte_t pte = {
-        .page_address = addr >> 12,
-        .g = 0,            // not global
-        .s = user ? 0 : 1, // supervisor bit: 1=kernel, 0=user
-        .cm = cm,          // cache mode
-        .m = 0,            // not modified
-        .u = 0,            // not used
-        .w = ro ? 1 : 0,   // write protect (1=RO)
-        .pdt = 1,          // resident
-    };
-    table[idx] = pte;
-    LTRACEF_LEVEL(2, "mapped l2 idx %u vaddr %#lx to paddr %#lx flags 0x%x (user %u ro %u cm %u)\n",
-                  idx, vaddr, addr, flags, user, ro, cm);
-}
-
-__NO_INLINE static void unmap_l0(volatile root_ptp_t *root_table, vaddr_t vaddr) {
-    LTRACEF("vaddr %#lx\n", vaddr);
-
-    volatile root_ptp_t *entry = get_l0_ptp_base_ptr(root_table, vaddr);
-    for (uint i = 0; i < L0_REPEATS; i++) {
-        entry[i] = (root_ptp_t){0};
-        LTRACEF_LEVEL(2, "index %u, shifted index %u\n", get_l0_index(vaddr), (get_l0_index(vaddr) << L0_REPEAT_SHIFT) + i);
-    }
-}
-
-__NO_INLINE static void unmap_l1(volatile ptp_t *table, vaddr_t vaddr) {
-    LTRACEF("vaddr %#lx\n", vaddr);
-
-    volatile ptp_t *entry = get_l1_ptp_base_ptr(table, vaddr);
-    for (unsigned int i = 0; i < L1_REPEATS; i++) {
-        entry[i] = (ptp_t){0};
-        LTRACEF_LEVEL(2, "index %u, shifted index %u\n", get_l1_index(vaddr), (get_l1_index(vaddr) << L1_REPEAT_SHIFT) + i);
-    }
-}
-
-__NO_INLINE static void unmap_l2(volatile pte_t *table, vaddr_t vaddr) {
-    const unsigned int idx = get_l2_index(vaddr);
-    LTRACEF_LEVEL(2, "vaddr %#lx, shifted idx: %u\n", vaddr, idx);
-
-    DEBUG_ASSERT(idx < L2_ENTRIES);
-
-    table[idx] = (pte_t){0};
-}
-
-static bool is_l1_table_empty(const volatile ptp_t *table) {
-    for (unsigned int i = 0; i < L1_ENTRIES_RAW; i++) {
-        ptp_t entry = table[i];
-        if (entry.udt != 0) {
-            return false;
+// Clear [vaddr, last] (last inclusive) under table at level, stepping over
+// holes. A table below that ends up empty is unlinked and put on freed, unless
+// it is one of the boot tables.
+static void unmap_table(volatile uint32_t *table, int level, vaddr_t vaddr, vaddr_t last,
+                        struct list_node *freed) {
+    if (level == 2) {
+        for (;;) {
+            *pte_entry(table, vaddr) = 0;
+            if (vaddr == ROUNDDOWN(last, PAGE_SIZE)) {
+                return;
+            }
+            vaddr += PAGE_SIZE;
         }
     }
-    return true;
+
+    for (;;) {
+        volatile uint32_t *entry = level_entry(table, level, vaddr);
+        const vaddr_t entry_last = MIN(ROUNDDOWN(vaddr, level_span[level]) + (level_span[level] - 1), last);
+        const uint32_t e = *entry;
+
+        if (udt_resident(e)) {
+            volatile uint32_t *next = next_table(e);
+            unmap_table(next, level + 1, vaddr, entry_last, freed);
+
+            const paddr_t next_pa = e & ~(PAGE_SIZE - 1);
+            if (table_is_empty(next) && !table_is_static(next_pa)) {
+                LTRACEF_LEVEL(2, "unlinking empty table %#lx at level %d\n", next_pa, level + 1);
+                unlink_table(entry, level);
+                vm_page_t *page = paddr_to_vm_page(next_pa);
+                DEBUG_ASSERT(page);
+                list_add_tail(freed, &page->node);
+            }
+        }
+
+        if (entry_last == last) {
+            return;
+        }
+        vaddr = entry_last + 1;
+    }
 }
 
-static bool is_l2_table_empty(const volatile pte_t *table) {
-    for (unsigned int i = 0; i < L2_ENTRIES_RAW; i++) {
-        pte_t entry = table[i];
-        if (entry.pdt != 0) {
-            return false;
+// Unmap [vaddr, vaddr + count pages), flush, and only then hand back the
+// tables that were unlinked.
+static void unmap_range(volatile uint32_t *root, vaddr_t vaddr, uint count) {
+    struct list_node freed = LIST_INITIAL_VALUE(freed);
+    unmap_table(root, 0, vaddr, vaddr + ((vaddr_t)count * PAGE_SIZE - 1), &freed);
+    tlb_flush_all();
+    pmm_free(&freed);
+}
+
+// Give every page in [vaddr, last] the write protect bit wp. With check_only
+// nothing is written, and the walk only reports ERR_INVALID_ARGS on an uncached
+// page when execute is asked for.
+static status_t protect_table(volatile uint32_t *table, int level, vaddr_t vaddr, vaddr_t last,
+                              uint32_t wp, bool execute, bool check_only) {
+    if (level == 2) {
+        for (;;) {
+            volatile uint32_t *entry = pte_entry(table, vaddr);
+            const uint32_t e = *entry;
+            if (pdt_resident(e)) {
+                if (check_only) {
+                    const uint cm = (e & PTE_CM_MASK) >> PTE_CM_SHIFT;
+                    if (execute && (cm == CM_UNCACHED || cm == CM_UNCACHED_SERIALIZED)) {
+                        return ERR_INVALID_ARGS;
+                    }
+                } else {
+                    *entry = (e & ~DESC_W) | wp;
+                }
+            }
+            if (vaddr == ROUNDDOWN(last, PAGE_SIZE)) {
+                return NO_ERROR;
+            }
+            vaddr += PAGE_SIZE;
         }
     }
-    return true;
+
+    for (;;) {
+        const uint32_t e = *level_entry(table, level, vaddr);
+        const vaddr_t entry_last = MIN(ROUNDDOWN(vaddr, level_span[level]) + (level_span[level] - 1), last);
+
+        if (udt_resident(e)) {
+            status_t err = protect_table(next_table(e), level + 1, vaddr, entry_last, wp, execute,
+                                         check_only);
+            if (err != NO_ERROR) {
+                return err;
+            }
+        }
+
+        if (entry_last == last) {
+            return NO_ERROR;
+        }
+        vaddr = entry_last + 1;
+    }
 }
 
 #define MMU_REG_ACCESSOR(reg)                                       \
@@ -359,198 +383,6 @@ static void dump_mmu_regs(void) {
     printf("URP %#x\n", get_urp());
     printf("SRP %#x\n", get_srp());
 }
-
-static bool is_l0_entry_valid(root_ptp_t entry) {
-    // 0, 1 == invalid
-    // 2, 3 == valid
-    return entry.udt >= 2;
-}
-
-static bool is_l1_entry_valid(ptp_t entry) {
-    // 0, 1 == invalid
-    // 2, 3 == valid
-    return entry.udt >= 2;
-}
-
-static bool is_l2_entry_valid(pte_t entry) {
-    // 0 == invalid
-    // 1, 2 == valid
-    // 3 == indirect pointer (unused)
-    return entry.pdt == 1 || entry.pdt == 2;
-}
-
-static status_t map_range_table(volatile root_ptp_t *root_table, vaddr_t va, paddr_t pa, size_t len_minus_one, uint flags) {
-    DEBUG_ASSERT(IS_ALIGNED(va, PAGE_SIZE));
-    DEBUG_ASSERT(IS_ALIGNED(pa, PAGE_SIZE));
-    DEBUG_ASSERT(IS_ALIGNED(len_minus_one + 1, PAGE_SIZE));
-
-    LTRACEF("va %#lx pa %#lx len %#zx, root_table %p\n", va, pa, len_minus_one + 1, root_table);
-
-    const vaddr_t terminal_va = va + len_minus_one + 1;
-
-    // iterate over the L0 level
-    for (;;) {
-        const root_ptp_t l0_entry = *get_l0_ptp_base_ptr(root_table, va);
-        volatile ptp_t *l1_pgtable;
-        if (!is_l0_entry_valid(l0_entry)) {
-            // allocate a page table
-            paddr_t pgtable;
-            status_t err = alloc_pgtable(&pgtable);
-            if (err < 0) {
-                TRACEF("error allocating L1 page table\n");
-                return err;
-            }
-            // zero the new page table before linking it in
-            l1_pgtable = (volatile ptp_t *)paddr_to_kvaddr(pgtable);
-            memset((void *)l1_pgtable, 0, PAGE_SIZE);
-            map_l0(root_table, va, pgtable);
-        } else {
-            l1_pgtable = (volatile ptp_t *)paddr_to_kvaddr((paddr_t)l0_entry.table_address << 9);
-        }
-
-        LTRACEF_LEVEL(2, "l1_pgtable %p\n", l1_pgtable);
-
-        // iterate over the L1 level
-        do {
-            const ptp_t l1_entry = *get_l1_ptp_base_ptr(l1_pgtable, va);
-            volatile pte_t *l2_pgtable;
-            if (!is_l1_entry_valid(l1_entry)) {
-                // allocate a page table
-                paddr_t pgtable;
-                status_t err = alloc_pgtable(&pgtable);
-                if (err < 0) {
-                    TRACEF("error allocating L2 page table\n");
-                    return err;
-                }
-                // zero the new page table before linking it in
-                l2_pgtable = (volatile pte_t *)paddr_to_kvaddr(pgtable);
-                memset((void *)l2_pgtable, 0, PAGE_SIZE);
-                map_l1(l1_pgtable, va, pgtable);
-            } else {
-                l2_pgtable = (volatile pte_t *)paddr_to_kvaddr((paddr_t)l1_entry.table_address << 8);
-            }
-
-            LTRACEF_LEVEL(2, "l2_pgtable %p\n", l2_pgtable);
-
-            // for every L2 page table entry, map a page
-            do {
-                map_l2(l2_pgtable, va, pa, flags);
-                va += PAGE_SIZE;
-                pa += PAGE_SIZE;
-
-                // If we hit the terminal address, stop
-                if (va == terminal_va) {
-                    return NO_ERROR;
-                }
-            } while (get_l2_index(va) != 0);
-        } while (get_l1_index(va) != 0);
-    }
-    return NO_ERROR;
-}
-
-// Alignment helper functions
-static inline vaddr_t align_up_to_block(vaddr_t va, unsigned int shift) {
-    return (va + (1u << shift)) & ~((1u << shift) - 1);
-}
-
-static inline vaddr_t align_down_to_block(vaddr_t va, unsigned int shift) {
-    return va & ~((1u << shift) - 1);
-}
-
-// TLB flush helpers
-static inline void tlb_flush_all(void) {
-    asm volatile("pflusha" ::: "memory");
-}
-
-static inline void tlb_flush_user(void) {
-    // Fallback: flush all translations; selective user flush requires proper pflush encoding
-    asm volatile("pflusha" ::: "memory");
-}
-
-static status_t unmap_range_table(volatile root_ptp_t *root_table, vaddr_t va, size_t len_minus_one) {
-    DEBUG_ASSERT(IS_ALIGNED(va, PAGE_SIZE));
-    DEBUG_ASSERT(IS_ALIGNED(len_minus_one + 1, PAGE_SIZE));
-
-    size_t remaining = len_minus_one + 1;
-
-    // iterate over the L0 level
-    for (;;) {
-        const root_ptp_t l0_entry = *get_l0_ptp_base_ptr(root_table, va);
-        if (!is_l0_entry_valid(l0_entry)) {
-            // If L0 entry is invalid, there's nothing to unmap, jump to next L0 block
-            vaddr_t next_va = align_up_to_block(va, L0_VADDR_SHIFT);
-            size_t skip_size = next_va - va;
-            if (skip_size >= remaining) {
-                return NO_ERROR;
-            }
-            va = next_va;
-            remaining -= skip_size;
-            continue;
-        }
-
-        volatile ptp_t *l1_pgtable = (volatile ptp_t *)paddr_to_kvaddr((paddr_t)l0_entry.table_address << 9);
-        vaddr_t l1_block_start_va = align_down_to_block(va, L1_VADDR_SHIFT);
-
-        // iterate over the L1 level
-        do {
-            const ptp_t l1_entry = *get_l1_ptp_base_ptr(l1_pgtable, va);
-            if (!is_l1_entry_valid(l1_entry)) {
-                // If L1 entry is invalid, there's nothing to unmap, jump to next L1 block
-                vaddr_t next_va = align_up_to_block(va, L1_VADDR_SHIFT);
-                size_t skip_size = next_va - va;
-                if (skip_size >= remaining) {
-                    return NO_ERROR;
-                }
-                va = next_va;
-                remaining -= skip_size;
-                l1_block_start_va = align_down_to_block(va, L1_VADDR_SHIFT);
-                break;
-            }
-
-            volatile pte_t *l2_pgtable = (volatile pte_t *)paddr_to_kvaddr((paddr_t)l1_entry.table_address << 8);
-            vaddr_t l2_block_start_va = va;
-
-            // for every L2 page table entry, unmap a page
-            do {
-                unmap_l2(l2_pgtable, va);
-                va += PAGE_SIZE;
-                remaining -= PAGE_SIZE;
-
-                // If we've unmapped everything, check for empty tables and return
-                if (remaining == 0) {
-                    // Check if L2 table is now empty
-                    if (is_l2_table_empty(l2_pgtable)) {
-                        unmap_l1(l1_pgtable, l2_block_start_va);
-                        // Check if L1 table is now empty
-                        if (is_l1_table_empty(l1_pgtable)) {
-                            unmap_l0(root_table, l1_block_start_va);
-                        }
-                    }
-                    return NO_ERROR;
-                }
-            } while (get_l2_index(va) != 0);
-
-            // We've finished unmapping all L2 entries in this L1 block
-            // Check if L2 table is now empty
-            if (is_l2_table_empty(l2_pgtable)) {
-                unmap_l1(l1_pgtable, va - PAGE_SIZE);
-                // Free the L2 page table page back to PMM
-                free_pgtable(l1_entry.table_address << 8);
-            }
-        } while (get_l1_index(va) != 0);
-
-        // We've finished unmapping all L1 entries in this L0 block
-        // Check if L1 table is now empty
-        if (is_l1_table_empty(l1_pgtable)) {
-            unmap_l0(root_table, va - PAGE_SIZE);
-            // Free the L1 page table page back to PMM
-            free_pgtable(l0_entry.table_address << 9);
-        }
-    }
-    return NO_ERROR;
-}
-
-// Default stub implementations for arch_mmu routines
 
 bool arch_mmu_supports_nx_mappings(void) {
     return false;
@@ -607,19 +439,15 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
         return NO_ERROR;
     }
 
-    // Template: clear pointers. Freeing physical memory may require PMM helpers.
-    if (aspace->pgtable_virt) {
-        // Clear the table content to avoid leaving stale entries
-        memset(aspace->pgtable_virt, 0, PAGE_SIZE);
+    // nothing mapped means no table below the root
+    const volatile uint32_t *root = aspace->pgtable_virt;
+    for (uint i = 0; i < L0_ENTRIES_RAW; i++) {
+        DEBUG_ASSERT_MSG(root[i] == 0, "aspace %p still has a table at root entry %u\n", aspace, i);
     }
 
-    // Free the root page table page back to PMM if it was allocated
-    if (aspace->pgtable_phys) {
-        vm_page_t *page = paddr_to_vm_page(aspace->pgtable_phys);
-        if (page) {
-            pmm_free_page(page);
-        }
-    }
+    vm_page_t *page = paddr_to_vm_page(aspace->pgtable_phys);
+    DEBUG_ASSERT(page);
+    pmm_free_page(page);
 
     aspace->pgtable_phys = 0;
     aspace->pgtable_virt = NULL;
@@ -632,22 +460,11 @@ status_t arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint 
             aspace, vaddr, paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
-    if (count == 0) {
-        return 0;
-    }
 
-    if (flags & ARCH_MMU_FLAG_NS) {
-        return ERR_INVALID_ARGS;
-    }
-
-    // There are no write-only or execute-only mappings. Leaving out EXECUTE is
-    // accepted, but the 68040 has no NX so the page stays executable.
-    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
-        return ERR_INVALID_ARGS;
-    }
-
-    // Only support page-aligned mappings
-    if (!IS_ALIGNED(vaddr, PAGE_SIZE) || !IS_ALIGNED(paddr, PAGE_SIZE)) {
+    // Leaving out EXECUTE is accepted, but the 68040 has no NX so the page
+    // stays executable.
+    if (!IS_ALIGNED(vaddr, PAGE_SIZE) || !IS_ALIGNED(paddr, PAGE_SIZE) ||
+        !arch_mmu_paddr_range_valid(paddr, count, 32) || !arch_mmu_flags_valid(flags)) {
         return ERR_INVALID_ARGS;
     }
 
@@ -655,20 +472,52 @@ status_t arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint 
         return ERR_OUT_OF_RANGE;
     }
 
-    size_t len_minus_one = (size_t)count * PAGE_SIZE - 1;
+    if (count == 0) {
+        return NO_ERROR;
+    }
 
-    volatile root_ptp_t *root = aspace->pgtable_virt;
-    status_t st = map_range_table(root, vaddr, paddr, len_minus_one, flags);
-    return st;
+    uint cm;
+    switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
+        case ARCH_MMU_FLAG_UNCACHED:
+            cm = CM_UNCACHED;
+            break;
+        case ARCH_MMU_FLAG_UNCACHED_DEVICE:
+            cm = CM_UNCACHED_SERIALIZED;
+            break;
+        default:
+            cm = CM_CACHED_WRITETHROUGH;
+            break;
+    }
+    const uint32_t pte_flags = (cm << PTE_CM_SHIFT) |
+                               ((flags & ARCH_MMU_FLAG_PERM_USER) ? 0 : PTE_S) |
+                               ((flags & ARCH_MMU_FLAG_PERM_WRITE) ? 0 : DESC_W) |
+                               DESC_DT_RESIDENT;
+
+    volatile uint32_t *root = aspace->pgtable_virt;
+    status_t err = NO_ERROR;
+    for (uint i = 0; i < count; i++) {
+        const vaddr_t offset = (vaddr_t)i * PAGE_SIZE;
+        err = map_page(root, vaddr + offset, (paddr + offset) | pte_flags);
+        if (err != NO_ERROR) {
+            // Take back what went in: the pages before a collision, or through
+            // the page a table was missing for, so an empty table linked for it
+            // goes as well.
+            const uint done = i + (err == ERR_NO_MEMORY ? 1 : 0);
+            if (done > 0) {
+                unmap_range(root, vaddr, done);
+            }
+            return err;
+        }
+    }
+
+    tlb_flush_all();
+    return NO_ERROR;
 }
 
 status_t arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     LTRACEF("aspace %p, vaddr %#lx, count %u\n", aspace, vaddr, count);
 
     DEBUG_ASSERT(aspace);
-    if (count == 0) {
-        return 0;
-    }
 
     if (!IS_ALIGNED(vaddr, PAGE_SIZE)) {
         return ERR_INVALID_ARGS;
@@ -678,58 +527,84 @@ status_t arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
         return ERR_OUT_OF_RANGE;
     }
 
-    size_t len_minus_one = (size_t)count * PAGE_SIZE - 1;
-    volatile root_ptp_t *root = aspace->pgtable_virt;
-    status_t st = unmap_range_table(root, vaddr, len_minus_one);
-    if (st == NO_ERROR) {
-        tlb_flush_all();
+    if (count == 0) {
+        return NO_ERROR;
     }
-    return st;
+
+    unmap_range(aspace->pgtable_virt, vaddr, count);
+    return NO_ERROR;
+}
+
+status_t arch_mmu_protect(arch_aspace_t *aspace, vaddr_t vaddr, uint count, uint flags) {
+    LTRACEF("aspace %p, vaddr %#lx, count %u, flags %#x\n", aspace, vaddr, count, flags);
+
+    DEBUG_ASSERT(aspace);
+
+    if (!IS_ALIGNED(vaddr, PAGE_SIZE) || !arch_mmu_protect_flags_valid(flags)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    if (!arch_mmu_range_in_aspace(aspace, vaddr, count)) {
+        return ERR_OUT_OF_RANGE;
+    }
+
+    if (count == 0) {
+        return NO_ERROR;
+    }
+
+    // without NX, EXECUTE changes nothing but is still refused on uncached memory
+    volatile uint32_t *root = aspace->pgtable_virt;
+    const vaddr_t last = vaddr + ((vaddr_t)count * PAGE_SIZE - 1);
+    const bool execute = flags & ARCH_MMU_FLAG_PERM_EXECUTE;
+    const uint32_t wp = (flags & ARCH_MMU_FLAG_PERM_WRITE) ? 0 : DESC_W;
+
+    if (execute) {
+        status_t err = protect_table(root, 0, vaddr, last, wp, true, true);
+        if (err != NO_ERROR) {
+            return err;
+        }
+    }
+
+    protect_table(root, 0, vaddr, last, wp, execute, false);
+    tlb_flush_all();
+    return NO_ERROR;
 }
 
 status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
     LTRACEF("aspace %p, vaddr %#lx\n", aspace, vaddr);
 
+    DEBUG_ASSERT(aspace);
+
     if (!arch_mmu_range_in_aspace(aspace, vaddr, 1)) {
         return ERR_OUT_OF_RANGE;
     }
 
-    // Disable interrupts around the ptest instruction in case we get preempted
-    arch_interrupt_saved_state_t state = arch_interrupt_save();
-
-    // Use the PTEST instruction to probe the translation
-    uint32_t mmusr;
-    asm volatile(
-        "ptestr (%1)\n"
-        "movec %%mmusr, %0"
-        : "=r"(mmusr) : "a"(vaddr) : "memory");
-
-    arch_interrupt_restore(state);
-
-    LTRACEF("vaddr %#x, mmusr %#x\n", (uint32_t)vaddr, mmusr);
-    if ((mmusr & 0x1) == 0) {
+    // the aspace's own tables, not the live MMU: the transparent translation
+    // windows are not part of any aspace
+    const volatile uint32_t *entry = lookup_pte(aspace->pgtable_virt, vaddr);
+    if (!entry || !pdt_resident(*entry)) {
         return ERR_NOT_FOUND;
     }
+    const uint32_t pte = *entry;
+    LTRACEF("vaddr %#lx, pte %#x\n", vaddr, pte);
 
-    // extract the physical address from the mmusr
     if (paddr) {
-        *paddr = (mmusr & 0xfffff000) | (vaddr & 0xfff);
+        *paddr = (pte & PTE_PAGE_MASK) | (vaddr & (PAGE_SIZE - 1));
     }
     if (flags) {
         // without NX every page can be executed
         *flags = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_EXECUTE;
-        *flags |= (mmusr & (1 << 2)) ? 0 : ARCH_MMU_FLAG_PERM_WRITE;
-        *flags |= (mmusr & (1 << 7)) ? 0 : ARCH_MMU_FLAG_PERM_USER;
-        uint32_t cm = mmusr & (3 << 5);
-        switch (cm) {
-            case 0:
-            case 1:
+        *flags |= (pte & DESC_W) ? 0 : ARCH_MMU_FLAG_PERM_WRITE;
+        *flags |= (pte & PTE_S) ? 0 : ARCH_MMU_FLAG_PERM_USER;
+        switch ((pte & PTE_CM_MASK) >> PTE_CM_SHIFT) {
+            case CM_CACHED_WRITETHROUGH:
+            case CM_CACHED_COPYBACK:
                 *flags |= ARCH_MMU_FLAG_CACHED;
                 break;
-            case 2:
+            case CM_UNCACHED_SERIALIZED:
                 *flags |= ARCH_MMU_FLAG_UNCACHED_DEVICE;
                 break;
-            case 3:
+            case CM_UNCACHED:
                 *flags |= ARCH_MMU_FLAG_UNCACHED;
                 break;
         }
