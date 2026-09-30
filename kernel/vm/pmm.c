@@ -149,7 +149,7 @@ vm_page_t *pmm_alloc_page(void) {
 
     DEBUG_ASSERT(ret == 1);
 
-    return list_peek_head_type(&list, vm_page_t, node);
+    return list_remove_head_type(&list, vm_page_t, node);
 }
 
 size_t pmm_alloc_range(paddr_t address, uint count, struct list_node *list) {
@@ -248,6 +248,9 @@ void *pmm_alloc_kpages(uint count, struct list_node *list) {
         vm_page_t *p = pmm_alloc_page();
         if (!p) {
             return NULL;
+        }
+        if (list) {
+            list_add_tail(list, &p->node);
         }
 
         return paddr_to_kvaddr(vm_page_to_paddr(p));

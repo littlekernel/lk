@@ -132,7 +132,7 @@ status_t pmm_add_arena(pmm_arena_t *arena) __NONNULL((1));
 // Returns the number of pages allocated.
 size_t pmm_alloc_pages(uint count, struct list_node *list) __NONNULL((2));
 
-// Allocate a single page
+// Allocate a single page, not on any list.
 vm_page_t *pmm_alloc_page(void);
 
 // Allocate a specific range of physical pages, adding to the tail of the passed list.
