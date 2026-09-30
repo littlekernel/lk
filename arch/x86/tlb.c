@@ -7,6 +7,7 @@
  */
 
 #include <arch/x86.h>
+#include <arch/x86/feature.h>
 #include <arch/x86/mmu.h>
 #include <kernel/mp.h>
 #include <lk/trace.h>
@@ -26,14 +27,17 @@ static void x86_tlb_shootdown_task(void *arg) {
 
     if (args->count > X86_TLB_SHOOTDOWN_MAX_PAGES) {
         /* Reloading cr3 leaves global entries alone, and kernel pages are
-         * global, so turn PGE off and on around it when it is in use. */
-        ulong cr4 = x86_get_cr4();
-        if (cr4 & X86_CR4_PGE) {
-            x86_set_cr4(cr4 & ~X86_CR4_PGE);
-            x86_set_cr4(cr4);
-        } else {
-            x86_set_cr3(x86_get_cr3());
+         * global, so turn PGE off and on around it when it is in use. A cpu
+         * without PGE may have no cr4 at all. */
+        if (x86_feature_test(X86_FEATURE_PGE)) {
+            ulong cr4 = x86_get_cr4();
+            if (cr4 & X86_CR4_PGE) {
+                x86_set_cr4(cr4 & ~X86_CR4_PGE);
+                x86_set_cr4(cr4);
+                return;
+            }
         }
+        x86_set_cr3(x86_get_cr3());
         return;
     }
 

@@ -19,12 +19,18 @@
 #define X86_MMU_PG_P          0x001 /* P    Valid                   */
 #define X86_MMU_PG_RW         0x002 /* R/W  Read/Write              */
 #define X86_MMU_PG_U          0x004 /* U/S  User/Supervisor         */
+#define X86_MMU_PG_PWT        0x008 /* PWT  Write through           */
 #define X86_MMU_PG_PS         0x080 /* PS   Page size (0=4k,1=4M)   */
 #define X86_MMU_PG_PTE_PAT    0x080 /* PAT  PAT index               */
 #define X86_MMU_PG_G          0x100 /* G    Global                  */
 #define X86_MMU_CLEAR         0x0
 #define X86_DIRTY_ACCESS_MASK 0xf9f
 #define X86_MMU_CACHE_DISABLE 0x010 /* C Cache disable */
+
+/* The PAT the kernel programs, the power on default: PAT:PCD:PWT index 0 is
+ * write back, 2 (PCD) uncached minus and 3 (PCD|PWT) uncached. The entries
+ * never set the PAT bit. */
+#define X86_PAT_DEFAULT 0x0007040600070406ULL
 
 #if !X86_LEGACY
 /* default flags for inner page directory entries */

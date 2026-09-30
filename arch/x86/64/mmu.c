@@ -36,6 +36,7 @@ static uint8_t paddr_width = 0;
 static bool supports_huge_pages;
 static bool supports_invpcid;
 static bool supports_pcid;
+static bool supports_nx;
 
 /* top level kernel page tables, initialized in start.S */
 map_addr_t kernel_pml4[NO_OF_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
@@ -163,11 +164,18 @@ static arch_flags_t get_x86_arch_flags(uint flags) {
         arch_flags |= X86_MMU_PG_U;
     }
 
-    if (flags & ARCH_MMU_FLAG_UNCACHED) {
-        arch_flags |= X86_MMU_CACHE_DISABLE;
+    /* PAT indexes 2 and 3 of X86_PAT_DEFAULT */
+    switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
+        case ARCH_MMU_FLAG_UNCACHED:
+            arch_flags |= X86_MMU_CACHE_DISABLE;
+            break;
+        case ARCH_MMU_FLAG_UNCACHED_DEVICE:
+            arch_flags |= X86_MMU_CACHE_DISABLE | X86_MMU_PG_PWT;
+            break;
     }
 
-    if (!(flags & ARCH_MMU_FLAG_PERM_EXECUTE)) {
+    /* without NX the bit is reserved */
+    if (!(flags & ARCH_MMU_FLAG_PERM_EXECUTE) && supports_nx) {
         arch_flags |= X86_MMU_PG_NX;
     }
 
@@ -189,7 +197,7 @@ static uint get_arch_mmu_flags(arch_flags_t flags) {
     }
 
     if (flags & X86_MMU_CACHE_DISABLE) {
-        mmu_flags |= ARCH_MMU_FLAG_UNCACHED;
+        mmu_flags |= (flags & X86_MMU_PG_PWT) ? ARCH_MMU_FLAG_UNCACHED_DEVICE : ARCH_MMU_FLAG_UNCACHED;
     }
 
     if (!(flags & X86_MMU_PG_NX)) {
@@ -270,56 +278,45 @@ last:
     return NO_ERROR;
 }
 
-static void update_pt_entry(vaddr_t vaddr, uint64_t pde, paddr_t paddr, arch_flags_t flags) {
+/* Each entry is composed in full and stored once, so the walker never sees a
+ * half written one. A leaf is global exactly when it belongs to the kernel
+ * aspace: a global entry survives the cr3 load of a context switch, so one in
+ * a user aspace would leak into the next. */
+static void update_pt_entry(vaddr_t vaddr, uint64_t pde, paddr_t paddr, arch_flags_t flags,
+                            bool global) {
     uint64_t *pt_table = paddr_to_kvaddr(get_pfn_from_pte(pde));
     uint32_t pt_index = (((uint64_t)vaddr >> PT_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pt_table[pt_index] = paddr;
-    pt_table[pt_index] |= flags | X86_MMU_PG_P;
-    if (!(flags & X86_MMU_PG_U)) {
-        pt_table[pt_index] |= X86_MMU_PG_G; /* setting global flag for kernel pages */
-    }
-    LTRACEF_LEVEL(2, "writing entry %#llx in pt %p at index %u\n", pt_table[pt_index], pt_table,
-                  pt_index);
+    const uint64_t entry = paddr | flags | X86_MMU_PG_P | (global ? X86_MMU_PG_G : 0);
+    pt_table[pt_index] = entry;
+    LTRACEF_LEVEL(2, "writing entry %#llx in pt %p at index %u\n", entry, pt_table, pt_index);
 }
 
-static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, map_addr_t paddr, arch_flags_t flags) {
+/* An intermediate entry grants everything and leaves the leaf to decide; in a
+ * user aspace that includes user access, whatever the first mapping below it
+ * asked for. */
+static void update_pd_entry(vaddr_t vaddr, uint64_t pdpe, map_addr_t paddr, bool user) {
     uint64_t *pd_table = paddr_to_kvaddr(get_pfn_from_pte(pdpe));
     uint32_t pd_index = (((uint64_t)vaddr >> PD_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pd_table[pd_index] = paddr;
-    pd_table[pd_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
-    if (flags & X86_MMU_PG_U) {
-        pd_table[pd_index] |= X86_MMU_PG_U;
-    }
-    LTRACEF_LEVEL(2, "writing entry %#llx in pd %p at index %u\n", pd_table[pd_index], pd_table,
-                  pd_index);
+    const uint64_t entry = paddr | X86_MMU_PG_P | X86_MMU_PG_RW | (user ? X86_MMU_PG_U : 0);
+    pd_table[pd_index] = entry;
+    LTRACEF_LEVEL(2, "writing entry %#llx in pd %p at index %u\n", entry, pd_table, pd_index);
 }
 
-static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t paddr, arch_flags_t flags) {
+static void update_pdp_entry(vaddr_t vaddr, uint64_t pml4e, map_addr_t paddr, bool user) {
     uint64_t *pdp_table = paddr_to_kvaddr(get_pfn_from_pte(pml4e));
     uint32_t pdp_index = (((uint64_t)vaddr >> PDP_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pdp_table[pdp_index] = paddr;
-    pdp_table[pdp_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
-    if (flags & X86_MMU_PG_U) {
-        pdp_table[pdp_index] |= X86_MMU_PG_U;
-    }
-    LTRACEF_LEVEL(2, "writing entry %#llx in pdp %p at index %u\n", pdp_table[pdp_index], pdp_table,
-                  pdp_index);
+    const uint64_t entry = paddr | X86_MMU_PG_P | X86_MMU_PG_RW | (user ? X86_MMU_PG_U : 0);
+    pdp_table[pdp_index] = entry;
+    LTRACEF_LEVEL(2, "writing entry %#llx in pdp %p at index %u\n", entry, pdp_table, pdp_index);
 }
 
-static void update_pml4_entry(vaddr_t vaddr, uint64_t *pml4_table, map_addr_t paddr,
-                              arch_flags_t flags) {
+/* Explicitly do not set the G bit here for kernel pages. Intel cores ignore the
+ * G bit on PML4 entries, but AMD cores treat it as MBZ. */
+static void update_pml4_entry(vaddr_t vaddr, uint64_t *pml4_table, map_addr_t paddr, bool user) {
     uint32_t pml4_index = (((uint64_t)vaddr >> PML4_SHIFT) & ((1ul << ADDR_OFFSET) - 1));
-    pml4_table[pml4_index] = paddr;
-    pml4_table[pml4_index] |= X86_MMU_PG_P | X86_MMU_PG_RW;
-    if (flags & X86_MMU_PG_U) {
-        pml4_table[pml4_index] |= X86_MMU_PG_U;
-    }
-
-    /* Explicitly do not set the G bit here for kernel pages. Intel cores
-     * ignore the G bit on PML4 entries, but AMD cores treat it as MBZ.
-     */
-    LTRACEF_LEVEL(2, "writing entry %#llx in pml4 %p at index %u\n", pml4_table[pml4_index],
-                  pml4_table, pml4_index);
+    const uint64_t entry = paddr | X86_MMU_PG_P | X86_MMU_PG_RW | (user ? X86_MMU_PG_U : 0);
+    pml4_table[pml4_index] = entry;
+    LTRACEF_LEVEL(2, "writing entry %#llx in pml4 %p at index %u\n", entry, pml4_table, pml4_index);
 }
 
 /**
@@ -342,6 +339,9 @@ static map_addr_t *alloc_page_table(paddr_t *pa_out) {
     DEBUG_ASSERT(page_ptr);
 
     memset(page_ptr, 0, PAGE_SIZE);
+    /* the zeroes are stored before the entry that links the table; x86 keeps
+     * stores in order, so only the compiler has to be told */
+    __asm__ volatile("" ::: "memory");
     if (pa_out) {
         *pa_out = pa;
     }
@@ -373,6 +373,7 @@ static status_t x86_mmu_add_mapping(uint64_t *const pml4, const map_addr_t paddr
 
     /* track at every level if we had to allocate a new page table for eventual cleanup code */
     bool pdp_new = false, pd_new = false, pt_new = false;
+    const bool kernel = pml4 == kernel_pml4;
 
     uint64_t pdpe = 0;
     uint64_t pml4e = get_pml4_entry_from_pml4_table(vaddr, pml4);
@@ -387,7 +388,7 @@ static status_t x86_mmu_add_mapping(uint64_t *const pml4, const map_addr_t paddr
 
         LTRACEF_LEVEL(2, "new pdp pml4 %p m %p pa %#lx\n", pml4, m, pa);
 
-        update_pml4_entry(vaddr, pml4, pa, get_x86_arch_flags(mmu_flags));
+        update_pml4_entry(vaddr, pml4, pa, !kernel);
         pml4e = pa | X86_MMU_PG_P;
         pdp_new = true;
     } else {
@@ -408,7 +409,7 @@ static status_t x86_mmu_add_mapping(uint64_t *const pml4, const map_addr_t paddr
 
         LTRACEF_LEVEL(2, "new pdp pml4e %#llx m %p pa %#lx\n", pml4e, m, pa);
 
-        update_pdp_entry(vaddr, pml4e, pa, get_x86_arch_flags(mmu_flags));
+        update_pdp_entry(vaddr, pml4e, pa, !kernel);
         pdpe = pa | X86_MMU_PG_P;
         pd_new = true;
     } else {
@@ -431,7 +432,7 @@ static status_t x86_mmu_add_mapping(uint64_t *const pml4, const map_addr_t paddr
 
         LTRACEF_LEVEL(2, "new pt pdpe %#llx m %p pa %#lx\n", pdpe, m, pa);
 
-        update_pd_entry(vaddr, pdpe, pa, get_x86_arch_flags(mmu_flags));
+        update_pd_entry(vaddr, pdpe, pa, !kernel);
         pde = pa | X86_MMU_PG_P;
         pt_new = true;
     } else {
@@ -443,7 +444,7 @@ static status_t x86_mmu_add_mapping(uint64_t *const pml4, const map_addr_t paddr
     DEBUG_ASSERT(pde);
 
     /* Updating the page table entry with the paddr and access flags required for the mapping */
-    update_pt_entry(vaddr, pde, paddr, get_x86_arch_flags(mmu_flags));
+    update_pt_entry(vaddr, pde, paddr, get_x86_arch_flags(mmu_flags), kernel);
 
     return NO_ERROR;
 
@@ -688,7 +689,7 @@ status_t arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const pa
 }
 
 bool arch_mmu_supports_nx_mappings(void) {
-    return true;
+    return supports_nx;
 }
 bool arch_mmu_supports_ns_mappings(void) {
     return false;
@@ -717,10 +718,20 @@ void x86_mmu_early_init_percpu(void) {
         x86_set_cr4(cr4);
     }
 
-    /* Set NXE bit in MSR_EFER */
-    uint64_t efer_msr = read_msr(X86_MSR_IA32_EFER);
-    efer_msr |= X86_EFER_NXE;
-    write_msr(X86_MSR_IA32_EFER, efer_msr);
+    /* Set NXE bit in MSR_EFER, which makes bit 63 of an entry NX rather than reserved */
+    if (x86_feature_test(X86_FEATURE_NX)) {
+        uint64_t efer_msr = read_msr(X86_MSR_IA32_EFER);
+        efer_msr |= X86_EFER_NXE;
+        write_msr(X86_MSR_IA32_EFER, efer_msr);
+    }
+
+    /* The encoding of the cache policies relies on the default PAT, which a
+     * boot through UEFI inherits from the firmware in whatever state it left
+     * it. Nothing is mapped through an entry other than index 0 (write back
+     * in both) yet, so it can be rewritten in place. */
+    if (x86_feature_test(X86_FEATURE_PAT) && read_msr(X86_MSR_IA32_PAT) != X86_PAT_DEFAULT) {
+        write_msr(X86_MSR_IA32_PAT, X86_PAT_DEFAULT);
+    }
 }
 
 void x86_mmu_early_init(void) {
@@ -732,6 +743,7 @@ void x86_mmu_early_init(void) {
     supports_huge_pages = x86_feature_test(X86_FEATURE_PG1G);
     supports_invpcid = x86_feature_test(X86_FEATURE_INVPCID);
     supports_pcid = x86_feature_test(X86_FEATURE_PCID);
+    supports_nx = x86_feature_test(X86_FEATURE_NX);
 
     /* unmap the lower identity mapping */
     kernel_pml4[0] = 0;
@@ -742,8 +754,8 @@ void x86_mmu_early_init(void) {
 
 void x86_mmu_init(void) {
     dprintf(SPEW, "X86: mmu max phys bits %u max virt bits %u\n", paddr_width, vaddr_width);
-    dprintf(SPEW, "X86: mmu features: 1GB pages %u, pcid %u, invpcid %u\n", supports_huge_pages,
-            supports_pcid, supports_invpcid);
+    dprintf(SPEW, "X86: mmu features: 1GB pages %u, pcid %u, invpcid %u, nx %u\n", supports_huge_pages,
+            supports_pcid, supports_invpcid, supports_nx);
 }
 
 /*
