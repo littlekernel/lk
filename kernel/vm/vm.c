@@ -204,7 +204,7 @@ usage:
             return -1;
         }
 
-        int err = arch_mmu_map(&aspace->arch_aspace, argv[3].u, argv[2].u, argv[4].u, argv[5].u);
+        status_t err = arch_mmu_map(&aspace->arch_aspace, argv[3].u, argv[2].u, argv[4].u, argv[5].u);
         printf("arch_mmu_map returns %d\n", err);
     } else if (!strcmp(argv[1].str, "unmap")) {
         if (argc < 4) goto notenoughargs;
@@ -215,7 +215,7 @@ usage:
             return -1;
         }
 
-        int err = arch_mmu_unmap(&aspace->arch_aspace, argv[2].u, argv[3].u);
+        status_t err = arch_mmu_unmap(&aspace->arch_aspace, argv[2].u, argv[3].u);
         printf("arch_mmu_unmap returns %d\n", err);
     } else {
         printf("unknown command\n");

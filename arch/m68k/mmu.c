@@ -627,7 +627,7 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     return NO_ERROR;
 }
 
-int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
+status_t arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) {
     LTRACEF("aspace %p, vaddr %#lx, paddr %#lx, count %u, flags %#x\n",
             aspace, vaddr, paddr, count, flags);
 
@@ -662,7 +662,7 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
     return st;
 }
 
-int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
+status_t arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     LTRACEF("aspace %p, vaddr %#lx, count %u\n", aspace, vaddr, count);
 
     DEBUG_ASSERT(aspace);

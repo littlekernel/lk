@@ -70,7 +70,11 @@ status_t pvclock_init(void) {
     }
 
     paddr_t paddr;
-    arch_mmu_query(&vmm_get_kernel_aspace()->arch_aspace, (vaddr_t)clocksource_page, &paddr, NULL);
+    err = arch_mmu_query(&vmm_get_kernel_aspace()->arch_aspace, (vaddr_t)clocksource_page, &paddr, NULL);
+    if (err != NO_ERROR) {
+        printf("pv_clock: clocksource page not mapped\n");
+        return err;
+    }
     LTRACEF("clocksource page %p, paddr %#" PRIxPTR "\n", clocksource_page, paddr);
 
     write_msr(clocksource_msr_base, paddr);

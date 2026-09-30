@@ -607,7 +607,7 @@ int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, size_t count, F callback
 } // namespace
 
 // routines to map/unmap/query mappings per address space
-int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _paddr, const uint count, const uint flags) {
+status_t arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _paddr, const uint count, const uint flags) {
     LTRACEF("vaddr %#lx paddr %#lx count %u flags %#x\n", _vaddr, _paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
@@ -682,7 +682,7 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _pad
         // was linked for one that did not. Only whole blocks were committed,
         // so the unmap never meets a large page it would have to split.
         if (stats.walked > 0) {
-            __UNUSED int err = arch_mmu_unmap(aspace, _vaddr, stats.walked);
+            __UNUSED status_t err = arch_mmu_unmap(aspace, _vaddr, stats.walked);
             DEBUG_ASSERT(err >= 0);
         }
         if (!list_is_empty(&freed_tables)) {
@@ -812,7 +812,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, const vaddr_t _vaddr, paddr_t *pa
     return riscv_pt_walk(aspace, _vaddr, 1, query_cb, nullptr, nullptr);
 }
 
-int arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint count) {
+status_t arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint count) {
     LTRACEF("vaddr %#lx count %u\n", _vaddr, count);
 
     DEBUG_ASSERT(aspace);

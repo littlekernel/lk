@@ -395,7 +395,7 @@ status_t vmm_alloc_physical(vmm_aspace_t *aspace, const char *name, size_t size,
 
     /* map all of the pages */
     err = arch_mmu_map(&aspace->arch_aspace, r->base, paddr, size / PAGE_SIZE, arch_mmu_flags);
-    if (err < NO_ERROR) {
+    if (err != NO_ERROR) {
         LTRACEF("arch_mmu_map returns %d\n", err);
         goto err_free_r;
     }
@@ -476,7 +476,7 @@ status_t vmm_alloc_contiguous(vmm_aspace_t *aspace, const char *name, size_t siz
 
     /* map all of the pages */
     err = arch_mmu_map(&aspace->arch_aspace, r->base, pa, size / PAGE_SIZE, arch_mmu_flags);
-    if (err < NO_ERROR) {
+    if (err != NO_ERROR) {
         LTRACEF("arch_mmu_map returns %d\n", err);
         goto err_free_r;
     }
@@ -572,7 +572,7 @@ status_t vmm_alloc(vmm_aspace_t *aspace, const char *name, size_t size, void **p
         DEBUG_ASSERT(IS_PAGE_ALIGNED(pa));
 
         err = arch_mmu_map(&aspace->arch_aspace, va, pa, 1, arch_mmu_flags);
-        if (err < NO_ERROR) { // TODO: deal with difference between 0 and 1 returns in some arches
+        if (err != NO_ERROR) {
             // add the page back to the list so it gets freed
             list_add_tail(&page_list, &p->node);
             goto err2;

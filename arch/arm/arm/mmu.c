@@ -474,7 +474,7 @@ vaddr_t arch_mmu_pick_spot(vaddr_t base, uint prev_region_flags,
 #endif  /* WITH_ARCH_MMU_PICK_SPOT */
 
 
-int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count, uint flags) {
+status_t arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count, uint flags) {
     LTRACEF("vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", vaddr, paddr, count, flags);
 
     DEBUG_ASSERT(aspace);
@@ -504,7 +504,7 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
         return NO_ERROR;
 
     /* see what kind of mapping we can use */
-    int mapped = 0;
+    status_t err = NO_ERROR;
     while (count > 0) {
         if (IS_SECTION_ALIGNED(vaddr) && IS_SECTION_ALIGNED(paddr) && count >= SECTION_SIZE / PAGE_SIZE) {
             /* we can use a section */
@@ -516,7 +516,6 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
             /* map it */
             arm_mmu_map_section(aspace, paddr, vaddr, arch_flags);
             count -= SECTION_SIZE / PAGE_SIZE;
-            mapped += SECTION_SIZE / PAGE_SIZE;
             vaddr += SECTION_SIZE;
             paddr += SECTION_SIZE;
         } else {
@@ -532,7 +531,8 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
                     break;
                 case MMU_MEMORY_L1_DESCRIPTOR_INVALID: {
                     paddr_t l2_pa = 0;
-                    if (get_l2_table(aspace, l1_index, &l2_pa) != NO_ERROR) {
+                    err = get_l2_table(aspace, l1_index, &l2_pa);
+                    if (err != NO_ERROR) {
                         TRACEF("failed to allocate pagetable\n");
                         goto done;
                     }
@@ -558,7 +558,6 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
                     do {
                         l2_table[l2_index++] = paddr | arch_flags;
                         count--;
-                        mapped++;
                         vaddr += PAGE_SIZE;
                         paddr += PAGE_SIZE;
                     } while (count && (l2_index != (SECTION_SIZE / PAGE_SIZE)));
@@ -572,10 +571,10 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
 
 done:
     DSB;
-    return mapped;
+    return err;
 }
 
-int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
+status_t arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     DEBUG_ASSERT(aspace);
     DEBUG_ASSERT(aspace->tt_virt);
 
@@ -588,7 +587,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
 
     LTRACEF("vaddr 0x%lx count %u\n", vaddr, count);
 
-    int unmapped = 0;
+    status_t err = NO_ERROR;
     while (count > 0) {
         uint l1_index = vaddr / SECTION_SIZE;
         uint32_t tt_entry = aspace->tt_virt[l1_index];
@@ -609,12 +608,11 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
 
                     vaddr += SECTION_SIZE;
                     count -= SECTION_SIZE / PAGE_SIZE;
-                    unmapped += SECTION_SIZE / PAGE_SIZE;
                 } else {
                     // Part of a section would need an L2 table in its place;
                     // refuse, as arch_mmu_unmap() allows. What came before in
                     // the range is already gone, and still gets the barrier.
-                    unmapped = ERR_NOT_SUPPORTED;
+                    err = ERR_NOT_SUPPORTED;
                     goto done;
                 }
                 break;
@@ -635,7 +633,6 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
                     vaddr += PAGE_SIZE;
                 }
                 count -= page_cnt;
-                unmapped += page_cnt;
 
                 /*
                  * Check if all pages related to this l1 entry are deallocated.
@@ -667,7 +664,7 @@ int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     }
 done:
     arm_after_invalidate_tlb_barrier();
-    return unmapped;
+    return err;
 }
 
 status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) {

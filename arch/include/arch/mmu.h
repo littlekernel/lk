@@ -48,9 +48,50 @@ typedef struct arch_aspace arch_aspace_t;
 
 #define ARCH_ASPACE_FLAG_KERNEL         (1U<<0)
 
+/* Whether flags are a valid request for arch_mmu_map(): READ is present, the
+ * cache policy is defined and not an uncached one with EXECUTE (arm forbids
+ * fetching from Device memory), NS only where the arch supports it, and no
+ * INVALID or undefined bit. */
+static inline bool arch_mmu_flags_valid(uint flags) {
+    const uint defined = ARCH_MMU_FLAG_CACHE_MASK | ARCH_MMU_FLAG_PERM_USER |
+                         ARCH_MMU_FLAG_PERM_RWX_MASK | ARCH_MMU_FLAG_NS;
+    if ((flags & ~defined) || !(flags & ARCH_MMU_FLAG_PERM_READ)) {
+        return false;
+    }
+    switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
+        case ARCH_MMU_FLAG_CACHED:
+            break;
+        case ARCH_MMU_FLAG_UNCACHED:
+        case ARCH_MMU_FLAG_UNCACHED_DEVICE:
+            if (flags & ARCH_MMU_FLAG_PERM_EXECUTE) {
+                return false;
+            }
+            break;
+        default:
+            return false;
+    }
+    return !(flags & ARCH_MMU_FLAG_NS) || arch_mmu_supports_ns_mappings();
+}
+
+/* Whether flags are a valid permission set for arch_mmu_protect(): R/W/X bits
+ * only, READ among them. */
+static inline bool arch_mmu_protect_flags_valid(uint flags) {
+    return !(flags & ~ARCH_MMU_FLAG_PERM_RWX_MASK) && (flags & ARCH_MMU_FLAG_PERM_READ);
+}
+
+/* Whether [paddr, paddr + count pages) neither wraps nor runs past a physical
+ * address width of bits. */
+static inline bool arch_mmu_paddr_range_valid(paddr_t paddr, uint count, uint bits) {
+    uint64_t last = (paddr_t)-1;
+    if (bits < 64 && last > ((uint64_t)1 << bits) - 1) {
+        last = ((uint64_t)1 << bits) - 1;
+    }
+    const uint64_t size = (uint64_t)count << PAGE_SIZE_SHIFT;
+    return paddr <= last && (size == 0 || size - 1 <= last - paddr);
+}
+
 /* [vaddr, vaddr + count pages) lies inside the aspace. Computed so an aspace
- * that runs to the top of the address space does not overflow. Map, unmap and
- * query return ERR_OUT_OF_RANGE for anything outside. */
+ * that runs to the top of the address space does not overflow. */
 static inline bool arch_mmu_range_in_aspace(const arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
     if (vaddr < aspace->base || vaddr > aspace->base + aspace->size - 1) {
         return false;
@@ -59,19 +100,69 @@ static inline bool arch_mmu_range_in_aspace(const arch_aspace_t *aspace, vaddr_t
     return count <= pages_left;
 }
 
-/* initialize per address space */
+/* Initialize per address space. Destroy frees the top level table; the aspace
+ * must have no mappings left and be loaded on no cpu. Destroy asserts the
+ * first; x86 and arm32 cannot check the second. */
 status_t arch_mmu_init_aspace(arch_aspace_t *aspace, vaddr_t base, size_t size, uint flags) __NONNULL((1));
 status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) __NONNULL((1));
 
-/* Routines to map/unmap/query mappings per address space. A map that fails
- * leaves nothing of its range behind. An unmap may refuse part of its range
- * with ERR_NOT_SUPPORTED where the arch would have to split a large page or
- * write a top level entry it keeps fixed; what came before that point in the
- * range is already unmapped by then. The vmm only ever unmaps exactly the
- * ranges it mapped. */
-int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) __NONNULL((1));
-int arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) __NONNULL((1));
+/*
+ * Map, unmap, query and protect, the same on every arch.
+ *
+ * Arguments are checked first, count == 0 included; only then does a count
+ * of 0 return NO_ERROR, having touched nothing.
+ *  - vaddr must be page aligned (query takes any vaddr). For map so must paddr
+ *    be, and [paddr, paddr + count pages) may neither wrap nor run past the
+ *    arch's physical address width. Else ERR_INVALID_ARGS.
+ *  - [vaddr, vaddr + count pages) must lie inside the aspace, else
+ *    ERR_OUT_OF_RANGE.
+ *  - Map's flags must pass arch_mmu_flags_valid(), protect's
+ *    arch_mmu_protect_flags_valid(), else ERR_INVALID_ARGS.
+ *
+ * Each returns NO_ERROR or a negative error, never a count, and one that fails
+ * leaves the mappings as they were (a table already empty may be freed on the
+ * way). On return no cpu uses a translation that unmap or protect removed or
+ * changed, the pages map added are usable from every cpu, and the tables an
+ * unmap emptied are freed, after the shootdown.
+ *
+ * The caller serializes the calls that change an aspace, and keeps interrupts
+ * enabled while other cpus are up: riscv and x86 shoot down through
+ * mp_sync_exec.
+ *
+ * map: every page in the range must be unmapped, else ERR_ALREADY_EXISTS; a
+ * page under a large page counts as mapped, an existing lower level table does
+ * not. A page table allocation failure is ERR_NO_MEMORY. Either way the pages
+ * the call mapped and the tables it linked are removed again. The arch may use
+ * large pages where vaddr, paddr and count line up.
+ *
+ * unmap: holes are skipped, so a range with nothing mapped succeeds. A range
+ * that covers part of a large page (only its two ends can) or touches an entry
+ * the arch keeps fixed (the riscv physmap leaves, the x86-32 kernel physmap) is
+ * refused with ERR_NOT_SUPPORTED before anything changes. Emptied tables are
+ * freed, except the ones the arch keeps for good: static boot tables, riscv's
+ * static kernel tables, every x86-32 table under a kernel directory entry and
+ * x86-64's kernel_pml4[511] table.
+ *
+ * query: ERR_NOT_FOUND if vaddr is unmapped; either out parameter may be NULL.
+ * paddr includes vaddr's offset in its page or large page. flags report what
+ * the entry encodes: UNCACHED_DEVICE may read back as UNCACHED, riscv always
+ * reads back CACHED, and where arch_mmu_supports_nx_mappings() is false every
+ * page reads back EXECUTE.
+ *
+ * protect: replaces the R/W/X permissions of every mapped page in the range
+ * with flags, keeping its frame, cache policy, USER, NS and arch private bits.
+ * Holes are skipped; it never maps anything and never allocates. EXECUTE on an
+ * uncached page is ERR_INVALID_ARGS, and a partly covered large page or a fixed
+ * entry ERR_NOT_SUPPORTED, both decided before anything changes. Every changed
+ * page is invalidated on every cpu, upgrades included.
+ *
+ * Replacing the page behind an address is an unmap and a map under the
+ * caller's lock. Taking every permission away is an unmap, never a protect.
+ */
+status_t arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count, uint flags) __NONNULL((1));
+status_t arch_mmu_unmap(arch_aspace_t *aspace, vaddr_t vaddr, uint count) __NONNULL((1));
 status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) __NONNULL((1));
+status_t arch_mmu_protect(arch_aspace_t *aspace, vaddr_t vaddr, uint count, uint flags) __NONNULL((1));
 
 vaddr_t arch_mmu_pick_spot(arch_aspace_t *aspace,
                            vaddr_t base, uint prev_region_arch_mmu_flags,

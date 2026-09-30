@@ -558,7 +558,7 @@ static status_t x86_mmu_unmap(uint64_t *const pml4, const vaddr_t vaddr, uint co
     return NO_ERROR;
 }
 
-int arch_mmu_unmap(arch_aspace_t *const aspace, const vaddr_t vaddr, const uint count) {
+status_t arch_mmu_unmap(arch_aspace_t *const aspace, const vaddr_t vaddr, const uint count) {
     LTRACEF("aspace %p, vaddr 0x%lx, count %u\n", aspace, vaddr, count);
 
     DEBUG_ASSERT(aspace);
@@ -651,8 +651,8 @@ status_t arch_mmu_query(arch_aspace_t *const aspace, const vaddr_t vaddr, paddr_
     return NO_ERROR;
 }
 
-int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t paddr,
-                 const uint count, const uint flags) {
+status_t arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t paddr,
+                      const uint count, const uint flags) {
     DEBUG_ASSERT(aspace);
 
     LTRACEF("aspace %p, vaddr 0x%lx paddr 0x%lx count %u flags 0x%x\n", aspace, vaddr, paddr, count,
