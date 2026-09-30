@@ -175,6 +175,27 @@ static void arm_mmu_unmap_section(arch_aspace_t *aspace, addr_t vaddr) {
     arm_mmu_unmap_l1_entry(aspace->tt_virt, vaddr / SECTION_SIZE);
 }
 
+/*
+ * Chain load only: map [base, base + count sections) onto itself read, write
+ * and execute, replacing whatever the entries held. Nothing is allocated or
+ * freed, so it runs with interrupts off; a page table it unlinks is left behind.
+ */
+void arm_mmu_chain_load_map(arch_aspace_t *aspace, vaddr_t base, uint count) {
+    DEBUG_ASSERT(IS_SECTION_ALIGNED(base));
+    DEBUG_ASSERT(arch_mmu_range_in_aspace(aspace, base, count * (SECTION_SIZE / PAGE_SIZE)));
+
+    const uint32_t flags = mmu_flags_to_l1_arch_flags(ARCH_MMU_FLAG_PERM_READ |
+                                                      ARCH_MMU_FLAG_PERM_WRITE |
+                                                      ARCH_MMU_FLAG_PERM_EXECUTE);
+    for (uint i = 0; i < count; i++) {
+        const vaddr_t va = base + i * SECTION_SIZE;
+        arm_mmu_map_section(aspace, va, va, flags | MMU_MEMORY_L1_DESCRIPTOR_SECTION);
+    }
+
+    /* a replaced page table's small pages are not covered by any one address */
+    arm_invalidate_tlb_global();
+}
+
 void arm_mmu_early_init(void) {
 }
 

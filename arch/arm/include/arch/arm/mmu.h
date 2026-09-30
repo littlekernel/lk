@@ -202,6 +202,9 @@ void arm_mmu_init(void);
 void arm_mmu_init_percpu(void);
 status_t arm_vtop(addr_t va, addr_t *pa);
 
+struct arch_aspace;
+void arm_mmu_chain_load_map(struct arch_aspace *aspace, vaddr_t base, uint count);
+
 /* tlb routines */
 
 static inline void arm_after_invalidate_tlb_barrier(void) {
