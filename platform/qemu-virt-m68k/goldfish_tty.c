@@ -89,8 +89,11 @@ static enum handler_return uart_irq_handler(void *arg) {
 void goldfish_tty_early_init(void) {
     // make sure irqs are disabled
     write_reg(REG_CMD, CMD_INT_DISABLE);
+}
 
-    // set up the transfer buffer for receives
+void goldfish_tty_init(void) {
+    // set up the transfer buffer for receives. Not in early init: vaddr_to_paddr
+    // needs the kernel aspace, which the vm sets up later.
     uint64_t buf_addr;
 #if WITH_KERNEL_VM
     buf_addr = vaddr_to_paddr(transfer_buf);
@@ -103,9 +106,7 @@ void goldfish_tty_early_init(void) {
 #else
     write_reg(REG_DATA_PTR_HIGH, 0);
 #endif
-}
 
-void goldfish_tty_init(void) {
     // finish uart init to get irq rx going
     cbuf_initialize_etc(&uart_rx_buf, RXBUF_SIZE, uart_rx_buf_data);
 
