@@ -226,7 +226,7 @@ static void arm_basic_setup(void) {
     __asm__ volatile("mcr	p15, 0, %0, c9, c12, 0" :: "r" (en));
 
     /* enable cycle counter */
-    en = (1<<31);
+    en = (1u << 31);
     __asm__ volatile("mcr	p15, 0, %0, c9, c12, 1" :: "r" (en));
 #endif
 
