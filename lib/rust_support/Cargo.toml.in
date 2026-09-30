@@ -17,7 +17,7 @@ crate-type = ["staticlib"]
 
 [dependencies.lk]
 version = "0.1.0"
-path = "@BUILDROOT@/rust/lk" # Relative to build directory.
+path = "@LKROOT@/rust/lk"
 
 [profile.release]
 debug-assertions = true

@@ -17,9 +17,6 @@ class Substr():
             raise Exception(f"Environment variable {name} not set")
         self.subs.append( (f"@{name}@", value) )
 
-        if name == "BUILDROOT":
-            self.buildroot = value
-
     # Generate a substitution rules for a list of crates.
     def add_depcrates(self, name):
         crates = os.environ.get(name)
@@ -28,7 +25,8 @@ class Substr():
         value = ""
         for crate in crates.split():
             base = os.path.basename(crate)
-            value += f"[dependencies.{base}]\npath = \"{self.buildroot}/{crate}\"\n"
+            # crate paths are relative to the directory make runs in
+            value += f"[dependencies.{base}]\npath = \"{os.path.abspath(crate)}\"\n"
             # TODO: Get the crate version from the crate's Cargo.toml file.
             value += f"version = \"0.1.0\"\n\n"
         self.subs.append( ("@DEPCRATES@", value) )
@@ -56,7 +54,7 @@ def subst(name):
 
 subber = Substr();
 
-subber.add("BUILDROOT")
+subber.add("LKROOT")
 subber.add_depcrates("RUST_CRATES")
 subber.add_deplinks("RUST_CRATES")
 

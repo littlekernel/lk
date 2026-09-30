@@ -198,7 +198,7 @@ ifeq (true,$(call TOBOOL,$(RISCV_FPU)))
 else
     RUST_TARGET ?= riscv$(SUBARCH)-llvm
 endif
-RUST_TARGET_PATH ?= $(abspath $(BUILDROOT))/arch/riscv/$(RUST_TARGET).json
+RUST_TARGET_PATH ?= $(abspath $(LKROOT))/arch/riscv/$(RUST_TARGET).json
 
 # mirror the optional -march extensions into rustc's target feature list
 ifneq ($(RISCV_EXTENSION_LIST),)

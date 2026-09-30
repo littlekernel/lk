@@ -77,14 +77,14 @@ $(MODULE_OBJECT): $(MODULE_OBJECT).phony $(MODULE_OBJS) $(CARGO_CONFIG)
 EXTRA_OBJS := $(EXTRA_OBJS) $(MODULE_OBJECT)
 
 # Bring in the source files via copy.
-# The toml file will have a substitution to fix up references to the buildroot.
+# The toml file will have a substitution to fix up references to the LK source root.
 $(MODULE_BUILDDIR)/%: MODULE_SRCDIR:=$(MODULE_SRCDIR)
 
 $(MODULE_BUILDDIR)/%: $(MODULE_SRCDIR)/%.in target.phony
 	$(NOECHO)echo generating $@
 	$(NOECHO)mkdir -p $(dir $@)
 	$(NOECHO)env \
-		BUILDROOT="$(abspath $(BUILDROOT))" \
+		LKROOT="$(abspath $(LKROOT))" \
 		RUST_CRATES="$(RUST_CRATES)" \
 	        python3 $(MODULE_SRCDIR)/expand.py $< > $@.tmp
 	$(NOECHO)$(call TESTANDREPLACEFILE,$@.tmp,$@)
