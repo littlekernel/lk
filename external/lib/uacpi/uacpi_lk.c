@@ -71,7 +71,7 @@ static void *map_region(paddr_t pa, size_t len, const char *name) {
     const size_t align_offset = pa - pa_page_aligned;
     size_t map_len = ROUNDUP(len + align_offset, PAGE_SIZE);
 
-    uint perms = ARCH_MMU_FLAG_PERM_RO;
+    uint perms = ARCH_MMU_FLAG_PERM_READ;
     void *ptr;
     status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), name, map_len, &ptr, 0,
                                       pa_page_aligned, 0, perms);
@@ -163,7 +163,7 @@ static uacpi_status find_rsdp_bios(uacpi_phys_addr *out_rsdp_address) {
 
     const uint8_t *bios_ptr = NULL;
     status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "uacpi rsdp bios area", len,
-                                      (void **)&bios_ptr, 0, range_start, 0, ARCH_MMU_FLAG_PERM_RO);
+                                      (void **)&bios_ptr, 0, range_start, 0, ARCH_MMU_FLAG_PERM_READ);
     if (err < 0) {
         return UACPI_STATUS_NOT_FOUND;
     }
@@ -212,10 +212,7 @@ void *uacpi_kernel_map(uacpi_phys_addr addr, uacpi_size len) {
     size_t align_offset = (paddr_t)addr - pa_aligned;
     size_t map_len = ROUNDUP(len + align_offset, PAGE_SIZE);
 
-    uint perms = ARCH_MMU_FLAG_PERM_RO;
-    if (arch_mmu_supports_nx_mappings()) {
-        perms |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
-    }
+    uint perms = ARCH_MMU_FLAG_PERM_READ;
 
     void *ptr = NULL;
     status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "uacpi_map", map_len, &ptr, 0,

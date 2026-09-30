@@ -107,22 +107,22 @@ static status_t mmu_flags_to_pte_attr(uint flags, pte_t *out) {
             return ERR_INVALID_ARGS;
     }
 
-    switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO)) {
+    switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE)) {
         case 0:
-            attr |= MMU_PTE_ATTR_AP_P_RW_U_NA;
-            break;
-        case ARCH_MMU_FLAG_PERM_RO:
             attr |= MMU_PTE_ATTR_AP_P_RO_U_NA;
             break;
-        case ARCH_MMU_FLAG_PERM_USER:
-            attr |= MMU_PTE_ATTR_AP_P_RW_U_RW;
+        case ARCH_MMU_FLAG_PERM_WRITE:
+            attr |= MMU_PTE_ATTR_AP_P_RW_U_NA;
             break;
-        case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO:
+        case ARCH_MMU_FLAG_PERM_USER:
             attr |= MMU_PTE_ATTR_AP_P_RO_U_RO;
+            break;
+        case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE:
+            attr |= MMU_PTE_ATTR_AP_P_RW_U_RW;
             break;
     }
 
-    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
+    if (!(flags & ARCH_MMU_FLAG_PERM_EXECUTE)) {
         attr |= MMU_PTE_ATTR_UXN | MMU_PTE_ATTR_PXN;
     } else {
         // execute permissions, so set user or privileged XN based on which mode
@@ -212,7 +212,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
         *paddr = pte_addr + vaddr_rem;
     }
     if (flags) {
-        *flags = 0;
+        *flags = ARCH_MMU_FLAG_PERM_READ;
         if (pte & MMU_PTE_ATTR_NON_SECURE) {
             *flags |= ARCH_MMU_FLAG_NS;
         }
@@ -230,27 +230,27 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
         }
         switch (pte & MMU_PTE_ATTR_AP_MASK) {
             case MMU_PTE_ATTR_AP_P_RW_U_NA:
+                *flags |= ARCH_MMU_FLAG_PERM_WRITE;
                 break;
             case MMU_PTE_ATTR_AP_P_RW_U_RW:
-                *flags |= ARCH_MMU_FLAG_PERM_USER;
+                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE;
                 break;
             case MMU_PTE_ATTR_AP_P_RO_U_NA:
-                *flags |= ARCH_MMU_FLAG_PERM_RO;
                 break;
             case MMU_PTE_ATTR_AP_P_RO_U_RO:
-                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
+                *flags |= ARCH_MMU_FLAG_PERM_USER;
                 break;
         }
 
-        // if we have previously detected a user or privileged page, test
-        // the appropriate NX bit to determine no execute
+        // a user page executes from user mode, a kernel page from the kernel,
+        // so the matching XN bit decides
         if (*flags & ARCH_MMU_FLAG_PERM_USER) {
-            if (pte & MMU_PTE_ATTR_UXN) {
-                *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+            if (!(pte & MMU_PTE_ATTR_UXN)) {
+                *flags |= ARCH_MMU_FLAG_PERM_EXECUTE;
             }
         } else {
-            if (pte & MMU_PTE_ATTR_PXN) {
-                *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+            if (!(pte & MMU_PTE_ATTR_PXN)) {
+                *flags |= ARCH_MMU_FLAG_PERM_EXECUTE;
             }
         }
     }
@@ -610,6 +610,11 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
     DEBUG_ASSERT(IS_PAGE_ALIGNED(vaddr));
     DEBUG_ASSERT(IS_PAGE_ALIGNED(paddr));
     if (!IS_PAGE_ALIGNED(vaddr) || !IS_PAGE_ALIGNED(paddr)) {
+        return ERR_INVALID_ARGS;
+    }
+
+    /* there are no write-only or execute-only mappings */
+    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
         return ERR_INVALID_ARGS;
     }
 

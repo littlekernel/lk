@@ -855,20 +855,24 @@ usage:
         if (argc < 4) goto notenoughargs;
 
         void *ptr = (void *)0x99;
-        status_t err = vmm_alloc(test_aspace, "alloc test", argv[2].u, &ptr, argv[3].u, 0, 0);
+        status_t err = vmm_alloc(test_aspace, "alloc test", argv[2].u, &ptr, argv[3].u, 0,
+                                 ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
         printf("vmm_alloc returns %d, ptr %p\n", err, ptr);
     } else if (!strcmp(argv[1].str, "alloc_physical")) {
         if (argc < 4) goto notenoughargs;
 
         void *ptr = (void *)0x99;
         status_t err = vmm_alloc_physical(test_aspace, "physical test", argv[3].u, &ptr,
-                                          argv[4].u, argv[2].u, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                                          argv[4].u, argv[2].u, 0,
+                                          ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
+                                          ARCH_MMU_FLAG_UNCACHED_DEVICE);
         printf("vmm_alloc_physical returns %d, ptr %p\n", err, ptr);
     } else if (!strcmp(argv[1].str, "alloc_contig")) {
         if (argc < 4) goto notenoughargs;
 
         void *ptr = (void *)0x99;
-        status_t err = vmm_alloc_contiguous(test_aspace, "contig test", argv[2].u, &ptr, argv[3].u, 0, 0);
+        status_t err = vmm_alloc_contiguous(test_aspace, "contig test", argv[2].u, &ptr, argv[3].u, 0,
+                                            ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
         printf("vmm_alloc_contig returns %d, ptr %p\n", err, ptr);
     } else if (!strcmp(argv[1].str, "free_region")) {
         if (argc < 2) goto notenoughargs;

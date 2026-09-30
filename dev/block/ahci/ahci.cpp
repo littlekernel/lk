@@ -82,7 +82,8 @@ status_t ahci::init_device(pci_location_t loc) {
     snprintf(str, sizeof(str), "ahci%d abar", unit_);
     void *regs;
     err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, PAGE_ALIGN(bars[5].size), &regs, 0,
-                             bars[5].addr, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                             bars[5].addr, /* vmm_flags */ 0,
+                             ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }

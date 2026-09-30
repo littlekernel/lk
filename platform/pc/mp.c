@@ -178,7 +178,8 @@ void platform_start_secondary_cpus(void) {
 
     void *ptr = (void *)TRAMPOLINE_ADDRESS;
     err = vmm_alloc_physical(aspace, "trampoline", 0x10000, &ptr, 0, TRAMPOLINE_ADDRESS,
-                             VMM_FLAG_VALLOC_SPECIFIC, ARCH_MMU_FLAG_CACHED);
+                             VMM_FLAG_VALLOC_SPECIFIC,
+                             ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_PERM_EXECUTE);
     if (err < 0) {
         panic("failed to allocate trampoline memory\n");
     }

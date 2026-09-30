@@ -280,7 +280,7 @@ static status_t gem_cfg_buffer_descs(void) {
 
     if ((ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_rx_bufs",
                                     GEM_RX_DESC_CNT * GEM_RX_BUF_SIZE,  (void **) &rx_buf_vaddr, 0, 0,
-                                    ARCH_MMU_FLAG_CACHED)) < 0) {
+                                    ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE)) < 0) {
         return ret;
     }
 
@@ -443,7 +443,8 @@ status_t gem_init(uintptr_t gem_base) {
 
     /* allocate a block of uncached contiguous memory for the peripheral descriptors */
     if ((ret = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "gem_desc",
-                                    sizeof(*gem.descs), &descs_vaddr, 0, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE)) < 0) {
+                                    sizeof(*gem.descs), &descs_vaddr, 0, 0,
+                                    ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE)) < 0) {
         return ret;
     }
     descs_paddr = vaddr_to_paddr((void *)descs_vaddr);

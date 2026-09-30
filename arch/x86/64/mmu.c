@@ -155,7 +155,7 @@ static inline bool is_pte_present(uint64_t pte) {
 static arch_flags_t get_x86_arch_flags(uint flags) {
     arch_flags_t arch_flags = 0;
 
-    if (!(flags & ARCH_MMU_FLAG_PERM_RO)) {
+    if (flags & ARCH_MMU_FLAG_PERM_WRITE) {
         arch_flags |= X86_MMU_PG_RW;
     }
 
@@ -167,7 +167,7 @@ static arch_flags_t get_x86_arch_flags(uint flags) {
         arch_flags |= X86_MMU_CACHE_DISABLE;
     }
 
-    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
+    if (!(flags & ARCH_MMU_FLAG_PERM_EXECUTE)) {
         arch_flags |= X86_MMU_PG_NX;
     }
 
@@ -178,10 +178,10 @@ static arch_flags_t get_x86_arch_flags(uint flags) {
  * @brief Returning the generic mmu flags from x86 arch flags
  */
 static uint get_arch_mmu_flags(arch_flags_t flags) {
-    uint mmu_flags = 0;
+    uint mmu_flags = ARCH_MMU_FLAG_PERM_READ;
 
-    if (!(flags & X86_MMU_PG_RW)) {
-        mmu_flags |= ARCH_MMU_FLAG_PERM_RO;
+    if (flags & X86_MMU_PG_RW) {
+        mmu_flags |= ARCH_MMU_FLAG_PERM_WRITE;
     }
 
     if (flags & X86_MMU_PG_U) {
@@ -192,8 +192,8 @@ static uint get_arch_mmu_flags(arch_flags_t flags) {
         mmu_flags |= ARCH_MMU_FLAG_UNCACHED;
     }
 
-    if (flags & X86_MMU_PG_NX) {
-        mmu_flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+    if (!(flags & X86_MMU_PG_NX)) {
+        mmu_flags |= ARCH_MMU_FLAG_PERM_EXECUTE;
     }
 
     return (uint)mmu_flags;
@@ -659,6 +659,11 @@ int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t
             flags);
 
     if (flags & ARCH_MMU_FLAG_NS) {
+        return ERR_INVALID_ARGS;
+    }
+
+    /* there are no write-only or execute-only mappings */
+    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
         return ERR_INVALID_ARGS;
     }
 

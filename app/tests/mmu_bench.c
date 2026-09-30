@@ -80,7 +80,7 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
     arch_aspace_t *aspace = &as->arch_aspace;
     const vaddr_t va_large = ROUNDUP(USER_ASPACE_BASE + 1, 1UL << BENCH_ALIGN_SHIFT);
     const vaddr_t va = va_large + PAGE_SIZE;
-    const uint flags = ARCH_MMU_FLAG_PERM_USER;
+    const uint flags = ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE;
     struct sample best_map = { .us = ~0ULL }, best_query = best_map, best_unmap = best_map;
     struct sample best_map1 = best_map, best_unmap1 = best_map;
     struct sample best_map_large = best_map, best_unmap_large = best_map;

@@ -57,22 +57,22 @@ static uint32_t mmu_flags_to_l1_arch_flags(uint flags) {
             return ERR_INVALID_ARGS;
     }
 
-    switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO)) {
+    switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE)) {
         case 0:
-            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_NA;
-            break;
-        case ARCH_MMU_FLAG_PERM_RO:
             arch_flags |= MMU_MEMORY_L1_AP_P_RO_U_NA;
             break;
-        case ARCH_MMU_FLAG_PERM_USER:
-            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_RW;
+        case ARCH_MMU_FLAG_PERM_WRITE:
+            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_NA;
             break;
-        case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO:
+        case ARCH_MMU_FLAG_PERM_USER:
             arch_flags |= MMU_MEMORY_L1_AP_P_RO_U_RO;
+            break;
+        case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE:
+            arch_flags |= MMU_MEMORY_L1_AP_P_RW_U_RW;
             break;
     }
 
-    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
+    if (!(flags & ARCH_MMU_FLAG_PERM_EXECUTE)) {
         arch_flags |= MMU_MEMORY_L1_SECTION_XN;
     }
 
@@ -108,25 +108,25 @@ static uint32_t mmu_flags_to_l2_arch_flags_small_page(uint flags) {
             return ERR_INVALID_ARGS;
     }
 
-    switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO)) {
+    switch (flags & (ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE)) {
         case 0:
-            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_NA;
-            break;
-        case ARCH_MMU_FLAG_PERM_RO:
             arch_flags |= MMU_MEMORY_L2_AP_P_RO_U_NA;
             break;
-        case ARCH_MMU_FLAG_PERM_USER:
-            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_RW;
+        case ARCH_MMU_FLAG_PERM_WRITE:
+            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_NA;
             break;
-        case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO:
+        case ARCH_MMU_FLAG_PERM_USER:
             arch_flags |= MMU_MEMORY_L2_AP_P_RO_U_RO;
+            break;
+        case ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE:
+            arch_flags |= MMU_MEMORY_L2_AP_P_RW_U_RW;
             break;
     }
 
-    if (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) {
-        arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN;
-    } else {
+    if (flags & ARCH_MMU_FLAG_PERM_EXECUTE) {
         arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE;
+    } else {
+        arch_flags |= MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN;
     }
 
     return arch_flags;
@@ -256,7 +256,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
                 *paddr = MMU_MEMORY_L1_SECTION_ADDR(tt_entry) + (vaddr & (SECTION_SIZE - 1));
 
             if (flags) {
-                *flags = 0;
+                *flags = ARCH_MMU_FLAG_PERM_READ;
                 if (tt_entry & MMU_MEMORY_L1_SECTION_NON_SECURE)
                     *flags |= ARCH_MMU_FLAG_NS;
                 switch (tt_entry & MMU_MEMORY_L1_TYPE_MASK) {
@@ -270,19 +270,19 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
                 }
                 switch (tt_entry & MMU_MEMORY_L1_AP_MASK) {
                     case MMU_MEMORY_L1_AP_P_RO_U_NA:
-                        *flags |= ARCH_MMU_FLAG_PERM_RO;
                         break;
                     case MMU_MEMORY_L1_AP_P_RW_U_NA:
+                        *flags |= ARCH_MMU_FLAG_PERM_WRITE;
                         break;
                     case MMU_MEMORY_L1_AP_P_RO_U_RO:
-                        *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
-                        break;
-                    case MMU_MEMORY_L1_AP_P_RW_U_RW:
                         *flags |= ARCH_MMU_FLAG_PERM_USER;
                         break;
+                    case MMU_MEMORY_L1_AP_P_RW_U_RW:
+                        *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE;
+                        break;
                 }
-                if (tt_entry & MMU_MEMORY_L1_SECTION_XN) {
-                    *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+                if (!(tt_entry & MMU_MEMORY_L1_SECTION_XN)) {
+                    *flags |= ARCH_MMU_FLAG_PERM_EXECUTE;
                 }
             }
             break;
@@ -306,7 +306,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
                         *paddr = MMU_MEMORY_L2_SMALL_PAGE_ADDR(l2_entry) + (vaddr & (PAGE_SIZE - 1));
 
                     if (flags) {
-                        *flags = 0;
+                        *flags = ARCH_MMU_FLAG_PERM_READ;
                         /* NS flag is only present on L1 entry */
                         if (tt_entry & MMU_MEMORY_L1_PAGETABLE_NON_SECURE)
                             *flags |= ARCH_MMU_FLAG_NS;
@@ -321,20 +321,20 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
                         }
                         switch (l2_entry & MMU_MEMORY_L2_AP_MASK) {
                             case MMU_MEMORY_L2_AP_P_RO_U_NA:
-                                *flags |= ARCH_MMU_FLAG_PERM_RO;
                                 break;
                             case MMU_MEMORY_L2_AP_P_RW_U_NA:
+                                *flags |= ARCH_MMU_FLAG_PERM_WRITE;
                                 break;
                             case MMU_MEMORY_L2_AP_P_RO_U_RO:
-                                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO;
+                                *flags |= ARCH_MMU_FLAG_PERM_USER;
                                 break;
                             case MMU_MEMORY_L2_AP_P_RW_U_RW:
-                                *flags |= ARCH_MMU_FLAG_PERM_USER;
+                                *flags |= ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_WRITE;
                                 break;
                         }
                         if ((l2_entry & MMU_MEMORY_L2_DESCRIPTOR_MASK) ==
-                                MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE_XN) {
-                            *flags |= ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+                                MMU_MEMORY_L2_DESCRIPTOR_SMALL_PAGE) {
+                            *flags |= ARCH_MMU_FLAG_PERM_EXECUTE;
                         }
                     }
                     break;
@@ -494,6 +494,10 @@ int arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint count,
     DEBUG_ASSERT(IS_PAGE_ALIGNED(vaddr));
     DEBUG_ASSERT(IS_PAGE_ALIGNED(paddr));
     if (!IS_PAGE_ALIGNED(vaddr) || !IS_PAGE_ALIGNED(paddr))
+        return ERR_INVALID_ARGS;
+
+    /* there are no write-only or execute-only mappings */
+    if (!(flags & ARCH_MMU_FLAG_PERM_READ))
         return ERR_INVALID_ARGS;
 
     if (count == 0)

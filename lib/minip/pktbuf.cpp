@@ -189,7 +189,7 @@ static bool pktbuf_grow(void) {
             const size_t buf_chunk_size = pool_storage_size(PKTBUF_SIZE, CACHE_LINE, count);
 #if WITH_KERNEL_VM
             if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf", buf_chunk_size, &buf_chunk,
-                                     0, 0, ARCH_MMU_FLAG_CACHED) < 0) {
+                                     0, 0, ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE) < 0) {
                 buf_chunk = NULL;
             }
 #else
@@ -429,7 +429,7 @@ static void pktbuf_init(uint level) {
     void *buf_slab;
 #if WITH_KERNEL_VM
     if (vmm_alloc_contiguous(vmm_get_kernel_aspace(), "pktbuf", buf_storage_size, &buf_slab, 0, 0,
-                             ARCH_MMU_FLAG_CACHED) < 0) {
+                             ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE) < 0) {
         printf("Failed to allocate pktbuf buffer slab\n");
         return;
     }

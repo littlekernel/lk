@@ -160,7 +160,8 @@ status_t virtio_device::virtio_alloc_ring(uint index, uint16_t len) {
     // today. A non-coherent host would need explicit cache maintenance rather than barriers, and
     // could not simply share a cache line between driver written and device written descriptors.
     void *vptr;
-    status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "virtio_ring", size, &vptr, 0, 0, ARCH_MMU_FLAG_CACHED);
+    status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), "virtio_ring", size, &vptr, 0, 0,
+                                        ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
     if (err < 0)
         return ERR_NO_MEMORY;
 

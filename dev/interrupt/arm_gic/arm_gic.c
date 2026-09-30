@@ -319,7 +319,8 @@ static status_t arm_map_regs(const char *name, vaddr_t *vaddr, paddr_t paddr, si
 
     void *ptr;
     status_t ret = vmm_alloc_physical(vmm_get_kernel_aspace(), "gic", size, &ptr, 0,
-                                      paddr, 0, ARCH_MMU_FLAG_UNCACHED_DEVICE | ARCH_MMU_FLAG_PERM_NO_EXECUTE);
+                                      paddr, 0,
+                                      ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (ret != NO_ERROR) {
         panic("%s: failed %d\n", __func__, ret);
     }

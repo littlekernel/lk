@@ -26,11 +26,17 @@ __BEGIN_CDECLS
 #define ARCH_MMU_FLAG_UNCACHED_DEVICE   (2U<<0) /* only exists on some arches, otherwise UNCACHED */
 #define ARCH_MMU_FLAG_CACHE_MASK        (3U<<0)
 
+/* Permissions are granted, not taken away: a mapping has exactly the ones
+ * named. READ is required, so the valid sets are R, RW, RX and RWX. Leaving
+ * out EXECUTE is only enforced where arch_mmu_supports_nx_mappings() says so. */
 #define ARCH_MMU_FLAG_PERM_USER         (1U<<2)
-#define ARCH_MMU_FLAG_PERM_RO           (1U<<3)
-#define ARCH_MMU_FLAG_PERM_NO_EXECUTE   (1U<<4) /* supported on most, but not all arches */
-#define ARCH_MMU_FLAG_NS                (1U<<5) /* supported on some arches */
-#define ARCH_MMU_FLAG_INVALID           (1U<<6) /* indicates that flags are not specified */
+#define ARCH_MMU_FLAG_PERM_READ         (1U<<3)
+#define ARCH_MMU_FLAG_PERM_WRITE        (1U<<4)
+#define ARCH_MMU_FLAG_PERM_EXECUTE      (1U<<5)
+#define ARCH_MMU_FLAG_PERM_RWX_MASK     (ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | \
+                                         ARCH_MMU_FLAG_PERM_EXECUTE)
+#define ARCH_MMU_FLAG_NS                (1U<<6) /* supported on some arches */
+#define ARCH_MMU_FLAG_INVALID           (1U<<7) /* indicates that flags are not specified */
 
 /* arch level query of some features at the mapping/query level */
 bool arch_mmu_supports_nx_mappings(void);

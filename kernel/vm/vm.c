@@ -169,6 +169,8 @@ usage:
         printf("%s virt2phys <address>\n", argv[0].str);
         printf("%s map <phys> <virt> <count> <flags>\n", argv[0].str);
         printf("%s unmap <virt> <count>\n", argv[0].str);
+        printf("map flags: 0x8 read (required), 0x10 write, 0x20 execute, 0x4 user,\n");
+        printf("           0x0 cached, 0x1 uncached, 0x2 device\n");
         return ERR_GENERIC;
     }
 

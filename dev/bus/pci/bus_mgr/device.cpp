@@ -486,7 +486,8 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
 
         status_t map_err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci msix var", length, ptr, 0,
                                  base, /* vmm_flags */ 0,
-                                 ARCH_MMU_FLAG_UNCACHED_DEVICE | (readonly ? ARCH_MMU_FLAG_PERM_RO : 0));
+                                 ARCH_MMU_FLAG_UNCACHED_DEVICE | ARCH_MMU_FLAG_PERM_READ |
+                                 (readonly ? 0 : ARCH_MMU_FLAG_PERM_WRITE));
         if (map_err != NO_ERROR) {
             printf("error mapping msi-x bar\n");
             return map_err;

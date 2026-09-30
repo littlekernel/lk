@@ -259,18 +259,18 @@ riscv_pte_t mmu_flags_to_pte(uint flags) {
     riscv_pte_t pte = 0;
 
     pte |= (flags & ARCH_MMU_FLAG_PERM_USER) ? RISCV_PTE_U : 0;
-    pte |= (flags & ARCH_MMU_FLAG_PERM_RO) ? RISCV_PTE_R : (RISCV_PTE_R | RISCV_PTE_W);
-    pte |= (flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE) ? 0 : RISCV_PTE_X;
+    pte |= (flags & ARCH_MMU_FLAG_PERM_READ) ? RISCV_PTE_R : 0;
+    pte |= (flags & ARCH_MMU_FLAG_PERM_WRITE) ? RISCV_PTE_W : 0;
+    pte |= (flags & ARCH_MMU_FLAG_PERM_EXECUTE) ? RISCV_PTE_X : 0;
 
     return pte;
 }
 
 uint pte_flags_to_mmu_flags(riscv_pte_t pte) {
     uint f = 0;
-    if ((pte & (RISCV_PTE_R | RISCV_PTE_W)) == RISCV_PTE_R) {
-        f |= ARCH_MMU_FLAG_PERM_RO;
-    }
-    f |= (pte & RISCV_PTE_X) ? 0 : ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+    f |= (pte & RISCV_PTE_R) ? ARCH_MMU_FLAG_PERM_READ : 0;
+    f |= (pte & RISCV_PTE_W) ? ARCH_MMU_FLAG_PERM_WRITE : 0;
+    f |= (pte & RISCV_PTE_X) ? ARCH_MMU_FLAG_PERM_EXECUTE : 0;
     f |= (pte & RISCV_PTE_U) ? ARCH_MMU_FLAG_PERM_USER : 0;
     return f;
 }
@@ -614,6 +614,11 @@ int arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t _pad
     DEBUG_ASSERT(aspace->magic == RISCV_ASPACE_MAGIC);
 
     if (flags & ARCH_MMU_FLAG_NS) {
+        return ERR_INVALID_ARGS;
+    }
+
+    // there are no write-only or execute-only mappings
+    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
         return ERR_INVALID_ARGS;
     }
 

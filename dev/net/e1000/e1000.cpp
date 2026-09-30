@@ -509,7 +509,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     // map bar 0, main memory mapped register interface, 128KB
     snprintf(str, sizeof(str), "e1000 %d bar0", unit_);
     err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, 128 * 1024, &bar0_regs_, 0, bars[0].addr,
-                             /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                             /* vmm_flags */ 0,
+                             ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
@@ -559,7 +560,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     // file for what that assumes.
     snprintf(str, sizeof(str), "e1000 %d rxring", unit_);
     err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, rxring_len * sizeof(rdesc),
-                               reinterpret_cast<void **>(&rxring_), 0, 0, ARCH_MMU_FLAG_CACHED);
+                               reinterpret_cast<void **>(&rxring_), 0, 0,
+                               ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
@@ -570,7 +572,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
 
     snprintf(str, sizeof(str), "e1000 %d txring", unit_);
     err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, txring_len * sizeof(tdesc),
-                               reinterpret_cast<void **>(&txring_), 0, 0, ARCH_MMU_FLAG_CACHED);
+                               reinterpret_cast<void **>(&txring_), 0, 0,
+                               ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }
@@ -582,7 +585,8 @@ status_t e1000::init_device(pci_location_t loc, const e1000_id_features *id) {
     // allocate a large array of contiguous buffers to receive into
     snprintf(str, sizeof(str), "e1000 %d rx buffers", unit_);
     err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, rxring_len * rxbuffer_len,
-                               reinterpret_cast<void **>(&rx_buf_), 0, 0, 0);
+                               reinterpret_cast<void **>(&rx_buf_), 0, 0,
+                               ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;
     }

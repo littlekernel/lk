@@ -412,7 +412,8 @@ common:
             char str[32];
             snprintf(str, sizeof(str), "virtio%zu bar%d", index, i);
             err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, bars[i].size, reinterpret_cast<void **>(&bar_map.vaddr), 0,
-                                     bars[i].addr, /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                                     bars[i].addr, /* vmm_flags */ 0,
+                                     ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
             if (err != NO_ERROR) {
                 printf("virtio-pci: error %d mapping bar %d (addr %#" PRIx64 " size %#zx)\n",
                        err, i, bars[i].addr, bars[i].size);

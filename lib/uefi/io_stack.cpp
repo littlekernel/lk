@@ -24,7 +24,8 @@ void *get_io_stack() {
   static void *io_stack = nullptr;
   if (io_stack == nullptr) {
     auto status = vmm_alloc(vmm_get_kernel_aspace(), "uefi_io_stack",
-                            kIoStackSize, &io_stack, PAGE_SIZE_SHIFT, 0, 0);
+                            kIoStackSize, &io_stack, PAGE_SIZE_SHIFT, 0,
+                            ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
     if (io_stack == nullptr) {
       printf("Failed to allocated IO stack of size %zu error %d\n",
              kIoStackSize, status);

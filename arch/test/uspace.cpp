@@ -88,10 +88,13 @@ bool run_user_stub(const uint8_t *stub_start, const uint8_t *stub_end, int *retc
     auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
 
     void *code = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_alloc(as, "code", PAGE_SIZE, &code, 0, 0, ARCH_MMU_FLAG_PERM_USER), "alloc code");
+    ASSERT_EQ(NO_ERROR, vmm_alloc(as, "code", PAGE_SIZE, &code, 0, 0,
+                                  ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_EXECUTE),
+              "alloc code");
     void *stack = nullptr;
     ASSERT_EQ(NO_ERROR, vmm_alloc(as, "stack", kUserStackSize, &stack, 0, 0,
-                                  ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "alloc stack");
+                                  ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE),
+              "alloc stack");
 
     // the aspace is not active on this thread, so fill the code page through the physmap
     paddr_t pa = 0;

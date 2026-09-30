@@ -26,6 +26,15 @@
 
 namespace {
 
+constexpr uint kRW = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE;
+constexpr uint kUserRW = ARCH_MMU_FLAG_PERM_USER | kRW;
+
+// what a query reports for a page mapped with these flags: without NX every
+// page can be executed
+uint query_flags(uint flags) {
+    return arch_mmu_supports_nx_mappings() ? flags : flags | ARCH_MMU_FLAG_PERM_EXECUTE;
+}
+
 bool create_user_aspace() {
     BEGIN_TEST;
 
@@ -63,7 +72,7 @@ bool map_user_pages() {
         vaddr_t va = USER_ASPACE_BASE;
         vm_page_t *p;
         list_for_every_entry(&pages, p, vm_page_t, node) {
-            err = arch_mmu_map(&as, va, vm_page_to_paddr(p), 1, ARCH_MMU_FLAG_PERM_USER);
+            err = arch_mmu_map(&as, va, vm_page_to_paddr(p), 1, kUserRW);
             EXPECT_LE(NO_ERROR, err, "map page");
             va += PAGE_SIZE;
         }
@@ -76,7 +85,7 @@ bool map_user_pages() {
             err = arch_mmu_query(&as, va, &pa, &flags);
             EXPECT_EQ(NO_ERROR, err, "query");
             EXPECT_EQ(vm_page_to_paddr(p), pa, "pa");
-            EXPECT_EQ(ARCH_MMU_FLAG_PERM_USER, flags, "flags");
+            EXPECT_EQ(query_flags(kUserRW), flags, "flags");
             va += PAGE_SIZE;
 
             //unittest_printf("\npa %#lx, flags %#x", pa, flags);
@@ -114,7 +123,7 @@ bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
         uint flags = ~arch_flags;
         EXPECT_EQ(NO_ERROR, arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
         EXPECT_NE(0U, pa, "valid pa");
-        EXPECT_EQ(arch_flags, flags, "query flags");
+        EXPECT_EQ(query_flags(arch_flags), flags, "query flags");
     }
 
     // free this region we made
@@ -147,26 +156,26 @@ bool map_query_pages() {
     vmm_aspace_t *kaspace = vmm_get_kernel_aspace();
     ASSERT_NONNULL(kaspace, "kaspace");
 
-    // try mapping pages in the kernel address space with various permissions and read them back via arch query
-    EXPECT_TRUE(map_region_query_result(kaspace, 0), "0");
-    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO), "1");
-    if (arch_mmu_supports_nx_mappings()) {
-        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE), "2");
-        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "3");
-    } else {
-        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "2");
-        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "3");
-    }
+    // map pages in the kernel address space with every permission set, with
+    // and without USER, and read them back via arch query
+    constexpr uint R = ARCH_MMU_FLAG_PERM_READ;
+    constexpr uint W = ARCH_MMU_FLAG_PERM_WRITE;
+    constexpr uint X = ARCH_MMU_FLAG_PERM_EXECUTE;
+    constexpr uint U = ARCH_MMU_FLAG_PERM_USER;
+    EXPECT_TRUE(map_region_query_result(kaspace, R), "R");
+    EXPECT_TRUE(map_region_query_result(kaspace, R | W), "RW");
+    EXPECT_TRUE(map_region_query_result(kaspace, R | X), "RX");
+    EXPECT_TRUE(map_region_query_result(kaspace, R | W | X), "RWX");
+    EXPECT_TRUE(map_region_query_result(kaspace, U | R), "user R");
+    EXPECT_TRUE(map_region_query_result(kaspace, U | R | W), "user RW");
+    EXPECT_TRUE(map_region_query_result(kaspace, U | R | X), "user RX");
+    EXPECT_TRUE(map_region_query_result(kaspace, U | R | W | X), "user RWX");
 
-    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER), "4");
-    EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO), "5");
-    if (arch_mmu_supports_nx_mappings()) {
-        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "6");
-        EXPECT_TRUE(map_region_query_result(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE), "7");
-    } else {
-        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "6");
-        EXPECT_TRUE(map_region_expect_failure(kaspace, ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO | ARCH_MMU_FLAG_PERM_NO_EXECUTE, ERR_INVALID_ARGS), "7");
-    }
+    // there are no mappings without READ
+    EXPECT_TRUE(map_region_expect_failure(kaspace, 0, ERR_INVALID_ARGS), "none");
+    EXPECT_TRUE(map_region_expect_failure(kaspace, W, ERR_INVALID_ARGS), "W");
+    EXPECT_TRUE(map_region_expect_failure(kaspace, X, ERR_INVALID_ARGS), "X");
+    EXPECT_TRUE(map_region_expect_failure(kaspace, U | W | X, ERR_INVALID_ARGS), "user WX");
 
     END_TEST;
 }
@@ -184,7 +193,7 @@ vm_page_t *map_pattern_page(vmm_aspace_t *as, vaddr_t va, int pattern) {
     }
     volatile int *kv = static_cast<volatile int *>(paddr_to_kvaddr(vm_page_to_paddr(p)));
     *kv = pattern;
-    if (arch_mmu_map(&as->arch_aspace, va, vm_page_to_paddr(p), 1, ARCH_MMU_FLAG_PERM_USER) < 0) {
+    if (arch_mmu_map(&as->arch_aspace, va, vm_page_to_paddr(p), 1, kUserRW) < 0) {
         pmm_free_page(p);
         return nullptr;
     }
@@ -214,7 +223,7 @@ bool context_switch() {
     ASSERT_NONNULL(p, "page");
     auto page_cleanup = lk::make_auto_call([&]() { pmm_free_page(p); });
 
-    int err = arch_mmu_map(&as->arch_aspace, USER_ASPACE_BASE, vm_page_to_paddr(p), 1, ARCH_MMU_FLAG_PERM_USER);
+    int err = arch_mmu_map(&as->arch_aspace, USER_ASPACE_BASE, vm_page_to_paddr(p), 1, kUserRW);
     ASSERT_LE(NO_ERROR, err, "map");
 
     // switch through the vmm so the scheduler knows which aspace this thread holds
@@ -380,22 +389,22 @@ bool out_of_range() {
 
     // starts inside, runs past the top
     const vaddr_t last = USER_ASPACE_BASE + USER_ASPACE_SIZE - PAGE_SIZE;
-    EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_map(arch, last, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map past the top");
+    EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_map(arch, last, pa, 2, kUserRW), "map past the top");
     EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_unmap(arch, last, 2), "unmap past the top");
 
     // entirely outside, in the kernel's half
-    EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_map(arch, KERNEL_ASPACE_BASE, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map kernel address");
+    EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_map(arch, KERNEL_ASPACE_BASE, pa, 1, kUserRW), "map kernel address");
     EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_unmap(arch, KERNEL_ASPACE_BASE, 1), "unmap kernel address");
     paddr_t qpa;
     EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_query(arch, KERNEL_ASPACE_BASE, &qpa, nullptr), "query kernel address");
 
     // just below the aspace, when there is room below it
     if (USER_ASPACE_BASE >= PAGE_SIZE) {
-        EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_map(arch, USER_ASPACE_BASE - PAGE_SIZE, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map below");
+        EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_map(arch, USER_ASPACE_BASE - PAGE_SIZE, pa, 1, kUserRW), "map below");
     }
 
     // the last page by itself is fine
-    EXPECT_LE(NO_ERROR, arch_mmu_map(arch, last, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map last page");
+    EXPECT_LE(NO_ERROR, arch_mmu_map(arch, last, pa, 1, kUserRW), "map last page");
     EXPECT_EQ(NO_ERROR, arch_mmu_query(arch, last, &qpa, nullptr), "query last page");
     EXPECT_EQ(pa, qpa, "last page pa");
     EXPECT_LE(NO_ERROR, arch_mmu_unmap(arch, last, 1), "unmap last page");
@@ -671,14 +680,14 @@ bool map_across_table_boundaries() {
             unittest_printf(" (range at %#lx is past the user aspace)", r.base);
             continue;
         }
-        ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, r.base, pa, 4, ARCH_MMU_FLAG_PERM_USER), "map");
+        ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, r.base, pa, 4, kUserRW), "map");
         EXPECT_TRUE(check_table_count(as, r.tables), "tables after map");
         for (uint i = 0; i < 4; i++) {
             paddr_t got;
             uint flags;
             EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, r.base + i * PAGE_SIZE, &got, &flags), "query");
             EXPECT_EQ(pa + i * PAGE_SIZE, got, "paddr");
-            EXPECT_EQ(ARCH_MMU_FLAG_PERM_USER, flags, "flags");
+            EXPECT_EQ(query_flags(kUserRW), flags, "flags");
         }
         EXPECT_LE(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, r.base, 4), "unmap");
         for (uint i = 0; i < 4; i++) {
@@ -767,7 +776,7 @@ bool reclaim_after_big_range() {
         unittest_printf(" (range at %#lx is past the user aspace)", base);
         END_TEST;
     }
-    ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, base, pa, count, ARCH_MMU_FLAG_PERM_USER), "map");
+    ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, base, pa, count, kUserRW), "map");
     // riscv: a chain down to the 1GB level, a 2MB level table on each side, three leaf tables
     EXPECT_TRUE(check_table_count(as, pt_levels + 3), "tables after map");
 
@@ -812,7 +821,7 @@ bool large_page_map() {
     auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
 
     const vaddr_t va = user_boundary(large);
-    ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, va, pa, count, ARCH_MMU_FLAG_PERM_USER), "map");
+    ASSERT_LE(NO_ERROR, arch_mmu_map(&as->arch_aspace, va, pa, count, kUserRW), "map");
     // riscv: the chain down to the 2MB level and no leaf table
     EXPECT_TRUE(check_table_count(as, pt_levels - 1), "no leaf table");
 
@@ -820,7 +829,7 @@ bool large_page_map() {
     uint flags;
     EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, va + 0x1234, &got, &flags), "query inside");
     EXPECT_EQ(pa + 0x1234, got, "paddr inside");
-    EXPECT_EQ(ARCH_MMU_FLAG_PERM_USER, flags, "flags");
+    EXPECT_EQ(query_flags(kUserRW), flags, "flags");
 
     int err = arch_mmu_unmap(&as->arch_aspace, va + PAGE_SIZE, 1);
     if (err == ERR_NOT_SUPPORTED) {
@@ -868,17 +877,17 @@ bool map_enomem_rollback() {
 
     // no table at all
     vm_ptable_budget_set(0);
-    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map with no tables");
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, kUserRW), "map with no tables");
     EXPECT_TRUE(check_table_count(as, 1), "nothing left behind");
 
     // the first table links in, the one below it does not: the empty one must go
     vm_ptable_budget_set(1);
-    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, ARCH_MMU_FLAG_PERM_USER), "map with one table");
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, kUserRW), "map with one table");
     EXPECT_TRUE(check_table_count(as, 1), "empty table unlinked");
 
     // enough for the first page, not for the second page's leaf table
     vm_ptable_budget_set(pt_levels - 1);
-    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map two pages");
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 2, kUserRW), "map two pages");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, base, &got, nullptr), "first page rolled back");
     EXPECT_TRUE(check_table_count(as, 1), "first page's tables reclaimed");
 
@@ -888,13 +897,13 @@ bool map_enomem_rollback() {
     // fresh table, orphaned, is unlinked again.
     const vaddr_t gb = user_boundary(1UL << 30) - PAGE_SIZE;
     vm_ptable_budget_set(pt_levels);
-    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, gb, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map across 1GB");
+    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, gb, pa, 2, kUserRW), "map across 1GB");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, gb, &got, nullptr), "page before the boundary rolled back");
     EXPECT_TRUE(check_table_count(as, 1), "chain and orphaned table reclaimed");
 
     // and with the cap lifted the same mapping works
     vm_ptable_budget_set(-1);
-    EXPECT_LE(NO_ERROR, arch_mmu_map(aspace, base, pa, 2, ARCH_MMU_FLAG_PERM_USER), "map after rollback");
+    EXPECT_LE(NO_ERROR, arch_mmu_map(aspace, base, pa, 2, kUserRW), "map after rollback");
     EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, base + PAGE_SIZE, &got, nullptr), "query second page");
     EXPECT_EQ(pa + PAGE_SIZE, got, "paddr");
     EXPECT_LE(NO_ERROR, arch_mmu_unmap(aspace, base, 2), "unmap");
@@ -938,11 +947,11 @@ bool kernel_map_enomem_rollback() {
     for (int pass = 0; pass < 2; pass++) {
         for (int budget = 0; budget < needed; budget++) {
             vm_ptable_budget_set(budget);
-            EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, va, pa, 1, 0), "map with too few tables");
+            EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, va, pa, 1, kRW), "map with too few tables");
             EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, va, &got, nullptr), "nothing mapped");
         }
         vm_ptable_budget_set(needed);
-        ASSERT_LE(NO_ERROR, arch_mmu_map(aspace, va, pa, 1, 0), "map with just enough");
+        ASSERT_LE(NO_ERROR, arch_mmu_map(aspace, va, pa, 1, kRW), "map with just enough");
         EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, va, &got, nullptr), "query");
         EXPECT_EQ(pa, got, "paddr");
         // the second pass shows the unmap took the chain with it
@@ -982,10 +991,10 @@ bool stale_fault_predicate() {
         uint flags;
         bool load, store, fetch; // what user mode may do to it
     } kinds[] = {
-        { ARCH_MMU_FLAG_PERM_USER, true, true, true },
-        { ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_RO, true, false, true },
-        { ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_NO_EXECUTE, true, true, false },
-        { 0, false, false, false },
+        { kUserRW | ARCH_MMU_FLAG_PERM_EXECUTE, true, true, true },
+        { ARCH_MMU_FLAG_PERM_USER | ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_EXECUTE, true, false, true },
+        { kUserRW, true, true, false },
+        { kRW | ARCH_MMU_FLAG_PERM_EXECUTE, false, false, false },
     };
     constexpr uint count = countof(kinds);
 
@@ -1016,8 +1025,8 @@ bool stale_fault_predicate() {
     for (uint i = 0; i < count; i++) {
         const vaddr_t va = base + i * PAGE_SIZE + 0x123;
         const bool user_page = kinds[i].flags & ARCH_MMU_FLAG_PERM_USER;
-        const bool ro = kinds[i].flags & ARCH_MMU_FLAG_PERM_RO;
-        const bool nx = kinds[i].flags & ARCH_MMU_FLAG_PERM_NO_EXECUTE;
+        const bool ro = !(kinds[i].flags & ARCH_MMU_FLAG_PERM_WRITE);
+        const bool nx = !(kinds[i].flags & ARCH_MMU_FLAG_PERM_EXECUTE);
 
         EXPECT_EQ(kinds[i].load, stale(va, RISCV_EXCEPTION_LOAD_PAGE_FAULT, user), "user load");
         EXPECT_EQ(kinds[i].store, stale(va, RISCV_EXCEPTION_STORE_PAGE_FAULT, user), "user store");
@@ -1076,7 +1085,7 @@ bool map_already_mapped_rollback() {
     ASSERT_NONNULL(p, "map page 2");
     auto p_cleanup = lk::make_auto_call([&]() { pmm_free_page(p); });
 
-    const int err = arch_mmu_map(&as->arch_aspace, base, pa, 4, ARCH_MMU_FLAG_PERM_USER);
+    const int err = arch_mmu_map(&as->arch_aspace, base, pa, 4, kUserRW);
     paddr_t got;
     if (err >= 0) {
         unittest_printf(" (arch overwrote the existing mapping)");
@@ -1123,7 +1132,7 @@ bool kernel_aspace_top_page() {
         unittest_printf(" (top page already mapped)");
         END_TEST;
     }
-    ASSERT_LE(NO_ERROR, arch_mmu_map(&kas->arch_aspace, va, vm_page_to_paddr(p), 1, 0), "map top page");
+    ASSERT_LE(NO_ERROR, arch_mmu_map(&kas->arch_aspace, va, vm_page_to_paddr(p), 1, kRW), "map top page");
 
     EXPECT_EQ(NO_ERROR, arch_mmu_query(&kas->arch_aspace, va, &pa, nullptr), "query");
     EXPECT_EQ(vm_page_to_paddr(p), pa, "paddr");

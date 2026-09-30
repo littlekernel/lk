@@ -62,7 +62,8 @@ status_t pvclock_init(void) {
     // map a page of memory and point the KVM clocksource msrs at it
     void *clocksource_page;
     status_t err =
-        vmm_alloc(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, &clocksource_page, 0, 0, 0);
+        vmm_alloc(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE, &clocksource_page, 0, 0,
+                  ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
     if (err != NO_ERROR) {
         printf("pv_clock: failed to allocate page for clocksource msrs\n");
         return err;

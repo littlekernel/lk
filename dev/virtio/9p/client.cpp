@@ -48,7 +48,7 @@ static status_t pdu_init(struct p9_fcall *pdu, size_t size)
     // virtio_device::virtio_alloc_ring() for why a Device mapping breaks under KVM.
     vmm_alloc_contiguous(vmm_get_kernel_aspace(), "virtio_9p_pdu", size,
                          (void **)&pdu->sdata, 0, 0,
-                         ARCH_MMU_FLAG_CACHED);
+                         ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
 #else
     pdu->sdata = (uint8_t*)malloc(size);
 #endif

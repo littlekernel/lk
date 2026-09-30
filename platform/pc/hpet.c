@@ -188,7 +188,8 @@ status_t hpet_init(void) {
 
     status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "hpet", PAGE_SIZE,
                                       (void **)&hpet_regs, 0, phys_addr,
-                                      /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                                      /* vmm_flags */ 0,
+                                      ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         dprintf(INFO, "PC: failed to map HPET registers: %d\n", err);
         return err;

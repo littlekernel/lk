@@ -245,7 +245,8 @@ void lapic_init_postvm(void) {
         LTRACEF("mapping lapic into kernel\n");
         status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "lapic", PAGE_SIZE,
                                           (void **)&lapic_mmio, 0, apic_base & ~0xfff,
-                                          /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                                          /* vmm_flags */ 0,
+                                          ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
         ASSERT(err == NO_ERROR);
         ASSERT(lapic_mmio != NULL);
     }

@@ -99,6 +99,7 @@ status_t ahci_port::probe(ahci_disk **found_disk) {
     snprintf(str, sizeof(str), "ahci%d.%u cmd/fis", ahci_.unit_num(), index_);
     status_t err = vmm_alloc_contiguous(vmm_get_kernel_aspace(), str, size,
                                         (void **)&mem_region_, 0, /* vmm_flags */ 0,
+                                        ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
                                         ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         return ERR_NOT_FOUND;

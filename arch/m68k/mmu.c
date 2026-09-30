@@ -249,7 +249,7 @@ __NO_INLINE static void map_l2(volatile pte_t *table, vaddr_t vaddr, paddr_t add
 
     // derive permissions from ARCH_MMU flags
     const bool user = (flags & ARCH_MMU_FLAG_PERM_USER) != 0;
-    const bool ro = (flags & ARCH_MMU_FLAG_PERM_RO) != 0;
+    const bool ro = (flags & ARCH_MMU_FLAG_PERM_WRITE) == 0;
     uint cm;
     switch (flags & ARCH_MMU_FLAG_CACHE_MASK) {
         case ARCH_MMU_FLAG_UNCACHED:
@@ -636,7 +636,13 @@ int arch_mmu_map(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t paddr, uint count
         return 0;
     }
 
-    if (flags & (ARCH_MMU_FLAG_PERM_NO_EXECUTE | ARCH_MMU_FLAG_NS)) {
+    if (flags & ARCH_MMU_FLAG_NS) {
+        return ERR_INVALID_ARGS;
+    }
+
+    // There are no write-only or execute-only mappings. Leaving out EXECUTE is
+    // accepted, but the 68040 has no NX so the page stays executable.
+    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
         return ERR_INVALID_ARGS;
     }
 
@@ -710,8 +716,9 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
         *paddr = (mmusr & 0xfffff000) | (vaddr & 0xfff);
     }
     if (flags) {
-        *flags = 0;
-        *flags |= (mmusr & (1 << 2)) ? ARCH_MMU_FLAG_PERM_RO : 0;
+        // without NX every page can be executed
+        *flags = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_EXECUTE;
+        *flags |= (mmusr & (1 << 2)) ? 0 : ARCH_MMU_FLAG_PERM_WRITE;
         *flags |= (mmusr & (1 << 7)) ? 0 : ARCH_MMU_FLAG_PERM_USER;
         uint32_t cm = mmusr & (3 << 5);
         switch (cm) {

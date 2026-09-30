@@ -193,7 +193,8 @@ status_t ioapic_init(int index, paddr_t phys_addr, uint apic_id, uint gsi_base) 
     LTRACEF("mapping lapic into kernel\n");
     status_t err = vmm_alloc_physical(vmm_get_kernel_aspace(), "ioapic", PAGE_SIZE,
                                       (void **)&ioapic->mmio, 0, phys_addr,
-                                      /* vmm_flags */ 0, ARCH_MMU_FLAG_UNCACHED_DEVICE);
+                                      /* vmm_flags */ 0,
+                                      ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (err != NO_ERROR) {
         // TODO: free up the newly extended ioapic struct
         return err;

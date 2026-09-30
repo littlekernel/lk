@@ -63,7 +63,7 @@ static inline map_addr_t get_pt_entry_from_page_table(vaddr_t vaddr, const map_a
 static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
     arch_flags_t arch_flags = 0;
 
-    if (!(flags & ARCH_MMU_FLAG_PERM_RO)) {
+    if (flags & ARCH_MMU_FLAG_PERM_WRITE) {
         arch_flags |= X86_MMU_PG_RW;
     }
 
@@ -82,10 +82,11 @@ static arch_flags_t get_x86_arch_flags(arch_flags_t flags) {
  * @brief Returning the generic mmu flags from x86 arch flags
  */
 static uint get_arch_mmu_flags(arch_flags_t flags) {
-    arch_flags_t mmu_flags = 0;
+    /* without NX every page can be executed */
+    arch_flags_t mmu_flags = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_EXECUTE;
 
-    if (!(flags & X86_MMU_PG_RW)) {
-        mmu_flags |= ARCH_MMU_FLAG_PERM_RO;
+    if (flags & X86_MMU_PG_RW) {
+        mmu_flags |= ARCH_MMU_FLAG_PERM_WRITE;
     }
 
     if (flags & X86_MMU_PG_U) {
@@ -447,7 +448,13 @@ int arch_mmu_map(arch_aspace_t *const aspace, const vaddr_t vaddr, const paddr_t
 
     DEBUG_ASSERT(aspace);
 
-    if (flags & (ARCH_MMU_FLAG_PERM_NO_EXECUTE | ARCH_MMU_FLAG_NS)) {
+    if (flags & ARCH_MMU_FLAG_NS) {
+        return ERR_INVALID_ARGS;
+    }
+
+    /* There are no write-only or execute-only mappings. Leaving out EXECUTE is
+     * accepted, but without NX the page stays executable. */
+    if (!(flags & ARCH_MMU_FLAG_PERM_READ)) {
         return ERR_INVALID_ARGS;
     }
 
