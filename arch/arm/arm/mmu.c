@@ -238,24 +238,37 @@ void arm_mmu_init_percpu(void) {
     ISB;
 }
 
+/*
+ * Every aspace runs with ASID 0 and marks its entries non-global, so a switch
+ * drops what the old one left in this cpu's TLB; the kernel's global entries
+ * stay. TTBCR changes only to turn TTBR0 walks on or off.
+ */
 void arch_mmu_context_switch(arch_aspace_t *old_aspace, arch_aspace_t *aspace) {
     if (LOCAL_TRACE && TRACE_CONTEXT_SWITCH)
-        LTRACEF("aspace %p\n", aspace);
+        LTRACEF("old %p, aspace %p\n", old_aspace, aspace);
 
-    uint32_t ttbr;
-    uint32_t ttbcr;
+    if (old_aspace == aspace)
+        return;
+
     if (aspace) {
-        ttbr = MMU_TTBRx_FLAGS | (aspace->tt_phys);
-        ttbcr = TTBCR_N;
+        arm_write_ttbr0(MMU_TTBRx_FLAGS | aspace->tt_phys);
+        ISB;
+        if (!old_aspace) {
+            arm_write_ttbcr(TTBCR_N);
+            ISB;
+        }
     } else {
-        ttbr = 0;
-        ttbcr = TTBCR_PD0 | TTBCR_N;
+        /* walks off before TTBR0 stops pointing at a table */
+        arm_write_ttbcr(TTBCR_PD0 | TTBCR_N);
+        ISB;
+        arm_write_ttbr0(0);
+        ISB;
     }
 
-    if (LOCAL_TRACE && TRACE_CONTEXT_SWITCH)
-        LTRACEF("ttbr 0x%x, ttbcr 0x%x\n", ttbr, ttbcr);
-    arm_write_ttbr0(ttbr);
-    arm_write_ttbcr(ttbcr);
+    arm_write_tlbiasid(0);
+    arm_write_bpiall(0);
+    DSB;
+    ISB;
 }
 
 status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, uint *flags) {
@@ -627,9 +640,13 @@ status_t arch_mmu_map(arch_aspace_t *aspace, addr_t vaddr, paddr_t paddr, uint c
     if (count == 0)
         return NO_ERROR;
 
+    /* a user aspace's entries are tagged with the ASID, so a switch can drop them */
+    const bool user = aspace->tt_virt != arm_kernel_translation_table;
     const uint32_t section_flags = mmu_flags_to_l1_arch_flags(flags) |
-                                   MMU_MEMORY_L1_DESCRIPTOR_SECTION;
-    const uint32_t page_flags = mmu_flags_to_l2_arch_flags_small_page(flags);
+                                   MMU_MEMORY_L1_DESCRIPTOR_SECTION |
+                                   (user ? MMU_MEMORY_L1_SECTION_NON_GLOBAL : 0);
+    const uint32_t page_flags = mmu_flags_to_l2_arch_flags_small_page(flags) |
+                                (user ? MMU_MEMORY_L2_NON_GLOBAL : 0);
     const uint32_t table_ns = (flags & ARCH_MMU_FLAG_NS) ? MMU_MEMORY_L1_PAGETABLE_NON_SECURE : 0;
 
     vaddr_t va = vaddr;

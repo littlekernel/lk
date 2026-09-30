@@ -236,11 +236,13 @@ static inline void arm_invalidate_tlb_global(void) {
     arm_after_invalidate_tlb_barrier();
 }
 
+/* The uniprocessor form names ASID 0, the only one in use, since TLBIMVAA needs
+ * the multiprocessing extensions, which ARMv6 and Cortex-A8 lack. */
 static inline void arm_invalidate_tlb_mva_no_barrier(vaddr_t va) {
 #if WITH_SMP
     arm_write_tlbimvaais(va & 0xfffff000);
 #else
-    arm_write_tlbimvaa(va & 0xfffff000);
+    arm_write_tlbimva(va & 0xfffff000);
 #endif
 }
 
