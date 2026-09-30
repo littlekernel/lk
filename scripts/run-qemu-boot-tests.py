@@ -17,7 +17,7 @@ class QEMUTestRunner:
         self.architectures = {
             'arm': {
                 'script': 'do-qemuarm',
-                'args': '',
+                'args': '-s4',
                 'timeout': 90
             },
             'arm64': {

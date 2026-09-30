@@ -199,6 +199,7 @@ __BEGIN_CDECLS
 
 void arm_mmu_early_init(void);
 void arm_mmu_init(void);
+void arm_mmu_init_percpu(void);
 status_t arm_vtop(addr_t va, addr_t *pa);
 
 /* tlb routines */

@@ -155,6 +155,10 @@ void arm_secondary_entry(uint asm_cpu_num) {
 
     arm_basic_setup();
 
+#if ARCH_HAS_MMU
+    arm_mmu_init_percpu();
+#endif
+
     /* enable the local L1 cache */
     //arch_enable_cache(ARCH_CACHE_FLAG_UCACHE);
 

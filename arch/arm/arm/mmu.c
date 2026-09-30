@@ -28,6 +28,12 @@
 #define IS_SECTION_ALIGNED(x) IS_ALIGNED(x, SECTION_SIZE)
 #define IS_SUPERSECTION_ALIGNED(x) IS_ALIGNED(x, SUPERSECTION_SIZE)
 
+/* TTBR0 translates [0, KERNEL_ASPACE_BASE) and TTBR1 the kernel above it */
+STATIC_ASSERT((KERNEL_ASPACE_BASE & (KERNEL_ASPACE_BASE - 1)) == 0 &&
+              KERNEL_ASPACE_BASE >= 32 * MB && KERNEL_ASPACE_BASE <= 2 * GB);
+#define TTBCR_N     (__builtin_clz(KERNEL_ASPACE_BASE) + 1)
+#define TTBCR_PD0   (1u << 4)   /* no TTBR0 walks */
+
 /* locals */
 static void arm_mmu_map_section(arch_aspace_t *aspace, addr_t paddr, addr_t vaddr, uint flags);
 static void arm_mmu_unmap_section(arch_aspace_t *aspace, addr_t vaddr);
@@ -192,20 +198,30 @@ void arm_mmu_init(void) {
     }
     arm_after_invalidate_tlb_barrier();
 
-#if KERNEL_ASPACE_BASE != 0
-    /* bounce the ttbr over to ttbr1 and leave 0 unmapped */
-    uint32_t n = __builtin_clz(KERNEL_ASPACE_BASE) + 1;
-    DEBUG_ASSERT(n <= 7);
+    arm_mmu_init_percpu();
+}
 
-    uint32_t ttbcr = (1<<4) | n; /* disable TTBCR0 and set the split between TTBR0 and TTBR1 */
+/*
+ * Runs on every cpu while TTBR0 still holds the kernel table from start.S: moves
+ * that table to TTBR1 and leaves TTBR0 walks off until a user aspace is loaded.
+ */
+void arm_mmu_init_percpu(void) {
+    /* every aspace runs with ASID 0; the reset value is UNKNOWN */
+    arm_write_contextidr(0);
+    ISB;
 
     arm_write_ttbr1(arm_read_ttbr0());
     ISB;
-    arm_write_ttbcr(ttbcr);
+    arm_write_ttbcr(TTBCR_PD0 | TTBCR_N);
     ISB;
     arm_write_ttbr0(0);
     ISB;
-#endif
+
+    /* drop anything this cpu cached through TTBR0 */
+    arm_write_tlbiall(0);
+    arm_write_bpiall(0);
+    DSB;
+    ISB;
 }
 
 void arch_mmu_context_switch(arch_aspace_t *old_aspace, arch_aspace_t *aspace) {
@@ -213,13 +229,13 @@ void arch_mmu_context_switch(arch_aspace_t *old_aspace, arch_aspace_t *aspace) {
         LTRACEF("aspace %p\n", aspace);
 
     uint32_t ttbr;
-    uint32_t ttbcr = arm_read_ttbcr();
+    uint32_t ttbcr;
     if (aspace) {
         ttbr = MMU_TTBRx_FLAGS | (aspace->tt_phys);
-        ttbcr &= ~(1<<4); // enable TTBR0
+        ttbcr = TTBCR_N;
     } else {
         ttbr = 0;
-        ttbcr |= (1<<4); // disable TTBR0
+        ttbcr = TTBCR_PD0 | TTBCR_N;
     }
 
     if (LOCAL_TRACE && TRACE_CONTEXT_SWITCH)
