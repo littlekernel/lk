@@ -439,6 +439,12 @@ def main():
         print(f"Error: {lk_root} doesn't appear to be the LK root directory")
         return 1
 
+    # the launchers run with lk_root as their cwd, so pin a relative BUILDROOT to the
+    # directory it was given in
+    if os.environ.get('BUILDROOT'):
+        os.environ['BUILDROOT'] = os.path.abspath(os.environ['BUILDROOT'])
+        print(f"Build root: {os.environ['BUILDROOT']}")
+
     runner = QEMUTestRunner(lk_root)
 
     # Run tests

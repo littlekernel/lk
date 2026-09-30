@@ -170,6 +170,24 @@ USE_RUST=1 scripts/do-qemuriscv -6      # the do-qemu* scripts pick it up from t
 The build output will be written to the `build-<project>/` directory, where `<project>`
 is the name of the project being built.
 
+`BUILDROOT` moves those directories somewhere else, such as a local disk when the tree
+lives on a network share. Set it in the environment and every script follows it:
+`buildall`, `run-qemu-boot-tests.py` (and the FAT/ext2 runners on top of it), the
+`do-qemu*` launchers, the `.exp` test drivers, `check-module-deps.py` and the board
+flashing scripts. The scripts also honor an exported `BUILDDIR_SUFFIX`, the same way make
+does.
+
+```bash
+BUILDROOT=/scratch/lkbuild scripts/buildall -q -e
+BUILDROOT=/scratch/lkbuild ./scripts/run-qemu-boot-tests.py --arch arm64
+BUILDROOT=/scratch/lkbuild scripts/do-qemuarm -6
+```
+
+The scripts read it only from the environment. A `BUILDROOT` passed on the make command
+line, or set with `:=` in `local.mk`, moves make's output but not where the scripts look
+for it. `BUILDROOT ?=` in `local.mk` does nothing, since the top level `makefile` has
+already defaulted it to `.` by then.
+
 Build artifacts include object files, libraries, executables, and generated headers:
 
 - srcfiles.txt - list of source files used in the build

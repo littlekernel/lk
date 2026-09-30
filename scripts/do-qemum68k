@@ -91,7 +91,8 @@ ARGS=()
 ARGS+=("-machine" "virt")
 ARGS+=("-m" "$MEMSIZE")
 ARGS+=("-cpu" "m${CPU}")
-ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
+PROJECT_BUILDDIR="$(lk_builddir "$PROJECT")"
+ARGS+=("-kernel" "${PROJECT_BUILDDIR}/lk.elf")
 
 if [[ -n "$CMDLINE" ]]; then
     ARGS+=("-append" "$CMDLINE")

@@ -33,3 +33,9 @@ function quote_cmdline_arg {
             ;;
     esac
 }
+
+# Build directory for a project, matching where make puts it: BUILDROOT and
+# BUILDDIR_SUFFIX are read from the environment, as make itself does.
+function lk_builddir {
+    printf '%s/build-%s%s' "${BUILDROOT:-.}" "$1" "${BUILDDIR_SUFFIX:-}"
+}

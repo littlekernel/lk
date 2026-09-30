@@ -4,4 +4,4 @@ export PROJECT=dartuinoP0-test
 
 make -j8 &&
 openocd -f interface/stlink-v2.cfg -f board/stm32756g_eval.cfg \
-    -c "program build-$PROJECT/lk.bin reset exit 0x08000000"
+    -c "program ${BUILDROOT:-.}/build-$PROJECT${BUILDDIR_SUFFIX:-}/lk.bin reset exit 0x08000000"

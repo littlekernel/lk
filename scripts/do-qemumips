@@ -2,8 +2,10 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+. "$DIR/qemu-shared.sh"
+
 set -e
 set -x
 
 "$DIR"/make-parallel qemu-mips-test
-exec qemu-system-mips -machine malta -cpu M14K -kernel build-qemu-mips-test/lk.elf -nographic $@
+exec qemu-system-mips -machine malta -cpu M14K -kernel "$(lk_builddir qemu-mips-test)/lk.elf" -nographic $@

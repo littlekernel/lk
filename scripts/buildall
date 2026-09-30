@@ -41,6 +41,7 @@ function HELP {
     echo "-h        : for help"
     echo
     echo "All build output written to buildall.log"
+    echo "Build directories go under \$BUILDROOT if set in the environment (default: .)"
     exit 1
 }
 
@@ -196,7 +197,7 @@ for tc in "${TOOLCHAINS[@]}"; do
     for p in $PROJECTS; do
         echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
         log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=$dbg PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
-        BUILDDIRS+=("build-$p$BUILDDIR_SUFFIX")
+        BUILDDIRS+=("${BUILDROOT:-.}/build-$p$BUILDDIR_SUFFIX")
     done
 done
 done

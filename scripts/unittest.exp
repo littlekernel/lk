@@ -19,13 +19,17 @@ proc shutdown_qemu {status} {
 # Set timeout for the first stage: waiting for the shell
 set timeout 10
 
+# build directory, found the same way make places it
+if {[info exists env(BUILDROOT)]} {set buildroot $env(BUILDROOT)} else {set buildroot .}
+if {[info exists env(BUILDDIR_SUFFIX)]} {set suffix $env(BUILDDIR_SUFFIX)} else {set suffix ""}
+
 # Spawn the QEMU process
 spawn qemu-system-aarch64 \
     -cpu max \
     -m 512 \
     -smp 1 \
     -machine virt,highmem=off \
-    -kernel build-qemu-virt-arm64-test/lk.elf \
+    -kernel $buildroot/build-qemu-virt-arm64-test$suffix/lk.elf \
     -net none \
     -nographic
 set qemu_pid [exp_pid]

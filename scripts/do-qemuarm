@@ -303,7 +303,8 @@ if (( ! DO_MPS )); then
     ARGS+=("-smp" "$SMP")
 fi
 ARGS+=("-machine" "$MACHINE")
-ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
+PROJECT_BUILDDIR="$(lk_builddir "$PROJECT")"
+ARGS+=("-kernel" "${PROJECT_BUILDDIR}/lk.elf")
 
 if (( DO_MPS )); then
     # These boards have no way to hand a command line to the guest and no way

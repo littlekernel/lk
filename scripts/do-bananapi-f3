@@ -7,7 +7,7 @@
 set -e
 
 export PROJECT=bananapi-f3-test
-BUILDDIR="build-${PROJECT}"
+BUILDDIR="${BUILDROOT:-.}/build-${PROJECT}${BUILDDIR_SUFFIX:-}"
 
 RAMDISK="${BUILDDIR}/ramdisk.img"
 OUTPUT="${BUILDDIR}/lk.img"

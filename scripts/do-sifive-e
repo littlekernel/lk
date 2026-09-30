@@ -6,7 +6,7 @@ set -x
 set -e
 
 export PROJECT=sifive-e-test
-TARGET=$(pwd)/build-${PROJECT}/lk.elf
+TARGET=$(realpath -m "${BUILDROOT:-.}/build-${PROJECT}${BUILDDIR_SUFFIX:-}/lk.elf")
 
 "$DIR"/make-parallel
 

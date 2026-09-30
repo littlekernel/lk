@@ -4,4 +4,4 @@ export PROJECT=stm32f4-discovery-test
 
 make -j8 &&
 openocd -f board/stm32f4discovery.cfg \
-    -c "program build-$PROJECT/lk.bin reset exit 0x08000000"
+    -c "program ${BUILDROOT:-.}/build-$PROJECT${BUILDDIR_SUFFIX:-}/lk.bin reset exit 0x08000000"

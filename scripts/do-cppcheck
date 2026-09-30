@@ -17,7 +17,7 @@ Linux)
 esac
 
 PROJ=$1
-PROJ_DIR=build-${PROJ}
+PROJ_DIR=${BUILDROOT:-.}/build-${PROJ}${BUILDDIR_SUFFIX:-}
 TESTS="--enable=warning,style,performance,portability,information"
 
 cppcheck --force --file-list=${PROJ_DIR}/srcfiles.txt --includes-file=${PROJ_DIR}/include_paths.txt --include=${PROJ_DIR}/config.h -q --platform=unix32 $TESTS $JOBS

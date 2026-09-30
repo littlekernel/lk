@@ -167,7 +167,8 @@ ARGS=()
 ARGS+=("-machine" "$MACHINE")
 # To dump the device tree for this config, use:
 # ARGS=("-machine" "${MACHINE},dumpdtb=riscv.dtb")
-ARGS+=("-kernel" "build-${PROJECT}/lk.elf")
+PROJECT_BUILDDIR="$(lk_builddir "$PROJECT")"
+ARGS+=("-kernel" "${PROJECT_BUILDDIR}/lk.elf")
 
 if [[ -n "$CMDLINE" ]]; then
     ARGS+=("-append" "$CMDLINE")

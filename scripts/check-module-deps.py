@@ -24,7 +24,7 @@ WITH_<module>) should be declared with MODULE_WEAK_DEPS rather than MODULE_DEPS,
 dependency is on record without forcing the module into every build.
 
 Usage:
-    scripts/check-module-deps.py                      # every build-* dir under the LK root
+    scripts/check-module-deps.py                      # every build-* dir under $BUILDROOT or the LK root
     scripts/check-module-deps.py build-qemu-virt-arm64-test build-pc-x86-test
     scripts/check-module-deps.py --edges | sort       # one 'module -> dep' line per edge
     scripts/check-module-deps.py --strict             # exit 1 if anything is reported
@@ -230,6 +230,8 @@ def check_build(tree, build):
 
 
 def find_build_dirs(root):
+    if not os.path.isdir(root):
+        return []
     return sorted(
         os.path.join(root, d) for d in os.listdir(root)
         if d.startswith('build-') and os.path.isdir(os.path.join(root, d, 'top'))
@@ -241,7 +243,9 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog='\n\n'.join(__doc__.split('\n\n')[1:]))
     parser.add_argument('builddirs', nargs='*',
-                        help='build-<project> directories to check (default: all under --root)')
+                        help='build-<project> directories to check (default: all under --buildroot)')
+    parser.add_argument('--buildroot', default=os.environ.get('BUILDROOT'),
+                        help='directory holding the build-* dirs (default: $BUILDROOT, else --root)')
     parser.add_argument('--root', default=None,
                         help='LK source root (default: parent of the scripts/ directory)')
     parser.add_argument('--edges', action='store_true',
@@ -251,9 +255,10 @@ def main():
     args = parser.parse_args()
 
     root = os.path.abspath(args.root or os.path.join(os.path.dirname(__file__), '..'))
-    builddirs = [os.path.abspath(b) for b in args.builddirs] or find_build_dirs(root)
+    buildroot = os.path.abspath(args.buildroot or root)
+    builddirs = [os.path.abspath(b) for b in args.builddirs] or find_build_dirs(buildroot)
     if not builddirs:
-        print(f'no build-* directories found under {root}', file=sys.stderr)
+        print(f'no build-* directories found under {buildroot}', file=sys.stderr)
         return 2
 
     tree = Tree(root)

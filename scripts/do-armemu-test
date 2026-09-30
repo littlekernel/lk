@@ -10,4 +10,5 @@ fi
 
 "$DIR"/make-parallel -C ../armemu &&
 "$DIR"/make-parallel &&
-(cd build-"$PROJECT" && ../../armemu/build-generic/armemu)
+ARMEMU="$(pwd)/../armemu/build-generic/armemu"
+(cd "${BUILDROOT:-.}/build-$PROJECT${BUILDDIR_SUFFIX:-}" && "$ARMEMU")

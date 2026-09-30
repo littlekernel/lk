@@ -47,7 +47,7 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
-PROJ_DIR=build-${PROJ}
+PROJ_DIR=${BUILDROOT:-.}/build-${PROJ}${BUILDDIR_SUFFIX:-}
 
 # Section 3: Check if the project build directory and metadata files exist
 if [ ! -d "$PROJ_DIR" ]; then
