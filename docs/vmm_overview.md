@@ -188,6 +188,35 @@ static void vm_init_postheap(uint level) {
 
 In the function vmm_reserve_space, LK creates a vmm_region, inserts it into region_list. More importantly, the function also updates the page table (pointed by tt_virt / tt_phys) to tell the processor that these pages are reserved.
 
+# Arch MMU contract
+
+`arch/include/arch/mmu.h` states one contract for `arch_mmu_map()`,
+`arch_mmu_unmap()`, `arch_mmu_query()` and `arch_mmu_protect()` that every MMU
+arch keeps, and `arch_mmu_contract` in `arch/test/mmu_contract.cpp` checks each
+clause, in a user aspace where the arch has them and in a window of the kernel
+aspace everywhere. In short:
+
+- Permissions are granted, not taken away: READ is required, WRITE and EXECUTE
+  add to it. x86-32 and m68k have no NX, so a page there stays executable and
+  query reports EXECUTE; `arch_mmu_supports_nx_mappings()` says which.
+- Arguments are checked before anything else, a count of 0 included. A call
+  returns `NO_ERROR` or a negative error, never a count, and one that fails
+  leaves the mappings as they were.
+- map refuses a page that is already mapped with `ERR_ALREADY_EXISTS`, and a
+  page table allocation failure is `ERR_NO_MEMORY`; either way it takes back
+  what it had mapped.
+- unmap and protect skip holes, and refuse a range that covers part of a large
+  page, or an entry the arch keeps fixed, with `ERR_NOT_SUPPORTED` before
+  anything changes.
+- protect replaces the R/W/X permissions and nothing else, refuses EXECUTE on
+  uncached memory, and invalidates every page it changed, upgrades included.
+
+map makes a large page wherever vaddr, paddr and count line up: arm64 one level
+above the leaf tables (2MB, 32MB or 512MB, by granule), riscv a 2MB megapage,
+arm32 a 1MB section. x86 and m68k map small pages only; x86's large pages are
+the physmap's, made at boot. Nothing splits a large page, which is why taking
+part of one is refused.
+
 # User address spaces
 
 Each thread carries the user aspace it runs in (`thread_t::aspace`, NULL for a
@@ -252,6 +281,14 @@ rules that out. Either way a page fault that the tables do not explain is taken
 as such a stale translation: the hart flushes its TLB and retries the access,
 and one that keeps recurring is reported as a real fault. Intermediate tables
 emptied by an unmap are unlinked and freed only after the shootdown.
+`arch_mmu_protect()` invalidates every page whose entry it changed, a permission
+added as much as one taken away, since a cpu may still hold the old entry.
+
+The other arches follow the same order. arm32 broadcasts its invalidates on SMP
+and flushes a cpu's user entries on every switch between user aspaces, which all
+run with ASID 0; x86 shoots down through `mp_sync_exec()`, also with interrupts
+enabled; m68k flushes its ATC with `pflusha` after a map as well, since the
+68040 caches a walk that ended at an invalid descriptor.
 
 `arch_mmu_destroy_aspace()` expects every mapping to be gone already, which is
 what frees the lower tables, and no cpu to have the aspace loaded.
@@ -273,7 +310,8 @@ percpu pointer in x18, which user space may overwrite, so the vectors for
 exceptions from EL0 reload it from a slot at the top of the thread's kernel
 stack that `arch_enter_uspace()` fills and every return to EL0 refreshes.
 `arch_uspace_tests` in `arch/test/` runs a stub through a syscall and a fault
-this way on both arches.
+this way on both arches, and a store and a jump into a page before and after
+`arch_mmu_protect()` changes it.
 
 # Physical to virtual mapping
 

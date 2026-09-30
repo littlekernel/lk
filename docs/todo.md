@@ -29,7 +29,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - virtio-fs FUSE client, no DAX [plan]
     - needs virtiofsd on the test hosts
 - Shared page-table walker: traits/geometry split, then x86-64 port, then arm64 [plan]
-    - x86-64 port also fixes: map over a live page succeeds, no ENOMEM rollback, destroy leaks tables
+    - arch_mmu_contract (arch/test/mmu_contract.cpp) is the acceptance test for each port
 - Backtrace follow-ups: arm32/cortex-m walker, symtab prefix compression, DWARF CFI [plan]
 - Rust on arm32 (incl cortex-m) and x86-32, then a rust riscv uart driver [plan]
 
@@ -51,7 +51,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 - Ticket lock spinlock?
 - arch_in_int_handler for all arches [#368]
-    - only arm32 has one, via a global (not per-cpu); arm64 has none
+    - only arm32 has one (a flag per cpu); arm64 has none
     - then assert blocking apis aren't called in a handler (arch_blocking_disallowed a la fuchsia)
 - No resched from irq context before EOI [#528]
 - Priority inheritance for mutexes [#300]
@@ -64,11 +64,15 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## SMP / VMM
 
-- x86: free emptied page tables *after* the tlb shootdown, not before (arch/x86/64/mmu.c)
 - x86: shootdown should use mp_sync_exec_cpus like riscv, to reach a secondary before it is active (it must have its lapic software enabled to take the IPI)
 - x86-32: kernel page directory entries above the first 1GB never reach existing user aspaces
-- Align arch_mmu_map over an existing mapping across arches [#356]
-    - x86-64 and arm32 overwrite and return success; riscv and arm64 refuse
+- Split a large page so unmap and protect can take part of one (refused today; arm64 needs break-before-make)
+- vmm_protect(): arch_mmu_protect has no caller above the arch yet
+- ARCH_MMU_FLAG_WRITE_COMBINING in the spare cache policy value, as zircon has; x86 programs the PAT now
+- riscv Svpbmt: every mapping is cached today, UNCACHED included
+- Track which cpus have an aspace loaded on x86 and arm32 (arch_aspace_active_cpus() returns 0)
+- m68k: arch_mmu_context_switch loads a virtual address into URP (harmless while nothing runs in user mode)
+- arm32: ACTLR.SMP is left to firmware on cortex-a15
 - vmm_map_physical(), make vmm_alloc_physical closer to sival
 - Simple VMO object layer
 - Mismatched cache attribute aliases of the same memory [#529]
@@ -81,7 +85,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - FRED?
 - PCID is detected but never enabled
 - mtrr.c has its own tlb flush, use the common one
-- stale "TODO: proper tlb flush" comments in 32/mmu.c and 64/mmu.c
 - platform_allocate_interrupts panics for count != 1 (MSI multi-vector)
 - Clean up the framebuffer console from multiboot2 (own 9x16 font, 32bpp only), use lib/gfxconsole?
 
@@ -208,6 +211,8 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~one arch mmu contract (map/unmap/query/protect) on every arch, arch_mmu_protect, positive R/W/X flags [#356]~~
+- ~~x86 frees emptied page tables after the shootdown; arm32 SMP (per-cpu TTBR1, irq flag, user aspace isolation)~~
 - ~~backtraces with symbols (lib/backtrace, lib/symtab)~~
 - ~~minip rework (pktbuf, netstack thread, tcp queues, dns)~~
 - ~~GPT partitions (lib/partition, not lib/ptable) + bio partdump~~
