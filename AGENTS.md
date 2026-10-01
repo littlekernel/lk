@@ -270,6 +270,9 @@ The do-qemu* scripts auto-build before launching QEMU. Note they default to `dlm
 # --help for the full list.
 ./scripts/run-qemu-boot-tests.py --arch x86-64-uefi
 
+# The other page table geometries: arm64 with 16K and 64K pages, riscv64 with sv39
+./scripts/run-qemu-boot-tests.py --arch arm64-16k --arch arm64-64k --arch riscv64-sv39
+
 # Raise the per-architecture timeout for longer suites. The defaults (90s, 120s for
 # x86-64-uefi) are hang detectors, not performance targets; see the table in the script.
 ./scripts/run-qemu-boot-tests.py --arch arm64 --timeout 600

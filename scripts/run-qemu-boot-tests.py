@@ -25,6 +25,18 @@ class QEMUTestRunner:
                 'args': '-6s4',
                 'timeout': 90
             },
+            # the same kernel with 16K and 64K pages, which changes the shape of
+            # the page tables and the sizes of the large pages
+            'arm64-16k': {
+                'script': 'do-qemuarm',
+                'args': '-6s4 -P 16k',
+                'timeout': 90
+            },
+            'arm64-64k': {
+                'script': 'do-qemuarm',
+                'args': '-6s4 -P 64k',
+                'timeout': 90
+            },
             # The cortex-m boards qemu models for ARM's MPS2/MPS3 prototyping
             # systems, one per core generation. These exercise arch/arm/arm-m,
             # which nothing else here covers.
@@ -74,6 +86,12 @@ class QEMUTestRunner:
             'riscv64-nosvvptc': {
                 'script': 'do-qemuriscv',
                 'args': '-6Ss4 -F svvptc=off',
+                'timeout': 90
+            },
+            # three levels of page table (sv39) rather than the default four
+            'riscv64-sv39': {
+                'script': 'do-qemuriscv',
+                'args': '-6Ss4 -p qemu-virt-riscv64-supervisor-sv39-test',
                 'timeout': 90
             },
             'x86': {
@@ -405,9 +423,10 @@ class QEMUTestRunner:
 
 def main():
     parser = argparse.ArgumentParser(description='Run LK QEMU tests for multiple architectures')
-    parser.add_argument('--arch', choices=['arm', 'arm64', 'arm-m3', 'arm-m4', 'arm-m7',
+    parser.add_argument('--arch', choices=['arm', 'arm64', 'arm64-16k', 'arm64-64k',
+                                          'arm-m3', 'arm-m4', 'arm-m7',
                                           'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv64',
-                                          'riscv64-nosvvptc',
+                                          'riscv64-nosvvptc', 'riscv64-sv39',
                                           'x86', 'x86-64', 'x86-i440fx', 'x86-64-i440fx',
                                           'x86-64-uefi', 'x86-64-xapic'], action='append',
                        help='Architecture to test (can be specified multiple times)')

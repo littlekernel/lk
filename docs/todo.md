@@ -173,7 +173,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Github / CI
 
-- x86-64-uefi boot test runs in no workflow (needs ovmf in CI); also x86-i440fx, x86-64-i440fx, x86-64-xapic, riscv64-nosvvptc
+- x86-64-uefi boot test runs in no workflow (needs ovmf in CI); also x86-i440fx, x86-64-i440fx, x86-64-xapic, arm64-16k, arm64-64k, riscv64-nosvvptc, riscv64-sv39
 - Fold scripts/uefi_unittest.exp (arm64 uefi_load test, clang workflow only) into the regular boot test run
 - run-ext2-tests.py not in CI
 - Reproducible builds [#447]
