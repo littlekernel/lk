@@ -323,7 +323,7 @@ static status_t x86_mmu_check_range_ends(arch_aspace_t *aspace, vaddr_t vaddr, u
         const vaddr_t size = x86_entry_span(level);
         const vaddr_t block = ROUNDDOWN(ends[i], size);
         if (block < vaddr || block + (size - 1) > last + (PAGE_SIZE - 1)) {
-            TRACEF("range at %#lx covers part of a large page at %#lx\n", vaddr, block);
+            LTRACEF("range at %#lx covers part of a large page at %#lx\n", vaddr, block);
             return ERR_NOT_SUPPORTED;
         }
     }

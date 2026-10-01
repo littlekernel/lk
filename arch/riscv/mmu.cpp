@@ -635,7 +635,7 @@ static_assert(RISCV_MMU_PHYSMAP_BASE_VIRT == KERNEL_ASPACE_BASE, "a range touchi
 status_t check_range_ends(arch_aspace_t *aspace, vaddr_t vaddr, size_t count) {
     if ((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) &&
         vaddr - RISCV_MMU_PHYSMAP_BASE_VIRT < RISCV_MMU_PHYSMAP_SIZE) {
-        TRACEF("range at %#lx touches the physmap\n", vaddr);
+        LTRACEF("range at %#lx touches the physmap\n", vaddr);
         return ERR_NOT_SUPPORTED;
     }
 
@@ -649,7 +649,7 @@ status_t check_range_ends(arch_aspace_t *aspace, vaddr_t vaddr, size_t count) {
         const vaddr_t block = ROUNDDOWN(va, page_size_per_level(l.level));
         const vaddr_t block_last = block + page_mask_per_level(l.level);
         if (block < vaddr || block_last > last + (PAGE_SIZE - 1)) {
-            TRACEF("range at %#lx covers part of a large page at %#lx (level %u)\n", vaddr, block, l.level);
+            LTRACEF("range at %#lx covers part of a large page at %#lx (level %u)\n", vaddr, block, l.level);
             return ERR_NOT_SUPPORTED;
         }
     }
@@ -706,7 +706,7 @@ status_t arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t
         if (pte & RISCV_PTE_V) {
             // a page or large page already covers this address
             DEBUG_ASSERT(pte & RISCV_PTE_PERM_MASK);
-            TRACEF("mapping already exists at %#lx (level %u pte %#lx)\n", vaddr, level, pte);
+            LTRACEF("mapping already exists at %#lx (level %u pte %#lx)\n", vaddr, level, pte);
             return walk_cb_ret::Halt(ERR_ALREADY_EXISTS);
         }
 

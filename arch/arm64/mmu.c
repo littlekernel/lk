@@ -619,7 +619,7 @@ static status_t arm64_mmu_check_range_ends(const arch_aspace_t *aspace, vaddr_t 
         const vaddr_t block = ROUNDDOWN(ends[i], 1UL << shift);
         const vaddr_t block_last = block + ((1UL << shift) - 1);
         if (block < vaddr || block_last > last + (PAGE_SIZE - 1)) {
-            TRACEF("range at 0x%lx covers part of a block at 0x%lx\n", vaddr, block);
+            LTRACEF("range at 0x%lx covers part of a block at 0x%lx\n", vaddr, block);
             return ERR_NOT_SUPPORTED;
         }
     }

@@ -299,7 +299,7 @@ static void x86_mmu_unmap_range(arch_aspace_t *aspace, vaddr_t vaddr, uint count
 static status_t x86_mmu_check_range(arch_aspace_t *aspace, vaddr_t vaddr, uint count) {
 #if !X86_LEGACY
     if ((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) && vaddr - KERNEL_ASPACE_BASE < PHYSMAP_SIZE) {
-        TRACEF("range at %#lx touches the physmap\n", vaddr);
+        LTRACEF("range at %#lx touches the physmap\n", vaddr);
         return ERR_NOT_SUPPORTED;
     }
 #endif
