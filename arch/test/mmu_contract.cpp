@@ -31,40 +31,56 @@ using mmu_test::protect;
 using mmu_test::query;
 using mmu_test::unmap;
 
-// Per arch geometry: the span one leaf table covers, and the smallest large
-// page map may create (0 where map never makes one).
+// Per arch geometry: the span one leaf table covers, the span one page table
+// allocation serves, and the smallest large page map may create (0 where map
+// never makes one).
 #if ARCH_ARM64
 constexpr size_t kLeafSpan = 1UL << (2 * PAGE_SIZE_SHIFT - 3);
+constexpr size_t kTableSpan = kLeafSpan;
 constexpr size_t kLargePage = kLeafSpan;
 #elif ARCH_RISCV
 constexpr size_t kLeafSpan = PAGE_SIZE * (PAGE_SIZE / sizeof(ulong));
+constexpr size_t kTableSpan = kLeafSpan;
 constexpr size_t kLargePage = kLeafSpan;
 #elif ARCH_ARM
 constexpr size_t kLeafSpan = 1UL << 20;
+constexpr size_t kTableSpan = 4UL << 20; // one page holds the tables of four sections
 constexpr size_t kLargePage = kLeafSpan;
 #elif ARCH_X86_64
 constexpr size_t kLeafSpan = 2UL << 20;
+constexpr size_t kTableSpan = kLeafSpan;
 constexpr size_t kLargePage = 0;
 #elif ARCH_X86_32
 constexpr size_t kLeafSpan = 4UL << 20;
+constexpr size_t kTableSpan = kLeafSpan;
 constexpr size_t kLargePage = 0;
 #elif ARCH_M68K
 constexpr size_t kLeafSpan = 4UL << 20;
+constexpr size_t kTableSpan = kLeafSpan;
 constexpr size_t kLargePage = 0;
 #else
 #error "add the arch's table geometry"
 #endif
 
-// Room for a large page with a page in front of it, and for a range across a
-// leaf table boundary with fresh tables on both sides.
+// Room for three leaf tables in a row, for a range across the boundary between
+// two table allocations, and for a large page with a page in front of it.
 #if IS_64BIT
-constexpr size_t kWindowSize = 1UL << 30;
+constexpr size_t kWindowSize = 4UL << 30;
 constexpr uint8_t kWindowAlign = 30;
 #else
-constexpr size_t kWindowSize = 8UL << 20;
+constexpr size_t kWindowSize = 16UL << 20;
 constexpr uint8_t kWindowAlign = 22;
 #endif
-static_assert(kWindowSize >= 2 * kLeafSpan && kWindowSize >= 2 * kLargePage, "");
+static_assert(kWindowSize >= 3 * kLeafSpan && kWindowSize >= 2 * kTableSpan &&
+              kWindowSize >= 2 * kLargePage, "");
+
+// The x86-32 kernel aspace keeps every page table it makes: each user page
+// directory holds a copy of the kernel's entries.
+#if ARCH_X86_32
+constexpr bool kKernelTablesPermanent = true;
+#else
+constexpr bool kKernelTablesPermanent = false;
+#endif
 
 constexpr uint log2_of(size_t v) { return v <= 1 ? 0 : 1 + log2_of(v / 2); }
 
@@ -77,6 +93,7 @@ struct window {
     size_t size;
     uint user;             // ARCH_MMU_FLAG_PERM_USER in a user aspace
     bool tables_permanent; // tables linked here are never freed
+    table_tracker *tables; // counts the page tables the test allocates and frees
     vaddr_t outside;       // an address outside the aspace
 };
 
@@ -139,7 +156,9 @@ bool check_unmapped(const window &w, vaddr_t va, uint count) {
     END_TEST;
 }
 
-// runs fn in a user aspace window and in a kernel aspace window
+// Runs fn in a user aspace window and in a kernel aspace window. Whatever fn
+// left mapped goes afterwards, and by then every page table the test
+// allocated must have been freed again.
 template <typename F>
 bool in_each_window(F fn) {
     BEGIN_TEST;
@@ -147,17 +166,21 @@ bool in_each_window(F fn) {
     if (arch_mmu_supports_user_aspaces()) {
         window w = {};
         w.name = "user";
-        ASSERT_EQ(NO_ERROR, vmm_create_aspace(&w.as, "mmu_contract", 0), "create aspace");
-        auto cleanup = lk::make_auto_call([&]() { vmm_free_aspace(w.as); });
+        scoped_user_aspace as;
+        ASSERT_EQ(NO_ERROR, as.create("mmu_contract"), "create aspace");
+        w.as = as;
         ASSERT_EQ(NO_ERROR, vmm_reserve_range(w.as, "window", kWindowSize, kWindowAlign, &w.base), "reserve");
         w.size = kWindowSize;
         w.user = ARCH_MMU_FLAG_PERM_USER;
         w.outside = KERNEL_ASPACE_BASE;
+        table_tracker tables;
+        w.tables = &tables;
         if (!fn(w)) {
             unittest_printf(" (in the user window)");
             all_ok = false;
         }
         unmap(w, w.base, w.size / PAGE_SIZE);
+        EXPECT_EQ(0L, tables.live(), "every table freed, user window");
     }
 
     {
@@ -168,15 +191,18 @@ bool in_each_window(F fn) {
         auto cleanup = lk::make_auto_call([&]() { vmm_free_region(w.as, w.base); });
         w.size = kWindowSize;
         w.user = 0;
-#if ARCH_X86_32
-        w.tables_permanent = true; // user page directories copy the kernel's
-#endif
+        w.tables_permanent = kKernelTablesPermanent;
         w.outside = KERNEL_ASPACE_BASE - PAGE_SIZE;
+        table_tracker tables;
+        w.tables = &tables;
         if (!fn(w)) {
             unittest_printf(" (in the kernel window)");
             all_ok = false;
         }
         unmap(w, w.base, w.size / PAGE_SIZE);
+        if (!w.tables_permanent) {
+            EXPECT_EQ(0L, tables.live(), "every table freed, kernel window");
+        }
     }
 
     END_TEST;
@@ -266,71 +292,80 @@ bool collision(const window &w) {
 
 #if LK_DEBUGLEVEL > 0
 // A map that runs out of page tables fails with ERR_NO_MEMORY and leaves the
-// aspace as it was. The range crosses a leaf table boundary, so the cut can
-// fall before any table, between tables of one page's chain, or after the
-// first page went in. A table left linked by a failed attempt would make one
-// table fewer than needed enough, which the attempt at needed - 1 checks.
+// aspace as it was: nothing mapped, and every table it linked freed again.
+// The range crosses the boundary between two table allocations, so one of the
+// budgets runs out only after pages went in.
 bool out_of_tables(const window &w) {
     BEGIN_TEST;
     backing b;
     ASSERT_TRUE(b.alloc(4), "backing");
-    table_tracker tables;
+    table_tracker &tables = *w.tables;
+    auto budget_cleanup = lk::make_auto_call([&]() { tables.set_budget(-1); });
 
-    const vaddr_t va = w.base + kLeafSpan - 2 * PAGE_SIZE;
-    constexpr int kMaxTables = 16;
+    const vaddr_t va = w.base + kTableSpan - 2 * PAGE_SIZE;
 
-    // how many tables the range needs, from a clean window
-    int needed = -1;
-    for (int budget = 0; budget <= kMaxTables; budget++) {
-        tables.set_budget(budget);
-        status_t err = map(w, va, b.pa, 4);
-        tables.set_budget(-1);
-        if (err == NO_ERROR) {
-            needed = budget;
-            break;
-        }
-        EXPECT_EQ(ERR_NO_MEMORY, err, "map short of tables");
-        EXPECT_TRUE(check_unmapped(w, va, 4), "nothing mapped");
-        if (!all_ok) {
-            break;
-        }
-    }
-    ASSERT_LE(0, needed, "some budget is enough");
-    EXPECT_EQ(NO_ERROR, unmap(w, va, 4), "unmap");
-    if (needed == 0) {
-        unittest_printf(" (every table already there)");
-        END_TEST;
-    }
     if (w.tables_permanent) {
-        // the first pass left the tables in place for good
+        // A table linked here stays, so each attempt gets one table further
+        // than the last, and only the first run of a boot starts with none.
+        constexpr int kMaxAttempts = 16;
+        int failures = 0;
+        status_t err = ERR_NO_MEMORY;
+        for (int attempt = 0; attempt < kMaxAttempts; attempt++) {
+            tables.set_budget(attempt == 0 ? 0 : 1);
+            err = map(w, va, b.pa, 4);
+            tables.set_budget(-1);
+            if (err == NO_ERROR) {
+                break;
+            }
+            failures++;
+            EXPECT_EQ(ERR_NO_MEMORY, err, "map short of tables");
+            EXPECT_TRUE(check_unmapped(w, va, 4), "nothing mapped");
+            if (!all_ok) {
+                break;
+            }
+        }
+        EXPECT_EQ(NO_ERROR, err, "maps once the tables are there");
+        if (failures == 0) {
+            unittest_printf(" (every table already there)");
+        }
+        EXPECT_EQ(NO_ERROR, unmap(w, va, 4), "unmap");
         END_TEST;
     }
 
-    // every smaller budget again, each followed by the one just short
+    // how many tables the range needs
+    const long live = tables.live();
+    size_t before = tables.allocs();
+    ASSERT_EQ(NO_ERROR, map(w, va, b.pa, 4), "map");
+    const int needed = (int)(tables.allocs() - before);
+    EXPECT_EQ(NO_ERROR, unmap(w, va, 4), "unmap");
+    EXPECT_EQ(live, tables.live(), "the unmap freed them");
+    EXPECT_LE(2, needed, "a table either side of the boundary");
+
+    // every budget short of that
     for (int budget = 0; budget < needed; budget++) {
         tables.set_budget(budget);
-        EXPECT_EQ(ERR_NO_MEMORY, map(w, va, b.pa, 4), "map short of tables");
-        tables.set_budget(needed - 1);
-        status_t err = map(w, va, b.pa, 4);
+        const status_t err = map(w, va, b.pa, 4);
         tables.set_budget(-1);
-        EXPECT_EQ(ERR_NO_MEMORY, err, "one short after a failed map");
+        EXPECT_EQ(ERR_NO_MEMORY, err, "map short of tables");
         EXPECT_TRUE(check_unmapped(w, va, 4), "nothing mapped");
+        EXPECT_EQ(live, tables.live(), "every table it linked freed again");
         if (err == NO_ERROR) {
-            unittest_printf(" (budget %d left tables linked)", budget);
             unmap(w, va, 4);
-            break;
         }
     }
 
     // and the aspace still maps normally, needing as many as before
+    before = tables.allocs();
     tables.set_budget(needed);
-    status_t err = map(w, va, b.pa, 4);
+    const status_t err = map(w, va, b.pa, 4);
     tables.set_budget(-1);
-    EXPECT_EQ(NO_ERROR, err, "map with the same budget");
+    EXPECT_EQ(NO_ERROR, err, "map with just enough");
+    EXPECT_EQ(needed, (int)(tables.allocs() - before), "as many tables as before");
     for (uint i = 0; i < 4; i++) {
         EXPECT_TRUE(check_page(w, va + i * PAGE_SIZE, b.pa + i * PAGE_SIZE), "mapped");
     }
     EXPECT_EQ(NO_ERROR, unmap(w, va, 4), "unmap");
+    EXPECT_EQ(live, tables.live(), "tables freed");
     END_TEST;
 }
 #endif
@@ -406,6 +441,43 @@ bool large_page_collision(const window &w) {
         EXPECT_TRUE(check_page(w, large + off + 0x10, big.pa + off + 0x10), "mapped");
     }
     EXPECT_EQ(NO_ERROR, unmap(w, large, large_count), "unmap");
+    END_TEST;
+}
+
+// A range that starts inside the aspace and runs past its end is refused,
+// whatever is mapped at its last page, and nothing changes.
+bool past_the_end(const window &w) {
+    BEGIN_TEST;
+    backing b;
+    ASSERT_TRUE(b.alloc(2), "backing");
+    const vaddr_t last = w.as->base + (w.as->size - PAGE_SIZE);
+
+    paddr_t pa = 0;
+    uint flags = 0;
+    const status_t there = query(w, last, &pa, &flags);
+    EXPECT_TRUE(there == NO_ERROR || there == ERR_NOT_FOUND, "the last page is in range");
+
+    EXPECT_EQ(ERR_OUT_OF_RANGE, map(w, last, b.pa, 2), "map past the end");
+    EXPECT_EQ(ERR_OUT_OF_RANGE, unmap(w, last, 2), "unmap past the end");
+    EXPECT_EQ(ERR_OUT_OF_RANGE, protect(w, last, 2, kR), "protect past the end");
+    // one page more than there is from the window to the end, where a count can say that
+    const size_t to_end = (last - w.base) / PAGE_SIZE + 1;
+    if (to_end < UINT_MAX) {
+        EXPECT_EQ(ERR_OUT_OF_RANGE, unmap(w, w.base, (uint)to_end + 1), "unmap one page past the end");
+        EXPECT_EQ(ERR_OUT_OF_RANGE, protect(w, w.base, (uint)to_end + 1, kR), "protect one page past the end");
+    }
+
+    EXPECT_EQ(NO_ERROR, map(w, last, b.pa, 0), "map nothing at the last page");
+    EXPECT_EQ(NO_ERROR, unmap(w, last, 0), "unmap nothing at the last page");
+    EXPECT_EQ(NO_ERROR, protect(w, last, 0, kR), "protect nothing at the last page");
+
+    paddr_t pa2 = 0;
+    uint flags2 = 0;
+    EXPECT_EQ(there, query(w, last, &pa2, &flags2), "the last page is as it was");
+    if (there == NO_ERROR) {
+        EXPECT_EQ(pa, pa2, "paddr");
+        EXPECT_EQ(flags, flags2, "flags");
+    }
     END_TEST;
 }
 
@@ -494,28 +566,33 @@ bool protect_permissions(const window &w) {
     END_TEST;
 }
 
-// Holes are stepped over and stay holes, a table's worth of them included.
+// Holes are stepped over and stay holes, whether a few entries or a leaf
+// table that is not there, and protect allocates nothing to cross them.
 bool protect_holes(const window &w) {
     BEGIN_TEST;
     backing b;
     ASSERT_TRUE(b.alloc(3), "backing");
     ASSERT_EQ(NO_ERROR, map(w, w.base, b.pa, 1), "map page 0");
     ASSERT_EQ(NO_ERROR, map(w, w.base + 2 * PAGE_SIZE, b.pa + PAGE_SIZE, 1), "map page 2");
-    // past a leaf table's worth of nothing
-    const vaddr_t far = w.base + 2 * kLeafSpan - PAGE_SIZE;
+    // two leaf tables on, with no table for the span in between
+    const vaddr_t far = w.base + 2 * kLeafSpan;
     ASSERT_EQ(NO_ERROR, map(w, far, b.pa + 2 * PAGE_SIZE, 1), "map a far page");
 
+    const size_t allocs = w.tables->allocs();
     EXPECT_EQ(NO_ERROR, protect(w, w.base, (far - w.base) / PAGE_SIZE + 1, kR), "protect around holes");
+    EXPECT_EQ(allocs, w.tables->allocs(), "no table allocated");
     EXPECT_TRUE(check_page(w, w.base, b.pa, kR), "page 0");
     EXPECT_TRUE(check_page(w, w.base + 2 * PAGE_SIZE, b.pa + PAGE_SIZE, kR), "page 2");
     EXPECT_TRUE(check_page(w, far, b.pa + 2 * PAGE_SIZE, kR), "far page");
     EXPECT_TRUE(check_unmapped(w, w.base + PAGE_SIZE, 1), "hole 1 stays");
     EXPECT_TRUE(check_unmapped(w, w.base + 3 * PAGE_SIZE, 1), "hole 3 stays");
-    EXPECT_TRUE(check_unmapped(w, w.base + kLeafSpan, 1), "hole in the next table stays");
+    EXPECT_TRUE(check_unmapped(w, w.base + kLeafSpan, 1), "the span without a table stays");
+    EXPECT_TRUE(check_unmapped(w, far - PAGE_SIZE, 1), "to its last page");
     EXPECT_EQ(NO_ERROR, protect(w, w.base + 4 * PAGE_SIZE, 4, kR), "protect nothing");
 
     EXPECT_EQ(NO_ERROR, unmap(w, w.base, 3), "unmap");
     EXPECT_EQ(NO_ERROR, unmap(w, far, 1), "unmap far page");
+    EXPECT_EQ(NO_ERROR, protect(w, w.base, w.size / PAGE_SIZE, kR), "protect an empty window");
     END_TEST;
 }
 
@@ -548,33 +625,37 @@ bool protect_bad_args(const window &w) {
 }
 
 // EXECUTE is refused on an uncached page, before any page in the range
-// changes; where the entry cannot be uncached it is allowed.
+// changes; where the entry cannot be uncached it is allowed. The uncached
+// page sits between two cached ones, so it is not at either end of the range.
 bool protect_execute_uncached(const window &w) {
     BEGIN_TEST;
     backing b;
-    ASSERT_TRUE(b.alloc(3), "backing");
+    ASSERT_TRUE(b.alloc(4), "backing");
+    const vaddr_t uncached = w.base + PAGE_SIZE;
+    const vaddr_t device = w.base + 3 * PAGE_SIZE;
     ASSERT_EQ(NO_ERROR, map(w, w.base, b.pa, 1, kRW), "map cached");
-    ASSERT_EQ(NO_ERROR, map(w, w.base + PAGE_SIZE, b.pa + PAGE_SIZE, 1, kRW | ARCH_MMU_FLAG_UNCACHED), "map uncached");
-    ASSERT_EQ(NO_ERROR, map(w, w.base + 2 * PAGE_SIZE, b.pa + 2 * PAGE_SIZE, 1, kRW | ARCH_MMU_FLAG_UNCACHED_DEVICE),
-              "map device");
+    ASSERT_EQ(NO_ERROR, map(w, uncached, b.pa + PAGE_SIZE, 1, kRW | ARCH_MMU_FLAG_UNCACHED), "map uncached");
+    ASSERT_EQ(NO_ERROR, map(w, w.base + 2 * PAGE_SIZE, b.pa + 2 * PAGE_SIZE, 1, kRW), "map cached");
+    ASSERT_EQ(NO_ERROR, map(w, device, b.pa + 3 * PAGE_SIZE, 1, kRW | ARCH_MMU_FLAG_UNCACHED_DEVICE), "map device");
 
     uint flags = 0;
-    ASSERT_EQ(NO_ERROR, query(w, w.base + PAGE_SIZE, nullptr, &flags), "query");
+    ASSERT_EQ(NO_ERROR, query(w, uncached, nullptr, &flags), "query");
     if ((flags & ARCH_MMU_FLAG_CACHE_MASK) != ARCH_MMU_FLAG_CACHED) {
-        EXPECT_EQ(ERR_INVALID_ARGS, protect(w, w.base, 3, kR | kX), "execute over uncached");
-        EXPECT_TRUE(check_page(w, w.base, b.pa, kRW), "cached page unchanged");
-        EXPECT_EQ(ERR_INVALID_ARGS, protect(w, w.base + 2 * PAGE_SIZE, 1, kR | kX), "execute device");
-        EXPECT_EQ(NO_ERROR, protect(w, w.base + PAGE_SIZE, 2, kR), "read only uncached");
-        EXPECT_TRUE(check_page(w, w.base + PAGE_SIZE, b.pa + PAGE_SIZE, kR | ARCH_MMU_FLAG_UNCACHED), "uncached kept");
-        EXPECT_TRUE(check_page(w, w.base + 2 * PAGE_SIZE, b.pa + 2 * PAGE_SIZE, kR | ARCH_MMU_FLAG_UNCACHED_DEVICE),
-                    "device kept");
+        EXPECT_EQ(ERR_INVALID_ARGS, protect(w, w.base, 3, kR | kX), "execute over an uncached page");
+        EXPECT_TRUE(check_page(w, w.base, b.pa, kRW), "page before it unchanged");
+        EXPECT_TRUE(check_page(w, w.base + 2 * PAGE_SIZE, b.pa + 2 * PAGE_SIZE, kRW), "page after it unchanged");
+        EXPECT_EQ(ERR_INVALID_ARGS, protect(w, device, 1, kR | kX), "execute device");
+        EXPECT_EQ(NO_ERROR, protect(w, uncached, 1, kR), "read only uncached");
+        EXPECT_TRUE(check_page(w, uncached, b.pa + PAGE_SIZE, kR | ARCH_MMU_FLAG_UNCACHED), "uncached kept");
+        EXPECT_EQ(NO_ERROR, protect(w, device, 1, kR), "read only device");
+        EXPECT_TRUE(check_page(w, device, b.pa + 3 * PAGE_SIZE, kR | ARCH_MMU_FLAG_UNCACHED_DEVICE), "device kept");
     } else {
-        EXPECT_EQ(NO_ERROR, protect(w, w.base, 3, kR | kX), "every page is cached");
+        EXPECT_EQ(NO_ERROR, protect(w, w.base, 4, kR | kX), "every page is cached");
     }
     EXPECT_EQ(NO_ERROR, protect(w, w.base, 1, kR | kX), "execute cached");
     EXPECT_TRUE(check_page(w, w.base, b.pa, kR | kX), "executable");
 
-    EXPECT_EQ(NO_ERROR, unmap(w, w.base, 3), "unmap");
+    EXPECT_EQ(NO_ERROR, unmap(w, w.base, 4), "unmap");
     END_TEST;
 }
 
@@ -626,6 +707,7 @@ bool contract_out_of_tables() { return in_each_window(out_of_tables); }
 bool contract_large_page_partial_unmap() { return in_each_window(large_page_partial_unmap); }
 bool contract_large_page_collision() { return in_each_window(large_page_collision); }
 bool contract_bad_args() { return in_each_window(bad_args); }
+bool contract_past_the_end() { return in_each_window(past_the_end); }
 bool contract_cache_policies() { return in_each_window(cache_policies); }
 bool contract_protect_permissions() { return in_each_window(protect_permissions); }
 bool contract_protect_holes() { return in_each_window(protect_holes); }
@@ -701,15 +783,76 @@ bool contract_physmap() {
     END_TEST;
 }
 
+// The last pages of the kernel aspace, where on most arches the end of a
+// range wraps to zero. The vmm never hands them out, so where the platform's
+// own mappings do not reach them they are mapped, protected and unmapped in
+// ranges that end exactly at the top; where they do, a map there collides
+// and leaves what is mapped alone.
+bool contract_kernel_top() {
+    BEGIN_TEST;
+    vmm_aspace_t *kas = vmm_get_kernel_aspace();
+    backing b;
+    ASSERT_TRUE(b.alloc(2), "backing");
+    const vaddr_t last = KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - PAGE_SIZE);
+    const vaddr_t va = last - PAGE_SIZE;
+
+    paddr_t pa = 0;
+    uint flags = 0;
+    if (query(kas, last, &pa, &flags) == NO_ERROR) {
+        unittest_printf(" (top page already mapped)");
+        EXPECT_EQ(ERR_ALREADY_EXISTS, map(kas, last, b.pa, 1, kRW), "map over the top page");
+        paddr_t pa2 = 0;
+        uint flags2 = 0;
+        EXPECT_EQ(NO_ERROR, query(kas, last + (PAGE_SIZE - 1), &pa2, &flags2), "query the last byte");
+        EXPECT_EQ(pa + (PAGE_SIZE - 1), pa2, "top page as it was");
+        EXPECT_EQ(flags, flags2, "flags as they were");
+        END_TEST;
+    }
+    if (query(kas, va, nullptr, nullptr) == NO_ERROR) {
+        unittest_printf(" (page below the top already mapped)");
+        END_TEST;
+    }
+    table_tracker tables;
+
+    ASSERT_EQ(NO_ERROR, map(kas, va, b.pa, 2, kRW), "map the top two pages");
+    EXPECT_EQ(NO_ERROR, query(kas, last + (PAGE_SIZE - 1), &pa, &flags), "query the last byte");
+    EXPECT_EQ(b.pa + PAGE_SIZE + (PAGE_SIZE - 1), pa, "paddr");
+    EXPECT_EQ(query_flags(kRW), flags, "flags");
+    EXPECT_EQ(ERR_ALREADY_EXISTS, map(kas, last, b.pa, 1, kRW), "map over the top page");
+
+    EXPECT_EQ(NO_ERROR, protect(kas, va, 2, kR), "protect to the top");
+    EXPECT_EQ(NO_ERROR, query(kas, last, &pa, &flags), "query");
+    EXPECT_EQ(query_flags(kR), flags, "read only");
+    EXPECT_EQ(NO_ERROR, protect(kas, last, 1, kRW), "protect the top page");
+    EXPECT_EQ(NO_ERROR, query(kas, va, nullptr, &flags), "query");
+    EXPECT_EQ(query_flags(kR), flags, "page below untouched");
+
+    EXPECT_EQ(NO_ERROR, unmap(kas, last, 1), "unmap the top page");
+    EXPECT_EQ(ERR_NOT_FOUND, query(kas, last, nullptr, nullptr), "gone");
+    EXPECT_EQ(NO_ERROR, query(kas, va, &pa, nullptr), "page below still there");
+    EXPECT_EQ(b.pa, pa, "paddr");
+    EXPECT_EQ(NO_ERROR, unmap(kas, va, 2), "unmap to the top, over the hole");
+    EXPECT_EQ(ERR_NOT_FOUND, query(kas, va, nullptr, nullptr), "gone");
+    EXPECT_EQ(NO_ERROR, unmap(kas, va, 2), "unmap nothing at the top");
+    EXPECT_EQ(NO_ERROR, protect(kas, va, 2, kR), "protect nothing at the top");
+    if (!kKernelTablesPermanent) {
+        EXPECT_EQ(0L, tables.live(), "every table freed");
+    }
+    END_TEST;
+}
+
+// out_of_tables goes first: where the kernel's tables are never freed it
+// needs a window no other test has mapped into yet.
 BEGIN_TEST_CASE(arch_mmu_contract)
+#if LK_DEBUGLEVEL > 0
+RUN_TEST(contract_out_of_tables);
+#endif
 RUN_TEST(contract_return_values);
 RUN_TEST(contract_query_out_params);
 RUN_TEST(contract_count_zero);
 RUN_TEST(contract_bad_args);
+RUN_TEST(contract_past_the_end);
 RUN_TEST(contract_collision);
-#if LK_DEBUGLEVEL > 0
-RUN_TEST(contract_out_of_tables);
-#endif
 RUN_TEST(contract_large_page_collision);
 RUN_TEST(contract_large_page_partial_unmap);
 RUN_TEST(contract_cache_policies);
@@ -719,6 +862,7 @@ RUN_TEST(contract_protect_bad_args);
 RUN_TEST(contract_protect_execute_uncached);
 RUN_TEST(contract_protect_large_page);
 RUN_TEST(contract_physmap);
+RUN_TEST(contract_kernel_top);
 END_TEST_CASE(arch_mmu_contract)
 
 } // namespace

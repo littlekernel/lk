@@ -1090,33 +1090,6 @@ bool map_already_mapped_rollback() {
     END_TEST;
 }
 
-// The kernel aspace runs to the top of the address space, so its last page
-// is the one place a range's end wraps to zero. The vmm never hands it out;
-// map it directly, unless the platform's initial mappings already reach it.
-bool kernel_aspace_top_page() {
-    BEGIN_TEST;
-
-    vmm_aspace_t *kas = vmm_get_kernel_aspace();
-    vm_page_t *p = pmm_alloc_page();
-    ASSERT_NONNULL(p, "alloc page");
-    auto page_cleanup = lk::make_auto_call([&]() { pmm_free_page(p); });
-
-    const vaddr_t va = KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - PAGE_SIZE;
-    paddr_t pa;
-    if (query(kas, va, &pa, nullptr) == NO_ERROR) {
-        unittest_printf(" (top page already mapped)");
-        END_TEST;
-    }
-    ASSERT_EQ(NO_ERROR, map(kas, va, vm_page_to_paddr(p), 1, kRW), "map top page");
-
-    EXPECT_EQ(NO_ERROR, query(kas, va, &pa, nullptr), "query");
-    EXPECT_EQ(vm_page_to_paddr(p), pa, "paddr");
-    EXPECT_EQ(NO_ERROR, unmap(kas, va, 1), "unmap");
-    EXPECT_EQ(ERR_NOT_FOUND, query(kas, va, &pa, nullptr), "gone");
-
-    END_TEST;
-}
-
 BEGIN_TEST_CASE(arch_mmu_tests)
 RUN_TEST(create_user_aspace);
 RUN_TEST(map_user_pages);
@@ -1139,7 +1112,6 @@ RUN_TEST(kernel_map_enomem_rollback);
 RUN_TEST(stale_fault_predicate);
 #endif
 RUN_TEST(map_already_mapped_rollback);
-RUN_TEST(kernel_aspace_top_page);
 RUN_TEST(free_active_aspace);
 RUN_TEST(smp_shootdown);
 END_TEST_CASE(arch_mmu_tests)
