@@ -127,7 +127,8 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) __NONNULL((1));
  *
  * The caller serializes the calls that change an aspace, and keeps interrupts
  * enabled while other cpus are up: riscv and x86 shoot down through
- * mp_sync_exec.
+ * mp_sync_exec. The vmm does so with a lock that a caller outside it takes
+ * with vmm_aspace_lock().
  *
  * map: every page in the range must be unmapped, else ERR_ALREADY_EXISTS; a
  * page under a large page counts as mapped, an existing lower level table does

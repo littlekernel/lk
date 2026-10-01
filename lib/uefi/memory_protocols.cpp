@@ -116,9 +116,11 @@ __WEAK void *alloc_page(size_t size, size_t align_log2) {
     return nullptr;
   }
   // the program's code and data both live here
+  vmm_aspace_lock(aspace);
   status_t ret = arch_mmu_map(&aspace->arch_aspace, pa, pa, size / PAGE_SIZE,
                               ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
                                   ARCH_MMU_FLAG_PERM_EXECUTE);
+  vmm_aspace_unlock(aspace);
   if (ret != NO_ERROR) {
     printf("Failed to arch_mmu_map(0x%lx)\n", pa);
     return nullptr;

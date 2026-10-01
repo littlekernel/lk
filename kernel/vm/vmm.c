@@ -27,6 +27,17 @@ static void dump_region(const vmm_region_t *r);
 
 static status_t vmm_remove_region_locked(vmm_aspace_t *aspace, vaddr_t vaddr, vmm_region_t **r_out);
 
+/* one lock for every aspace today; taking it per aspace leaves room to split it */
+void vmm_aspace_lock(vmm_aspace_t *aspace) {
+    DEBUG_ASSERT(aspace);
+    mutex_acquire(&vmm_lock);
+}
+
+void vmm_aspace_unlock(vmm_aspace_t *aspace) {
+    DEBUG_ASSERT(aspace);
+    mutex_release(&vmm_lock);
+}
+
 void vmm_init_preheap(void) {
     /* initialize the kernel address space */
     strlcpy(_kernel_aspace.name, "kernel", sizeof(_kernel_aspace.name));

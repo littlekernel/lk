@@ -192,7 +192,9 @@ usage:
 
         paddr_t pa;
         uint flags;
+        vmm_aspace_lock(aspace);
         status_t err = arch_mmu_query(&aspace->arch_aspace, argv[2].u, &pa, &flags);
+        vmm_aspace_unlock(aspace);
         printf("arch_mmu_query returns %d\n", err);
         if (err >= 0) {
             printf("\tpa 0x%lx, flags 0x%x\n", pa, flags);
@@ -206,7 +208,9 @@ usage:
             return -1;
         }
 
+        vmm_aspace_lock(aspace);
         status_t err = arch_mmu_map(&aspace->arch_aspace, argv[3].u, argv[2].u, argv[4].u, argv[5].u);
+        vmm_aspace_unlock(aspace);
         printf("arch_mmu_map returns %d\n", err);
     } else if (!strcmp(argv[1].str, "unmap")) {
         if (argc < 4) goto notenoughargs;
@@ -217,7 +221,9 @@ usage:
             return -1;
         }
 
+        vmm_aspace_lock(aspace);
         status_t err = arch_mmu_unmap(&aspace->arch_aspace, argv[2].u, argv[3].u);
+        vmm_aspace_unlock(aspace);
         printf("arch_mmu_unmap returns %d\n", err);
     } else if (!strcmp(argv[1].str, "protect")) {
         if (argc < 5) goto notenoughargs;
@@ -228,7 +234,9 @@ usage:
             return -1;
         }
 
+        vmm_aspace_lock(aspace);
         status_t err = arch_mmu_protect(&aspace->arch_aspace, argv[2].u, argv[3].u, argv[4].u);
+        vmm_aspace_unlock(aspace);
         printf("arch_mmu_protect returns %d\n", err);
     } else {
         printf("unknown command\n");

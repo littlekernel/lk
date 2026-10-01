@@ -245,10 +245,17 @@ struct vmm_aspace *vaddr_to_aspace(void *ptr);
 status_t vmm_reserve_space(vmm_aspace_t *aspace, const char *name, size_t size, vaddr_t vaddr)
 __NONNULL((1));
 
+// The lock the vmm holds around every arch_mmu_map/unmap/protect it makes on an
+// aspace. A caller that reaches past the vmm to call those itself holds it across
+// each call, which is how it meets "the caller serializes" in arch/mmu.h. It is
+// not recursive, so nothing in the vmm may be called with it held.
+void vmm_aspace_lock(vmm_aspace_t *aspace) __NONNULL((1));
+void vmm_aspace_unlock(vmm_aspace_t *aspace) __NONNULL((1));
+
 // Reserve size bytes of address space wherever vmm_alloc would place them, aligned
 // to 1 << align_log2, with nothing mapped behind it; returns the base in *va. The
-// caller maps into it with arch_mmu_map() and must unmap what it mapped before
-// vmm_free_region() releases the range.
+// caller maps into it with arch_mmu_map() under vmm_aspace_lock(). vmm_free_region()
+// unmaps whatever is still mapped there, but the pages behind it are the caller's.
 status_t vmm_reserve_range(vmm_aspace_t *aspace, const char *name, size_t size,
                            uint8_t align_log2, vaddr_t *va)
 __NONNULL((1, 5));
