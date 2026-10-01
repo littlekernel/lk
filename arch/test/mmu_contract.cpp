@@ -32,38 +32,54 @@ using mmu_test::query;
 using mmu_test::unmap;
 
 // Per arch geometry: the span one leaf table covers, the span one page table
-// allocation serves, and the smallest large page map may create (0 where map
-// never makes one).
+// allocation serves, and every size of large page map may create, smallest
+// first (kNumLargePages is 0 where it never makes one).
 #if ARCH_ARM64
 constexpr size_t kLeafSpan = 1UL << (2 * PAGE_SIZE_SHIFT - 3);
 constexpr size_t kTableSpan = kLeafSpan;
-constexpr size_t kLargePage = kLeafSpan;
+#if PAGE_SIZE_SHIFT == 12
+constexpr size_t kLargePages[] = { 2UL << 20, 1UL << 30 };
+#else
+constexpr size_t kLargePages[] = { kLeafSpan }; // 32MB or 512MB, one level only
+#endif
+constexpr size_t kNumLargePages = countof(kLargePages);
 #elif ARCH_RISCV
 constexpr size_t kLeafSpan = PAGE_SIZE * (PAGE_SIZE / sizeof(ulong));
 constexpr size_t kTableSpan = kLeafSpan;
-constexpr size_t kLargePage = kLeafSpan;
+#if RISCV_MMU == 48
+constexpr size_t kLargePages[] = { 2UL << 20, 1UL << 30 };
+#else
+constexpr size_t kLargePages[] = { kLeafSpan }; // the top level never holds a leaf
+#endif
+constexpr size_t kNumLargePages = countof(kLargePages);
 #elif ARCH_ARM
 constexpr size_t kLeafSpan = 1UL << 20;
 constexpr size_t kTableSpan = 4UL << 20; // one page holds the tables of four sections
-constexpr size_t kLargePage = kLeafSpan;
+constexpr size_t kLargePages[] = { kLeafSpan };
+constexpr size_t kNumLargePages = countof(kLargePages);
 #elif ARCH_X86_64
 constexpr size_t kLeafSpan = 2UL << 20;
 constexpr size_t kTableSpan = kLeafSpan;
-constexpr size_t kLargePage = 0;
+constexpr size_t kLargePages[] = { 0 };
+constexpr size_t kNumLargePages = 0;
 #elif ARCH_X86_32
 constexpr size_t kLeafSpan = 4UL << 20;
 constexpr size_t kTableSpan = kLeafSpan;
-constexpr size_t kLargePage = 0;
+constexpr size_t kLargePages[] = { 0 };
+constexpr size_t kNumLargePages = 0;
 #elif ARCH_M68K
 constexpr size_t kLeafSpan = 4UL << 20;
 constexpr size_t kTableSpan = kLeafSpan;
-constexpr size_t kLargePage = 0;
+constexpr size_t kLargePages[] = { 0 };
+constexpr size_t kNumLargePages = 0;
 #else
 #error "add the arch's table geometry"
 #endif
+constexpr size_t kLargestPage = kLargePages[countof(kLargePages) - 1];
 
 // Room for three leaf tables in a row, for a range across the boundary between
-// two table allocations, and for a large page with a page in front of it.
+// two table allocations, and for the largest large page with a page in front
+// of it and two behind.
 #if IS_64BIT
 constexpr size_t kWindowSize = 4UL << 30;
 constexpr uint8_t kWindowAlign = 30;
@@ -72,7 +88,7 @@ constexpr size_t kWindowSize = 16UL << 20;
 constexpr uint8_t kWindowAlign = 22;
 #endif
 static_assert(kWindowSize >= 3 * kLeafSpan && kWindowSize >= 2 * kTableSpan &&
-              kWindowSize >= 2 * kLargePage, "");
+              kWindowSize >= 3 * kLargestPage, "");
 
 // The x86-32 kernel aspace keeps every page table it makes: each user page
 // directory holds a copy of the kernel's entries.
@@ -152,6 +168,43 @@ bool check_unmapped(const window &w, vaddr_t va, uint count) {
     for (uint i = 0; i < count; i++) {
         paddr_t pa;
         EXPECT_EQ(ERR_NOT_FOUND, query(w, va + i * PAGE_SIZE, &pa, nullptr), "unmapped");
+    }
+    END_TEST;
+}
+
+// What goes behind a large page of size bytes and extra pages after it: real
+// pages where the pmm has that many contiguous and aligned, else physical
+// address space the test does not own. The suite only queries what it maps,
+// so the second serves as well; it is mapped as device memory, which nothing
+// reads ahead of an access either.
+struct large_backing {
+    backing real;
+    paddr_t pa = 0;
+    uint flags = kRW; // what to map it with
+
+    void get(size_t size, uint extra = 0) {
+        if (real.alloc(size / PAGE_SIZE + extra, log2_of(size))) {
+            pa = real.pa;
+        } else {
+            pa = size; // any address aligned to the size will do
+            flags = kRW | ARCH_MMU_FLAG_UNCACHED_DEVICE;
+        }
+    }
+
+    // its mapping flags with other permissions
+    uint with(uint perms) const { return (flags & ARCH_MMU_FLAG_CACHE_MASK) | perms; }
+};
+
+// runs fn for every size of large page, with the window empty before each
+template <typename F>
+bool for_each_large_page(const window &w, F fn) {
+    BEGIN_TEST;
+    for (size_t i = 0; i < kNumLargePages; i++) {
+        if (!fn(w, kLargePages[i])) {
+            unittest_printf(" (large page of %#zx)", kLargePages[i]);
+            all_ok = false;
+        }
+        unmap(w, w.base, w.size / PAGE_SIZE);
     }
     END_TEST;
 }
@@ -372,75 +425,114 @@ bool out_of_tables(const window &w) {
 
 // Only the ends of a range can cut a large page, and unmap refuses that
 // before it changes anything.
-bool large_page_partial_unmap(const window &w) {
+bool large_page_partial_unmap(const window &w, size_t size) {
     BEGIN_TEST;
-    if (kLargePage == 0) {
-        END_TEST;
-    }
-    backing big;
-    if (!big.alloc(kLargePage / PAGE_SIZE, log2_of(kLargePage))) {
-        unittest_printf(" (no aligned backing for a large page)");
-        END_TEST;
-    }
+    large_backing big;
+    big.get(size);
     backing small;
     ASSERT_TRUE(small.alloc(1), "backing");
 
-    const vaddr_t large = w.base + kLargePage;
-    const uint large_count = kLargePage / PAGE_SIZE;
+    const vaddr_t large = w.base + size;
+    const uint large_count = size / PAGE_SIZE;
     ASSERT_EQ(NO_ERROR, map(w, large - PAGE_SIZE, small.pa, 1), "map page before");
-    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count), "map large page");
+    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count, big.flags), "map large page");
 
     EXPECT_EQ(ERR_NOT_SUPPORTED, unmap(w, large - PAGE_SIZE, 2), "unmap into the large page");
     EXPECT_TRUE(check_page(w, large - PAGE_SIZE, small.pa), "page before intact");
     EXPECT_EQ(ERR_NOT_SUPPORTED, unmap(w, large + PAGE_SIZE, 1), "unmap inside");
-    EXPECT_EQ(ERR_NOT_SUPPORTED, unmap(w, large + kLargePage - PAGE_SIZE, 2), "unmap out of the end");
+    EXPECT_EQ(ERR_NOT_SUPPORTED, unmap(w, large + size - PAGE_SIZE, 2), "unmap out of the end");
     EXPECT_EQ(ERR_NOT_SUPPORTED, unmap(w, large - PAGE_SIZE, large_count), "unmap all but the last page");
     EXPECT_TRUE(check_page(w, large - PAGE_SIZE, small.pa), "page before still intact");
-    for (size_t off = 0; off < kLargePage; off += kLargePage / 4) {
-        EXPECT_TRUE(check_page(w, large + off, big.pa + off), "large page intact");
+    for (size_t off = 0; off < size; off += size / 4) {
+        EXPECT_TRUE(check_page(w, large + off, big.pa + off, big.flags), "large page intact");
     }
 
     EXPECT_EQ(NO_ERROR, unmap(w, large - PAGE_SIZE, large_count + 1), "unmap both");
     EXPECT_TRUE(check_unmapped(w, large - PAGE_SIZE, 2), "gone");
-    EXPECT_TRUE(check_unmapped(w, large + kLargePage - PAGE_SIZE, 1), "gone at the end");
+    EXPECT_TRUE(check_unmapped(w, large + size - PAGE_SIZE, 1), "gone at the end");
     END_TEST;
 }
 
 // A page inside a large page collides like any other, and so does a large
-// map over a table holding a page. An empty table is no collision.
-bool large_page_collision(const window &w) {
+// map over a table holding a page. Once the page is gone the large page fits.
+bool large_page_collision(const window &w, size_t size) {
     BEGIN_TEST;
-    if (kLargePage == 0) {
-        END_TEST;
-    }
-    backing big;
-    if (!big.alloc(kLargePage / PAGE_SIZE, log2_of(kLargePage))) {
-        unittest_printf(" (no aligned backing for a large page)");
-        END_TEST;
-    }
+    large_backing big;
+    big.get(size);
     backing small;
     ASSERT_TRUE(small.alloc(2), "backing");
 
-    const vaddr_t large = w.base + kLargePage;
-    const uint large_count = kLargePage / PAGE_SIZE;
-    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count), "map large page");
+    const vaddr_t large = w.base + size;
+    const uint large_count = size / PAGE_SIZE;
+    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count, big.flags), "map large page");
     EXPECT_EQ(ERR_ALREADY_EXISTS, map(w, large + PAGE_SIZE, small.pa, 1), "map inside");
     EXPECT_EQ(ERR_ALREADY_EXISTS, map(w, large - PAGE_SIZE, small.pa, 2), "map into it");
     EXPECT_TRUE(check_unmapped(w, large - PAGE_SIZE, 1), "page before rolled back");
-    EXPECT_TRUE(check_page(w, large + PAGE_SIZE, big.pa + PAGE_SIZE), "large page intact");
+    EXPECT_TRUE(check_page(w, large + PAGE_SIZE, big.pa + PAGE_SIZE, big.flags), "large page intact");
     EXPECT_EQ(NO_ERROR, unmap(w, large, large_count), "unmap large page");
 
     ASSERT_EQ(NO_ERROR, map(w, large + PAGE_SIZE, small.pa, 1), "map a page");
-    EXPECT_EQ(ERR_ALREADY_EXISTS, map(w, large, big.pa, large_count), "map large over it");
+    EXPECT_EQ(ERR_ALREADY_EXISTS, map(w, large, big.pa, large_count, big.flags), "map large over it");
     EXPECT_TRUE(check_page(w, large + PAGE_SIZE, small.pa), "page intact");
     EXPECT_TRUE(check_unmapped(w, large, 1), "large map rolled back");
     EXPECT_EQ(NO_ERROR, unmap(w, large + PAGE_SIZE, 1), "unmap the page");
 
-    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count), "map large where the table was");
-    for (size_t off = 0; off < kLargePage; off += kLargePage / 4) {
-        EXPECT_TRUE(check_page(w, large + off + 0x10, big.pa + off + 0x10), "mapped");
+    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count, big.flags), "map large where the table was");
+    for (size_t off = 0; off < size; off += size / 4) {
+        EXPECT_TRUE(check_page(w, large + off + 0x10, big.pa + off + 0x10, big.flags), "mapped");
     }
     EXPECT_EQ(NO_ERROR, unmap(w, large, large_count), "unmap");
+    END_TEST;
+}
+
+// A map that fails after it made a large page takes the large page back
+// with everything else: on a collision past it, and when the tables for the
+// pages after it cannot be had.
+bool large_page_rollback(const window &w, size_t size) {
+    BEGIN_TEST;
+    large_backing big;
+    big.get(size, 2);
+    backing small;
+    ASSERT_TRUE(small.alloc(1), "backing");
+    table_tracker &tables = *w.tables;
+
+    const vaddr_t large = w.base + size;
+    const uint large_count = size / PAGE_SIZE;
+    const vaddr_t after = large + size;
+
+    ASSERT_EQ(NO_ERROR, map(w, after + PAGE_SIZE, small.pa, 1), "map the second page after");
+    const long live = tables.live();
+    EXPECT_EQ(ERR_ALREADY_EXISTS, map(w, large, big.pa, large_count + 2, big.flags), "map into that page");
+    EXPECT_TRUE(check_unmapped(w, large, 1), "large page rolled back");
+    EXPECT_TRUE(check_unmapped(w, after - PAGE_SIZE, 2), "to its end, and the page after it");
+    EXPECT_TRUE(check_page(w, after + PAGE_SIZE, small.pa), "existing page intact");
+    EXPECT_EQ(live, tables.live(), "no table left behind");
+    EXPECT_EQ(NO_ERROR, unmap(w, after + PAGE_SIZE, 1), "unmap the page");
+
+#if LK_DEBUGLEVEL > 0
+    // as many tables as the large page takes, and none for the page after it
+    size_t before = tables.allocs();
+    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count, big.flags), "map large page");
+    const int for_large = (int)(tables.allocs() - before);
+    EXPECT_EQ(NO_ERROR, unmap(w, large, large_count), "unmap");
+    before = tables.allocs();
+    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count + 1, big.flags), "map a page more");
+    const int for_both = (int)(tables.allocs() - before);
+    EXPECT_EQ(NO_ERROR, unmap(w, large, large_count + 1), "unmap");
+
+    if (for_both > for_large) {
+        const long empty = tables.live();
+        tables.set_budget(for_large);
+        const status_t err = map(w, large, big.pa, large_count + 1, big.flags);
+        tables.set_budget(-1);
+        EXPECT_EQ(ERR_NO_MEMORY, err, "map short of the page's tables");
+        EXPECT_TRUE(check_unmapped(w, large, 1), "large page rolled back");
+        EXPECT_TRUE(check_unmapped(w, after - PAGE_SIZE, 2), "to its end, and the page after it");
+        EXPECT_EQ(empty, tables.live(), "every table it linked freed again");
+    } else {
+        unittest_printf(" (the page after needs no table)");
+    }
+#endif
     END_TEST;
 }
 
@@ -550,6 +642,13 @@ bool protect_permissions(const window &w) {
     // across a leaf table boundary
     const vaddr_t va = w.base + kLeafSpan - 2 * PAGE_SIZE;
     ASSERT_EQ(NO_ERROR, map(w, va, b.pa, 4), "map");
+    // and a non-secure page where the arch has them, under a table of its own
+    const vaddr_t ns_va = w.base + 2 * kLeafSpan;
+    const bool ns = arch_mmu_supports_ns_mappings();
+    if (ns) {
+        ASSERT_EQ(NO_ERROR, map(w, ns_va, b.pa, 1, kRW | ARCH_MMU_FLAG_NS), "map non-secure");
+        EXPECT_TRUE(check_page(w, ns_va, b.pa, kRW | ARCH_MMU_FLAG_NS), "non-secure");
+    }
 
     const uint sets[] = { kR, kR | kX, kR | kW | kX, kR | kW, kR };
     for (const uint perms : sets) {
@@ -557,12 +656,19 @@ bool protect_permissions(const window &w) {
         for (uint i = 0; i < 4; i++) {
             EXPECT_TRUE(check_page(w, va + i * PAGE_SIZE, b.pa + i * PAGE_SIZE, perms), "new permissions");
         }
+        if (ns) {
+            EXPECT_EQ(NO_ERROR, protect(w, ns_va, 1, perms), "protect non-secure");
+            EXPECT_TRUE(check_page(w, ns_va, b.pa, perms | ARCH_MMU_FLAG_NS), "still non-secure");
+        }
     }
     // the same set again changes nothing
     EXPECT_EQ(NO_ERROR, protect(w, va, 4, kR), "protect to the same");
     EXPECT_TRUE(check_page(w, va, b.pa, kR), "unchanged");
 
     EXPECT_EQ(NO_ERROR, unmap(w, va, 4), "unmap");
+    if (ns) {
+        EXPECT_EQ(NO_ERROR, unmap(w, ns_va, 1), "unmap non-secure");
+    }
     END_TEST;
 }
 
@@ -660,37 +766,31 @@ bool protect_execute_uncached(const window &w) {
 }
 
 // Part of a large page cannot be protected; all of it can.
-bool protect_large_page(const window &w) {
+bool protect_large_page(const window &w, size_t size) {
     BEGIN_TEST;
-    if (kLargePage == 0) {
-        END_TEST;
-    }
-    backing big;
-    if (!big.alloc(kLargePage / PAGE_SIZE, log2_of(kLargePage))) {
-        unittest_printf(" (no aligned backing for a large page)");
-        END_TEST;
-    }
+    large_backing big;
+    big.get(size);
     backing small;
     ASSERT_TRUE(small.alloc(1), "backing");
 
-    const vaddr_t large = w.base + kLargePage;
-    const uint large_count = kLargePage / PAGE_SIZE;
+    const vaddr_t large = w.base + size;
+    const uint large_count = size / PAGE_SIZE;
     ASSERT_EQ(NO_ERROR, map(w, large - PAGE_SIZE, small.pa, 1), "map page before");
-    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count), "map large page");
+    ASSERT_EQ(NO_ERROR, map(w, large, big.pa, large_count, big.flags), "map large page");
 
     EXPECT_EQ(ERR_NOT_SUPPORTED, protect(w, large - PAGE_SIZE, 2, kR), "protect into the large page");
     EXPECT_EQ(ERR_NOT_SUPPORTED, protect(w, large + PAGE_SIZE, 1, kR), "protect inside");
-    EXPECT_EQ(ERR_NOT_SUPPORTED, protect(w, large + kLargePage - PAGE_SIZE, 2, kR), "protect out of the end");
+    EXPECT_EQ(ERR_NOT_SUPPORTED, protect(w, large + size - PAGE_SIZE, 2, kR), "protect out of the end");
     EXPECT_TRUE(check_page(w, large - PAGE_SIZE, small.pa, kRW), "page before unchanged");
-    EXPECT_TRUE(check_page(w, large, big.pa, kRW), "large page unchanged");
+    EXPECT_TRUE(check_page(w, large, big.pa, big.flags), "large page unchanged");
 
     EXPECT_EQ(NO_ERROR, protect(w, large - PAGE_SIZE, large_count + 1, kR), "protect both");
     EXPECT_TRUE(check_page(w, large - PAGE_SIZE, small.pa, kR), "page before");
-    for (size_t off = 0; off < kLargePage; off += kLargePage / 4) {
-        EXPECT_TRUE(check_page(w, large + off, big.pa + off, kR), "large page");
+    for (size_t off = 0; off < size; off += size / 4) {
+        EXPECT_TRUE(check_page(w, large + off, big.pa + off, big.with(kR)), "large page");
     }
     EXPECT_EQ(NO_ERROR, protect(w, large, large_count, kRW), "protect the large page alone");
-    EXPECT_TRUE(check_page(w, large + kLargePage - PAGE_SIZE, big.pa + kLargePage - PAGE_SIZE, kRW), "large page");
+    EXPECT_TRUE(check_page(w, large + size - PAGE_SIZE, big.pa + size - PAGE_SIZE, big.flags), "large page");
     EXPECT_TRUE(check_page(w, large - PAGE_SIZE, small.pa, kR), "page before untouched");
 
     EXPECT_EQ(NO_ERROR, unmap(w, large - PAGE_SIZE, large_count + 1), "unmap");
@@ -704,8 +804,15 @@ bool contract_collision() { return in_each_window(collision); }
 #if LK_DEBUGLEVEL > 0
 bool contract_out_of_tables() { return in_each_window(out_of_tables); }
 #endif
-bool contract_large_page_partial_unmap() { return in_each_window(large_page_partial_unmap); }
-bool contract_large_page_collision() { return in_each_window(large_page_collision); }
+bool contract_large_page_partial_unmap() {
+    return in_each_window([](const window &w) { return for_each_large_page(w, large_page_partial_unmap); });
+}
+bool contract_large_page_collision() {
+    return in_each_window([](const window &w) { return for_each_large_page(w, large_page_collision); });
+}
+bool contract_large_page_rollback() {
+    return in_each_window([](const window &w) { return for_each_large_page(w, large_page_rollback); });
+}
 bool contract_bad_args() { return in_each_window(bad_args); }
 bool contract_past_the_end() { return in_each_window(past_the_end); }
 bool contract_cache_policies() { return in_each_window(cache_policies); }
@@ -713,7 +820,9 @@ bool contract_protect_permissions() { return in_each_window(protect_permissions)
 bool contract_protect_holes() { return in_each_window(protect_holes); }
 bool contract_protect_bad_args() { return in_each_window(protect_bad_args); }
 bool contract_protect_execute_uncached() { return in_each_window(protect_execute_uncached); }
-bool contract_protect_large_page() { return in_each_window(protect_large_page); }
+bool contract_protect_large_page() {
+    return in_each_window([](const window &w) { return for_each_large_page(w, protect_large_page); });
+}
 
 // The kernel's own mappings: a page of the physmap collides like any other,
 // and where the physmap is made of large pages, part of one cannot be
@@ -855,6 +964,7 @@ RUN_TEST(contract_past_the_end);
 RUN_TEST(contract_collision);
 RUN_TEST(contract_large_page_collision);
 RUN_TEST(contract_large_page_partial_unmap);
+RUN_TEST(contract_large_page_rollback);
 RUN_TEST(contract_cache_policies);
 RUN_TEST(contract_protect_permissions);
 RUN_TEST(contract_protect_holes);
