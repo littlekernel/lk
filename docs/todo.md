@@ -65,7 +65,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 ## SMP / VMM
 
 - x86: free emptied page tables *after* the tlb shootdown, not before (arch/x86/64/mmu.c)
-- x86: shootdown should use mp_sync_exec_cpus like riscv
+- x86: shootdown should use mp_sync_exec_cpus like riscv, to reach a secondary before it is active (it must have its lapic software enabled to take the IPI)
 - x86-32: kernel page directory entries above the first 1GB never reach existing user aspaces
 - Align arch_mmu_map over an existing mapping across arches [#356]
     - x86-64 and arm32 overwrite and return success; riscv and arm64 refuse
