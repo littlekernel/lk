@@ -304,7 +304,7 @@ static void unmap_range(volatile uint32_t *root, vaddr_t vaddr, uint count) {
     struct list_node freed = LIST_INITIAL_VALUE(freed);
     unmap_table(root, 0, vaddr, vaddr + ((vaddr_t)count * PAGE_SIZE - 1), &freed);
     tlb_flush_all();
-    pmm_free(&freed);
+    vm_ptable_freed(pmm_free(&freed));
 }
 
 // Give every page in [vaddr, last] the write protect bit wp. With check_only

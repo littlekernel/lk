@@ -305,7 +305,7 @@ static void x86_mmu_unmap_range(arch_aspace_t *aspace, vaddr_t vaddr, uint count
     } else if (!list_is_empty(&freed)) {
         x86_tlb_shootdown(vaddr, 1);
     }
-    pmm_free(&freed);
+    vm_ptable_freed(pmm_free(&freed));
 }
 
 /* Whether unmap or protect may change [vaddr, vaddr + count pages) without

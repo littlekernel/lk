@@ -869,7 +869,8 @@ bool map_enomem_rollback() {
     vmm_aspace_t *as = nullptr;
     ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "enomem", 0), "create aspace");
     auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
-    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_budget_set(-1); });
+    vm_ptable_track(true);
+    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_track(false); });
 
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     paddr_t pa;
@@ -933,7 +934,8 @@ bool kernel_map_enomem_rollback() {
 
     vmm_aspace_t *kas = vmm_get_kernel_aspace();
     arch_aspace_t *aspace = &kas->arch_aspace;
-    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_budget_set(-1); });
+    vm_ptable_track(true);
+    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_track(false); });
 
     vm_page_t *p = pmm_alloc_page();
     ASSERT_NONNULL(p, "alloc page");

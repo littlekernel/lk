@@ -316,6 +316,7 @@ static void free_page_table(void *vaddr, paddr_t paddr, uint page_size_shift) {
     } else {
         free(vaddr);
     }
+    vm_ptable_freed(1);
 }
 
 /* The table the entry at index points to, allocating and linking an empty one

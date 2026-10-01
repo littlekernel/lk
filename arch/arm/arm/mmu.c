@@ -556,7 +556,7 @@ static void arm_mmu_unmap_range(arch_aspace_t *aspace, vaddr_t vaddr, vaddr_t la
     }
 
     arm_after_invalidate_tlb_barrier();
-    pmm_free(&freed);
+    vm_ptable_freed(pmm_free(&freed));
 }
 
 /* Unmap and protect change whole sections only. Only the two ends of a range

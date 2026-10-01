@@ -8,6 +8,7 @@
 #include <kernel/vm.h>
 
 #include <arch/mmu.h>
+#include <assert.h>
 #include <kernel/thread.h>
 #include <lk/console_cmd.h>
 #include <lk/debug.h>
@@ -88,27 +89,60 @@ static void vm_init_postheap(uint level) {
 }
 
 #if LK_DEBUGLEVEL > 0
-/* the thread whose allocations the budget counts, NULL for none */
-static thread_t *ptable_budget_thread;
+/* the thread whose page tables are counted, NULL for none */
+static thread_t *ptable_thread;
+/* Only that thread reads and writes these: how many more tables it may
+ * allocate, negative for no limit, and how many it has allocated and freed. */
 static int ptable_budget;
+static size_t ptable_allocs;
+static size_t ptable_frees;
+
+static bool ptable_tracked(void) {
+    thread_t *t = __atomic_load_n(&ptable_thread, __ATOMIC_RELAXED);
+    return t && t == get_current_thread();
+}
+
+void vm_ptable_track(bool on) {
+    if (on) {
+        DEBUG_ASSERT(!__atomic_load_n(&ptable_thread, __ATOMIC_RELAXED));
+        ptable_budget = -1;
+        ptable_allocs = 0;
+        ptable_frees = 0;
+    } else {
+        DEBUG_ASSERT(ptable_tracked());
+    }
+    __atomic_store_n(&ptable_thread, on ? get_current_thread() : NULL, __ATOMIC_RELAXED);
+}
 
 void vm_ptable_budget_set(int count) {
-    __atomic_store_n(&ptable_budget, count, __ATOMIC_RELAXED);
-    __atomic_store_n(&ptable_budget_thread, count >= 0 ? get_current_thread() : NULL,
-                     __ATOMIC_RELAXED);
+    DEBUG_ASSERT(ptable_tracked());
+    ptable_budget = count;
+}
+
+void vm_ptable_counts(size_t *allocs, size_t *frees) {
+    DEBUG_ASSERT(ptable_tracked());
+    *allocs = ptable_allocs;
+    *frees = ptable_frees;
 }
 
 bool vm_ptable_budget_take(void) {
-    thread_t *t = __atomic_load_n(&ptable_budget_thread, __ATOMIC_RELAXED);
-    if (!t || t != get_current_thread()) {
+    if (!ptable_tracked()) {
         return true;
     }
-    /* only the owning thread gets here, so the count needs no atomic update */
     if (ptable_budget == 0) {
         return false;
     }
-    ptable_budget--;
+    if (ptable_budget > 0) {
+        ptable_budget--;
+    }
+    ptable_allocs++;
     return true;
+}
+
+void vm_ptable_freed(size_t count) {
+    if (ptable_tracked()) {
+        ptable_frees += count;
+    }
 }
 #endif
 

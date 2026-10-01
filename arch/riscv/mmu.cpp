@@ -745,7 +745,7 @@ status_t arch_mmu_map(arch_aspace_t *aspace, const vaddr_t _vaddr, const paddr_t
         if (!list_is_empty(&freed_tables)) {
             // a cpu may have cached the link to an orphaned table
             riscv_tlb_shootdown(aspace, _vaddr, 0, true);
-            pmm_free(&freed_tables);
+            vm_ptable_freed(pmm_free(&freed_tables));
         }
         return ret;
     }
@@ -930,7 +930,7 @@ status_t arch_mmu_unmap(arch_aspace_t *aspace, const vaddr_t _vaddr, const uint 
     }
     if (tables_freed) {
         LTRACEF("freeing %zu emptied page tables\n", list_length(&freed_tables));
-        pmm_free(&freed_tables);
+        vm_ptable_freed(pmm_free(&freed_tables));
     }
 
     return err;

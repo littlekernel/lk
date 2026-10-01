@@ -290,7 +290,8 @@ bool out_of_tables(const window &w) {
     BEGIN_TEST;
     backing b;
     ASSERT_TRUE(b.alloc(4), "backing");
-    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_budget_set(-1); });
+    vm_ptable_track(true);
+    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_track(false); });
 
     const vaddr_t va = w.base + kLeafSpan - 2 * PAGE_SIZE;
     constexpr int kMaxTables = 16;

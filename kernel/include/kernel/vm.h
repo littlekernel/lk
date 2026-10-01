@@ -175,16 +175,27 @@ static inline void *paddr_to_kvaddr(paddr_t pa) {
     return paddr_to_kvaddr_search(pa);
 }
 
-// Page table allocation budget, a test hook for the out of memory paths of the arch
-// mmu code. vm_ptable_budget_set(n) lets the calling thread's next n page table
-// allocations succeed and fails every one after that; -1 lifts the limit. Tables
-// allocated on other threads are neither counted nor refused. Each arch's page
-// table allocator calls vm_ptable_budget_take() first and fails if it returns false.
+// Page table accounting, a test hook for the arch mmu code. One thread at a time
+// is tracked: vm_ptable_track(true) makes it the caller, with its counts at zero
+// and no budget, and vm_ptable_track(false) stops, which the thread must do before
+// it exits. Tables other threads allocate or free are neither counted nor refused.
+//
+// The arch side: each page table allocator calls vm_ptable_budget_take() first and
+// fails if it returns false, and vm_ptable_freed() says how many table pages were
+// handed back. Root tables are not reported when an aspace is destroyed.
+//
+// The test side: vm_ptable_budget_set(n) fails the tracked thread's allocations
+// once n more have gone through, -1 lifts the limit, and vm_ptable_counts() reads
+// how many it has allocated and freed since tracking started.
 #if LK_DEBUGLEVEL > 0
+void vm_ptable_track(bool on);
 void vm_ptable_budget_set(int count);
+void vm_ptable_counts(size_t *allocs, size_t *frees);
 bool vm_ptable_budget_take(void);
+void vm_ptable_freed(size_t count);
 #else
 static inline bool vm_ptable_budget_take(void) { return true; }
+static inline void vm_ptable_freed(size_t count) {}
 #endif
 
 // a hint as to which virtual addresses will be returned by pmm_alloc_kpages
