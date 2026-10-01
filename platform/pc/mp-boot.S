@@ -6,6 +6,7 @@
 #define LOAD_ADDRESS 0x4000
 #define MSR_EFER 0xc0000080
 #define EFER_LME 0x00000100
+#define EFER_NXE 0x00000800
 
 #define ARGS_ADDRESS (LOAD_ADDRESS + 0x1000)
 #define ARGS_CR3     (ARGS_ADDRESS + 0x00)
@@ -84,10 +85,19 @@ FUNCTION(mp_boot_start)
     or  $(1<<5), %eax
     mov %eax, %cr4
 
-    // Enable Long mode
+    // Enable Long mode, and NX where the cpu has it (cpuid 0x80000001 edx bit 20):
+    // the kernel's page tables set bit 63 of an entry, which is reserved until
+    // EFER.NXE is on
+    movl $0x80000001, %eax
+    cpuid
+    movl %edx, %esi
     movl $MSR_EFER ,%ecx
     rdmsr
     orl $EFER_LME,%eax
+    btl $20, %esi
+    jnc 0f
+    orl $EFER_NXE,%eax
+0:
     wrmsr
 
     // load trampoline page table
