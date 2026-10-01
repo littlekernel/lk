@@ -12,6 +12,7 @@ function HELP {
     echo "-m <memory in MB>   : memory size (default: 512 MB, 4 MB for legacy)"
     echo "-M <machine>        : QEMU machine type (default: q35; pc for i440fx; ignored with -l)"
     echo "-s <number of cpus> : number of CPUs (default: 1)"
+    echo "-F <feature>        : append a cpu feature to -cpu, e.g. x2apic=off (may be used multiple times)"
     echo "-X                  : print QEMU command and exit (dry run)"
     echo
     echo "-A <cmd line>       : append command line (may be used multiple times)"
@@ -48,8 +49,9 @@ SUDO=""
 DO_DRYRUN=0
 DO_UEFI=0
 MACHINE_OVERRIDE=""
+CPU_FEATURES=""
 
-while getopts A:6d:gf:klm:M:nN:s:tuhVX FLAG; do
+while getopts A:6d:gF:f:klm:M:nN:s:tuhVX FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         6) DO_64BIT=1;;
@@ -58,6 +60,7 @@ while getopts A:6d:gf:klm:M:nN:s:tuhVX FLAG; do
             DISK_IMAGES+=("$OPTARG")
             ;;
         g) DO_GRAPHICS=1;;
+        F) CPU_FEATURES+=",$OPTARG";;
         f) DO_V9P=1; DO_V9P_DIR=$OPTARG;;
         k) DO_KVM=1;;
         l) DO_LEGACY=1;;
@@ -168,9 +171,9 @@ PROJECT_BUILDDIR="$(lk_builddir "$PROJECT")"
 
 ARGS=()
 if (( DO_KVM )); then
-    ARGS+=("-accel" "kvm" "-cpu" "host")
+    ARGS+=("-accel" "kvm" "-cpu" "host${CPU_FEATURES}")
 else
-    ARGS+=("-cpu" "$CPU")
+    ARGS+=("-cpu" "${CPU}${CPU_FEATURES}")
 fi
 ARGS+=("-m" "$MEMSIZE")
 ARGS+=("-smp" "$SMP")

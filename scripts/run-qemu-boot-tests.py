@@ -86,6 +86,13 @@ class QEMUTestRunner:
                 'args': '-6s4',
                 'timeout': 90
             },
+            # the same kernel on a cpu without x2apic, so the local apic is
+            # reached through its memory mapped registers, as on older cpus
+            'x86-64-xapic': {
+                'script': 'do-qemux86',
+                'args': '-6s4 -F x2apic=off',
+                'timeout': 90
+            },
             # same kernels on the i440fx/PIIX machine: no MCFG/ECAM (legacy
             # config access), PIC-mode _PRT link devices, PIIX IDE
             'x86-i440fx': {
@@ -402,7 +409,7 @@ def main():
                                           'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv64',
                                           'riscv64-nosvvptc',
                                           'x86', 'x86-64', 'x86-i440fx', 'x86-64-i440fx',
-                                          'x86-64-uefi'], action='append',
+                                          'x86-64-uefi', 'x86-64-xapic'], action='append',
                        help='Architecture to test (can be specified multiple times)')
     parser.add_argument('--lk-root', default='.',
                        help='Path to LK root directory (default: current directory)')

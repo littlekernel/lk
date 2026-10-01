@@ -265,8 +265,9 @@ The do-qemu* scripts auto-build before launching QEMU. Note they default to `dlm
 # arm-m3, arm-m4, arm-m7, arm-m33 and arm-m55, running on the MPS2/MPS3 boards
 ./scripts/run-qemu-boot-tests.py --arch arm-m55
 
-# x86 has machine/firmware variants alongside the default q35 ones: x86-i440fx,
-# x86-64-i440fx and x86-64-uefi. m68k is also covered. See --help for the full list.
+# x86 has machine/firmware/cpu variants alongside the default q35 ones: x86-i440fx,
+# x86-64-i440fx, x86-64-uefi and x86-64-xapic (no x2apic). m68k is also covered. See
+# --help for the full list.
 ./scripts/run-qemu-boot-tests.py --arch x86-64-uefi
 
 # Raise the per-architecture timeout for longer suites. The defaults (90s, 120s for
