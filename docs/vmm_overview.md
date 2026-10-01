@@ -192,9 +192,11 @@ In the function vmm_reserve_space, LK creates a vmm_region, inserts it into regi
 
 `arch/include/arch/mmu.h` states one contract for `arch_mmu_map()`,
 `arch_mmu_unmap()`, `arch_mmu_query()` and `arch_mmu_protect()` that every MMU
-arch keeps, and `arch_mmu_contract` in `arch/test/mmu_contract.cpp` checks each
-clause, in a user aspace where the arch has them and in a window of the kernel
-aspace everywhere. In short:
+arch keeps. `arch_mmu_contract` in `arch/test/mmu_contract.cpp` checks it against
+what the page tables hold afterwards, in a user aspace where the arch has them
+and in a window of the kernel aspace everywhere. It does not read or write
+through its mappings, so it cannot see whether a protect reached the TLB. In
+short:
 
 - Permissions are granted, not taken away: READ is required, WRITE and EXECUTE
   add to it. x86-32 and m68k have no NX, so a page there stays executable and
@@ -211,11 +213,11 @@ aspace everywhere. In short:
 - protect replaces the R/W/X permissions and nothing else, refuses EXECUTE on
   uncached memory, and invalidates every page it changed, upgrades included.
 
-map makes a large page wherever vaddr, paddr and count line up: arm64 one level
-above the leaf tables (2MB, 32MB or 512MB, by granule), riscv a 2MB megapage,
-arm32 a 1MB section. x86 and m68k map small pages only; x86's large pages are
-the physmap's, made at boot. Nothing splits a large page, which is why taking
-part of one is refused.
+map makes a large page wherever vaddr, paddr and count line up: arm64 2MB and
+1GB blocks with 4K pages, 32MB with 16K and 512MB with 64K; riscv 2MB
+megapages, and 1GB gigapages under sv48; arm32 1MB sections. x86 and m68k map
+small pages only; x86's large pages are the physmap's, made at boot. Nothing
+splits a large page, which is why taking part of one is refused.
 
 # User address spaces
 

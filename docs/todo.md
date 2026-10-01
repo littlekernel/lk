@@ -68,6 +68,9 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - x86-32: kernel page directory entries above the first 1GB never reach existing user aspaces
 - Split a large page so unmap and protect can take part of one (refused today; arm64 needs break-before-make)
 - vmm_protect(): arch_mmu_protect has no caller above the arch yet
+- Test that arch_mmu_protect reaches the TLB, on this cpu and another: needs kernel mode fault recovery (only arm and arm64 have a fault handler table, unused)
+- Unmap and protect of a mapping that ends at 4GB are untested on arm32 (qemu-virt maps its peripherals there)
+- arch_mmu_map/unmap/protect take a uint page count, which cannot span a 64 bit user aspace; vmm.c truncates r->size / PAGE_SIZE into it
 - ARCH_MMU_FLAG_WRITE_COMBINING in the spare cache policy value, as zircon has; x86 programs the PAT now
 - riscv Svpbmt: every mapping is cached today, UNCACHED included
 - Track which cpus have an aspace loaded on x86 and arm32 (arch_aspace_active_cpus() returns 0)

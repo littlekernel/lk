@@ -7,9 +7,12 @@
  */
 #if ARCH_HAS_MMU
 
-// Checks every clause of the contract in arch/include/arch/mmu.h, in a user
-// aspace where the arch has them and in a window of the kernel aspace
-// everywhere.
+// Checks the contract in arch/include/arch/mmu.h against what the page tables
+// hold afterwards, as arch_mmu_query() reports it and as the page table counts
+// show, in a user aspace where the arch has them and in a window of the kernel
+// aspace everywhere. Nothing here reads or writes through a mapping, so that
+// an unmap or a protect also reached the TLB is not checked here: the unmap
+// tests in mmu.cpp and the user mode tests in uspace.cpp cover part of that.
 
 #include <arch/mmu.h>
 
