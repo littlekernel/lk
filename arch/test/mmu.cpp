@@ -19,6 +19,9 @@
 #include <kernel/mp.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
+
+#include "mmu_test_util.h"
+
 #if ARCH_RISCV
 #include <arch/riscv.h>
 #include <arch/riscv/mmu.h>
@@ -26,14 +29,7 @@
 
 namespace {
 
-constexpr uint kRW = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE;
-constexpr uint kUserRW = ARCH_MMU_FLAG_PERM_USER | kRW;
-
-// what a query reports for a page mapped with these flags: without NX every
-// page can be executed
-uint query_flags(uint flags) {
-    return arch_mmu_supports_nx_mappings() ? flags : flags | ARCH_MMU_FLAG_PERM_EXECUTE;
-}
+using namespace mmu_test;
 
 bool create_user_aspace() {
     BEGIN_TEST;
@@ -58,7 +54,10 @@ bool map_user_pages() {
         status_t err = arch_mmu_init_aspace(&as, USER_ASPACE_BASE, USER_ASPACE_SIZE, 0);
         ASSERT_EQ(NO_ERROR, err, "init aspace");
 
-        auto aspace_cleanup = lk::make_auto_call([&]() { arch_mmu_destroy_aspace(&as); });
+        auto aspace_cleanup = lk::make_auto_call([&]() {
+            arch_mmu_unmap(&as, USER_ASPACE_BASE, 4);
+            arch_mmu_destroy_aspace(&as);
+        });
 
         // allocate a batch of pages
         struct list_node pages = LIST_INITIAL_VALUE(pages);
@@ -121,7 +120,7 @@ bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
     {
         paddr_t pa = 0;
         uint flags = ~arch_flags;
-        EXPECT_EQ(NO_ERROR, arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
+        EXPECT_EQ(NO_ERROR, query(aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
         EXPECT_NE(0U, pa, "valid pa");
         EXPECT_EQ(query_flags(arch_flags), flags, "query flags");
     }
@@ -133,7 +132,7 @@ bool map_region_query_result(vmm_aspace_t *aspace, uint arch_flags) {
     {
         paddr_t pa = 0;
         uint flags = ~arch_flags;
-        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&aspace->arch_aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
+        EXPECT_EQ(ERR_NOT_FOUND, query(aspace, (vaddr_t)ptr, &pa, &flags), "arch_query");
     }
 
     END_TEST;
@@ -212,12 +211,8 @@ bool context_switch() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "context_switch", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() {
-        vmm_set_active_aspace(nullptr);
-        vmm_free_aspace(as);
-    });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("context_switch"), "create aspace");
 
     vm_page_t *p = pmm_alloc_page();
     ASSERT_NONNULL(p, "page");
@@ -241,13 +236,12 @@ bool context_switch() {
     EXPECT_EQ(0x55, *kv, "readback 3");
 
     // switch back to the kernel aspace
-    EXPECT_EQ(as, vmm_set_active_aspace(nullptr), "switch back");
+    EXPECT_EQ(as.get(), vmm_set_active_aspace(nullptr), "switch back");
 
     // unmap the page so the aspace is empty, then destroy it
     err = arch_mmu_unmap(&as->arch_aspace, USER_ASPACE_BASE, 1);
     EXPECT_EQ(NO_ERROR, err, "unmap");
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     page_cleanup.cancel();
     EXPECT_EQ(1U, pmm_free_page(p), "free page");
@@ -264,13 +258,8 @@ bool unmap_user() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "unmap_user", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() {
-        vmm_set_active_aspace(nullptr);
-        arch_mmu_unmap(&as->arch_aspace, USER_ASPACE_BASE, 1);
-        vmm_free_aspace(as);
-    });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("unmap_user"), "create aspace");
 
     vm_page_t *p1 = map_pattern_page(as, USER_ASPACE_BASE, 0x11);
     ASSERT_NONNULL(p1, "map first page");
@@ -300,19 +289,10 @@ bool two_aspaces() {
         END_TEST;
     }
 
-    vmm_aspace_t *a = nullptr;
-    vmm_aspace_t *b = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&a, "two_aspaces_a", 0), "create a");
-    auto a_cleanup = lk::make_auto_call([&]() {
-        vmm_set_active_aspace(nullptr);
-        arch_mmu_unmap(&a->arch_aspace, USER_ASPACE_BASE, 1);
-        vmm_free_aspace(a);
-    });
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&b, "two_aspaces_b", 0), "create b");
-    auto b_cleanup = lk::make_auto_call([&]() {
-        arch_mmu_unmap(&b->arch_aspace, USER_ASPACE_BASE, 1);
-        vmm_free_aspace(b);
-    });
+    scoped_user_aspace a;
+    scoped_user_aspace b;
+    ASSERT_EQ(NO_ERROR, a.create("two_aspaces_a"), "create a");
+    ASSERT_EQ(NO_ERROR, b.create("two_aspaces_b"), "create b");
 
     vm_page_t *pa = map_pattern_page(a, USER_ASPACE_BASE, 0xaa);
     ASSERT_NONNULL(pa, "map a");
@@ -346,8 +326,8 @@ bool aspace_churn() {
     }
 
     for (int i = 0; i < 32; i++) {
-        vmm_aspace_t *as = nullptr;
-        ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "churn", 0), "create aspace");
+        scoped_user_aspace as;
+        ASSERT_EQ(NO_ERROR, as.create("churn"), "create aspace");
         const int pattern = 0x1000 + i;
         vm_page_t *p = map_pattern_page(as, USER_ASPACE_BASE, pattern);
         ASSERT_NONNULL(p, "map");
@@ -357,7 +337,7 @@ bool aspace_churn() {
         vmm_set_active_aspace(nullptr);
 
         EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, USER_ASPACE_BASE, 1), "unmap");
-        EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+        EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
         pmm_free_page(p);
 
         if (seen != pattern) {
@@ -377,9 +357,8 @@ bool out_of_range() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "out_of_range", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("out_of_range"), "create aspace");
 
     vm_page_t *p = pmm_alloc_page();
     ASSERT_NONNULL(p, "page");
@@ -421,9 +400,9 @@ bool table_reclaim() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "table_reclaim", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("table_reclaim"), "create aspace");
+    table_tracker tables;
 
     // spread over the aspace so no two share a lower level table; the size
     // need not be a multiple of four pages, so round the middle ones down
@@ -455,8 +434,8 @@ bool table_reclaim() {
         EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, vas[i], &pa, nullptr), "gone");
     }
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace with only the top table left");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace with only the top table left");
 
     END_TEST;
 }
@@ -656,9 +635,9 @@ bool map_across_table_boundaries() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "boundaries", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("boundaries"), "create aspace");
+    table_tracker tables;
 
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     paddr_t pa;
@@ -695,10 +674,10 @@ bool map_across_table_boundaries() {
             EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, r.base + i * PAGE_SIZE, &got, nullptr), "gone");
         }
         EXPECT_TRUE(check_table_count(as, 1), "tables after unmap");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
     }
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     END_TEST;
 }
@@ -713,9 +692,9 @@ bool unmap_range_with_holes() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "holes", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("holes"), "create aspace");
+    table_tracker tables;
 
     const vaddr_t base = USER_ASPACE_BASE;
     vm_page_t *p2 = map_pattern_page(as, base + 2 * PAGE_SIZE, 2);
@@ -730,6 +709,7 @@ bool unmap_range_with_holes() {
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + 2 * PAGE_SIZE, &pa, nullptr), "page 2 gone");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + 5 * PAGE_SIZE, &pa, nullptr), "page 5 gone");
     EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
     EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, 8), "unmap nothing");
 
     // a page in the leaf table after a missing one: an unmap starting in the
@@ -743,9 +723,9 @@ bool unmap_range_with_holes() {
     EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, hole, span), "unmap from inside a hole");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, beyond, &pa, nullptr), "page beyond gone");
     EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed again");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     END_TEST;
 }
@@ -760,9 +740,9 @@ bool reclaim_after_big_range() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "big_range", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("big_range"), "create aspace");
+    table_tracker tables;
 
     constexpr uint count = 1024;
     struct list_node pages = LIST_INITIAL_VALUE(pages);
@@ -795,9 +775,9 @@ bool reclaim_after_big_range() {
         EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + i * PAGE_SIZE, &got, nullptr), "gone");
     }
     EXPECT_TRUE(check_table_count(as, 1), "tables after unmap");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     END_TEST;
 }
@@ -812,9 +792,9 @@ bool large_page_map() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "large_page", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("large_page"), "create aspace");
+    table_tracker tables;
 
     constexpr size_t large = 2UL << 20;
     constexpr uint count = large / PAGE_SIZE;
@@ -848,9 +828,9 @@ bool large_page_map() {
     EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, va, count), "unmap whole");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, va, &got, nullptr), "gone");
     EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     END_TEST;
 }
@@ -866,11 +846,9 @@ bool map_enomem_rollback() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "enomem", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
-    vm_ptable_track(true);
-    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_track(false); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("enomem"), "create aspace");
+    table_tracker tables;
 
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     paddr_t pa;
@@ -883,41 +861,45 @@ bool map_enomem_rollback() {
     paddr_t got;
 
     // no table at all
-    vm_ptable_budget_set(0);
+    tables.set_budget(0);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, kUserRW), "map with no tables");
     EXPECT_TRUE(check_table_count(as, 1), "nothing left behind");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
     // the first table links in, the one below it does not: the empty one must go
-    vm_ptable_budget_set(1);
+    tables.set_budget(1);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, kUserRW), "map with one table");
     EXPECT_TRUE(check_table_count(as, 1), "empty table unlinked");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
     // enough for the first page, not for the second page's leaf table
-    vm_ptable_budget_set(pt_levels - 1);
+    tables.set_budget(pt_levels - 1);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 2, kUserRW), "map two pages");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, base, &got, nullptr), "first page rolled back");
     EXPECT_TRUE(check_table_count(as, 1), "first page's tables reclaimed");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
     // Across a 1GB boundary: the first page's chain goes in, the second needs
     // a fresh table below the 1GB level and one more under it, which fails.
     // Both cleanup legs run: the page that went in is rolled back and the
     // fresh table, orphaned, is unlinked again.
     const vaddr_t gb = user_boundary(1UL << 30) - PAGE_SIZE;
-    vm_ptable_budget_set(pt_levels);
+    tables.set_budget(pt_levels);
     EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, gb, pa, 2, kUserRW), "map across 1GB");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, gb, &got, nullptr), "page before the boundary rolled back");
     EXPECT_TRUE(check_table_count(as, 1), "chain and orphaned table reclaimed");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
     // and with the cap lifted the same mapping works
-    vm_ptable_budget_set(-1);
+    tables.set_budget(-1);
     EXPECT_EQ(NO_ERROR, arch_mmu_map(aspace, base, pa, 2, kUserRW), "map after rollback");
     EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, base + PAGE_SIZE, &got, nullptr), "query second page");
     EXPECT_EQ(pa + PAGE_SIZE, got, "paddr");
     EXPECT_EQ(NO_ERROR, arch_mmu_unmap(aspace, base, 2), "unmap");
     EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     END_TEST;
 }
@@ -933,9 +915,7 @@ bool kernel_map_enomem_rollback() {
     BEGIN_TEST;
 
     vmm_aspace_t *kas = vmm_get_kernel_aspace();
-    arch_aspace_t *aspace = &kas->arch_aspace;
-    vm_ptable_track(true);
-    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_track(false); });
+    table_tracker tables;
 
     vm_page_t *p = pmm_alloc_page();
     ASSERT_NONNULL(p, "alloc page");
@@ -945,7 +925,7 @@ bool kernel_map_enomem_rollback() {
     // the last 2MB of the kernel aspace, which the vmm never hands out
     const vaddr_t va = KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - (2UL << 20);
     paddr_t got;
-    if (arch_mmu_query(aspace, va, &got, nullptr) == NO_ERROR) {
+    if (query(kas, va, &got, nullptr) == NO_ERROR) {
         unittest_printf(" (region already mapped)");
         END_TEST;
     }
@@ -954,25 +934,25 @@ bool kernel_map_enomem_rollback() {
     constexpr int needed = pt_levels - 2;
     for (int pass = 0; pass < 2; pass++) {
         for (int budget = 0; budget < needed; budget++) {
-            vm_ptable_budget_set(budget);
-            EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, va, pa, 1, kRW), "map with too few tables");
-            EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, va, &got, nullptr), "nothing mapped");
+            tables.set_budget(budget);
+            EXPECT_EQ(ERR_NO_MEMORY, map(kas, va, pa, 1, kRW), "map with too few tables");
+            EXPECT_EQ(ERR_NOT_FOUND, query(kas, va, &got, nullptr), "nothing mapped");
         }
-        vm_ptable_budget_set(needed);
-        ASSERT_EQ(NO_ERROR, arch_mmu_map(aspace, va, pa, 1, kRW), "map with just enough");
-        EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, va, &got, nullptr), "query");
+        tables.set_budget(needed);
+        ASSERT_EQ(NO_ERROR, map(kas, va, pa, 1, kRW), "map with just enough");
+        EXPECT_EQ(NO_ERROR, query(kas, va, &got, nullptr), "query");
         EXPECT_EQ(pa, got, "paddr");
         // the second pass shows the unmap took the chain with it
-        EXPECT_EQ(NO_ERROR, arch_mmu_unmap(aspace, va, 1), "unmap");
-        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, va, &got, nullptr), "gone");
+        EXPECT_EQ(NO_ERROR, unmap(kas, va, 1), "unmap");
+        EXPECT_EQ(ERR_NOT_FOUND, query(kas, va, &got, nullptr), "gone");
     }
 
     // the physmap is a top level leaf
-    vm_ptable_budget_set(-1);
+    tables.set_budget(-1);
     EXPECT_EQ(ERR_NOT_SUPPORTED,
-              arch_mmu_unmap(aspace, RISCV_MMU_PHYSMAP_BASE_VIRT, RISCV_MMU_PHYSMAP_PAGE_SIZE / PAGE_SIZE),
+              unmap(kas, RISCV_MMU_PHYSMAP_BASE_VIRT, RISCV_MMU_PHYSMAP_PAGE_SIZE / PAGE_SIZE),
               "top level unmap refused");
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(aspace, RISCV_MMU_PHYSMAP_BASE_VIRT, &got, nullptr), "physmap intact");
+    EXPECT_EQ(NO_ERROR, query(kas, RISCV_MMU_PHYSMAP_BASE_VIRT, &got, nullptr), "physmap intact");
     EXPECT_EQ((paddr_t)0, got, "physmap base");
 
     END_TEST;
@@ -989,9 +969,8 @@ bool stale_fault_predicate() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "stale", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("stale"), "create aspace");
     arch_aspace_t *aspace = &as->arch_aspace;
 
     // one page of each kind; the last is a kernel page, which user mode may not touch at all
@@ -1061,8 +1040,7 @@ bool stale_fault_predicate() {
     EXPECT_FALSE(stale(base + 0x123, RISCV_EXCEPTION_LOAD_PAGE_FAULT, user), "unmapped after");
     EXPECT_FALSE(stale(base + 0x123, RISCV_EXCEPTION_LOAD_PAGE_FAULT, kernel), "unmapped after, kernel");
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     END_TEST;
 }
@@ -1078,9 +1056,9 @@ bool map_already_mapped_rollback() {
         END_TEST;
     }
 
-    vmm_aspace_t *as = nullptr;
-    ASSERT_EQ(NO_ERROR, vmm_create_aspace(&as, "already", 0), "create aspace");
-    auto aspace_cleanup = lk::make_auto_call([&]() { vmm_free_aspace(as); });
+    scoped_user_aspace as;
+    ASSERT_EQ(NO_ERROR, as.create("already"), "create aspace");
+    table_tracker tables;
 
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     paddr_t pa;
@@ -1105,9 +1083,9 @@ bool map_already_mapped_rollback() {
     EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, 4), "unmap");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + 2 * PAGE_SIZE, &got, nullptr), "page 2 gone");
     EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed");
+    EXPECT_EQ(0L, tables.live(), "every table freed");
 
-    aspace_cleanup.cancel();
-    EXPECT_EQ(NO_ERROR, vmm_free_aspace(as), "free aspace");
+    EXPECT_EQ(NO_ERROR, as.free(), "free aspace");
 
     END_TEST;
 }
@@ -1125,16 +1103,16 @@ bool kernel_aspace_top_page() {
 
     const vaddr_t va = KERNEL_ASPACE_BASE + KERNEL_ASPACE_SIZE - PAGE_SIZE;
     paddr_t pa;
-    if (arch_mmu_query(&kas->arch_aspace, va, &pa, nullptr) == NO_ERROR) {
+    if (query(kas, va, &pa, nullptr) == NO_ERROR) {
         unittest_printf(" (top page already mapped)");
         END_TEST;
     }
-    ASSERT_EQ(NO_ERROR, arch_mmu_map(&kas->arch_aspace, va, vm_page_to_paddr(p), 1, kRW), "map top page");
+    ASSERT_EQ(NO_ERROR, map(kas, va, vm_page_to_paddr(p), 1, kRW), "map top page");
 
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(&kas->arch_aspace, va, &pa, nullptr), "query");
+    EXPECT_EQ(NO_ERROR, query(kas, va, &pa, nullptr), "query");
     EXPECT_EQ(vm_page_to_paddr(p), pa, "paddr");
-    EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&kas->arch_aspace, va, 1), "unmap");
-    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&kas->arch_aspace, va, &pa, nullptr), "gone");
+    EXPECT_EQ(NO_ERROR, unmap(kas, va, 1), "unmap");
+    EXPECT_EQ(ERR_NOT_FOUND, query(kas, va, &pa, nullptr), "gone");
 
     END_TEST;
 }

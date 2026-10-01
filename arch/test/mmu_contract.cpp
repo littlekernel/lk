@@ -20,12 +20,16 @@
 #include <lk/err.h>
 #include <lktl/auto_call.h>
 
+#include "mmu_test_util.h"
+
 namespace {
 
-constexpr uint kR = ARCH_MMU_FLAG_PERM_READ;
-constexpr uint kW = ARCH_MMU_FLAG_PERM_WRITE;
-constexpr uint kX = ARCH_MMU_FLAG_PERM_EXECUTE;
-constexpr uint kRW = kR | kW;
+using namespace mmu_test;
+// the window overloads below go next to these rather than hide them
+using mmu_test::map;
+using mmu_test::protect;
+using mmu_test::query;
+using mmu_test::unmap;
 
 // Per arch geometry: the span one leaf table covers, and the smallest large
 // page map may create (0 where map never makes one).
@@ -68,23 +72,13 @@ constexpr uint log2_of(size_t v) { return v <= 1 ? 0 : 1 + log2_of(v / 2); }
 // fresh user aspace or in the kernel's.
 struct window {
     const char *name;
-    vmm_aspace_t *vmm;
-    arch_aspace_t *aspace;
+    vmm_aspace_t *as;
     vaddr_t base;
     size_t size;
     uint user;             // ARCH_MMU_FLAG_PERM_USER in a user aspace
     bool tables_permanent; // tables linked here are never freed
     vaddr_t outside;       // an address outside the aspace
 };
-
-// what a query returns for a page mapped with these flags: without NX every
-// page can be executed
-uint expected_flags(uint flags) {
-    if (!arch_mmu_supports_nx_mappings()) {
-        flags |= kX;
-    }
-    return flags;
-}
 
 // whether a page mapped with one cache policy may read back as another: the
 // entry may not tell device memory from uncached, and riscv (no Svpbmt)
@@ -100,21 +94,26 @@ bool cache_readback_ok(uint requested, uint got) {
 #endif
 }
 
-// arch_mmu_map with the window's USER bit added
+// The arch calls on the window's aspace, under its lock. map adds the
+// window's USER bit.
 status_t map(const window &w, vaddr_t va, paddr_t pa, uint count, uint flags = kRW) {
-    return arch_mmu_map(w.aspace, va, pa, count, flags | w.user);
+    return map(w.as, va, pa, count, flags | w.user);
 }
 
 status_t unmap(const window &w, vaddr_t va, uint count) {
-    return arch_mmu_unmap(w.aspace, va, count);
+    return unmap(w.as, va, count);
 }
 
 status_t protect(const window &w, vaddr_t va, uint count, uint flags) {
-    return arch_mmu_protect(w.aspace, va, count, flags);
+    return protect(w.as, va, count, flags);
+}
+
+status_t query(const window &w, vaddr_t va, paddr_t *pa, uint *flags) {
+    return query(w.as, va, pa, flags);
 }
 
 bool is_mapped(const window &w, vaddr_t va) {
-    return arch_mmu_query(w.aspace, va, nullptr, nullptr) == NO_ERROR;
+    return query(w, va, nullptr, nullptr) == NO_ERROR;
 }
 
 // va maps pa with flags (the window's USER bit added)
@@ -122,11 +121,11 @@ bool check_page(const window &w, vaddr_t va, paddr_t pa, uint flags = kRW) {
     BEGIN_TEST;
     paddr_t got_pa = 0;
     uint got_flags = 0;
-    ASSERT_EQ(NO_ERROR, arch_mmu_query(w.aspace, va, &got_pa, &got_flags), "query");
+    ASSERT_EQ(NO_ERROR, query(w, va, &got_pa, &got_flags), "query");
     EXPECT_EQ(pa, got_pa, "paddr");
     const uint cache = flags & ARCH_MMU_FLAG_CACHE_MASK;
     EXPECT_TRUE(cache_readback_ok(cache, got_flags & ARCH_MMU_FLAG_CACHE_MASK), "cache policy");
-    EXPECT_EQ(expected_flags((flags & ~ARCH_MMU_FLAG_CACHE_MASK) | w.user),
+    EXPECT_EQ(query_flags((flags & ~ARCH_MMU_FLAG_CACHE_MASK) | w.user),
               got_flags & ~ARCH_MMU_FLAG_CACHE_MASK, "flags");
     END_TEST;
 }
@@ -135,23 +134,10 @@ bool check_unmapped(const window &w, vaddr_t va, uint count) {
     BEGIN_TEST;
     for (uint i = 0; i < count; i++) {
         paddr_t pa;
-        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(w.aspace, va + i * PAGE_SIZE, &pa, nullptr), "unmapped");
+        EXPECT_EQ(ERR_NOT_FOUND, query(w, va + i * PAGE_SIZE, &pa, nullptr), "unmapped");
     }
     END_TEST;
 }
-
-// physical pages for a test, contiguous and aligned as asked
-struct backing {
-    struct list_node pages = LIST_INITIAL_VALUE(pages);
-    paddr_t pa = 0;
-    size_t count = 0;
-
-    bool alloc(size_t n, uint8_t align_log2 = PAGE_SIZE_SHIFT) {
-        count = pmm_alloc_contiguous(n, align_log2, &pa, &pages);
-        return count == n;
-    }
-    ~backing() { pmm_free(&pages); }
-};
 
 // runs fn in a user aspace window and in a kernel aspace window
 template <typename F>
@@ -161,10 +147,9 @@ bool in_each_window(F fn) {
     if (arch_mmu_supports_user_aspaces()) {
         window w = {};
         w.name = "user";
-        ASSERT_EQ(NO_ERROR, vmm_create_aspace(&w.vmm, "mmu_contract", 0), "create aspace");
-        auto cleanup = lk::make_auto_call([&]() { vmm_free_aspace(w.vmm); });
-        ASSERT_EQ(NO_ERROR, vmm_reserve_range(w.vmm, "window", kWindowSize, kWindowAlign, &w.base), "reserve");
-        w.aspace = &w.vmm->arch_aspace;
+        ASSERT_EQ(NO_ERROR, vmm_create_aspace(&w.as, "mmu_contract", 0), "create aspace");
+        auto cleanup = lk::make_auto_call([&]() { vmm_free_aspace(w.as); });
+        ASSERT_EQ(NO_ERROR, vmm_reserve_range(w.as, "window", kWindowSize, kWindowAlign, &w.base), "reserve");
         w.size = kWindowSize;
         w.user = ARCH_MMU_FLAG_PERM_USER;
         w.outside = KERNEL_ASPACE_BASE;
@@ -178,10 +163,9 @@ bool in_each_window(F fn) {
     {
         window w = {};
         w.name = "kernel";
-        w.vmm = vmm_get_kernel_aspace();
-        ASSERT_EQ(NO_ERROR, vmm_reserve_range(w.vmm, "window", kWindowSize, kWindowAlign, &w.base), "reserve");
-        auto cleanup = lk::make_auto_call([&]() { vmm_free_region(w.vmm, w.base); });
-        w.aspace = &w.vmm->arch_aspace;
+        w.as = vmm_get_kernel_aspace();
+        ASSERT_EQ(NO_ERROR, vmm_reserve_range(w.as, "window", kWindowSize, kWindowAlign, &w.base), "reserve");
+        auto cleanup = lk::make_auto_call([&]() { vmm_free_region(w.as, w.base); });
         w.size = kWindowSize;
         w.user = 0;
 #if ARCH_X86_32
@@ -203,13 +187,13 @@ bool return_values(const window &w) {
     BEGIN_TEST;
     backing b;
     ASSERT_TRUE(b.alloc(3), "backing");
-    EXPECT_EQ(NO_ERROR, arch_mmu_map(w.aspace, w.base, b.pa, 3, kRW | w.user), "map");
+    EXPECT_EQ(NO_ERROR, map(w.as, w.base, b.pa, 3, kRW | w.user), "map");
     for (uint i = 0; i < 3; i++) {
         EXPECT_TRUE(check_page(w, w.base + i * PAGE_SIZE, b.pa + i * PAGE_SIZE), "mapped");
     }
-    EXPECT_EQ(NO_ERROR, arch_mmu_unmap(w.aspace, w.base, 3), "unmap");
+    EXPECT_EQ(NO_ERROR, unmap(w, w.base, 3), "unmap");
     EXPECT_TRUE(check_unmapped(w, w.base, 3), "gone");
-    EXPECT_EQ(NO_ERROR, arch_mmu_unmap(w.aspace, w.base, 3), "unmap nothing");
+    EXPECT_EQ(NO_ERROR, unmap(w, w.base, 3), "unmap nothing");
     END_TEST;
 }
 
@@ -222,13 +206,13 @@ bool query_out_params(const window &w) {
 
     paddr_t pa = 0;
     uint flags = 0;
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(w.aspace, w.base, nullptr, &flags), "no paddr");
-    EXPECT_EQ(expected_flags(kRW | w.user), flags, "flags");
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(w.aspace, w.base + 0x123, &pa, nullptr), "no flags");
+    EXPECT_EQ(NO_ERROR, query(w, w.base, nullptr, &flags), "no paddr");
+    EXPECT_EQ(query_flags(kRW | w.user), flags, "flags");
+    EXPECT_EQ(NO_ERROR, query(w, w.base + 0x123, &pa, nullptr), "no flags");
     EXPECT_EQ(b.pa + 0x123, pa, "paddr with offset");
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(w.aspace, w.base, nullptr, nullptr), "neither");
-    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(w.aspace, w.base + PAGE_SIZE, nullptr, nullptr), "unmapped, neither");
-    EXPECT_EQ(ERR_OUT_OF_RANGE, arch_mmu_query(w.aspace, w.outside, nullptr, nullptr), "outside, neither");
+    EXPECT_EQ(NO_ERROR, query(w, w.base, nullptr, nullptr), "neither");
+    EXPECT_EQ(ERR_NOT_FOUND, query(w, w.base + PAGE_SIZE, nullptr, nullptr), "unmapped, neither");
+    EXPECT_EQ(ERR_OUT_OF_RANGE, query(w, w.outside, nullptr, nullptr), "outside, neither");
 
     EXPECT_EQ(NO_ERROR, unmap(w, w.base, 1), "unmap");
     END_TEST;
@@ -290,8 +274,7 @@ bool out_of_tables(const window &w) {
     BEGIN_TEST;
     backing b;
     ASSERT_TRUE(b.alloc(4), "backing");
-    vm_ptable_track(true);
-    auto budget_cleanup = lk::make_auto_call([]() { vm_ptable_track(false); });
+    table_tracker tables;
 
     const vaddr_t va = w.base + kLeafSpan - 2 * PAGE_SIZE;
     constexpr int kMaxTables = 16;
@@ -299,9 +282,9 @@ bool out_of_tables(const window &w) {
     // how many tables the range needs, from a clean window
     int needed = -1;
     for (int budget = 0; budget <= kMaxTables; budget++) {
-        vm_ptable_budget_set(budget);
+        tables.set_budget(budget);
         status_t err = map(w, va, b.pa, 4);
-        vm_ptable_budget_set(-1);
+        tables.set_budget(-1);
         if (err == NO_ERROR) {
             needed = budget;
             break;
@@ -325,11 +308,11 @@ bool out_of_tables(const window &w) {
 
     // every smaller budget again, each followed by the one just short
     for (int budget = 0; budget < needed; budget++) {
-        vm_ptable_budget_set(budget);
+        tables.set_budget(budget);
         EXPECT_EQ(ERR_NO_MEMORY, map(w, va, b.pa, 4), "map short of tables");
-        vm_ptable_budget_set(needed - 1);
+        tables.set_budget(needed - 1);
         status_t err = map(w, va, b.pa, 4);
-        vm_ptable_budget_set(-1);
+        tables.set_budget(-1);
         EXPECT_EQ(ERR_NO_MEMORY, err, "one short after a failed map");
         EXPECT_TRUE(check_unmapped(w, va, 4), "nothing mapped");
         if (err == NO_ERROR) {
@@ -340,9 +323,9 @@ bool out_of_tables(const window &w) {
     }
 
     // and the aspace still maps normally, needing as many as before
-    vm_ptable_budget_set(needed);
+    tables.set_budget(needed);
     status_t err = map(w, va, b.pa, 4);
-    vm_ptable_budget_set(-1);
+    tables.set_budget(-1);
     EXPECT_EQ(NO_ERROR, err, "map with the same budget");
     for (uint i = 0; i < 4; i++) {
         EXPECT_TRUE(check_page(w, va + i * PAGE_SIZE, b.pa + i * PAGE_SIZE), "mapped");
@@ -576,7 +559,7 @@ bool protect_execute_uncached(const window &w) {
               "map device");
 
     uint flags = 0;
-    ASSERT_EQ(NO_ERROR, arch_mmu_query(w.aspace, w.base + PAGE_SIZE, nullptr, &flags), "query");
+    ASSERT_EQ(NO_ERROR, query(w, w.base + PAGE_SIZE, nullptr, &flags), "query");
     if ((flags & ARCH_MMU_FLAG_CACHE_MASK) != ARCH_MMU_FLAG_CACHED) {
         EXPECT_EQ(ERR_INVALID_ARGS, protect(w, w.base, 3, kR | kX), "execute over uncached");
         EXPECT_TRUE(check_page(w, w.base, b.pa, kRW), "cached page unchanged");
@@ -655,7 +638,7 @@ bool contract_protect_large_page() { return in_each_window(protect_large_page); 
 // unmapped. Uses the physmap alias of a buffer this test owns.
 bool contract_physmap() {
     BEGIN_TEST;
-    arch_aspace_t *kas = &vmm_get_kernel_aspace()->arch_aspace;
+    vmm_aspace_t *kas = vmm_get_kernel_aspace();
 
     backing b;
 #if IS_64BIT
@@ -673,46 +656,46 @@ bool contract_physmap() {
     ASSERT_NE(0UL, kva, "in the physmap");
 
     paddr_t pa = 0;
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(kas, kva + PAGE_SIZE, &pa, nullptr), "query");
+    EXPECT_EQ(NO_ERROR, query(kas, kva + PAGE_SIZE, &pa, nullptr), "query");
     EXPECT_EQ(b.pa + PAGE_SIZE, pa, "paddr");
 
-    status_t err = arch_mmu_map(kas, kva + PAGE_SIZE, other.pa, 1, kRW);
+    status_t err = map(kas, kva + PAGE_SIZE, other.pa, 1, kRW);
     EXPECT_EQ(ERR_ALREADY_EXISTS, err, "map over the physmap");
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(kas, kva + PAGE_SIZE, &pa, nullptr), "query");
+    EXPECT_EQ(NO_ERROR, query(kas, kva + PAGE_SIZE, &pa, nullptr), "query");
     EXPECT_EQ(b.pa + PAGE_SIZE, pa, "physmap intact");
 
     uint orig = 0;
-    ASSERT_EQ(NO_ERROR, arch_mmu_query(kas, kva + PAGE_SIZE, nullptr, &orig), "query");
+    ASSERT_EQ(NO_ERROR, query(kas, kva + PAGE_SIZE, nullptr, &orig), "query");
     uint flags = 0;
-    err = arch_mmu_protect(kas, kva + PAGE_SIZE, 1, kR);
+    err = protect(kas, kva + PAGE_SIZE, 1, kR);
 #if (ARCH_X86 && !X86_LEGACY) || ARCH_RISCV || ARCH_ARM
     // large or fixed pages there; arm64 uses both, depending on the granule
     // and where the kernel image ends, and a legacy x86 build small pages
     EXPECT_EQ(ERR_NOT_SUPPORTED, err, "protect part of the physmap");
 #endif
     if (err == ERR_NOT_SUPPORTED) {
-        EXPECT_EQ(ERR_NOT_SUPPORTED, arch_mmu_unmap(kas, kva + PAGE_SIZE, 1), "unmap part of the physmap");
-        EXPECT_EQ(NO_ERROR, arch_mmu_query(kas, kva + PAGE_SIZE, &pa, &flags), "query");
+        EXPECT_EQ(ERR_NOT_SUPPORTED, unmap(kas, kva + PAGE_SIZE, 1), "unmap part of the physmap");
+        EXPECT_EQ(NO_ERROR, query(kas, kva + PAGE_SIZE, &pa, &flags), "query");
         EXPECT_EQ(b.pa + PAGE_SIZE, pa, "physmap still intact");
         EXPECT_EQ(orig, flags, "physmap flags intact");
     } else {
         // a small page: it can be made read only and back
         EXPECT_EQ(NO_ERROR, err, "protect a physmap page");
-        EXPECT_EQ(NO_ERROR, arch_mmu_query(kas, kva + PAGE_SIZE, &pa, &flags), "query");
+        EXPECT_EQ(NO_ERROR, query(kas, kva + PAGE_SIZE, &pa, &flags), "query");
         EXPECT_EQ(b.pa + PAGE_SIZE, pa, "physmap paddr");
-        EXPECT_EQ(expected_flags((orig & ~ARCH_MMU_FLAG_PERM_RWX_MASK) | kR), flags, "read only");
-        EXPECT_EQ(NO_ERROR, arch_mmu_protect(kas, kva + PAGE_SIZE, 1, orig & ARCH_MMU_FLAG_PERM_RWX_MASK), "restore");
-        EXPECT_EQ(NO_ERROR, arch_mmu_query(kas, kva + PAGE_SIZE, nullptr, &flags), "query");
+        EXPECT_EQ(query_flags((orig & ~ARCH_MMU_FLAG_PERM_RWX_MASK) | kR), flags, "read only");
+        EXPECT_EQ(NO_ERROR, protect(kas, kva + PAGE_SIZE, 1, orig & ARCH_MMU_FLAG_PERM_RWX_MASK), "restore");
+        EXPECT_EQ(NO_ERROR, query(kas, kva + PAGE_SIZE, nullptr, &flags), "query");
         EXPECT_EQ(orig, flags, "restored");
     }
 #if ARCH_X86_64
     // the 2MB page of the physmap covering the buffer, as a whole
-    EXPECT_EQ(NO_ERROR, arch_mmu_protect(kas, kva, 512, kR), "protect a 2MB physmap page");
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(kas, kva + 0x12345, &pa, &flags), "query");
+    EXPECT_EQ(NO_ERROR, protect(kas, kva, 512, kR), "protect a 2MB physmap page");
+    EXPECT_EQ(NO_ERROR, query(kas, kva + 0x12345, &pa, &flags), "query");
     EXPECT_EQ(b.pa + 0x12345, pa, "paddr");
-    EXPECT_EQ(expected_flags((orig & ~ARCH_MMU_FLAG_PERM_RWX_MASK) | kR), flags, "read only");
-    EXPECT_EQ(NO_ERROR, arch_mmu_protect(kas, kva, 512, orig & ARCH_MMU_FLAG_PERM_RWX_MASK), "restore");
-    EXPECT_EQ(NO_ERROR, arch_mmu_query(kas, kva + 0x12345, nullptr, &flags), "query");
+    EXPECT_EQ(query_flags((orig & ~ARCH_MMU_FLAG_PERM_RWX_MASK) | kR), flags, "read only");
+    EXPECT_EQ(NO_ERROR, protect(kas, kva, 512, orig & ARCH_MMU_FLAG_PERM_RWX_MASK), "restore");
+    EXPECT_EQ(NO_ERROR, query(kas, kva + 0x12345, nullptr, &flags), "query");
     EXPECT_EQ(orig, flags, "restored");
 #endif
     END_TEST;

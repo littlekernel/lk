@@ -124,7 +124,6 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
         sample_stop(&s);
         if (ret < 0) {
             printf("protect failed: %d\n", ret);
-            arch_mmu_unmap(aspace, va, BENCH_PAGES);
             break;
         }
         keep_best(&best_protect, &s);
@@ -147,7 +146,6 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
         sample_stop(&s);
         if (ret < 0) {
             printf("single page map failed: %d\n", ret);
-            arch_mmu_unmap(aspace, va, BENCH_PAGES);
             break;
         }
         keep_best(&best_map1, &s);
@@ -160,7 +158,6 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
         sample_stop(&s);
         if (ret < 0) {
             printf("single page unmap failed: %d\n", ret);
-            arch_mmu_unmap(aspace, va, BENCH_PAGES);
             break;
         }
         keep_best(&best_unmap1, &s);
@@ -184,6 +181,12 @@ int mmu_bench(int argc, const console_cmd_args *argv) {
             break;
         }
         keep_best(&best_unmap_large, &s);
+    }
+
+    if (ret < 0) {
+        // A round that stopped part way may have left pages behind, and the
+        // aspace must be empty to be freed. This spans both placements.
+        arch_mmu_unmap(aspace, va_large, BENCH_PAGES + 1);
     }
 
     if (ret >= 0) {
