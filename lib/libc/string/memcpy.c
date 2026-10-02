@@ -23,7 +23,7 @@ typedef long word;
 void *memcpy(void *dest, const void *src, size_t count) {
     char *d = (char *)dest;
     const char *s = (const char *)src;
-    int len;
+    size_t len;
 
     if (count == 0 || dest == src)
         return dest;

@@ -14,12 +14,14 @@
 
 int
 strcmp(char const *cs, char const *ct) {
-    signed char __res;
+    const unsigned char *s1 = (const unsigned char *)cs;
+    const unsigned char *s2 = (const unsigned char *)ct;
+    int res;
 
     while (1) {
-        if ((__res = *cs - *ct++) != 0 || !*cs++)
+        if ((res = *s1 - *s2++) != 0 || !*s1++)
             break;
     }
 
-    return __res;
+    return res;
 }
