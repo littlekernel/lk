@@ -36,7 +36,7 @@ struct mmu_initial_mapping mmu_initial_mappings[] = {
     // null entry to terminate the list
     {}};
 
-#if M68K_MMU == 68040
+#if M68K_MMU == 68040 || M68K_MMU == 68060
 
 // 68040's layout is
 // 4 or 8K pages. only affects the bottom level
@@ -145,6 +145,7 @@ static_assert(L2_VADDR_SHIFT == 12, "");
 // about at the root level. (128 * 4 = 512 bytes)
 volatile root_ptp_t kernel_pgtable[L0_ENTRIES_RAW] __ALIGNED(L0_BYTES);
 paddr_t kernel_pgtable_phys;
+paddr_t kernel_base_phys;
 
 #else
 // TODO: support 65030 in the future, probably using identical page table sizes
@@ -351,7 +352,10 @@ static void dump_mmu_regs(void) {
     printf("ITT1 %#x\n", get_itt1());
     printf("DTT0 %#x\n", get_dtt0());
     printf("DTT1 %#x\n", get_dtt1());
+#if M68K_MMU == 68040
+    // 68060 lacks MMUSR 
     printf("MMUSR %#x\n", get_mmusr());
+#endif
     printf("URP %#x\n", get_urp());
     printf("SRP %#x\n", get_srp());
 }
@@ -370,9 +374,9 @@ static bool is_l1_entry_valid(ptp_t entry) {
 
 static bool is_l2_entry_valid(pte_t entry) {
     // 0 == invalid
-    // 1, 2 == valid
-    // 3 == indirect pointer (unused)
-    return entry.pdt == 1 || entry.pdt == 2;
+    // 1, 3 == valid
+    // 2 == indirect pointer (unused)
+    return entry.pdt == 1 || entry.pdt == 3;
 }
 
 static status_t map_range_table(volatile root_ptp_t *root_table, vaddr_t va, paddr_t pa, size_t len_minus_one, uint flags) {
@@ -683,7 +687,74 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
     if (!arch_mmu_range_in_aspace(aspace, vaddr, 1)) {
         return ERR_OUT_OF_RANGE;
     }
+#if M68K_MMU == 68060
+    // 4KB pages. 20 bits for base address, 12 for page offset.
+    // Do the L0->L1->L2 dance, shift things in to the correct alignment(s)
 
+    volatile root_ptp_t *root_table = aspace->pgtable_virt;
+
+    const root_ptp_t l0_entry = *get_l0_ptp_base_ptr(root_table, vaddr);
+    if (!is_l0_entry_valid(l0_entry)) {
+       return ERR_NOT_FOUND;
+    }
+
+    volatile ptp_t *l1_table = (volatile ptp_t *)paddr_to_kvaddr(
+          (paddr_t)l0_entry.table_address << 9);
+    if (!l1_table) {
+       return ERR_BAD_STATE;
+    }
+
+    const ptp_t l1_entry = *get_l1_ptp_base_ptr(l1_table, vaddr);
+    if (!is_l1_entry_valid(l1_entry)) {
+       return ERR_NOT_FOUND;
+    }
+
+    volatile pte_t *l2_table = (volatile pte_t *)paddr_to_kvaddr(
+          (paddr_t)l1_entry.table_address << 8);
+    if (!l2_table) {
+       return ERR_BAD_STATE;
+    }
+
+    const pte_t pte = l2_table[get_l2_index(vaddr)];
+    if (!is_l2_entry_valid(pte)) {
+       return ERR_NOT_FOUND;
+    }
+
+    if (paddr) {
+       // Get physical address from page number + byte offset
+       *paddr = ((paddr_t)pte.page_address << 12) | (vaddr & 0xfff);     }
+
+    if (flags) {
+       *flags = 0;
+
+       if (pte.w) {
+          *flags |= ARCH_MMU_FLAG_PERM_RO; // Write protected bit
+       }
+
+       if (!pte.s) {
+          *flags |= ARCH_MMU_FLAG_PERM_USER; // Supervisor protected bit
+       }
+
+       // Cache Mode descriptor flags
+       switch (pte.cm) {
+           case 0:
+           case 1:
+              *flags |= ARCH_MMU_FLAG_CACHED;
+              break;
+           case 2:
+              *flags |= ARCH_MMU_FLAG_UNCACHED_DEVICE;
+              break;
+           case 3:
+              *flags |= ARCH_MMU_FLAG_UNCACHED;
+              break;
+       }
+    }
+
+    LTRACEF("vaddr %#lx, paddr %#lx, flags %#x\n", vaddr,
+          paddr ? *paddr : 0, flags ? *flags : 0);
+
+    return NO_ERROR;
+#else
     // Disable interrupts around the ptest instruction in case we get preempted
     arch_interrupt_saved_state_t state = arch_interrupt_save();
 
@@ -724,6 +795,7 @@ status_t arch_mmu_query(arch_aspace_t *aspace, vaddr_t vaddr, paddr_t *paddr, ui
         }
     }
     return NO_ERROR;
+#endif
 }
 
 void arch_mmu_context_switch(arch_aspace_t *old_aspace, arch_aspace_t *aspace) {
@@ -755,6 +827,7 @@ void m68k_mmu_init(void) {
 }
 
 void m68k_mmu_early_init(void) {
+   mmu_initial_mappings[0].phys = kernel_base_phys;
 }
 
 #endif // M68K_MMU

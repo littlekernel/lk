@@ -120,7 +120,15 @@ init_mmu_68040:
     // Set up L2 entries
     lea    %pc@(_l2_tables),%a0
     movl   #L2_ENTRIES,%d0
-    movl   #0x000000083,%d1       // address 0, supervisor, writable, present
+
+    // Map high kvaddr to the physical address where _start exists.
+    // For platforms where we are loaded to non-zero addresses.
+    lea     %pc@(_start),%a2
+    lea     %pc@(kernel_base_phys),%a1
+    movl    %a2,%a1@
+    movel   %a2,%d1
+    andl    #0xfffff000,%d1       // Clear low twelve bits
+    orl     #0x00000083,%d1       // supervisor, writable, present
 .L2_loop:
     movel  %d1,%a0@+              // store it in the L2 table and advance
     addl   #PAGE_SIZE,%d1         // advance to next page
