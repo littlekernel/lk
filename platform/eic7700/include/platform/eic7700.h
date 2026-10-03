@@ -30,6 +30,8 @@
 
 // addresses of some peripherals
 #define CLINT_BASE          0x02000000
+#define L3_CACHE_BASE       0x02010000 // SiFive L3 cache controller
+#define L3_CACHE_BASE_VIRT  (PERIPHERAL_BASE_VIRT + L3_CACHE_BASE)
 #define CLINT_BASE_VIRT     (PERIPHERAL_BASE_VIRT + CLINT_BASE)
 #define PLIC_BASE           0x0c000000
 #define PLIC_BASE_VIRT      (PERIPHERAL_BASE_VIRT + PLIC_BASE)
