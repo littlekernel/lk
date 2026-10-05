@@ -61,9 +61,10 @@ Continue from Quick Start's steps above. Create your workspace as a sibling of t
 ```bash
 cd ..   # make sure you're in the parent directory that contains the cloned `lk`
 mkdir -p mylk/{project,app} && cd mylk
+ln -s ../lk lk
 ```
 
-1. Configure your main makefile; set your toolchain path and point `LKROOT` to the cloned `lk` repository. Replace the PATH example with the actual toolchain path on your system.
+1. Configure your main makefile; set your toolchain path and point `LKROOT` to the `lk` symlink (matching `lk_inc.mk.example`). Replace the PATH example with the actual toolchain path on your system.
 
 ```bash
 cat << 'EOF' > makefile
@@ -71,7 +72,7 @@ export PATH := /path/to/your/toolchain/bin:$(PATH)  # e.g. ~/lk-work/toolchain/r
 -include lk_inc.mk
 LOCAL_DIR := .
 LKMAKEROOT := .
-LKROOT := ../lk
+LKROOT := lk
 LKINC := $(LOCAL_DIR)
 DEFAULT_PROJECT ?= myqr
 BUILDROOT ?= $(LOCAL_DIR)
@@ -93,9 +94,9 @@ export BUILDROOT
 export DEFAULT_PROJECT
 export TOOLCHAIN_PREFIX
 _top:
-    @$(MAKE) -C $(LKMAKEROOT) -rR -f $(LKROOT)/engine.mk $(addprefix -I,$(LKINC)) $(MAKECMDGOALS)
+	@$(MAKE) -C $(LKMAKEROOT) -rR -f $(LKROOT)/engine.mk $(addprefix -I,$(LKINC)) $(MAKECMDGOALS)
 $(MAKECMDGOALS): _top
-    @:
+	@:
 .PHONY: _top
 EOF
 ```
@@ -160,6 +161,7 @@ tree
 │   └── hello
 │       ├── hello.c
 │       └── rules.mk
+├── lk -> ../lk
 ├── makefile
 └── project
         └── project1.mk

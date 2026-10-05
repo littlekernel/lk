@@ -15,6 +15,9 @@ else
 ifndef LKROOT
 $(error please define LKROOT to the root of the lk build system)
 endif
+ifneq ($(filter .. ../%,$(LKROOT) $(LKINC)),)
+$(error LKROOT and LKINC must not start with '..' or objects will escape BUILDDIR; symlink the tree into the workspace instead, e.g. ln -s ../lk lk with LKROOT := lk)
+endif
 
 # any local environment overrides can optionally be placed in local.mk.
 # Set IGNORE_LOCAL_MK=1 to skip it, so that a build depends only on the
