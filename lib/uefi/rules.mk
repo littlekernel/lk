@@ -7,7 +7,10 @@ MODULE_DEFINES := \
 	GBL_EFI_DISABLE_CPP_ENUMS=1 \
 
 MODULE_INCLUDES += \
-	lib/watchdog/include \
+	$(LKROOT)/lib/watchdog/include \
+
+MODULE_WEAK_DEPS += \
+	lib/watchdog \
 
 MODULE_DEPS += \
 	lib/bio \
