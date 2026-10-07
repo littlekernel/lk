@@ -18,6 +18,7 @@
 #include "io_stack.h"
 
 #include <kernel/vm.h>
+#include <lk/init.h>
 #include <stdio.h>
 
 void *get_io_stack() {
@@ -34,3 +35,13 @@ void *get_io_stack() {
   }
   return io_stack;
 }
+
+namespace {
+
+void init_io_stack(uint) {
+  get_io_stack();
+}
+
+LK_INIT_HOOK(uefi_io_stack, init_io_stack, LK_INIT_LEVEL_VM);
+
+}  // namespace
