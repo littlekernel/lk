@@ -20,6 +20,7 @@
 #include <kernel/vm.h>
 #include <lib/bio.h>
 #include <lk/list.h>
+#include <lk/err.h>
 #include <malloc.h>
 #include <string.h>
 #include <uefi/protocols/block_io_protocol.h>
@@ -27,6 +28,7 @@
 
 #include "defer.h"
 #include "io_stack.h"
+#include "io_buffer.h"
 #include "switch_stack.h"
 #include "uefi_platform.h"
 
@@ -52,8 +54,16 @@ EfiStatus read_blocks(EfiBlockIoProtocol *self, uint32_t media_id, uint64_t lba,
     return EFI_STATUS_OUT_OF_RESOURCES;
   }
 
+  if (buffer_size == 0) {
+    return EFI_STATUS_SUCCESS;
+  }
+  void *kernel_buffer;
+  if (uefi_buffer_to_kernel(buffer, buffer_size, &kernel_buffer) != NO_ERROR) {
+    return EFI_STATUS_INVALID_PARAMETER;
+  }
+
   const size_t bytes_read =
-      call_with_stack(interface->io_stack, bio_read_block, dev, buffer, lba,
+      call_with_stack(interface->io_stack, bio_read_block, dev, kernel_buffer, lba,
                       buffer_size / dev->block_size);
   if (bytes_read != buffer_size) {
     printf("Failed to read %zu bytes from %s\n", buffer_size, dev->name);

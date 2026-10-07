@@ -31,6 +31,7 @@
 #include "defer.h"
 #include "events.h"
 #include "io_stack.h"
+#include "io_buffer.h"
 #include "memory_protocols.h"
 #include "switch_stack.h"
 #include "thread_utils.h"
@@ -77,6 +78,20 @@ EfiStatus read_blocks_async(bdev_t* dev, uint64_t lba, EfiBlockIo2Token* token,
     printf("Invalid token %p\n", token);
     return EFI_STATUS_INVALID_PARAMETER;
   }
+  // BIO does not invoke its callback for an empty read.
+  if (buffer_size == 0) {
+    if (token->event == nullptr) {
+      token->transaction_status = EFI_STATUS_SUCCESS;
+    } else {
+      async_read_callback(token, dev, 0);
+    }
+    return EFI_STATUS_SUCCESS;
+  }
+  void *kernel_buffer;
+  if (uefi_buffer_to_kernel(buffer, buffer_size, &kernel_buffer) != NO_ERROR) {
+    return EFI_STATUS_INVALID_PARAMETER;
+  }
+  buffer = kernel_buffer;
   if (dev->read_async != nullptr) {
     bio_read_async(dev, buffer, lba * dev->block_size, buffer_size,
                    async_read_callback, token);

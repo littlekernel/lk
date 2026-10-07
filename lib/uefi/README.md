@@ -65,3 +65,23 @@ and SizeOfRawData that are not padded to their declared alignment, and ignores
 zero-address, zero-length placeholder sections. Image allocation is still rounded
 to native pages; all nonempty sections remain bounded by SizeOfImage and must not
 overlap headers or previous sections.
+
+## Block I/O buffer regression tests
+
+The `uefi_io_buffer_tests` case is part of `ut all`. It covers page offsets,
+cross-page aliases, existing kernel VAs, conversion without an active UEFI
+address space, unmapped physical addresses, null pointers and overflow. Its
+protocol fixture opens both Block I/O protocols and forces the BIO read
+consumer into the kernel-only address space. It checks synchronous reads,
+native asynchronous reads, the background-thread fallback, empty reads,
+surrounding canaries, and identity-mapped completion tokens. The permanent UEFI
+I/O stack is allocated during VM initialization so it cannot fragment the
+contiguous 300 MiB UEFI pool between repeated test runs.
+
+Non-kernel buffers follow the UEFI boot-services physical/identity address
+contract: VA and PA are contiguous and identical. The helper reuses
+`paddr_to_kvaddr()` for these RAM buffers, relying on their existing contiguous
+kernel direct mapping. Kernel VAs are passed through unchanged; no page-table
+walk, bounce buffer or temporary mapping is needed. The caller must retain the
+buffer until I/O completes. This conversion does not pin pages or add an
+async-I/O drain to UEFI teardown.
