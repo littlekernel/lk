@@ -20,6 +20,7 @@ MODULE_DEPS += \
 	lib/libcpp \
 
 MODULE_SRCS += \
+	$(LOCAL_DIR)/io_buffer.cpp \
 	$(LOCAL_DIR)/uefi.cpp \
 	$(LOCAL_DIR)/relocation.cpp \
 	$(LOCAL_DIR)/text_protocol.cpp \

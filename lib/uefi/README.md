@@ -65,3 +65,23 @@ and SizeOfRawData that are not padded to their declared alignment, and ignores
 zero-address, zero-length placeholder sections. Image allocation is still rounded
 to native pages; all nonempty sections remain bounded by SizeOfImage and must not
 overlap headers or previous sections.
+## Block I/O buffer regression tests
+
+With a `qemu-virt-arm64-test` build, run `uefi_io_protocol_test` on a fresh
+512 MiB QEMU guest. This fixture opens both Block I/O protocols and forces the
+BIO read consumer into the kernel-only address space. It checks a cross-page
+identity-mapped buffer, surrounding canaries, and an identity-mapped async
+token. It uses the real UEFI pool (a contiguous 300 MiB allocation), so run it
+before heap-fragmenting tests. Repeat it to check teardown, then run `ut all`
+in a separate fresh guest. Combining this fixture and the loader suite in one
+512 MiB guest can fragment memory enough to prevent the loader from allocating
+its 300 MiB contiguous pool.
+
+`ut all` includes the smaller `uefi_io_buffer_tests` suite: page offsets,
+cross-page aliases, existing kernel VAs, conversion without an active UEFI
+address space, unmapped physical addresses, null pointers and overflow.
+Non-kernel buffers follow the UEFI boot-services physical/identity address
+contract: VA and PA are contiguous and identical. The helper reuses `paddr_to_kvaddr()` for these RAM buffers, relying on their
+existing contiguous kernel direct mapping. Kernel VAs are passed through unchanged;
+no page-table walk, bounce buffer or temporary mapping is needed. The caller must retain the buffer until I/O completes. This conversion
+does not pin pages or add an async-I/O drain to UEFI teardown.
