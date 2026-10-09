@@ -108,8 +108,139 @@ public:
   }
 };
 
+// PE/COFF optional-header rules (not the host kernel's page geometry):
+// https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-windows-specific-fields-image-only
+constexpr uint16_t kPe32PlusMagic = 0x20b;
+constexpr uint32_t kPePageSize = 4096;
+constexpr uint32_t kPeMinFileAlignment = 512;
+constexpr uint32_t kPeMaxFileAlignment = 64 * 1024;  // FileAlignment upper limit.
+constexpr uint64_t kPeImageBaseAlignment = 64 * 1024;  // ImageBase granularity.
+
+// The caller has already checked the fixed fields and optional-header extent.
+int validate_optional_header(const IMAGE_FILE_HEADER *file_header,
+                             const IMAGE_OPTIONAL_HEADER64 *optional_header,
+                             size_t section_table_end) {
+  if (optional_header->Subsystem != SubsystemType::EFIApplication) {
+    printf("Unsupported Subsystem type: %d %s\n", optional_header->Subsystem,
+           ToString(optional_header->Subsystem));
+    return ERR_NOT_SUPPORTED;
+  }
+  if (optional_header->Magic != kPe32PlusMagic) {
+    printf("Expected PE32+ optional header magic\n");
+    return ERR_BAD_STATE;
+  }
+  const size_t directory_capacity =
+      (file_header->SizeOfOptionalHeader -
+       offsetof(IMAGE_OPTIONAL_HEADER64, DataDirectory)) /
+      sizeof(IMAGE_DATA_DIRECTORY);
+  if (optional_header->NumberOfRvaAndSizes > directory_capacity) {
+    printf("PE data directories exceed optional header\n");
+    return ERR_BAD_STATE;
+  }
+  const uint32_t image_size = optional_header->SizeOfImage;
+  const uint32_t headers_size = optional_header->SizeOfHeaders;
+  const uint32_t section_align = optional_header->SectionAlignment;
+  const uint32_t file_align = optional_header->FileAlignment;
+  if (file_align == 0 || (file_align & (file_align - 1)) != 0) {
+    printf("Invalid PE file alignment: file_align=%u\n", file_align);
+    return ERR_BAD_STATE;
+  }
+  if (section_align == 0 || (section_align & (section_align - 1)) != 0 ||
+      section_align < file_align) {
+    printf("Invalid PE section alignment: section_align=%u file_align=%u\n",
+           section_align, file_align);
+    return ERR_BAD_STATE;
+  }
+  // PE permits sub-page section alignment only when file alignment matches it.
+  if (section_align < kPePageSize
+          ? file_align != section_align
+          : (file_align < kPeMinFileAlignment ||
+             file_align > kPeMaxFileAlignment)) {
+    printf("Invalid PE alignment combination: section_align=%u file_align=%u\n",
+           section_align, file_align);
+    return ERR_BAD_STATE;
+  }
+  // Check the remaining size_t range before rounding up to a native page.
+  if (image_size == 0 ||
+      SIZE_MAX - static_cast<size_t>(image_size) < PAGE_SIZE - 1) {
+    printf("Invalid PE image size: image_size=%u page_size=%zu\n",
+           image_size, static_cast<size_t>(PAGE_SIZE));
+    return ERR_BAD_STATE;
+  }
+  if (headers_size < section_table_end || headers_size > image_size ||
+      headers_size % file_align != 0) {
+    printf("Invalid PE header size: headers_size=%u section_table_end=%zu "
+           "image_size=%u file_align=%u\n",
+           headers_size, section_table_end, image_size, file_align);
+    return ERR_BAD_STATE;
+  }
+  if (optional_header->ImageBase % kPeImageBaseAlignment != 0 ||
+      optional_header->ImageBase > UINT64_MAX - image_size) {
+    printf("Invalid PE image base: ImageBase=0x%llx image_size=%u "
+           "base_alignment=%llu\n",
+           optional_header->ImageBase, image_size,
+           static_cast<unsigned long long>(kPeImageBaseAlignment));
+    return ERR_BAD_STATE;
+  }
+  return NO_ERROR;
+}
+
+// Called only after validate_optional_header and section-table bounds checks.
+int validate_section_header(const IMAGE_FILE_HEADER *file_header,
+                            const IMAGE_OPTIONAL_HEADER64 *optional_header,
+                            const IMAGE_SECTION_HEADER *section_header) {
+  const uint32_t image_size = optional_header->SizeOfImage;
+  const uint32_t headers_size = optional_header->SizeOfHeaders;
+  const uint32_t section_align = optional_header->SectionAlignment;
+  const uint32_t file_align = optional_header->FileAlignment;
+  uint32_t previous_end = headers_size;
+  for (size_t i = 0; i < file_header->NumberOfSections; i++) {
+    const auto &section = section_header[i];
+    const uint32_t span = MAX(section.Misc.VirtualSize, section.SizeOfRawData);
+    // Empty placeholder sections do not occupy memory or advance previous_end.
+    if (section.VirtualAddress == 0 && span == 0)
+      continue;
+    // Subtraction after the RVA check avoids wrapping a 32-bit section end.
+    // Ordered, disjoint sections must not overwrite the validated headers.
+    if (section.VirtualAddress < previous_end ||
+        section.VirtualAddress % section_align != 0 ||
+        section.VirtualAddress > image_size ||
+        section.Misc.VirtualSize > image_size - section.VirtualAddress) {
+      printf("Invalid PE section %.8s range or alignment\n", section.Name);
+      return ERR_BAD_STATE;
+    }
+    if (section.SizeOfRawData != 0 &&
+        (section.SizeOfRawData > image_size - section.VirtualAddress ||
+         section.PointerToRawData < headers_size ||
+         section.PointerToRawData % file_align != 0 ||
+         (section_align < kPePageSize &&
+          section.PointerToRawData != section.VirtualAddress))) {
+      printf("Invalid PE section %.8s raw data range or alignment\n", section.Name);
+      return ERR_BAD_STATE;
+    }
+    previous_end = section.VirtualAddress + span;
+  }
+  // Validate every section before accepting an entry in an earlier section.
+  for (size_t i = 0; i < file_header->NumberOfSections; i++) {
+    const auto &section = section_header[i];
+    // The entry must be in executable file data, not headers, gaps or BSS.
+    // Instruction size and alignment belong to the target architecture, not
+    // this format/range check.
+    const uint32_t entry = optional_header->AddressOfEntryPoint;
+    constexpr uint32_t kSectionMemExecute = 0x20000000;
+    if ((section.Characteristics & kSectionMemExecute) != 0 &&
+        entry >= section.VirtualAddress &&
+        entry - section.VirtualAddress < section.SizeOfRawData) {
+      return NO_ERROR;
+    }
+  }
+  printf("PE entry point is not in executable section data\n");
+  return ERR_BAD_STATE;
+}
+
 int load_sections_and_execute(ImageReader *reader,
-                              const IMAGE_NT_HEADERS64 *pe_header) {
+                              const IMAGE_NT_HEADERS64 *pe_header,
+                              const uint8_t *headers, size_t header_bytes) {
   const auto file_header = &pe_header->FileHeader;
   const auto optional_header = &pe_header->OptionalHeader;
   const auto sections = file_header->NumberOfSections;
@@ -131,9 +262,8 @@ int load_sections_and_execute(ImageReader *reader,
   DEFER { reset_heap(); };
   DEFER { release_boot_buffers(); };
   DEFER { close_tracked_bdevs(); };
-  const auto &last_section = section_header[sections - 1];
-  const auto virtual_size = ROUNDUP(
-      last_section.VirtualAddress + last_section.Misc.VirtualSize, PAGE_SIZE);
+  const size_t virtual_size = ROUNDUP(
+      static_cast<size_t>(optional_header->SizeOfImage), PAGE_SIZE);
   // For casting ImageBase to optional_header
   // NOLINTBEGIN(performance-no-int-to-ptr)
   const auto image_base = reinterpret_cast<char *>(
@@ -145,17 +275,26 @@ int load_sections_and_execute(ImageReader *reader,
   }
   memset(image_base, 0, virtual_size);
   DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
-  ssize_t bytes_read =
-      reader->read(image_base, 0, section_header[0].PointerToRawData);
-  if (bytes_read != static_cast<ssize_t>(section_header[0].PointerToRawData)) {
-    printf("Failed to read PE headers before first section\n");
+  // Keep the validated header snapshot: do not parse freshly reread metadata
+  // if the backing device/file changed between reads.
+  const size_t copied_headers = MIN(header_bytes, optional_header->SizeOfHeaders);
+  memcpy(image_base, headers, copied_headers);
+  const size_t remaining_headers = optional_header->SizeOfHeaders - copied_headers;
+  if (remaining_headers != 0 &&
+      reader->read(image_base + copied_headers, copied_headers, remaining_headers) !=
+          static_cast<ssize_t>(remaining_headers)) {
+    printf("Failed to read PE headers\n");
     return ERR_IO;
   }
 
   for (size_t i = 0; i < sections; i++) {
     const auto &section = section_header[i];
-    bytes_read = reader->read(image_base + section.VirtualAddress,
-                             section.PointerToRawData, section.SizeOfRawData);
+    if (section.SizeOfRawData == 0) {
+      continue;
+    }
+    const ssize_t bytes_read =
+        reader->read(image_base + section.VirtualAddress,
+                     section.PointerToRawData, section.SizeOfRawData);
     if (bytes_read != section.SizeOfRawData) {
       printf("Failed to read section %.8s %zd\n", section.Name, bytes_read);
       return ERR_IO;
@@ -163,7 +302,7 @@ int load_sections_and_execute(ImageReader *reader,
   }
   printf("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
          image_base);
-  if (relocate_image(image_base, virtual_size) != 0) {
+  if (relocate_image(image_base, optional_header->SizeOfImage) != 0) {
     printf("Failed to relocate image\n");
     return ERR_BAD_STATE;
   }
@@ -171,7 +310,11 @@ int load_sections_and_execute(ImageReader *reader,
       image_base + optional_header->AddressOfEntryPoint);
   printf("Entry function located at %p\n", entry);
 
-  EfiSystemTable &table = *static_cast<EfiSystemTable *>(alloc_page(PAGE_SIZE));
+  auto *system_table = static_cast<EfiSystemTable *>(alloc_page(PAGE_SIZE));
+  if (system_table == nullptr) {
+    return ERR_NO_MEMORY;
+  }
+  EfiSystemTable &table = *system_table;
   memset(&table, 0, sizeof(EfiSystemTable));
   DEFER { free_pages(&table, 1); };
   EfiBootService boot_service{};
@@ -187,6 +330,9 @@ int load_sections_and_execute(ImageReader *reader,
   table.con_out = &console_out;
   auto configuration_table =
       reinterpret_cast<EfiConfigurationTable *>(alloc_page(PAGE_SIZE));
+  if (configuration_table == nullptr) {
+    return ERR_NO_MEMORY;
+  }
   table.configuration_table = configuration_table;
   DEFER { free_pages(configuration_table, 1); };
   memset(configuration_table, 0, PAGE_SIZE);
@@ -206,9 +352,13 @@ int load_sections_and_execute(ImageReader *reader,
   reader->get_name(path, sizeof(path));
   path[sizeof(path) - 1] = '\0';
   setup_debug_support(table, image_base, virtual_size, path);
+  DEFER { teardown_debug_support(image_base); };
 
   constexpr size_t kStackSize = 1 * 1024ul * 1024;
   auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
+  if (stack == nullptr) {
+    return ERR_NO_MEMORY;
+  }
   memset(stack, 0, kStackSize);
   DEFER {
     free_pages(stack, kStackSize / PAGE_SIZE);
@@ -217,8 +367,6 @@ int load_sections_and_execute(ImageReader *reader,
   printf("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
   int ret = static_cast<int>(
       call_with_stack(stack + kStackSize, entry, image_base, &table));
-
-  teardown_debug_support(image_base);
 
   return ret;
 }
@@ -295,9 +443,10 @@ int load_pe_file(ImageReader *reader) {
     printf("DOS Magic check failed %x\n", dos_header->e_magic);
     return ERR_BAD_STATE;
   }
-  if (dos_header->e_lfanew > header_bytes - sizeof(IMAGE_FILE_HEADER)) {
+  if (dos_header->e_lfanew < sizeof(IMAGE_DOS_HEADER) ||
+      dos_header->e_lfanew > header_bytes - sizeof(IMAGE_FILE_HEADER)) {
     printf(
-        "Invalid PE header offset %d exceeds maximum read size of %zu - %zu\n",
+        "Invalid PE header offset %u for %zu bytes (COFF header size %zu)\n",
         dos_header->e_lfanew, header_bytes, sizeof(IMAGE_FILE_HEADER));
     return ERR_BAD_STATE;
   }
@@ -337,13 +486,19 @@ int load_pe_file(ImageReader *reader) {
     return ERR_BAD_STATE;
   }
   const auto optional_header = &pe_header->OptionalHeader;
-  if (optional_header->Subsystem != SubsystemType::EFIApplication) {
-    printf("Unsupported Subsystem type: %d %s\n", optional_header->Subsystem,
-           ToString(optional_header->Subsystem));
-    return ERR_NOT_SUPPORTED;
+  auto status = validate_optional_header(file_header, optional_header,
+                                         section_table_end);
+  if (status != NO_ERROR) {
+    return status;
+  }
+  const auto section_header = reinterpret_cast<const IMAGE_SECTION_HEADER *>(
+      address + nt_headers_end);
+  status = validate_section_header(file_header, optional_header, section_header);
+  if (status != NO_ERROR) {
+    return status;
   }
   printf("Valid UEFI application found.\n");
-  auto ret = load_sections_and_execute(reader, pe_header);
+  auto ret = load_sections_and_execute(reader, pe_header, address, header_bytes);
   printf("UEFI Application return code: %d\n", ret);
   return ret;
 }
