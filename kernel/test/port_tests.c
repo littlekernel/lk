@@ -15,6 +15,7 @@
 
 #include <kernel/event.h>
 #include <kernel/port.h>
+#include <kernel/semaphore.h>
 #include <kernel/thread.h>
 
 #include <platform.h>
@@ -143,6 +144,12 @@ static bool single_thread_basic(void) {
     END_TEST;
 }
 
+/* Posted by each worker once its ping read port exists. A broadcast port
+ * gives every reader its own buffer from the moment it opens, so a packet
+ * written before a worker opens is simply never seen by it; the parent waits
+ * for both posts before its first write. */
+static semaphore_t ping_opened_sem;
+
 static int ping_pong_thread(void *arg) {
     port_t r_port;
     status_t st = port_open("ping_port", NULL, &r_port);
@@ -150,6 +157,7 @@ static int ping_pong_thread(void *arg) {
         printf("thread: could not open ping port, status = %d\n", st);
         return __LINE__;
     }
+    sem_post(&ping_opened_sem, true);
 
     // The two workers race to create the pong port. The loser normally sees
     // ERR_ALREADY_EXISTS, but if it lands inside the winner's creation window
@@ -500,8 +508,16 @@ typedef struct {
 static bool two_threads_basic_body(pingpong_state_t *s, port_t w_port) {
     BEGIN_TEST;
 
+    // both workers must be listening on the ping port before anything is
+    // written to it, see ping_opened_sem.
+    status_t st;
+    for (int i = 0; i < 2; i++) {
+        st = sem_timedwait(&ping_opened_sem, WORKER_WAIT_TIMEOUT_MS);
+        ASSERT_EQ(NO_ERROR, st, "worker did not open the ping port");
+    }
+
     // wait for the pong port to be created, the two threads race to do it.
-    status_t st = ERR_NOT_FOUND;
+    st = ERR_NOT_FOUND;
     for (int tries = 0; tries < 500 && st == ERR_NOT_FOUND; ++tries) {
         st = port_open("pong_port", NULL, &s->r_port);
         if (st == ERR_NOT_FOUND)
@@ -553,6 +569,8 @@ static bool two_threads_basic(void) {
     status_t st = port_create("ping_port", PORT_MODE_BROADCAST, &w_port);
     ASSERT_GE(st, 0, "could not create port");
 
+    sem_init(&ping_opened_sem, 0);
+
     thread_t *t1 = thread_create(
                        "worker1", &ping_pong_thread, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
     thread_t *t2 = thread_create(
@@ -594,6 +612,8 @@ static bool two_threads_basic(void) {
         thread_join(t2, &retcode, INFINITE_TIME);
         EXPECT_EQ(0, retcode, "worker2 exited with an error line number");
     }
+
+    sem_destroy(&ping_opened_sem);
 
     EXPECT_TRUE(body_ok, "ping pong sequence failed");
 
