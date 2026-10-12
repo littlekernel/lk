@@ -188,7 +188,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - lib/norfs/test unreachable
 - lib/libc/test/a.out is a tracked host binary, delete
 - fibo and mem_test could be unit tests; app/stringtests has no libc unittest; disktest console only
-- port_tests two_threads_basic flakes ~1/8 on riscv64 4-cpu (lost wakeup?)
 
 ## Docs
 
@@ -214,6 +213,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~port_tests two_threads_basic flake (second reader opened after the first broadcast write); port reads of a destroyed writer return ERR_CANCELLED, multi-packet writes wake one reader per packet~~
 - ~~one arch mmu contract (map/unmap/query/protect) on every arch, arch_mmu_protect, positive R/W/X flags [#356]~~
 - ~~x86 frees emptied page tables after the shootdown; arm32 SMP (per-cpu TTBR1, irq flag, user aspace isolation)~~
 - ~~backtraces with symbols (lib/backtrace, lib/symtab)~~

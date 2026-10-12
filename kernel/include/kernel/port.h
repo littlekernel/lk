@@ -58,11 +58,14 @@ status_t port_group_add(port_t group, port_t port);
 status_t port_group_remove(port_t group, port_t port);
 
 // Write to a port |count| packets, non-blocking, all or none atomic success.
+// Up to |count| threads blocked reading the port (or its group) are woken.
 status_t port_write(port_t port, const port_packet_t *pk, size_t count);
 
 // Read one packet from the port or port group, blocking. The |result| contains
 // the port that the message was read from. If |timeout| is zero the call
-// does not block.
+// does not block. Once the write side has been destroyed the queued packets
+// are still delivered, after which reads return ERR_CANCELLED rather than
+// block; a group reports that only when every member port is in that state.
 status_t port_read(port_t port, lk_time_t timeout, port_result_t *result);
 
 // Destroy the write-side port, flush queued packets and release all resources,

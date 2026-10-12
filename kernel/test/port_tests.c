@@ -1050,6 +1050,195 @@ static bool group_waiting(void) {
     END_TEST;
 }
 
+typedef struct {
+    port_t w_port;
+    port_t r_port;
+    bool created;
+    bool opened;
+    bool destroyed;
+    port_t pg;
+    bool grouped;
+} destroyed_state_t;
+
+/* Reads of a read port, and of a group holding it, once the write side is gone:
+ * the queued packets are still delivered, after which every read reports
+ * ERR_CANCELLED instead of waiting for a writer that can no longer exist. */
+static bool destroyed_write_side_body(destroyed_state_t *s) {
+    BEGIN_TEST;
+
+    status_t st = port_create("dst_port", PORT_MODE_UNICAST, &s->w_port);
+    ASSERT_GE(st, 0, "could not create port");
+    s->created = true;
+
+    st = port_open("dst_port", context1, &s->r_port);
+    ASSERT_GE(st, 0, "could not open port");
+    s->opened = true;
+
+    st = port_group(&s->r_port, 1, &s->pg);
+    ASSERT_GE(st, 0, "could not create port group");
+    s->grouped = true;
+
+    port_packet_t packet[2] = {
+        {{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}},
+        {{0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11}},
+    };
+    st = port_write(s->w_port, packet, 2);
+    ASSERT_GE(st, 0, "could not write port");
+
+    st = port_close(s->w_port);
+    ASSERT_GE(st, 0, "could not close write port");
+    st = port_destroy(s->w_port);
+    ASSERT_GE(st, 0, "could not destroy write port");
+    s->destroyed = true;
+
+    // the packets written before the destroy are still there, one through the
+    // port and one through the group.
+    port_result_t res;
+    st = port_read(s->r_port, 0, &res);
+    ASSERT_GE(st, 0, "could not read queued packet");
+    ASSERT_EQ(0, memcmp(&res.packet, &packet[0], sizeof(packet[0])), "bad packet");
+
+    st = port_read(s->pg, 0, &res);
+    ASSERT_GE(st, 0, "could not read queued packet through the group");
+    ASSERT_EQ(0, memcmp(&res.packet, &packet[1], sizeof(packet[1])), "bad packet");
+    ASSERT_EQ(context1, res.ctx, "bad context");
+
+    // drained: a reader must not block, whatever the timeout.
+    st = port_read(s->r_port, 0, &res);
+    ASSERT_EQ(ERR_CANCELLED, st, "polling read of a destroyed port");
+    st = port_read(s->r_port, INFINITE_TIME, &res);
+    ASSERT_EQ(ERR_CANCELLED, st, "blocking read of a destroyed port");
+    st = port_read(s->pg, 0, &res);
+    ASSERT_EQ(ERR_CANCELLED, st, "polling read of a group of destroyed ports");
+    st = port_read(s->pg, INFINITE_TIME, &res);
+    ASSERT_EQ(ERR_CANCELLED, st, "blocking read of a group of destroyed ports");
+
+    END_TEST;
+}
+
+static bool destroyed_write_side(void) {
+    BEGIN_TEST;
+
+    destroyed_state_t s = {};
+    bool body_ok = destroyed_write_side_body(&s);
+
+    status_t st;
+    if (s.grouped) {
+        st = port_close(s.pg);
+        EXPECT_GE(st, 0, "could not close the port group");
+    }
+    if (s.opened) {
+        st = port_close(s.r_port);
+        EXPECT_GE(st, 0, "could not close read port");
+    }
+    if (s.created && !s.destroyed) {
+        st = port_close(s.w_port);
+        EXPECT_GE(st, 0, "could not close write port");
+        st = port_destroy(s.w_port);
+        EXPECT_GE(st, 0, "could not destroy write port");
+    }
+
+    EXPECT_TRUE(body_ok, "destroyed write side sequence failed");
+
+    END_TEST;
+}
+
+typedef struct {
+    port_t w_port;
+    port_t r_port;
+    bool created;
+    bool opened;
+    semaphore_t ready;
+    thread_t *reader[2];
+} multi_wake_state_t;
+
+static int multi_wake_reader(void *arg) {
+    multi_wake_state_t *s = arg;
+    port_result_t pr;
+    sem_post(&s->ready, true);
+    return port_read(s->r_port, WORKER_WAIT_TIMEOUT_MS, &pr);
+}
+
+/* Two threads blocked on one read port and a single write of two packets:
+ * each packet must wake a reader, or the second one sits in the buffer while
+ * its reader waits for a write that never comes. */
+static bool multi_packet_wake_body(multi_wake_state_t *s) {
+    BEGIN_TEST;
+
+    status_t st = port_create("mwake_port", PORT_MODE_UNICAST, &s->w_port);
+    ASSERT_GE(st, 0, "could not create port");
+    s->created = true;
+
+    st = port_open("mwake_port", NULL, &s->r_port);
+    ASSERT_GE(st, 0, "could not open port");
+    s->opened = true;
+
+    for (int i = 0; i < 2; i++) {
+        s->reader[i] = thread_create("mwake reader", &multi_wake_reader, s,
+                                     DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+        ASSERT_NONNULL(s->reader[i], "could not create reader");
+        thread_resume(s->reader[i]);
+    }
+    for (int i = 0; i < 2; i++) {
+        st = sem_timedwait(&s->ready, WORKER_WAIT_TIMEOUT_MS);
+        ASSERT_EQ(NO_ERROR, st, "reader did not start");
+    }
+    // let both readers get from the post to the block before writing. the
+    // test is still correct if one has not, it then just does not exercise
+    // the two-waiter case.
+    thread_sleep(10);
+
+    port_packet_t packet[2] = {
+        {{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}},
+        {{0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11}},
+    };
+    st = port_write(s->w_port, packet, 2);
+    ASSERT_GE(st, 0, "could not write port");
+
+    for (int i = 0; i < 2; i++) {
+        int retcode = -1;
+        st = thread_join(s->reader[i], &retcode, 2 * WORKER_WAIT_TIMEOUT_MS);
+        s->reader[i] = NULL;
+        ASSERT_EQ(NO_ERROR, st, "could not join reader");
+        ASSERT_EQ(NO_ERROR, retcode, "reader was not woken by the write");
+    }
+
+    END_TEST;
+}
+
+static bool multi_packet_wake(void) {
+    BEGIN_TEST;
+
+    multi_wake_state_t s = {};
+    sem_init(&s.ready, 0);
+    bool body_ok = multi_packet_wake_body(&s);
+
+    /* Readers that are still around block on the port with a timeout, so a
+     * close of the read side returns them early and the joins are bounded. */
+    status_t st;
+    if (s.opened) {
+        st = port_close(s.r_port);
+        EXPECT_GE(st, 0, "could not close read port");
+    }
+    for (int i = 0; i < 2; i++) {
+        if (s.reader[i]) {
+            int retcode;
+            thread_join(s.reader[i], &retcode, INFINITE_TIME);
+        }
+    }
+    if (s.created) {
+        st = port_close(s.w_port);
+        EXPECT_GE(st, 0, "could not close write port");
+        st = port_destroy(s.w_port);
+        EXPECT_GE(st, 0, "could not destroy write port");
+    }
+    sem_destroy(&s.ready);
+
+    EXPECT_TRUE(body_ok, "multi packet wake sequence failed");
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(port_tests)
 RUN_TEST(single_thread_basic);
 RUN_TEST(two_threads_basic);
@@ -1057,4 +1246,6 @@ RUN_TEST(two_threads_race);
 RUN_TEST(group_basic);
 RUN_TEST(group_dynamic);
 RUN_TEST(group_waiting);
+RUN_TEST(destroyed_write_side);
+RUN_TEST(multi_packet_wake);
 END_TEST_CASE(port_tests)

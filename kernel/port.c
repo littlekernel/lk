@@ -32,7 +32,7 @@
 
 #define READPORT_MAGIC  (0x70727472)  // 'prtr'
 #define PORTGROUP_MAGIC (0x70727467)  // 'prtg'
-#define PORTHOLD_MAGIC (0x70727467)   // 'prth'
+#define PORTHOLD_MAGIC (0x70727468)   // 'prth'
 
 #define PORT_BUFF_SIZE      8
 #define PORT_BUFF_SIZE_BIG 64
@@ -125,11 +125,10 @@ status_t port_create(const char *name, port_mode_t mode, port_t *port) {
     if (!name || !port)
         return ERR_INVALID_ARGS;
 
-    // only unicast ports can have a large buffer.
-    if (mode & PORT_MODE_BROADCAST) {
-        if (mode & PORT_MODE_BIG_BUFFER)
-            return ERR_INVALID_ARGS;
-    }
+    // only unicast ports can have a large buffer. PORT_MODE_BROADCAST is the
+    // absence of the unicast bit, so test for that rather than for the mode.
+    if ((mode & PORT_MODE_BIG_BUFFER) && !(mode & PORT_MODE_UNICAST))
+        return ERR_INVALID_ARGS;
 
     if (strnlen(name, PORT_NAME_LEN) >= PORT_NAME_LEN)
         return ERR_INVALID_ARGS;
@@ -295,7 +294,9 @@ status_t port_group(port_t *ports, size_t count, port_t *group) {
             // wrong type of port, or port already part of a group,
             // in any case, undo the changes to the previous read ports.
             for (size_t jx = 0; jx != ix; jx++) {
-                ((read_port_t *)ports[jx])->gport = NULL;
+                read_port_t *prev = (read_port_t *)ports[jx];
+                list_delete(&prev->g_node);
+                prev->gport = NULL;
             }
             rc = ERR_BAD_HANDLE;
             break;
@@ -407,8 +408,10 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
         // there are no read ports, just write to the buffer.
         status = buf_write(wp->buf, pk, count);
     } else {
-        // there are read ports. for each, write and attempt to wake a thread
-        // from the port group or from the read port itself.
+        // there are read ports. for each, write and wake one waiting thread per
+        // packet, preferring the port group's queue over the read port's own.
+        // each reader takes a single packet, so waking fewer than count of them
+        // would leave packets queued behind blocked readers until the next write.
         read_port_t *rp;
         list_for_every_entry(&wp->rp_list, rp, read_port_t, w_node) {
             if (buf_write(rp->buf, pk, count) < 0) {
@@ -417,15 +420,18 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
                 continue;
             }
 
-            int awaken = 0;
-            if (rp->gport) {
-                awaken = wait_queue_wake_one(&rp->gport->wait, false, NO_ERROR);
+            for (size_t ix = 0; ix != count; ix++) {
+                int awaken = 0;
+                if (rp->gport) {
+                    awaken = wait_queue_wake_one(&rp->gport->wait, false, NO_ERROR);
+                }
+                if (!awaken) {
+                    awaken = wait_queue_wake_one(&rp->wait, false, NO_ERROR);
+                }
+                if (!awaken)
+                    break;
+                awake_count += awaken;
             }
-            if (!awaken) {
-                awaken = wait_queue_wake_one(&rp->wait, false, NO_ERROR);
-            }
-
-            awake_count += awaken;
         }
     }
 
@@ -439,22 +445,28 @@ status_t port_write(port_t port, const port_packet_t *pk, size_t count) {
     return status;
 }
 
+// Returns ERR_CANCELLED once the write side has been destroyed and the buffer
+// drained, since nothing can ever be written to |rp| again; the wakeup from
+// port_destroy() delivers the same code to a reader already blocked here.
 static inline status_t read_no_lock(read_port_t *rp, lk_time_t timeout, port_result_t *result) {
-    status_t status = buf_read(rp->buf, result);
-    result->ctx = rp->ctx;
+    for (;;) {
+        status_t status = buf_read(rp->buf, result);
+        result->ctx = rp->ctx;
 
-    if (status != ERR_NO_MSG)
-        return status;
+        if (status != ERR_NO_MSG)
+            return status;
 
-    // early return allows compiler to elide the rest for the group read case.
-    if (!timeout)
-        return ERR_TIMED_OUT;
+        if (!rp->wport)
+            return ERR_CANCELLED;
 
-    status_t wr = wait_queue_block(&rp->wait, timeout);
-    if (wr != NO_ERROR)
-        return wr;
-    // recursive tail call is usually optimized away with a goto.
-    return read_no_lock(rp, timeout, result);
+        // early return allows compiler to elide the rest for the group read case.
+        if (!timeout)
+            return ERR_TIMED_OUT;
+
+        status_t wr = wait_queue_block(&rp->wait, timeout);
+        if (wr != NO_ERROR)
+            return wr;
+    }
 }
 
 status_t port_read(port_t port, lk_time_t timeout, port_result_t *result) {
@@ -474,10 +486,20 @@ status_t port_read(port_t port, lk_time_t timeout, port_result_t *result) {
         do {
             // read each port with no timeout.
             // todo: this order is fixed, probably a bad thing.
+            // a member whose write side is gone and drained is skipped; only
+            // when every member is in that state is the group itself done.
+            bool alive = false;
             list_for_every_entry(&pg->rp_list, rp, read_port_t, g_node) {
                 rc = read_no_lock(rp, 0, result);
+                if (rc == ERR_CANCELLED)
+                    continue;
                 if (rc != ERR_TIMED_OUT)
                     goto read_exit;
+                alive = true;
+            }
+            if (!alive && !list_is_empty(&pg->rp_list)) {
+                rc = ERR_CANCELLED;
+                break;
             }
             // no data, block on the group waitqueue.
             rc = wait_queue_block(&pg->wait, timeout);
@@ -544,7 +566,7 @@ status_t port_close(port_t port) {
     if (rp->magic == READPORT_MAGIC) {
         // dealing with a read port.
         if (rp->wport) {
-            // remove self from write port list and reassign the bufer if last.
+            // remove self from write port list and reassign the buffer if last.
             list_delete(&rp->w_node);
             if (list_is_empty(&rp->wport->rp_list)) {
                 rp->wport->buf = rp->buf;
@@ -552,6 +574,9 @@ status_t port_close(port_t port) {
             } else {
                 buf = rp->buf;
             }
+        } else {
+            // the write port was destroyed, so the buffer is ours to free.
+            buf = rp->buf;
         }
         if (rp->gport) {
             // remove self from port group list.
