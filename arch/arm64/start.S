@@ -293,6 +293,27 @@ FUNCTION(arm64_reset)
 1:
     orr     tmp, tmp, tmp2, lsl #32
 
+    /*
+     * Park if the cpu does not implement the granule this build is configured
+     * for (ID_AA64MMFR0_EL1.TGran4, TGran16, TGran64). An unimplemented size in
+     * TCR_EL1.TG0/TG1 makes the mmu use some other one, so the first fetch
+     * after it is enabled would fault into nothing and the cpu hang without a
+     * word. A debugger finds the pc at arm64_mmu_granule_unsupported.
+     */
+    mrs     tmp2, id_aa64mmfr0_el1
+#if PAGE_SIZE_SHIFT == SHIFT_64K
+    ubfx    tmp2, tmp2, #24, #4
+    cmp     tmp2, #0xf
+    b.eq    arm64_mmu_granule_unsupported
+#elif PAGE_SIZE_SHIFT == SHIFT_16K
+    ubfx    tmp2, tmp2, #20, #4
+    cbz     tmp2, arm64_mmu_granule_unsupported
+#else
+    ubfx    tmp2, tmp2, #28, #4
+    cmp     tmp2, #0xf
+    b.eq    arm64_mmu_granule_unsupported
+#endif
+
 #if !ARM64_ASID_FALLBACK
     /*
      * Set TCR_EL1.AS when the cpu implements 16 bit ASIDs (ID_AA64MMFR0_EL1.ASIDBits == 2).
@@ -451,6 +472,12 @@ LOCAL_FUNCTION(arm64_enable_mmu)
 
     ret
 END_FUNCTION(arm64_enable_mmu)
+
+/* the boot cpu parks here when it lacks the translation granule the build uses */
+FUNCTION(arm64_mmu_granule_unsupported)
+    wfe
+    b       arm64_mmu_granule_unsupported
+END_FUNCTION(arm64_mmu_granule_unsupported)
 
 .section .text.boot.vectab
 /*
