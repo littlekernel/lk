@@ -34,51 +34,51 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/usb/usbc.c
 
 MODULE_SRCS += \
-	external/platform/pico/common/hardware_claim/claim.c \
-	external/platform/pico/rp2_common/hardware_clocks/clocks.c \
-	external/platform/pico/rp2_common/hardware_gpio/gpio.c \
-	external/platform/pico/rp2_common/hardware_pll/pll.c \
-	external/platform/pico/rp2_common/hardware_timer/timer.c \
-	external/platform/pico/rp2_common/hardware_ticks/ticks.c \
-	external/platform/pico/rp2_common/hardware_uart/uart.c \
-	external/platform/pico/rp2_common/hardware_watchdog/watchdog.c \
-	external/platform/pico/rp2_common/hardware_xosc/xosc.c \
-	external/platform/pico/rp2_common/pico_runtime_init/runtime_init_clocks.c
+	$(LKROOT)/external/platform/pico/common/hardware_claim/claim.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_clocks/clocks.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_gpio/gpio.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_pll/pll.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_timer/timer.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_ticks/ticks.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_uart/uart.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_watchdog/watchdog.c \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_xosc/xosc.c \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_runtime_init/runtime_init_clocks.c
 
 GLOBAL_INCLUDES += \
-	external/platform/pico/common/pico_base_headers/include \
-	external/platform/pico/common/pico_binary_info/include \
-	external/platform/pico/common/hardware_claim/include \
-	external/platform/pico/rp2350/pico_platform/include \
-	external/platform/pico/rp2350/hardware_regs/include \
-	external/platform/pico/rp2350/hardware_structs/include \
-	external/platform/pico/rp2_common/pico_platform_compiler/include \
-	external/platform/pico/rp2_common/pico_platform_sections/include \
-	external/platform/pico/rp2_common/pico_platform_panic/include \
-	external/platform/pico/rp2_common/pico_platform_common/include \
-	external/platform/pico/rp2_common/pico_bootrom/include \
-	external/platform/pico/rp2_common/boot_bootrom_headers/include \
-	external/platform/pico/common/boot_picobin_headers/include \
-	external/platform/pico/rp2_common/pico_flash/include \
-	external/platform/pico/rp2_common/pico_runtime/include \
-	external/platform/pico/rp2_common/pico_runtime_init/include \
-	external/platform/pico/rp2_common/hardware_base/include \
-	external/platform/pico/rp2_common/hardware_clocks/include \
-	external/platform/pico/rp2_common/hardware_gpio/include \
-	external/platform/pico/rp2_common/hardware_irq/include \
-	external/platform/pico/rp2_common/hardware_pll/include \
-	external/platform/pico/rp2_common/hardware_resets/include \
-	external/platform/pico/rp2_common/hardware_sync/include \
-	external/platform/pico/rp2_common/hardware_sync_spin_lock/include \
-	external/platform/pico/rp2_common/hardware_timer/include \
-	external/platform/pico/rp2_common/hardware_ticks/include \
-	external/platform/pico/rp2_common/hardware_uart/include \
-	external/platform/pico/rp2_common/hardware_watchdog/include \
-	external/platform/pico/rp2_common/hardware_vreg/include \
-	external/platform/pico/rp2_common/hardware_xosc/include \
-	external/platform/pico/rp2_common/hardware_boot_lock/include \
-	external/platform/pico/rp2_common/cmsis/stub/CMSIS/Core/Include \
-	external/platform/pico/rp2_common/cmsis/stub/CMSIS/Device/RP2350/Include
+	$(LKROOT)/external/platform/pico/common/pico_base_headers/include \
+	$(LKROOT)/external/platform/pico/common/pico_binary_info/include \
+	$(LKROOT)/external/platform/pico/common/hardware_claim/include \
+	$(LKROOT)/external/platform/pico/rp2350/pico_platform/include \
+	$(LKROOT)/external/platform/pico/rp2350/hardware_regs/include \
+	$(LKROOT)/external/platform/pico/rp2350/hardware_structs/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_platform_compiler/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_platform_sections/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_platform_panic/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_platform_common/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_bootrom/include \
+	$(LKROOT)/external/platform/pico/rp2_common/boot_bootrom_headers/include \
+	$(LKROOT)/external/platform/pico/common/boot_picobin_headers/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_flash/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_runtime/include \
+	$(LKROOT)/external/platform/pico/rp2_common/pico_runtime_init/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_base/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_clocks/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_gpio/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_irq/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_pll/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_resets/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_sync/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_sync_spin_lock/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_timer/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_ticks/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_uart/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_watchdog/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_vreg/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_xosc/include \
+	$(LKROOT)/external/platform/pico/rp2_common/hardware_boot_lock/include \
+	$(LKROOT)/external/platform/pico/rp2_common/cmsis/stub/CMSIS/Core/Include \
+	$(LKROOT)/external/platform/pico/rp2_common/cmsis/stub/CMSIS/Device/RP2350/Include
 
 # use a two segment memory layout, where all of the read-only sections
 # of the binary reside in rom, and the read/write are in memory. The
