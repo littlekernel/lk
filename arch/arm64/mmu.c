@@ -48,13 +48,14 @@ static bool arm64_asids_enabled;
 static asid_allocator_t arm64_asid_allocator;
 
 /*
- * TLB maintenance. Every change follows the same shape: write the descriptor,
- * dsb ishst so the table walkers on every cpu see the write before the
- * invalidate that depends on it, tlbi ...is to broadcast the invalidate, then
- * dsb ish to wait for it to complete everywhere before anything relies on the
- * old translation being gone (freeing a table, reusing an asid, returning to
+ * TLB maintenance. Every change follows the same shape: write the descriptors,
+ * dsb ishst so the table walkers on every cpu see the writes before the
+ * invalidates that depend on them, tlbi ...is to broadcast each invalidate, then
+ * dsb ish to wait for them to complete everywhere before anything relies on the
+ * old translations being gone (freeing a table, reusing an asid, returning to
  * the caller). Kernel mappings add an isb so this cpu's own instruction stream
- * and any speculated accesses pick up the change.
+ * and any speculated accesses pick up the change. arm64_tlb_batch below runs
+ * that shape over a whole unmap or protect call.
  */
 static inline void arm64_tlb_sync_table_writes(void) {
     __asm__ volatile("dsb ishst" ::: "memory");
@@ -84,6 +85,94 @@ static void arm64_tlb_invalidate_va(vaddr_t vaddr, uint asid, bool terminal) {
         } else {
             ARM64_TLBI(vae1is, val);
         }
+    }
+}
+
+/*
+ * The invalidates one unmap or protect call issues, so the descriptor writes
+ * behind them share a dsb ishst and the tables they empty are handed back only
+ * after every invalidate has completed. Above ARM64_TLB_BATCH_MAX by-address
+ * invalidates the call drops them for one invalidate of the whole asid (the
+ * whole TLB for the kernel) at the end instead, as Linux does: past that point
+ * the broadcasts cost more than the refills they save.
+ */
+#define ARM64_TLB_BATCH_MAX 1024
+
+struct arm64_tlb_batch {
+    uint asid;
+    uint count;                 /* by-address invalidates asked for */
+    bool flush_all;
+    uint npending;
+    vaddr_t pending[32];        /* page aligned, bit 0 set for a last-level invalidate */
+    struct list_node freed_tables;
+};
+
+static void arm64_tlb_batch_init(struct arm64_tlb_batch *b, uint asid) {
+    b->asid = asid;
+    b->count = 0;
+    b->flush_all = false;
+    b->npending = 0;
+    list_initialize(&b->freed_tables);
+}
+
+/* issue the pending invalidates, after the descriptor writes behind them */
+static void arm64_tlb_batch_issue(struct arm64_tlb_batch *b) {
+    if (b->npending == 0) {
+        return;
+    }
+    arm64_tlb_sync_table_writes();
+    for (uint i = 0; i < b->npending; i++) {
+        arm64_tlb_invalidate_va(b->pending[i] & ~1UL, b->asid, b->pending[i] & 1);
+    }
+    b->npending = 0;
+}
+
+/* called after the descriptor for vaddr was rewritten; terminal as for arm64_tlb_invalidate_va */
+static void arm64_tlb_batch_invalidate(struct arm64_tlb_batch *b, vaddr_t vaddr, bool terminal) {
+    if (b->flush_all) {
+        return;
+    }
+    if (b->count++ >= ARM64_TLB_BATCH_MAX) {
+        b->flush_all = true;
+        b->npending = 0;
+        return;
+    }
+    if (b->npending == countof(b->pending)) {
+        arm64_tlb_batch_issue(b);
+    }
+    b->pending[b->npending++] = vaddr | (terminal ? 1 : 0);
+}
+
+/* a page table whose descriptor was just cleared; freed by arm64_tlb_batch_finish() */
+static void arm64_tlb_batch_free_table(struct arm64_tlb_batch *b, paddr_t paddr) {
+    vm_page_t *page = paddr_to_vm_page(paddr);
+    if (!page) {
+        panic("bad page table paddr 0x%lx\n", paddr);
+    }
+    list_add_tail(&b->freed_tables, &page->node);
+}
+
+/* Complete every invalidate on every cpu, then free the emptied tables. Kernel
+ * mappings add an isb so this cpu's own instruction stream and any speculated
+ * accesses pick up the change. */
+static void arm64_tlb_batch_finish(struct arm64_tlb_batch *b) {
+    if (b->flush_all) {
+        arm64_tlb_sync_table_writes();
+        if (b->asid == MMU_ARM64_GLOBAL_ASID) {
+            ARM64_TLBI_NOADDR(vmalle1is);
+        } else {
+            ARM64_TLBI(aside1is, (uint64_t)b->asid << 48);
+        }
+    } else {
+        arm64_tlb_batch_issue(b);
+    }
+    arm64_tlb_sync_invalidates();
+    if (b->asid == MMU_ARM64_GLOBAL_ASID) {
+        ISB;
+    }
+
+    if (!list_is_empty(&b->freed_tables)) {
+        vm_ptable_freed(pmm_free(&b->freed_tables));
     }
 }
 
@@ -301,24 +390,6 @@ static int alloc_page_table(paddr_t *paddrp, uint page_size_shift) {
     return 0;
 }
 
-static void free_page_table(void *vaddr, paddr_t paddr, uint page_size_shift) {
-    LTRACEF("vaddr %p paddr 0x%lx page_size_shift %u\n", vaddr, paddr, page_size_shift);
-
-    size_t size = 1U << page_size_shift;
-    vm_page_t *page;
-
-    if (size >= PAGE_SIZE) {
-        page = paddr_to_vm_page(paddr);
-        if (!page) {
-            panic("bad page table paddr 0x%lx\n", paddr);
-        }
-        pmm_free_page(page);
-    } else {
-        free(vaddr);
-    }
-    vm_ptable_freed(1);
-}
-
 /* The table the entry at index points to, allocating and linking an empty one
  * if the entry is empty. ERR_NO_MEMORY if that fails, ERR_ALREADY_EXISTS if a
  * block is there. */
@@ -378,13 +449,13 @@ static bool page_table_is_clear(pte_t *page_table, uint page_size_shift) {
     return true;
 }
 
-/* Unmap [vaddr, vaddr + size) below page_table, invalidating each entry as it
- * goes and freeing tables that end up empty. The caller has made sure the range
- * cuts no block; one that does is refused with ERR_NOT_SUPPORTED. */
+/* Unmap [vaddr, vaddr + size) below page_table, queueing an invalidate for each
+ * entry and handing tables that end up empty to the batch. The caller has made
+ * sure the range cuts no block; one that does is refused with ERR_NOT_SUPPORTED. */
 static status_t arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
                                    size_t size,
                                    uint index_shift, uint page_size_shift,
-                                   pte_t *page_table, uint asid) {
+                                   pte_t *page_table, struct arm64_tlb_batch *batch) {
     pte_t *next_page_table;
     vaddr_t index;
     size_t chunk_size;
@@ -413,7 +484,7 @@ static status_t arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
             status_t err = arm64_mmu_unmap_pt(vaddr, vaddr_rem, chunk_size,
                                               index_shift - (page_size_shift - 3),
                                               page_size_shift,
-                                              next_page_table, asid);
+                                              next_page_table, batch);
             if (err < 0) {
                 return err;
             }
@@ -423,14 +494,11 @@ static status_t arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
                 page_table[index] = MMU_PTE_DESCRIPTOR_INVALID;
 
                 /* The walkers may hold this descriptor in their walk caches, and
-                 * a walk through the table may be in flight: invalidate the
-                 * intermediate entry and wait for that to complete on every cpu
-                 * before the page can be handed out again. */
-                arm64_tlb_sync_table_writes();
-                arm64_tlb_invalidate_va(vaddr, asid, false);
-                arm64_tlb_sync_invalidates();
-
-                free_page_table(next_page_table, page_table_paddr, page_size_shift);
+                 * a walk through the table may be in flight: the intermediate
+                 * entry is invalidated too, and the page is handed out again
+                 * only once that has completed on every cpu. */
+                arm64_tlb_batch_invalidate(batch, vaddr, false);
+                arm64_tlb_batch_free_table(batch, page_table_paddr);
             }
         } else if (pte) {
             if (index_shift > page_size_shift && chunk_size != block_size) {
@@ -441,8 +509,7 @@ static status_t arm64_mmu_unmap_pt(vaddr_t vaddr, vaddr_t vaddr_rel,
 
             LTRACEF("pte %p[0x%lx] = 0\n", page_table, index);
             page_table[index] = MMU_PTE_DESCRIPTOR_INVALID;
-            arm64_tlb_sync_table_writes();
-            arm64_tlb_invalidate_va(vaddr, asid, true);
+            arm64_tlb_batch_invalidate(batch, vaddr, true);
         } else {
             LTRACEF("pte %p[0x%lx] already clear\n", page_table, index);
         }
@@ -540,14 +607,15 @@ static pte_t arm64_pte_with_perms(pte_t pte, uint flags) {
 }
 
 /* Give every page and block in [vaddr, vaddr + size) below page_table the
- * permissions in flags, invalidating each entry that changes. A permission
- * change needs no break-before-make. The caller has made sure the range cuts
+ * permissions in flags, queueing an invalidate for each entry that changes. A
+ * permission change needs no break-before-make. The caller has made sure the range cuts
  * no block. With check_only nothing is written, and the walk only reports
  * ERR_INVALID_ARGS if flags asks for EXECUTE on a page that is not normal
  * memory. */
 static status_t arm64_mmu_protect_pt(vaddr_t vaddr, vaddr_t vaddr_rel, size_t size,
                                      uint index_shift, uint page_size_shift,
-                                     pte_t *page_table, uint flags, uint asid, bool check_only) {
+                                     pte_t *page_table, uint flags, struct arm64_tlb_batch *batch,
+                                     bool check_only) {
     while (size) {
         const vaddr_t block_size = 1UL << index_shift;
         const vaddr_t vaddr_rem = vaddr_rel & (block_size - 1);
@@ -560,7 +628,7 @@ static status_t arm64_mmu_protect_pt(vaddr_t vaddr, vaddr_t vaddr_rel, size_t si
             status_t err = arm64_mmu_protect_pt(vaddr, vaddr_rem, chunk_size,
                                                 index_shift - (page_size_shift - 3), page_size_shift,
                                                 paddr_to_kvaddr(pte & MMU_PTE_OUTPUT_ADDR_MASK),
-                                                flags, asid, check_only);
+                                                flags, batch, check_only);
             if (err != NO_ERROR) {
                 return err;
             }
@@ -577,8 +645,7 @@ static status_t arm64_mmu_protect_pt(vaddr_t vaddr, vaddr_t vaddr_rel, size_t si
                 if (new_pte != pte) {
                     LTRACEF("pte %p[0x%lx] = 0x%llx (was 0x%llx)\n", page_table, index, new_pte, pte);
                     page_table[index] = new_pte;
-                    arm64_tlb_sync_table_writes();
-                    arm64_tlb_invalidate_va(vaddr, asid, true);
+                    arm64_tlb_batch_invalidate(batch, vaddr, true);
                 }
             }
         }
@@ -594,13 +661,11 @@ static status_t arm64_mmu_protect_pt(vaddr_t vaddr, vaddr_t vaddr_rel, size_t si
 static status_t arm64_mmu_unmap(const struct arm64_aspace_layout *l, vaddr_t vaddr, size_t size) {
     LTRACEF("vaddr 0x%lx, size 0x%lx, asid 0x%x\n", vaddr, size, l->asid);
 
+    struct arm64_tlb_batch batch;
+    arm64_tlb_batch_init(&batch, l->asid);
     status_t err = arm64_mmu_unmap_pt(vaddr, vaddr - l->base, size,
-                                      l->top_index_shift, l->page_size_shift, l->top, l->asid);
-
-    arm64_tlb_sync_invalidates();
-    if (l->asid == MMU_ARM64_GLOBAL_ASID) {
-        ISB;
-    }
+                                      l->top_index_shift, l->page_size_shift, l->top, &batch);
+    arm64_tlb_batch_finish(&batch);
     return err;
 }
 
@@ -737,24 +802,23 @@ status_t arch_mmu_protect(arch_aspace_t *aspace, vaddr_t vaddr, uint count, uint
     const struct arm64_aspace_layout l = arm64_layout(aspace);
     const size_t size = count * PAGE_SIZE;
 
+    struct arm64_tlb_batch batch;
+    arm64_tlb_batch_init(&batch, l.asid);
+
     /* EXECUTE on device memory is refused before any entry changes */
     if (flags & ARCH_MMU_FLAG_PERM_EXECUTE) {
         err = arm64_mmu_protect_pt(vaddr, vaddr - l.base, size, l.top_index_shift, l.page_size_shift,
-                                   l.top, flags, l.asid, true);
+                                   l.top, flags, &batch, true);
         if (err != NO_ERROR) {
             return err;
         }
     }
 
     err = arm64_mmu_protect_pt(vaddr, vaddr - l.base, size, l.top_index_shift, l.page_size_shift,
-                               l.top, flags, l.asid, false);
+                               l.top, flags, &batch, false);
     DEBUG_ASSERT(err == NO_ERROR);
 
-    /* wait for every invalidate above to complete on every cpu */
-    arm64_tlb_sync_invalidates();
-    if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
-        ISB;
-    }
+    arm64_tlb_batch_finish(&batch);
     return err;
 }
 
@@ -840,7 +904,6 @@ status_t arch_mmu_destroy_aspace(arch_aspace_t *aspace) {
     /* Drop whatever the TLBs still hold under this asid on every cpu, walk cache
      * entries included, and wait for that to finish before the asid or the root
      * table can be reused. */
-    arm64_tlb_sync_table_writes();
     ARM64_TLBI(aside1is, (uint64_t)aspace->asid << 48);
     arm64_tlb_sync_invalidates();
 
