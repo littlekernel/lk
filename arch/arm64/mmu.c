@@ -939,8 +939,9 @@ void arch_mmu_context_switch(arch_aspace_t *old_aspace, arch_aspace_t *aspace) {
 
         const uint64_t ttbr = ((uint64_t)aspace->asid << 48) | aspace->tt_phys;
 
-        /* TTBR0 walks are on exactly when a user aspace is loaded */
-        bool walks_enabled = (old_aspace != NULL);
+        /* read from the cpu rather than inferred from old_aspace, which only
+         * says what the scheduler believes is loaded */
+        bool walks_enabled = (ARM64_READ_SYSREG(tcr_el1) & MMU_TCR_EPD0) == 0;
 
         if (!arm64_asids_enabled && old_aspace != aspace) {
             /* Every user aspace shares the asid, so whatever the TLB holds under
