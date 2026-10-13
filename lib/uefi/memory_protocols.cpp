@@ -140,24 +140,37 @@ __WEAK void *alloc_page(void *addr, size_t size, size_t align_log2) {
   }
   auto aspace = set_boot_aspace();
   size = ROUNDUP(size, PAGE_SIZE);
-  struct list_node list;
-  size_t allocated =
-      pmm_alloc_range(reinterpret_cast<paddr_t>(addr), size, &list);
-  if (allocated != size / PAGE_SIZE) {
+  const uint page_count = static_cast<uint>(size / PAGE_SIZE);
+  struct list_node pages;
+  list_initialize(&pages);
+  size_t allocated = pmm_alloc_range(reinterpret_cast<paddr_t>(addr),
+                                     page_count, &pages);
+  if (allocated != page_count) {
+    pmm_free(&pages);
     printf(
         "Failed to allocate physical memory size %zu at specified address %p "
         "fallback to regular allocation\n",
         size, addr);
     return alloc_page(size, align_log2);
   }
-  status_t err{};
-  err = vmm_reserve_space(aspace, "uefi_program", size,
-                          reinterpret_cast<vaddr_t>(addr));
-  if (err) {
-    printf("Failed to vmm_reserve_space for uefi program %d\n", err);
+
+  void *mapped_addr = addr;
+  status_t err = vmm_alloc_physical(
+      aspace, "uefi_program", size, &mapped_addr, align_log2,
+      reinterpret_cast<paddr_t>(addr), VMM_FLAG_VALLOC_SPECIFIC,
+      ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
+          ARCH_MMU_FLAG_PERM_EXECUTE);
+  if (err != NO_ERROR) {
+    pmm_free(&pages);
+    printf("Failed to map physical memory at %p for uefi program %d\n", addr,
+           err);
     return nullptr;
   }
-  return addr;
+
+  // vmm_alloc_physical() does not own PMM pages. Unlink them from this stack
+  // list; free_pages() reconstructs and releases the list after unmapping.
+  while (list_remove_head(&pages)) {}
+  return mapped_addr;
 }
 
 EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
