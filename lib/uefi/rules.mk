@@ -21,6 +21,7 @@ MODULE_DEPS += \
 
 MODULE_SRCS += \
 	$(LOCAL_DIR)/io_buffer.cpp \
+	$(LOCAL_DIR)/image_permissions.cpp \
 	$(LOCAL_DIR)/uefi.cpp \
 	$(LOCAL_DIR)/relocation.cpp \
 	$(LOCAL_DIR)/text_protocol.cpp \

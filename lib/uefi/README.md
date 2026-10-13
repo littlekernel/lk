@@ -85,3 +85,15 @@ kernel direct mapping. Kernel VAs are passed through unchanged; no page-table
 walk, bounce buffer or temporary mapping is needed. The caller must retain the
 buffer until I/O completes. This conversion does not pin pages or add an
 async-I/O drain to UEFI teardown.
+
+## Image write/execute permissions
+
+Images are loaded RW/NX, then protected after relocation: code is RX, writable
+sections are RW/NX, and other image pages are R/NX. Permissions are native-page
+granular, so an executable section's tail padding is also RX. Images with W+X
+sections or `SectionAlignment` below the native page size are rejected.
+
+Image mappings use base pages because `arch_mmu_protect()` cannot split block
+mappings. Other UEFI allocations remain RW/NX. These permissions apply to UEFI
+identity mappings, not LK's kernel aliases. Run `ut uefi_image_permissions` to
+test them.

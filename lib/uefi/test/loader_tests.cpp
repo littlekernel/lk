@@ -46,6 +46,9 @@ struct LoaderCase {
 
 const LoaderCase cases[] = {
     {"valid", NO_ERROR, [](Fixture &) {}},
+    {"writable_code", ERR_NOT_SUPPORTED, [](Fixture &f) {
+        f.sections()[0].Characteristics |= 0x80000000;
+    }},
     {"dos_magic", ERR_BAD_STATE, [](Fixture &f) { f.dos().e_magic = 0; }},
     {"pe_offset", ERR_BAD_STATE, [](Fixture &f) { f.dos().e_lfanew = 4090; }},
     {"pe_in_dos", ERR_BAD_STATE, [](Fixture &f) { f.dos().e_lfanew = 0; }},
@@ -118,7 +121,7 @@ const LoaderCase cases[] = {
     {"section_rva_unaligned", ERR_BAD_STATE, [](Fixture &f) {
         ++f.sections()[0].VirtualAddress;
     }},
-    {"subpage_raw_offset_mismatch", ERR_BAD_STATE, [](Fixture &f) {
+    {"section_alignment_below_page", ERR_NOT_SUPPORTED, [](Fixture &f) {
         f.opt().FileAlignment = f.opt().SectionAlignment = 512;
     }},
     {"raw_size_unaligned", NO_ERROR, [](Fixture &f) {
@@ -267,7 +270,15 @@ bool run_case(const LoaderCase &test, bool warmup) {
 } // namespace
 
 BEGIN_TEST_CASE(uefi_loader_tests)
-    for (const auto &test : cases) {
-        RUN_NAMED_TEST(test.name, [&test]() { return run_case(test, &test == cases); });
+    if constexpr (PAGE_SIZE > 4096) {
+        // The checked-in PE uses 4 KiB section alignment. A native-page W^X
+        // mapping cannot execute it on larger-granule kernels.
+        const LoaderCase subnative{"subnative_page_alignment", ERR_NOT_SUPPORTED,
+                                   [](Fixture &) {}};
+        RUN_NAMED_TEST(subnative.name, [&subnative]() { return run_case(subnative, false); });
+    } else {
+        for (const auto &test : cases) {
+            RUN_NAMED_TEST(test.name, [&test]() { return run_case(test, &test == cases); });
+        }
     }
 END_TEST_CASE(uefi_loader_tests)

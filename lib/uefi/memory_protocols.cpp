@@ -115,11 +115,10 @@ __WEAK void *alloc_page(size_t size, size_t align_log2) {
     printf("Failed to allocate physical memory size %zu\n", size);
     return nullptr;
   }
-  // the program's code and data both live here
+  // General UEFI allocations (including heap and stack) are writable, not executable.
   vmm_aspace_lock(aspace);
   status_t ret = arch_mmu_map(&aspace->arch_aspace, pa, pa, size / PAGE_SIZE,
-                              ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
-                                  ARCH_MMU_FLAG_PERM_EXECUTE);
+                              ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
   vmm_aspace_unlock(aspace);
   if (ret != NO_ERROR) {
     printf("Failed to arch_mmu_map(0x%lx)\n", pa);
