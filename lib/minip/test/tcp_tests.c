@@ -814,15 +814,6 @@ static bool ipv4_input_validation(void) {
     /* give the worker a moment to chew through them */
     thread_sleep(50);
 
-    /* the stack is still alive: a loopback connection works */
-    struct echo_server srv;
-    ASSERT_TRUE(echo_server_start(&srv, TCP_TEST_PORT_BASE + 9), "");
-    tcp_socket_t *sock = NULL;
-    ASSERT_EQ(NO_ERROR, tcp_connect(&sock, IPV4(127, 0, 0, 1), TCP_TEST_PORT_BASE + 9), "");
-    EXPECT_TRUE(echo_transfer(sock, TRANSFER_CHUNK, TRANSFER_CHUNK, 0xab), "");
-    EXPECT_EQ(NO_ERROR, tcp_close(sock), "");
-    EXPECT_EQ(NO_ERROR, echo_server_finish(&srv), "");
-
     /* every injected frame was freed */
     for (int i = 0; i < 300; i++) {
         pktbuf_stats_t after;
@@ -835,6 +826,15 @@ static bool ipv4_input_validation(void) {
     pktbuf_stats_t after;
     pktbuf_get_stats(&after);
     EXPECT_GE(after.bufs_free, before.bufs_free, "no pool buffers may leak");
+
+    /* the stack is still alive: a loopback connection works */
+    struct echo_server srv;
+    ASSERT_TRUE(echo_server_start(&srv, TCP_TEST_PORT_BASE + 9), "");
+    tcp_socket_t *sock = NULL;
+    ASSERT_EQ(NO_ERROR, tcp_connect(&sock, IPV4(127, 0, 0, 1), TCP_TEST_PORT_BASE + 9), "");
+    EXPECT_TRUE(echo_transfer(sock, TRANSFER_CHUNK, TRANSFER_CHUNK, 0xab), "");
+    EXPECT_EQ(NO_ERROR, tcp_close(sock), "");
+    EXPECT_EQ(NO_ERROR, echo_server_finish(&srv), "");
 
     END_TEST;
 }
