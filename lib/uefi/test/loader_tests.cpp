@@ -46,6 +46,9 @@ struct LoaderCase {
 
 const LoaderCase cases[] = {
     {"valid", NO_ERROR, [](Fixture &) {}},
+    {"writable_code", ERR_NOT_SUPPORTED, [](Fixture &f) {
+        f.sections()[0].Characteristics |= 0x80000000;
+    }},
     {"dos_magic", ERR_BAD_STATE, [](Fixture &f) { f.dos().e_magic = 0; }},
     {"pe_offset", ERR_BAD_STATE, [](Fixture &f) { f.dos().e_lfanew = 4090; }},
     {"pe_in_dos", ERR_BAD_STATE, [](Fixture &f) { f.dos().e_lfanew = 0; }},
@@ -118,8 +121,12 @@ const LoaderCase cases[] = {
     {"section_rva_unaligned", ERR_BAD_STATE, [](Fixture &f) {
         ++f.sections()[0].VirtualAddress;
     }},
-    {"subpage_raw_offset_mismatch", ERR_BAD_STATE, [](Fixture &f) {
+    {"section_alignment_below_page", ERR_NOT_SUPPORTED, [](Fixture &f) {
         f.opt().FileAlignment = f.opt().SectionAlignment = 512;
+        // Sub-page PE layout requires raw offsets to match section RVAs.
+        for (size_t i = 0; i < f.file().NumberOfSections; ++i) {
+            f.sections()[i].PointerToRawData = f.sections()[i].VirtualAddress;
+        }
     }},
     {"raw_size_unaligned", NO_ERROR, [](Fixture &f) {
         ++f.sections()[1].SizeOfRawData;
@@ -268,6 +275,16 @@ bool run_case(const LoaderCase &test, bool warmup) {
 
 BEGIN_TEST_CASE(uefi_loader_tests)
     for (const auto &test : cases) {
-        RUN_NAMED_TEST(test.name, [&test]() { return run_case(test, &test == cases); });
+        LoaderCase checked = test;
+        if constexpr (PAGE_SIZE > 4096) {
+            // The fixture uses 4 KiB section alignment. Keep malformed-header
+            // coverage, but reject layouts that would otherwise reach loading.
+            if (checked.expected == NO_ERROR || checked.expected == ERR_IO) {
+                checked.expected = ERR_NOT_SUPPORTED;
+            }
+        }
+        RUN_NAMED_TEST(checked.name, [&]() {
+            return run_case(checked, PAGE_SIZE == 4096 && &test == cases);
+        });
     }
 END_TEST_CASE(uefi_loader_tests)

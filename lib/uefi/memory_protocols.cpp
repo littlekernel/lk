@@ -23,6 +23,7 @@
 #include <lib/dlmalloc.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -115,11 +116,10 @@ __WEAK void *alloc_page(size_t size, size_t align_log2) {
     printf("Failed to allocate physical memory size %zu\n", size);
     return nullptr;
   }
-  // the program's code and data both live here
+  // General UEFI allocations (including heap and stack) are writable, not executable.
   vmm_aspace_lock(aspace);
   status_t ret = arch_mmu_map(&aspace->arch_aspace, pa, pa, size / PAGE_SIZE,
-                              ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
-                                  ARCH_MMU_FLAG_PERM_EXECUTE);
+                              ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
   vmm_aspace_unlock(aspace);
   if (ret != NO_ERROR) {
     printf("Failed to arch_mmu_map(0x%lx)\n", pa);
@@ -158,8 +158,7 @@ __WEAK void *alloc_page(void *addr, size_t size, size_t align_log2) {
   status_t err = vmm_alloc_physical(
       aspace, "uefi_program", size, &mapped_addr, align_log2,
       reinterpret_cast<paddr_t>(addr), VMM_FLAG_VALLOC_SPECIFIC,
-      ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
-          ARCH_MMU_FLAG_PERM_EXECUTE);
+      ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
   if (err != NO_ERROR) {
     pmm_free(&pages);
     printf("Failed to map physical memory at %p for uefi program %d\n", addr,
@@ -175,7 +174,7 @@ __WEAK void *alloc_page(void *addr, size_t size, size_t align_log2) {
 
 EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
                          size_t pages, EfiPhysicalAddr *memory) {
-  if (memory == nullptr) {
+  if (memory == nullptr || pages == 0 || pages > SIZE_MAX / PAGE_SIZE) {
     return EFI_STATUS_INVALID_PARAMETER;
   }
   if (type == EFI_ALLOCATOR_TYPE_ALLOCATE_MAX_ADDRESS && *memory < 0xFFFFFFFF) {
@@ -183,10 +182,29 @@ EfiStatus allocate_pages(EfiAllocatorType type, EfiMemoryType memory_type,
             *memory);
     return EFI_STATUS_UNSUPPORTED;
   }
-  *memory = reinterpret_cast<EfiPhysicalAddr>(alloc_page(pages * PAGE_SIZE));
-  if (*memory == 0) {
+  void *allocation = alloc_page(pages * PAGE_SIZE);
+  if (!allocation) {
     return EFI_STATUS_OUT_OF_RESOURCES;
   }
+  // EFI clients write or relocate code after AllocatePages() returns. Without
+  // EFI_MEMORY_ATTRIBUTE_PROTOCOL there is no later RW -> RX transition, so
+  // these three code types must remain writable and executable for now.
+  if (arch_mmu_supports_nx_mappings() &&
+      (memory_type == EFI_MEMORY_TYPE_LOADER_CODE ||
+       memory_type == EFI_MEMORY_TYPE_BOOT_SERVICES_CODE ||
+       memory_type == EFI_MEMORY_TYPE_RUNTIME_SERVICES_CODE)) {
+    auto *aspace = set_boot_aspace();
+    vmm_aspace_lock(aspace);
+    const status_t status = arch_mmu_protect(
+        &aspace->arch_aspace, reinterpret_cast<vaddr_t>(allocation), pages,
+        ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_PERM_EXECUTE);
+    vmm_aspace_unlock(aspace);
+    if (status != NO_ERROR) {
+      free_pages(allocation, pages);
+      return EFI_STATUS_OUT_OF_RESOURCES;
+    }
+  }
+  *memory = reinterpret_cast<EfiPhysicalAddr>(allocation);
   return EFI_STATUS_SUCCESS;
 }
 

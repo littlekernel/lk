@@ -60,7 +60,9 @@ EfiStatus get_timestamp_properties(EfiTimestampProperties *properties);
 EfiStatus set_watchdog_timer(size_t timeout, uint64_t watchdog_code,
                              size_t data_size, uint16_t* watchdog_data);
 
-// alloc_page/free_pages is implemented in memory_protocols.cpp
+// alloc_page/free_pages is implemented in memory_protocols.cpp. The fixed-
+// address overload is retained as a weak platform hook (and tested by
+// uefi_memory_protocols); the PE loader uses alloc_uefi_image() instead.
 void *alloc_page(void *addr, size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 
 void *alloc_page(size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
