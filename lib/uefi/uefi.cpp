@@ -39,6 +39,7 @@
 #include "configuration_table.h"
 #include "debug_support.h"
 #include "defer.h"
+#include "image_permissions.h"
 #include "memory_protocols.h"
 #include "pe.h"
 #include "relocation.h"
@@ -264,17 +265,13 @@ int load_sections_and_execute(ImageReader *reader,
   DEFER { close_tracked_bdevs(); };
   const size_t virtual_size = ROUNDUP(
       static_cast<size_t>(optional_header->SizeOfImage), PAGE_SIZE);
-  // For casting ImageBase to optional_header
-  // NOLINTBEGIN(performance-no-int-to-ptr)
-  const auto image_base = reinterpret_cast<char *>(
-      alloc_page(reinterpret_cast<void *>(optional_header->ImageBase),
-                 virtual_size, 21 /* Kernel requires 2MB alignment */));
-  // NOLINTEND(performance-no-int-to-ptr)
+  const auto image_base = static_cast<char *>(
+      alloc_uefi_image(virtual_size, optional_header->ImageBase));
   if (image_base == nullptr) {
     return ERR_NO_MEMORY;
   }
-  memset(image_base, 0, virtual_size);
   DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
+  memset(image_base, 0, virtual_size);
   // Keep the validated header snapshot: do not parse freshly reread metadata
   // if the backing device/file changed between reads.
   const size_t copied_headers = MIN(header_bytes, optional_header->SizeOfHeaders);
@@ -305,6 +302,12 @@ int load_sections_and_execute(ImageReader *reader,
   if (relocate_image(image_base, optional_header->SizeOfImage) != 0) {
     printf("Failed to relocate image\n");
     return ERR_BAD_STATE;
+  }
+  const auto protection_status = protect_uefi_image(image_base, virtual_size,
+                                                    section_header, sections);
+  if (protection_status != NO_ERROR) {
+    printf("Cannot enforce PE W^X permissions: %d\n", protection_status);
+    return protection_status;
   }
   auto entry = reinterpret_cast<int (*)(void *, void *)>(
       image_base + optional_header->AddressOfEntryPoint);
@@ -499,6 +502,14 @@ int load_pe_file(ImageReader *reader) {
   status = validate_section_header(file_header, optional_header, section_header);
   if (status != NO_ERROR) {
     return status;
+  }
+  // Section permissions are native-page granular. Check this only after the
+  // PE layout so malformed headers keep their format error on every granule.
+  if (arch_mmu_supports_nx_mappings() &&
+      optional_header->SectionAlignment < PAGE_SIZE) {
+    printf("Unsupported PE section alignment: section_align=%u page_size=%zu\n",
+           optional_header->SectionAlignment, static_cast<size_t>(PAGE_SIZE));
+    return ERR_NOT_SUPPORTED;
   }
   printf("Valid UEFI application found.\n");
   auto ret = load_sections_and_execute(reader, pe_header, address, header_bytes);

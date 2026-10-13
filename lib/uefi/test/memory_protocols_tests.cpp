@@ -70,8 +70,8 @@ bool fixed_address_allocation() {
         vmm_aspace_unlock(aspace);
         ASSERT_EQ(NO_ERROR, status, "fixed range is mapped");
         ASSERT_EQ(requested + i * PAGE_SIZE, mapped, "identity mapping");
-        ASSERT_EQ(ARCH_MMU_FLAG_PERM_RWX_MASK, flags & ARCH_MMU_FLAG_PERM_RWX_MASK,
-                  "fixed range has read, write, and execute permissions");
+        ASSERT_EQ(ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE,
+                  flags & ARCH_MMU_FLAG_PERM_RWX_MASK, "fixed range is RW/NX");
     }
     memset(allocation, 0xa5, 3 * PAGE_SIZE);
     ASSERT_EQ(EFI_STATUS_SUCCESS, free_pages(allocation, 3), "free fixed range");
@@ -110,8 +110,80 @@ bool fixed_address_allocation() {
     END_TEST;
 }
 
+bool allocate_pages_permissions() {
+    BEGIN_TEST;
+    DEFER { reset_heap(); };
+    ASSERT_NONNULL(set_boot_aspace(), "UEFI address space");
+    const EfiMemoryType types[] = {
+            EFI_MEMORY_TYPE_LOADER_CODE, EFI_MEMORY_TYPE_BOOT_SERVICES_CODE,
+            EFI_MEMORY_TYPE_RUNTIME_SERVICES_CODE, EFI_MEMORY_TYPE_LOADER_DATA,
+            EFI_MEMORY_TYPE_BOOT_SERVICES_DATA, EFI_MEMORY_TYPE_RUNTIME_SERVICES_DATA,
+            EFI_MEMORY_TYPE_CONVENTIONAL_MEMORY};
+    for (const auto type : types) {
+        EfiPhysicalAddr address = 0;
+        DEFER {
+            if (address) free_pages(reinterpret_cast<void *>(address), 1);
+        };
+        ASSERT_EQ(EFI_STATUS_SUCCESS,
+                  allocate_pages(EFI_ALLOCATOR_TYPE_ALLOCATE_ANY_PAGES, type, 1, &address),
+                  "allocate EFI page");
+        auto *memory = reinterpret_cast<void *>(address);
+        memset(memory, 0xa5, PAGE_SIZE);
+        uint flags = 0;
+        auto *aspace = set_boot_aspace();
+        vmm_aspace_lock(aspace);
+        const status_t result = arch_mmu_query(&aspace->arch_aspace, address, nullptr, &flags);
+        vmm_aspace_unlock(aspace);
+        ASSERT_EQ(NO_ERROR, result, "query EFI allocation");
+        const uint expected = ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE |
+                ((type == EFI_MEMORY_TYPE_LOADER_CODE ||
+                  type == EFI_MEMORY_TYPE_BOOT_SERVICES_CODE ||
+                  type == EFI_MEMORY_TYPE_RUNTIME_SERVICES_CODE)
+                         ? ARCH_MMU_FLAG_PERM_EXECUTE : 0);
+        ASSERT_EQ(expected, flags & ARCH_MMU_FLAG_PERM_RWX_MASK,
+                  "only EFI code allocations are RWX");
+        ASSERT_EQ(EFI_STATUS_SUCCESS, free_pages(memory, 1), "free EFI allocation");
+        address = 0;
+    }
+    constexpr size_t kLargePages = 4 * 1024 * 1024 / PAGE_SIZE;
+    EfiPhysicalAddr large_code = 0;
+    DEFER {
+        if (large_code) free_pages(reinterpret_cast<void *>(large_code), kLargePages);
+    };
+    ASSERT_EQ(EFI_STATUS_SUCCESS,
+              allocate_pages(EFI_ALLOCATOR_TYPE_ALLOCATE_ANY_PAGES,
+                             EFI_MEMORY_TYPE_LOADER_CODE, kLargePages, &large_code),
+              "allocate large EFI code range");
+    const size_t offsets[] = {0, 2 * 1024 * 1024, 4 * 1024 * 1024 - PAGE_SIZE};
+    for (const size_t offset : offsets) {
+        uint flags = 0;
+        auto *aspace = set_boot_aspace();
+        vmm_aspace_lock(aspace);
+        const status_t result = arch_mmu_query(&aspace->arch_aspace, large_code + offset,
+                                               nullptr, &flags);
+        vmm_aspace_unlock(aspace);
+        ASSERT_EQ(NO_ERROR, result, "query large EFI code range");
+        ASSERT_EQ(ARCH_MMU_FLAG_PERM_RWX_MASK, flags & ARCH_MMU_FLAG_PERM_RWX_MASK,
+                  "large EFI code allocation is RWX throughout");
+    }
+    ASSERT_EQ(EFI_STATUS_SUCCESS, free_pages(reinterpret_cast<void *>(large_code), kLargePages),
+              "free large EFI code range");
+    large_code = 0;
+    EfiPhysicalAddr address = 0;
+    ASSERT_EQ(EFI_STATUS_INVALID_PARAMETER,
+              allocate_pages(EFI_ALLOCATOR_TYPE_ALLOCATE_ANY_PAGES,
+                             EFI_MEMORY_TYPE_LOADER_CODE, 0, &address),
+              "zero pages rejected");
+    ASSERT_EQ(EFI_STATUS_INVALID_PARAMETER,
+              allocate_pages(EFI_ALLOCATOR_TYPE_ALLOCATE_ANY_PAGES,
+                             EFI_MEMORY_TYPE_LOADER_CODE, SIZE_MAX / PAGE_SIZE + 1, &address),
+              "overflowing page count rejected");
+    END_TEST;
+}
+
 }  // namespace
 
 BEGIN_TEST_CASE(uefi_memory_protocols)
 RUN_TEST(fixed_address_allocation)
+RUN_TEST(allocate_pages_permissions)
 END_TEST_CASE(uefi_memory_protocols)
