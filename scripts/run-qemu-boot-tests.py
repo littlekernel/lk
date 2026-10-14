@@ -155,12 +155,7 @@ class QEMUTestRunner:
             env['TOOLCHAIN'] = 'clang'
             if toolchain == 'clang-lld':
                 env['LD'] = 'ld.lld'
-            if 'CLANG_BINDIR' not in env:
-                import glob
-                bindirs = glob.glob('/usr/lib/llvm-*/bin')
-                if bindirs and os.path.exists(os.path.join(bindirs[0], 'clang')):
-                    env['CLANG_BINDIR'] = bindirs[0]
-                    env['PATH'] = f"{bindirs[0]}:{env.get('PATH', '')}"
+            # engine.mk picks the LLVM install (CLANG_BINDIR) when it is not set
 
         # Create the QEMU commandline
         qemu_cmdline = [str(script_path)]

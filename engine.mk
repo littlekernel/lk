@@ -243,7 +243,14 @@ CCACHE ?=
 TOOLCHAIN ?= gcc
 
 ifeq ($(TOOLCHAIN),clang)
-    CLANG_BINDIR ?= $(firstword $(wildcard /usr/lib/llvm-*/bin))
+    # The clang on PATH and the tools installed beside it, or failing that the newest
+    # /usr/lib/llvm-N; mixing releases breaks LTO (see the LTO_MODE check below).
+    ifndef CLANG_BINDIR
+        CLANG_BINDIR := $(patsubst %/,%,$(dir $(realpath $(shell which clang 2>/dev/null))))
+        ifeq ($(CLANG_BINDIR),)
+            CLANG_BINDIR := $(lastword $(shell ls -d /usr/lib/llvm-*/bin 2>/dev/null | sort -V))
+        endif
+    endif
     CLANG_PATH := $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/clang),$(shell which clang 2>/dev/null))
     CLANG_CC := $(if $(CLANG_PATH),$(CLANG_PATH),clang)
     CLANG_TARGET ?= $(CLANG_ARCH_TRIPLE)
@@ -330,6 +337,14 @@ ifneq ($(LTO_MODE),off)
 ifeq ($(COMPILER_TYPE),clang)
 ifneq ($(LINKER_TYPE),lld)
 $(error LTO_MODE=$(LTO_MODE) with TOOLCHAIN=clang requires ld.lld, which has native LTO support; got LD=$(LD))
+endif
+# LTO code generation runs inside ld.lld, which must come from the same LLVM release as the
+# compiler: a newer one can read an older clang's target features differently (LLVM 21 drops
+# M from clang 18's "+m,...,-zmmul") and quietly emit libcalls for every multiply and divide.
+CLANG_MAJOR := $(firstword $(subst ., ,$(shell $(CC) -dumpversion)))
+LLD_MAJOR := $(shell $(LD) --version | sed -n 's/.*LLD \([0-9][0-9]*\)\..*/\1/p')
+ifneq ($(CLANG_MAJOR),$(LLD_MAJOR))
+$(error LTO_MODE=$(LTO_MODE) needs clang and ld.lld from the same LLVM release; got clang $(CLANG_MAJOR) and ld.lld $(LLD_MAJOR) ($(LD)), set CLANG_BINDIR)
 endif
 GLOBAL_LTO_COMPILEFLAGS += -flto=$(LTO_MODE)
 else

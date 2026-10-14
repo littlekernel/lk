@@ -106,18 +106,9 @@ if [ -d "$DIR/../toolchain" ]; then
     done
 fi
 
-if (( CLANG || CLANG_LLD )); then
-    if [ -z "$CLANG_BINDIR" ]; then
-        for d in /usr/lib/llvm-*/bin; do
-            if [ -x "$d/clang" ]; then
-                export CLANG_BINDIR="$d"
-                export PATH="$d:$PATH"
-                break
-            fi
-        done
-    elif [ -d "$CLANG_BINDIR" ]; then
-        export PATH="$CLANG_BINDIR:$PATH"
-    fi
+# engine.mk picks the LLVM install when CLANG_BINDIR is not set
+if (( CLANG || CLANG_LLD )) && [ -d "$CLANG_BINDIR" ]; then
+    export PATH="$CLANG_BINDIR:$PATH"
 fi
 
 echo > buildall.log
