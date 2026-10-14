@@ -49,9 +49,12 @@ SECTIONS
         __dtor_list = .;
         KEEP(*(.dtors .fini_array*))
         __dtor_end = .;
-        *(.got*)
-        *(.dynamic)
     } :data
+
+    /* Kept out of .data, which would make it RELRO: lld places writable orphans such as
+     * commands and lk_init beside the closest ranked section, and that must be .data. */
+    .got : { *(.got.plt) *(.got) }
+    .dynamic : { *(.dynamic) }
 
     /* Try to put sdata and sbss near each other by putting sdata at the end of the data segment
      * and sbss at the start of the bss segment. This maximizes reach of things referenced off of
