@@ -14,11 +14,18 @@
 #include <string.h>
 #include <sys/types.h>
 
+#if WITH_KERNEL_VM
+#include <arch/mmu.h>
+#include <kernel/vm.h>
+#endif
+
 // Correctness tests for the libc string routines, checked against byte at a time
 // expectations. They sweep alignment and length across the thresholds where an
 // optimized routine changes strategy, and surround every destination with guard
 // bytes. Each routine is called through a volatile pointer so the test exercises
-// the linked routine rather than a compiler builtin.
+// the linked routine rather than a compiler builtin. Targets with the RAM for it
+// also check sizes past the bulk-copy thresholds, and with an MMU, ranges that end
+// against an unmapped page.
 
 static void *(*volatile memcpy_fn)(void *, const void *, size_t) = memcpy;
 static void *(*volatile memmove_fn)(void *, const void *, size_t) = memmove;
@@ -667,6 +674,390 @@ static bool strcpy_test(void) {
     END_TEST;
 }
 
+#if !LK_EMBEDDED
+// Sizes past the point where an optimized routine switches to its bulk loop (block
+// copies, prefetching, cache zeroing), checked byte for byte with a cheaper pattern.
+static const size_t large_sizes[] = { 65536 + 7, 1048576 + 13 };
+#define LARGE_MAX   (1048576 + 13)
+#define LARGE_SLACK (2 * 4096 + 64)
+#define LARGE_LEN   (LARGE_MAX + 2 * LARGE_SLACK)
+
+static uint8_t lpat(uint32_t seed, size_t i) {
+    return (uint8_t)((((uint32_t)i + seed) * 0x9e3779b1u) >> 24);
+}
+
+static void lfill(uint8_t *buf, size_t start, size_t end, uint32_t seed) {
+    for (size_t i = start; i < end; i++) {
+        buf[i] = lpat(seed, i);
+    }
+}
+
+// first index in [start, end) where buf differs from lpat(seed, i - shift), or end
+static size_t lcheck(const uint8_t *buf, size_t start, size_t end, uint32_t seed, ssize_t shift) {
+    for (size_t i = start; i < end; i++) {
+        if (buf[i] != lpat(seed, i - shift)) {
+            return i;
+        }
+    }
+    return end;
+}
+
+struct large_bufs {
+    uint8_t *a;
+    uint8_t *b;
+};
+
+static bool large_alloc(struct large_bufs *bufs) {
+    bufs->a = memalign(64, LARGE_LEN);
+    bufs->b = memalign(64, LARGE_LEN);
+    return bufs->a && bufs->b;
+}
+
+static void large_free(struct large_bufs *bufs) {
+    free(bufs->a);
+    free(bufs->b);
+}
+
+static bool large_memcpy_test(void) {
+    BEGIN_TEST;
+    struct large_bufs bufs;
+    ASSERT_TRUE(large_alloc(&bufs), "allocating buffers");
+
+    static const struct {
+        uint8_t s, d;
+    } aligns[] = { { 0, 0 }, { 3, 3 }, { 1, 6 } };
+    for (size_t z = 0; z < countof(large_sizes) && all_ok; z++) {
+        const size_t size = large_sizes[z];
+        for (size_t a = 0; a < countof(aligns) && all_ok; a++) {
+            const size_t src = LARGE_SLACK + aligns[a].s;
+            const size_t dst = LARGE_SLACK + aligns[a].d;
+            const size_t end = dst + size + GUARD;
+            lfill(bufs.a, src, src + size, 1);
+            lfill(bufs.b, dst - GUARD, end, 2);
+            void *ret = memcpy_fn(bufs.b + dst, bufs.a + src, size);
+            size_t i = lcheck(bufs.b, dst - GUARD, dst, 2, 0);
+            if (i == dst) {
+                i = lcheck(bufs.b, dst, dst + size, 1, (ssize_t)dst - (ssize_t)src);
+            }
+            if (i == dst + size) {
+                i = lcheck(bufs.b, dst + size, end, 2, 0);
+            }
+            if (ret != bufs.b + dst || i != end) {
+                unittest_printf("\n        memcpy size %zu salign %u dalign %u: returned %p, "
+                                "wrong byte at dst offset %zd\n",
+                                size, aligns[a].s, aligns[a].d, ret, (ssize_t)i - (ssize_t)dst);
+                all_ok = false;
+            }
+        }
+    }
+
+    large_free(&bufs);
+    END_TEST;
+}
+
+static bool large_memmove_test(void) {
+    BEGIN_TEST;
+    struct large_bufs bufs;
+    ASSERT_TRUE(large_alloc(&bufs), "allocating buffers");
+
+    // dst - src, small and just past a page, both directions
+    static const ssize_t deltas[] = { 1, -1, 64, -64, 4096 + 8, -(4096 + 8) };
+    uint8_t *buf = bufs.a;
+    for (size_t z = 0; z < countof(large_sizes) && all_ok; z++) {
+        const size_t size = large_sizes[z];
+        for (size_t d = 0; d < countof(deltas) && all_ok; d++) {
+            const ssize_t delta = deltas[d];
+            const size_t src = LARGE_SLACK + 3;
+            const size_t dst = src + delta;
+            const size_t lo = MIN(src, dst) - GUARD;
+            const size_t hi = MAX(src, dst) + size + GUARD;
+            lfill(buf, lo, hi, 3);
+            void *ret = memmove_fn(buf + dst, buf + src, size);
+            size_t i = lcheck(buf, lo, dst, 3, 0);
+            if (i == dst) {
+                i = lcheck(buf, dst, dst + size, 3, delta);
+            }
+            if (i == dst + size) {
+                i = lcheck(buf, dst + size, hi, 3, 0);
+            }
+            if (ret != buf + dst || i != hi) {
+                unittest_printf("\n        memmove size %zu delta %zd: returned %p, wrong byte at "
+                                "dst offset %zd\n",
+                                size, delta, ret, (ssize_t)i - (ssize_t)dst);
+                all_ok = false;
+            }
+        }
+    }
+
+    large_free(&bufs);
+    END_TEST;
+}
+
+static bool large_memset_test(void) {
+    BEGIN_TEST;
+    struct large_bufs bufs;
+    ASSERT_TRUE(large_alloc(&bufs), "allocating buffers");
+
+    // 0 separately, since some routines zero whole cache lines for it
+    static const int values[] = { 0, 0xa5 };
+    static const uint8_t aligns[] = { 0, 3, 61 };
+    uint8_t *buf = bufs.a;
+    for (size_t z = 0; z < countof(large_sizes) && all_ok; z++) {
+        const size_t size = large_sizes[z];
+        for (size_t v = 0; v < countof(values) && all_ok; v++) {
+            for (size_t a = 0; a < countof(aligns) && all_ok; a++) {
+                const size_t start = LARGE_SLACK + aligns[a];
+                const size_t end = start + size;
+                lfill(buf, start - GUARD, end + GUARD, 4);
+                void *ret = memset_fn(buf + start, values[v], size);
+                size_t i = lcheck(buf, start - GUARD, start, 4, 0);
+                if (i == start) {
+                    while (i < end && buf[i] == (uint8_t)values[v]) {
+                        i++;
+                    }
+                }
+                if (i == end) {
+                    i = lcheck(buf, end, end + GUARD, 4, 0);
+                }
+                if (ret != buf + start || i != end + GUARD) {
+                    unittest_printf("\n        memset size %zu c %#x align %u: returned %p, "
+                                    "wrong byte at offset %zd\n",
+                                    size, values[v], aligns[a], ret, (ssize_t)i - (ssize_t)start);
+                    all_ok = false;
+                }
+            }
+        }
+    }
+
+    large_free(&bufs);
+    END_TEST;
+}
+
+static bool large_scan_test(void) {
+    BEGIN_TEST;
+    struct large_bufs bufs;
+    ASSERT_TRUE(large_alloc(&bufs), "allocating buffers");
+
+    for (size_t z = 0; z < countof(large_sizes) && all_ok; z++) {
+        const size_t size = large_sizes[z];
+        uint8_t *s1 = bufs.a + LARGE_SLACK + 1;
+        uint8_t *s2 = bufs.b + LARGE_SLACK + 6;
+
+        // memcmp: equal, then a difference near the end and in the middle, both ways
+        for (size_t i = 0; i < size; i++) {
+            s1[i] = s2[i] = lpat(5, i) | 0x01;
+        }
+        int r = memcmp_fn(s1, s2, size);
+        EXPECT_EQ(0, r, "memcmp equal");
+        const size_t positions[] = { size - 1, size / 2 };
+        for (size_t p = 0; p < countof(positions); p++) {
+            const size_t pos = positions[p];
+            const uint8_t saved = s2[pos];
+            s2[pos] = 0x00;
+            s1[pos] = 0xff;
+            EXPECT_GT(memcmp_fn(s1, s2, size), 0, "memcmp large diff");
+            EXPECT_LT(memcmp_fn(s2, s1, size), 0, "memcmp large diff swapped");
+            s1[pos] = s2[pos] = saved;
+        }
+
+        // the bytes are all nonzero and odd, so 0x02 and the terminator are absent
+        s1[size] = 0;
+        EXPECT_EQ(size, strlen_fn((const char *)s1), "strlen large");
+        EXPECT_TRUE(memchr_fn(s1, 0x02, size) == NULL, "memchr large absent");
+        s1[size - 1] = 0x02;
+        EXPECT_TRUE(memchr_fn(s1, 0x02, size) == s1 + size - 1, "memchr large at end");
+        if (!all_ok) {
+            unittest_printf("\n        size %zu\n", size);
+        }
+    }
+
+    large_free(&bufs);
+    END_TEST;
+}
+#endif // !LK_EMBEDDED
+
+#if WITH_KERNEL_VM
+// One mapped page with an unmapped page either side, carved from a reserved range so
+// nothing else maps there. A routine that reads or writes past either edge faults,
+// which panics: there is no fault recovery in the kernel, so the boot test fails.
+struct guard_page {
+    vaddr_t base;
+    vm_page_t *page;
+    uint8_t *p;
+};
+
+static bool guard_alloc(struct guard_page *g) {
+    vmm_aspace_t *aspace = vmm_get_kernel_aspace();
+    if (vmm_reserve_range(aspace, "string_guard", 3 * PAGE_SIZE, PAGE_SIZE_SHIFT, &g->base) < 0) {
+        return false;
+    }
+    g->page = pmm_alloc_page();
+    if (!g->page) {
+        vmm_free_region(aspace, g->base);
+        return false;
+    }
+    vmm_aspace_lock(aspace);
+    status_t err =
+        arch_mmu_map(&aspace->arch_aspace, g->base + PAGE_SIZE, vm_page_to_paddr(g->page), 1,
+                     ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE);
+    vmm_aspace_unlock(aspace);
+    if (err < 0) {
+        vmm_free_region(aspace, g->base);
+        pmm_free_page(g->page);
+        return false;
+    }
+    g->p = (uint8_t *)(g->base + PAGE_SIZE);
+    return true;
+}
+
+static void guard_free(struct guard_page *g) {
+    vmm_free_region(vmm_get_kernel_aspace(), g->base);
+    pmm_free_page(g->page);
+}
+
+#define GUARD_MAX_LEN 80
+
+// Runs every routine on n bytes at p, which sits against one edge of the guard page.
+// The bytes are nonzero and avoid 'z'; for the string routines p[n] is the terminator.
+// ref is an ordinary heap buffer holding the same bytes, for the two pointer routines.
+static bool guard_check(uint8_t *p, size_t n, uint8_t *ref, bool string) {
+    char *s = (char *)p;
+    const char *rs = (const char *)ref;
+
+    if (string) {
+        if (strlen_fn(s) != n) {
+            FAIL("strlen len %zu", n);
+        }
+        if (strnlen_fn(s, SIZE_MAX) != n) {
+            FAIL("strnlen unbounded len %zu", n);
+        }
+        if (strchr_fn(s, 'z') != NULL) {
+            FAIL("strchr absent len %zu", n);
+        }
+        if (strrchr_fn(s, 'z') != NULL) {
+            FAIL("strrchr absent len %zu", n);
+        }
+        if (strchr_fn(s, 0) != s + n) {
+            FAIL("strchr terminator len %zu", n);
+        }
+        if (strrchr_fn(s, 0) != s + n) {
+            FAIL("strrchr terminator len %zu", n);
+        }
+        if (strcmp_fn(s, rs) != 0 || strcmp_fn(rs, s) != 0) {
+            FAIL("strcmp equal len %zu", n);
+        }
+        if (strncmp_fn(s, rs, SIZE_MAX) != 0) {
+            FAIL("strncmp equal len %zu", n);
+        }
+        if (n > 0) {
+            // the heap copy one byte longer, so the guarded string ends first
+            ref[n] = 'a';
+            ref[n + 1] = 0;
+            if (strcmp_fn(s, rs) >= 0 || strcmp_fn(rs, s) <= 0) {
+                FAIL("strcmp prefix len %zu", n);
+            }
+            ref[n] = 0;
+        }
+        // copying out of the page, then into it
+        uint8_t *tmp = ref + GUARD_MAX_LEN + 16;
+        if (strcpy_fn((char *)tmp, s) != (char *)tmp || memcmp(tmp, p, n + 1) != 0) {
+            FAIL("strcpy out len %zu", n);
+        }
+        if (strcpy_fn(s, (const char *)tmp) != s || memcmp(tmp, p, n + 1) != 0) {
+            FAIL("strcpy in len %zu", n);
+        }
+    } else {
+        // exactly n bytes, no terminator anywhere near: limits must be honored
+        if (strnlen_fn(s, n) != n) {
+            FAIL("strnlen at limit len %zu", n);
+        }
+        if (strncmp_fn(s, rs, n) != 0) {
+            FAIL("strncmp at limit len %zu", n);
+        }
+        if (memchr_fn(p, 'z', n) != NULL) {
+            FAIL("memchr absent len %zu", n);
+        }
+        if (n > 0 && memchr_fn(p, p[n - 1], n) == NULL) {
+            FAIL("memchr present len %zu", n);
+        }
+        if (memcmp_fn(p, ref, n) != 0 || memcmp_fn(ref, p, n) != 0) {
+            FAIL("memcmp len %zu", n);
+        }
+        uint8_t *tmp = ref + GUARD_MAX_LEN + 16;
+        if (memcpy_fn(tmp, p, n) != tmp || memcmp(tmp, ref, n) != 0) {
+            FAIL("memcpy out len %zu", n);
+        }
+        if (memcpy_fn(p, tmp, n) != p || memcmp(p, ref, n) != 0) {
+            FAIL("memcpy in len %zu", n);
+        }
+        if (memmove_fn(tmp, p, n) != tmp || memmove_fn(p, tmp, n) != p || memcmp(p, ref, n) != 0) {
+            FAIL("memmove len %zu", n);
+        }
+        if (n > 1) {
+            // overlapping moves inside the page, both directions
+            memmove_fn(p, p + 1, n - 1);
+            memmove_fn(p + 1, p, n - 1);
+            if (memcmp(p + 1, ref + 1, n - 1) != 0) {
+                FAIL("memmove overlap len %zu", n);
+            }
+        }
+        if (memset_fn(p, 'x', n) != p) {
+            FAIL("memset len %zu", n);
+        }
+        for (size_t i = 0; i < n; i++) {
+            if (p[i] != 'x') {
+                FAIL("memset len %zu at %zu", n, i);
+            }
+        }
+    }
+    return true;
+}
+
+static void guard_fill(uint8_t *p, uint8_t *ref, size_t n, uint32_t seed) {
+    for (size_t i = 0; i < n; i++) {
+        uint8_t c = pat(seed, i);
+        if (c == 0 || c == 'z') {
+            c = 'a';
+        }
+        p[i] = ref[i] = c;
+    }
+}
+
+static bool guard_page_test(void) {
+    BEGIN_TEST;
+    struct guard_page g;
+    ASSERT_TRUE(guard_alloc(&g), "setting up the guard page");
+    uint8_t *ref = malloc(2 * (GUARD_MAX_LEN + 16) + 16);
+    ASSERT_TRUE(ref != NULL, "allocating the reference buffer");
+    uint8_t *const page_end = g.p + PAGE_SIZE;
+
+    for (size_t n = 0; n <= GUARD_MAX_LEN && all_ok; n++) {
+        for (size_t t = 0; t < 16 && all_ok; t++) {
+            for (int edge = 0; edge < 2 && all_ok; edge++) {
+                for (int string = 0; string < 2 && all_ok; string++) {
+                    // the last byte (or the terminator) t bytes before the end of the
+                    // page, or the first byte t bytes after its start
+                    uint8_t *p = edge ? page_end - t - n - string : g.p + t;
+                    guard_fill(p, ref, n, 9 + edge);
+                    if (string) {
+                        p[n] = ref[n] = 0;
+                    }
+                    if (!guard_check(p, n, ref, string)) {
+                        unittest_printf("        %s, len %zu, %zu bytes from the %s of the page\n",
+                                        string ? "string" : "bytes", n, t, edge ? "end" : "start");
+                        all_ok = false;
+                    }
+                }
+            }
+        }
+    }
+
+    free(ref);
+    guard_free(&g);
+    END_TEST;
+}
+#endif // WITH_KERNEL_VM
+
 BEGIN_TEST_CASE(libc_string_tests)
 RUN_TEST(memcpy_test)
 RUN_TEST(memmove_test)
@@ -678,4 +1069,13 @@ RUN_TEST(strnlen_test)
 RUN_TEST(strcmp_test)
 RUN_TEST(strchr_test)
 RUN_TEST(strcpy_test)
+#if !LK_EMBEDDED
+RUN_TEST(large_memcpy_test)
+RUN_TEST(large_memmove_test)
+RUN_TEST(large_memset_test)
+RUN_TEST(large_scan_test)
+#endif
+#if WITH_KERNEL_VM
+RUN_TEST(guard_page_test)
+#endif
 END_TEST_CASE(libc_string_tests)

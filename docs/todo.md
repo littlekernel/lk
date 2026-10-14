@@ -151,7 +151,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - INCBIN: users must list the files in MODULE_SRCDEPS by hand (fat test lists 2 of 4)
 - lib/libc/string: asm memcpy/memmove/memset for arm64, riscv and x86, general registers only (baseline: `string bench`)
     - generic C memcpy/memmove fall back to a byte loop when src and dst are mutually misaligned
-    - libc_string_tests has no case for a string ending just before an unmapped page
     - build check that the string routines use no FP/SIMD/vector registers [branch: stringbench], slim it before landing (.S objects only, or only with ASM_STRING_OPS)
 
 ## Filesystems
