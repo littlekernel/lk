@@ -173,6 +173,10 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - riscv: no -mgeneral-regs-only equivalent; arm32 relies on the default soft abi
 - .cpp -> .cc? (94 .cpp files, .cc rules already exist)
 - clang CI never sets WERROR
+- Linker tables: registration sections (apps, commands, lk_init, fs_impl) are orphans found via __start_/__stop_, placed by each linker's heuristics
+    - put them in `.lk_table.<name>.<key>` input sections, start/end markers as zero length arrays in `.0`/`.9`, one `KEEP(*(SORT_BY_NAME(.lk_table.*)))` rule per arch script (or a shared INCLUDE)
+    - new tables need no script edits; lk_init could sort by level at link time
+- riscv clang+lld builds with -fPIE for the undef-weak workaround (engine.mk), fixed in LLVM 17; dropping it makes the tables read-only and removes the GOT
 
 ## Github / CI
 
@@ -213,6 +217,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~clang and ld.lld from one LLVM install, LTO stops on a mismatch; riscv .got out of .data so the registration orphans stay in the image~~
 - ~~port_tests two_threads_basic flake (second reader opened after the first broadcast write); port reads of a destroyed writer return ERR_CANCELLED, multi-packet writes wake one reader per packet~~
 - ~~one arch mmu contract (map/unmap/query/protect) on every arch, arch_mmu_protect, positive R/W/X flags [#356]~~
 - ~~x86 frees emptied page tables after the shootdown; arm32 SMP (per-cpu TTBR1, irq flag, user aspace isolation)~~
