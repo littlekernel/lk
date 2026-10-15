@@ -246,6 +246,14 @@ __WEAK EfiStatus free_pages(void *memory, size_t pages) {
   return EFI_STATUS_SUCCESS;
 }
 
+__WEAK void *alloc_uefi_stack(size_t size) {
+  return alloc_page(size, 23);
+}
+
+__WEAK void free_uefi_stack(void *stack, size_t size) {
+  free_pages(stack, ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE);
+}
+
 EfiStatus get_physical_memory_map(size_t *memory_map_size,
                                   EfiMemoryDescriptor *memory_map,
                                   size_t *map_key, size_t *desc_size,

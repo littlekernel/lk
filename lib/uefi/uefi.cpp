@@ -355,15 +355,18 @@ int load_sections_and_execute(ImageReader *reader,
   DEFER { teardown_debug_support(image_base); };
 
   constexpr size_t kStackSize = 1 * 1024ul * 1024;
-  auto stack = reinterpret_cast<char *>(alloc_page(kStackSize, 23));
+  auto stack = reinterpret_cast<char *>(alloc_uefi_stack(kStackSize));
   if (stack == nullptr) {
     return ERR_NO_MEMORY;
   }
-  memset(stack, 0, kStackSize);
   DEFER {
-    free_pages(stack, kStackSize / PAGE_SIZE);
+    free_uefi_stack(stack, kStackSize);
     stack = nullptr;
   };
+  if (!IS_ALIGNED(reinterpret_cast<uintptr_t>(stack), 16)) {
+    printf("UEFI stack %p is not 16-byte aligned\n", stack);
+    return ERR_INVALID_ARGS;
+  }
   printf("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
   int ret = static_cast<int>(
       call_with_stack(stack + kStackSize, entry, image_base, &table));
