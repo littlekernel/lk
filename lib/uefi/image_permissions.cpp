@@ -1,0 +1,160 @@
+// Copyright (c) 2026
+// Use of this source code is governed by a MIT-style license in LICENSE.
+#include "image_permissions.h"
+
+#include <arch/mmu.h>
+#include <arch/ops.h>
+#include <kernel/mp.h>
+#include <kernel/vm.h>
+#include <lk/err.h>
+#include <stdint.h>
+
+#include "defer.h"
+#include "memory_protocols.h"
+
+namespace {
+constexpr uint32_t kSectionExecute = 0x20000000;
+constexpr uint32_t kSectionWrite = 0x80000000;
+constexpr uint kRead = ARCH_MMU_FLAG_PERM_READ;
+constexpr uint kWrite = ARCH_MMU_FLAG_PERM_WRITE;
+constexpr uint kExecute = ARCH_MMU_FLAG_PERM_EXECUTE;
+
+struct CacheRange {
+  addr_t start;
+  size_t size;
+};
+
+void sync_cache(void *context) {
+  const auto &range = *static_cast<const CacheRange *>(context);
+  arch_sync_cache_range(range.start, range.size);
+}
+} // namespace
+
+void *alloc_uefi_image(size_t size, paddr_t preferred) {
+  if (!size || !IS_PAGE_ALIGNED(size) || size / PAGE_SIZE > UINT_MAX) {
+    return nullptr;
+  }
+  auto *aspace = set_boot_aspace();
+  if (!aspace) {
+    return nullptr;
+  }
+  const uint count = size / PAGE_SIZE;
+  struct list_node pages;
+  list_initialize(&pages);
+  DEFER { pmm_free(&pages); };
+  paddr_t pa = preferred;
+  // Keep the preferred-base attempt local to image loading; do not use the
+  // legacy fixed-address alloc_page() path.
+  if (!preferred || !IS_PAGE_ALIGNED(preferred) ||
+      pmm_alloc_range(preferred, count, &pages) != count) {
+    pmm_free(&pages);
+    if (pmm_alloc_contiguous(count, 21, &pa, &pages) != count) {
+      return nullptr;
+    }
+  }
+  uint mapped = 0;
+  bool keep = false;
+  DEFER {
+    if (!keep && mapped) {
+      vmm_aspace_lock(aspace);
+      arch_mmu_unmap(&aspace->arch_aspace, pa, mapped);
+      vmm_aspace_unlock(aspace);
+    }
+  };
+  {
+    vmm_aspace_lock(aspace);
+    DEFER { vmm_aspace_unlock(aspace); };
+    for (; mapped < count; ++mapped) {
+      const auto address = pa + mapped * PAGE_SIZE;
+      if (arch_mmu_map(&aspace->arch_aspace, address, address, 1, kRead | kWrite) != NO_ERROR) {
+        return nullptr;
+      }
+    }
+  }
+  if (vmm_reserve_space(aspace, "uefi_image", size, pa) != NO_ERROR) {
+    return nullptr;
+  }
+  // free_pages() takes ownership on success; no PMM node may retain this
+  // stack list as its owner.
+  while (list_remove_head(&pages)) {}
+  keep = true;
+  return reinterpret_cast<void *>(pa);
+}
+
+status_t protect_uefi_image(void *image, size_t size,
+                            const IMAGE_SECTION_HEADER *sections, size_t count) {
+  if (!image || !size || (count && !sections) || !IS_PAGE_ALIGNED(image) ||
+      !IS_PAGE_ALIGNED(size) || size / PAGE_SIZE > UINT_MAX ||
+      size - 1 > UINTPTR_MAX - reinterpret_cast<uintptr_t>(image)) {
+    return ERR_INVALID_ARGS;
+  }
+  if (!arch_mmu_supports_nx_mappings()) {
+    return ERR_NOT_SUPPORTED;
+  }
+  // The loader already checks section order, non-overlap and native-page
+  // alignment. Preflight them here too so no permission changes precede a
+  // rejected W+X or shared-page pair.
+  size_t previous_page_end = 0;
+  for (size_t i = 0; i < count; ++i) {
+    const auto &section = sections[i];
+    const size_t start = section.VirtualAddress;
+    const size_t span = MAX(section.Misc.VirtualSize, section.SizeOfRawData);
+    if (!span) {
+      continue;
+    }
+    if (start >= size || span > size - start) {
+      return ERR_INVALID_ARGS;
+    }
+    if (!IS_PAGE_ALIGNED(start) || start < previous_page_end ||
+        (section.Characteristics & (kSectionWrite | kSectionExecute)) ==
+            (kSectionWrite | kSectionExecute)) {
+      return ERR_NOT_SUPPORTED;
+    }
+    previous_page_end = ROUNDUP(start + span, PAGE_SIZE);
+  }
+  // Relocation writes must reach the instruction side on every CPU before
+  // granting X. Use the permanent kernel alias because only the calling CPU
+  // has the UEFI address space active.
+  void *kernel_image = paddr_to_kvaddr(reinterpret_cast<paddr_t>(image));
+  if (!kernel_image) {
+    return ERR_NOT_FOUND;
+  }
+  CacheRange range{reinterpret_cast<addr_t>(kernel_image), size};
+  mp_sync_exec(MP_IPI_TARGET_ALL, 0, sync_cache, &range);
+  auto *aspace = set_boot_aspace();
+  if (!aspace) {
+    return ERR_NO_MEMORY;
+  }
+  vmm_aspace_lock(aspace);
+  DEFER { vmm_aspace_unlock(aspace); };
+  const vaddr_t image_va = reinterpret_cast<vaddr_t>(image);
+  // Headers, gaps and padding default to R/NX. The loader frees the image if
+  // any protection change fails before the entry point is called.
+  status_t status = arch_mmu_protect(&aspace->arch_aspace, image_va, size / PAGE_SIZE, kRead);
+  if (status != NO_ERROR) {
+    return status;
+  }
+  for (size_t i = 0; i < count; ++i) {
+    const auto &section = sections[i];
+    const size_t span = MAX(section.Misc.VirtualSize, section.SizeOfRawData);
+    if (!span) {
+      continue;
+    }
+    uint flags = kRead;
+    if (section.Characteristics & kSectionWrite) {
+      flags |= kWrite;
+    }
+    if (section.Characteristics & kSectionExecute) {
+      flags |= kExecute;
+    }
+    if (flags == kRead) {
+      continue;
+    }
+    status = arch_mmu_protect(&aspace->arch_aspace, image_va + section.VirtualAddress,
+                              ROUNDUP(span, PAGE_SIZE) / PAGE_SIZE, flags);
+    if (status != NO_ERROR) {
+      return status;
+    }
+  }
+  return NO_ERROR;
+}
