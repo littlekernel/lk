@@ -67,6 +67,14 @@ void *alloc_page(size_t size, size_t align_log2 = PAGE_SIZE_SHIFT);
 
 EfiStatus free_pages(void *memory, size_t pages);
 
+// Override both hooks to use a platform-specific UEFI application stack.
+// The default allocates an identity-mapped stack with alloc_page(). Platforms
+// may instead use kernel-aspace memory, provided the stack remains writable
+// and mapped throughout the application call. The returned base must be
+// 16-byte aligned; size is the allocation size passed to the matching free.
+void *alloc_uefi_stack(size_t size);
+void free_uefi_stack(void *stack, size_t size);
+
 EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
                      const GblEfiImageInfo *ImageInfo,
                      GblEfiImageBuffer *Buffer);
