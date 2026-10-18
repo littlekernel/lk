@@ -1,6 +1,6 @@
 # LK Kernel Development Guide
 
-LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on diverse 32/64-bit architectures. It's used extensively in embedded systems, including Android bootloaders. Written primarily in C and assembly, with a limited C++ subset: `lib/libcpp` provides a curated portion of the C++17 standard library (see `lib/libcpp/include/` for the authoritative list), built with no exceptions, no RTTI, and no dynamic containers. `lib/lktl` is LK's own header-only C++ library (namespace `lk`: the intrusive list, `auto_call`, `function`, `function_ref`); `lk/cpp.h` holds the `DISALLOW_*` macros.
+LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on diverse 32/64-bit architectures. It's used extensively in embedded systems, including Android bootloaders. Written primarily in C and assembly, with a limited C++ subset: `lib/libcpp` provides a curated portion of the C++17 standard library (see `lib/libcpp/include/` for the authoritative list), built with no exceptions, no RTTI, and no dynamic containers. `lib/lktl` is LK's own header-only C++ library (namespace `lk`: the intrusive list, `auto_call`, `function`, `function_ref`, `ref_ptr`); `lk/cpp.h` holds the `DISALLOW_*` macros.
 
 ## Architecture Overview
 
@@ -407,6 +407,15 @@ the same translation unit stays smaller as a template than through either. `lk::
 (`lktl/method.h`) binds a method with its object for either, and `lk::method_cookie_first<&T::m>` /
 `lk::method_cookie_last<&T::m>` are the function pointer to hand a C API that takes a `void *cookie`,
 with the object as the cookie.
+
+#### Reference counting in C++
+
+`lk::ref_counted<T>` (`lktl/ref_ptr.h`) puts an atomic count in the object and `lk::ref_ptr<T>` holds
+one reference in one word. Create with `lk::make_ref<T>(args...)` (nothrow new: check for empty) or
+`lk::adopt_ref(p)`; debug builds assert on a double adopt or on counting a dead object. The last
+release deletes the `T`, or calls `T::destroy(T *)` when the class declares one, which is how a
+hierarchy without virtual functions deletes the concrete type (`lk::static_ref_cast` goes back
+down after a kind check).
 
 #### Registering Console Commands
 
