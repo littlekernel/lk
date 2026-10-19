@@ -88,7 +88,7 @@ int fixed::destroy_calls = 0;
 
 static_assert(sizeof(lk::ref_ptr<widget>) == sizeof(void *));
 static_assert(sizeof(lk::ref_counted<widget>) == sizeof(int32_t));
-static_assert(__is_standard_layout(lk::ref_counted<widget>));
+static_assert(std::is_standard_layout_v<lk::ref_counted<widget>>);
 static_assert(!std::is_copy_constructible_v<widget>);
 static_assert(std::is_nothrow_move_constructible_v<lk::ref_ptr<widget>>);
 static_assert(std::is_convertible_v<lk::ref_ptr<square>, lk::ref_ptr<object>>);

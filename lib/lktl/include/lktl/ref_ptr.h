@@ -81,7 +81,6 @@
 
 #include <assert.h>
 #include <cstddef>
-#include <lk/compiler.h>
 #include <new>
 #include <stdint.h>
 #include <type_traits>
