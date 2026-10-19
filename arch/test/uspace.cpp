@@ -33,12 +33,14 @@
 #else
 #include <arch/riscv.h>
 #include <arch/riscv/iframe.h>
+#include <kernel/mp.h>
 #endif
 
 extern "C" const uint8_t uspace_stub_syscall_start[], uspace_stub_syscall_end[];
 extern "C" const uint8_t uspace_stub_fault_start[], uspace_stub_fault_end[];
 extern "C" const uint8_t uspace_stub_store_start[], uspace_stub_store_target[], uspace_stub_store_end[];
 extern "C" const uint8_t uspace_stub_jump_start[], uspace_stub_jump_target[], uspace_stub_jump_end[];
+extern "C" const uint8_t uspace_stub_spin_start[], uspace_stub_spin_end[];
 
 namespace {
 
@@ -286,6 +288,58 @@ bool user_protect() {
     END_TEST;
 }
 
+#if ARCH_RISCV
+// Kill a thread spinning in user mode on cpu. It is killed while preempted (cpu
+// is this one) or while running (another cpu, interrupted by the kill); either
+// way it meets the signal on its way back to user mode, and the arch's default
+// kill hook ends it with ERR_INTERRUPTED.
+bool kill_spinning_user_thread(const user_env &env, uint cpu) {
+    BEGIN_TEST;
+
+    uspace_thread_args args = { .env = &env };
+    thread_t *t = thread_create("uspace_kill", uspace_thread, &args, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    ASSERT_NONNULL(t, "thread_create");
+    thread_set_pinned_cpu(t, cpu);
+    thread_resume(t);
+    // time to reach user mode; a kill sent before that is met at the first trap
+    thread_sleep(20);
+    thread_signal_kill(t);
+
+    int retcode = 0;
+    ASSERT_EQ(NO_ERROR, thread_join(t, &retcode, 5000), "the kill ends the thread");
+    EXPECT_EQ(ERR_INTERRUPTED, retcode, "exit code set by the kill hook");
+
+    END_TEST;
+}
+
+bool user_kill() {
+    BEGIN_TEST;
+
+    user_env env;
+    ASSERT_TRUE(user_env_setup(&env), "setup");
+    ASSERT_TRUE(user_env_load(&env, uspace_stub_spin_start, uspace_stub_spin_end), "load");
+
+    const uint here = arch_curr_cpu_num();
+    EXPECT_TRUE(kill_spinning_user_thread(env, here), "preempted on this cpu");
+    for (uint cpu = 0; cpu < SMP_MAX_CPUS; cpu++) {
+        if (cpu != here && mp_is_cpu_active(cpu)) {
+            EXPECT_TRUE(kill_spinning_user_thread(env, cpu), "running on another cpu");
+            break;
+        }
+    }
+
+    // a cpu that ran the thread may still be switching away from the aspace
+    status_t err;
+    for (int i = 0; (err = vmm_free_aspace(env.as)) == ERR_BUSY && i < 100; i++) {
+        thread_sleep(1);
+    }
+    EXPECT_EQ(NO_ERROR, err, "free aspace");
+    env.as = nullptr;
+
+    END_TEST;
+}
+#endif
+
 } // namespace
 
 // The hooks are weak in the arch; these strong definitions take over for the
@@ -338,6 +392,9 @@ BEGIN_TEST_CASE(arch_uspace_tests)
 RUN_TEST(user_syscall);
 RUN_TEST(user_fault);
 RUN_TEST(user_protect);
+#if ARCH_RISCV
+RUN_TEST(user_kill);
+#endif
 END_TEST_CASE(arch_uspace_tests)
 
 #endif // ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)

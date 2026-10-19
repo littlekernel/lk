@@ -11,6 +11,7 @@
 #include <kernel/event.h>
 #include <kernel/spinlock.h>
 #include <lk/debug.h>
+#include <lk/err.h>
 #include <lk/pow2.h>
 #include <lk/trace.h>
 #include <stdlib.h>
@@ -116,7 +117,12 @@ size_t cbuf_write(cbuf_t *cbuf, const void *_buf, size_t len, bool canreschedule
     return pos;
 }
 
-size_t cbuf_read(cbuf_t *cbuf, void *_buf, size_t buflen, bool block) {
+size_t cbuf_read(cbuf_t *cbuf, void *buf, size_t buflen, bool block) {
+    // without flags the wait cannot be interrupted, so the result is a count
+    return (size_t)cbuf_read_etc(cbuf, buf, buflen, block, 0);
+}
+
+ssize_t cbuf_read_etc(cbuf_t *cbuf, void *_buf, size_t buflen, bool block, uint flags) {
     char *buf = (char *)_buf;
 
     DEBUG_ASSERT(cbuf);
@@ -125,7 +131,9 @@ retry:
     // block on the cbuf outside of the lock, which may
     // unblock us early and we'll have to double check below
     if (block) {
-        event_wait(&cbuf->event);
+        if (event_wait_etc(&cbuf->event, INFINITE_TIME, flags) == ERR_INTERRUPTED) {
+            return ERR_INTERRUPTED;
+        }
     }
 
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&cbuf->lock);

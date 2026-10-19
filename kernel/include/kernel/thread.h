@@ -118,7 +118,18 @@ typedef struct thread {
 #if THREAD_STATS
     struct thread_specific_stats stats;
 #endif
+
+    // THREAD_SIGNAL_* latched on the thread, only ever added; set under thread_lock
+    uint32_t signals;
+    // blocked in a wait a signal may end (WAIT_QUEUE_INTERRUPTIBLE); under thread_lock
+    bool interruptible;
 } thread_t;
+
+// Kill: the thread is to end at its next safe point. An interruptible wait
+// (WAIT_QUEUE_INTERRUPTIBLE) returns ERR_INTERRUPTED and the code unwinds; on
+// its way back to user mode the arch hands the thread to the user-space host's
+// kill hook. Elsewhere the signal stays latched and nothing changes.
+#define THREAD_SIGNAL_KILL (1u << 0)
 
 // thread priority
 #define NUM_PRIORITIES 32
@@ -151,6 +162,9 @@ thread_t *thread_create_etc(thread_t *t, const char *name, thread_start_routine 
 status_t thread_resume(thread_t *);
 void thread_exit(int retcode) __NO_RETURN;
 void thread_sleep(lk_time_t delay);
+// thread_sleep() with WAIT_QUEUE_* flags: NO_ERROR once the delay has passed,
+// or ERR_INTERRUPTED early under WAIT_QUEUE_INTERRUPTIBLE.
+status_t thread_sleep_etc(lk_time_t delay, uint flags);
 status_t thread_detach(thread_t *t);
 status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout);
 status_t thread_detach_and_resume(thread_t *t);
@@ -171,6 +185,17 @@ bool arch_thread_get_backtrace_regs(const thread_t *t, uintptr_t *pc, uintptr_t 
 void dump_all_threads(void);
 void dump_all_threads_unlocked(void);
 void dump_threads_stats(void);
+
+// Latch THREAD_SIGNAL_KILL on t. If t is blocked in an interruptible wait, it
+// wakes with ERR_INTERRUPTED; if it is running on another cpu, that cpu is
+// interrupted so a thread in user mode notices at once. LK never ends a thread
+// from outside: t ends itself at a safe point.
+void thread_signal_kill(thread_t *t);
+
+// the signals latched on t
+static inline uint32_t thread_signals(const thread_t *t) {
+    return __atomic_load_n(&t->signals, __ATOMIC_ACQUIRE);
+}
 
 // scheduler routines
 void thread_yield(void); // give up the cpu voluntarily

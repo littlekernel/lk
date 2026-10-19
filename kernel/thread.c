@@ -773,6 +773,66 @@ void thread_sleep(lk_time_t delay) {
 }
 
 /**
+ * @brief  Put thread to sleep, optionally interruptibly
+ *
+ * With WAIT_QUEUE_INTERRUPTIBLE the thread blocks on a wait queue of its own,
+ * so a kill signal can end the sleep, which a THREAD_SLEEPING thread cannot.
+ * Without it this is thread_sleep().
+ *
+ * @return NO_ERROR once the delay has passed, ERR_INTERRUPTED if a kill
+ * signal ended or prevented the sleep.
+ */
+status_t thread_sleep_etc(lk_time_t delay, uint flags) {
+    if (!(flags & WAIT_QUEUE_INTERRUPTIBLE)) {
+        thread_sleep(delay);
+        return NO_ERROR;
+    }
+
+    wait_queue_t wait;
+    wait_queue_init(&wait);
+
+    THREAD_LOCK(state);
+    status_t err = wait_queue_block_etc(&wait, delay, flags);
+    // nothing else ever waits here
+    wait_queue_destroy(&wait, false);
+    THREAD_UNLOCK(state);
+
+    return (err == ERR_TIMED_OUT) ? NO_ERROR : err;
+}
+
+/**
+ * @brief  Send a thread the kill signal
+ *
+ * Latches THREAD_SIGNAL_KILL on the thread. A thread blocked in an
+ * interruptible wait is woken with ERR_INTERRUPTED; one running on another cpu
+ * gets a reschedule ipi, so a thread in user mode traps and meets the kill on
+ * its way back. Any other thread keeps the signal until its next interruptible
+ * wait or its next return to user mode. The thread ends itself: nothing here
+ * stops it.
+ *
+ * @param t  The thread to signal, which may be the current one
+ */
+void thread_signal_kill(thread_t *t) {
+    DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+
+    THREAD_LOCK(state);
+
+    // written only under thread_lock, so a store is enough (some cpus have no atomic or)
+    __atomic_store_n(&t->signals, t->signals | THREAD_SIGNAL_KILL, __ATOMIC_RELEASE);
+
+    if (t->state == THREAD_BLOCKED && t->interruptible) {
+        thread_unblock_from_wait_queue(t, ERR_INTERRUPTED);
+    }
+#if WITH_SMP
+    else if (t->state == THREAD_RUNNING && t != get_current_thread()) {
+        mp_reschedule(MP_IPI_TARGET_MASK, 1U << thread_curr_cpu(t), MP_RESCHEDULE_FLAG_REALTIME);
+    }
+#endif
+
+    THREAD_UNLOCK(state);
+}
+
+/**
  * @brief  Initialize threading system
  *
  * This function is called once, from lk_main()
@@ -1000,7 +1060,8 @@ void dump_thread(const thread_t *t) {
     dprintf(INFO, "\tstack %p, stack_size %zd\n", t->stack, t->stack_size);
 #endif
     dprintf(INFO, "\tentry %p, arg %p, flags 0x%x\n", t->entry, t->arg, t->flags);
-    dprintf(INFO, "\twait queue %p, wait queue ret %d\n", t->blocking_wait_queue, t->wait_queue_block_ret);
+    dprintf(INFO, "\twait queue %p, wait queue ret %d%s, signals %#x\n", t->blocking_wait_queue,
+            t->wait_queue_block_ret, t->interruptible ? " (interruptible)" : "", t->signals);
 #if WITH_KERNEL_VM
     dprintf(INFO, "\taspace %p\n", t->aspace);
 #endif
@@ -1119,6 +1180,22 @@ static enum handler_return wait_queue_timeout_handler(timer_t *timer, lk_time_t 
  * value specified when the queue was woken by wait_queue_wake_one().
  */
 status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
+    return wait_queue_block_etc(wait, timeout, 0);
+}
+
+/**
+ * @brief  Block until a wait queue is notified, with flags.
+ *
+ * As wait_queue_block(). With WAIT_QUEUE_INTERRUPTIBLE, a kill signal already
+ * latched on the thread refuses the wait with ERR_INTERRUPTED, and one that
+ * arrives while the thread is blocked ends the wait with it. The check and the
+ * block happen under the same thread_lock, so no signal falls between them.
+ *
+ * @param  wait     The wait queue to enter
+ * @param  timeout  The maximum time, in ms, to wait
+ * @param  flags    WAIT_QUEUE_* flags
+ */
+status_t wait_queue_block_etc(wait_queue_t *wait, lk_time_t timeout, uint flags) {
     timer_t timer;
 
     thread_t *current_thread = get_current_thread();
@@ -1131,11 +1208,16 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
     if (timeout == 0)
         return ERR_TIMED_OUT;
 
+    const bool interruptible = flags & WAIT_QUEUE_INTERRUPTIBLE;
+    if (interruptible && (current_thread->signals & THREAD_SIGNAL_KILL))
+        return ERR_INTERRUPTED;
+
     list_add_tail(&wait->list, &current_thread->queue_node);
     wait->count++;
     current_thread->state = THREAD_BLOCKED;
     current_thread->blocking_wait_queue = wait;
     current_thread->wait_queue_block_ret = NO_ERROR;
+    current_thread->interruptible = interruptible;
 
     /* if the timeout is nonzero or noninfinite, set a callback to yank us out of the queue */
     if (timeout != INFINITE_TIME) {
@@ -1144,6 +1226,8 @@ status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout) {
     }
 
     thread_resched();
+
+    current_thread->interruptible = false;
 
     /* we don't really know if the timer fired or not, so it's better safe to try to cancel it */
     if (timeout != INFINITE_TIME) {

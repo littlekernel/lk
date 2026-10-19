@@ -5,6 +5,7 @@
  * license that can be found in the LICENSE file or at
  * https://opensource.org/licenses/MIT
  */
+#include <kernel/thread.h>
 #include <lib/cbuf.h>
 #include <lib/heap.h>
 #include <lib/unittest.h>
@@ -297,10 +298,80 @@ static bool peek_tests(void) {
     END_TEST;
 }
 
+// cbuf_read_etc with a blocking read, each run by a helper thread so that only
+// a throwaway thread is ever killed (a kill signal is never cleared).
+static cbuf_t etc_cbuf;
+static uint8_t etc_cbuf_buf[16];
+
+static int read_interruptible(void *arg) {
+    char buf[4];
+    return (int)cbuf_read_etc(&etc_cbuf, buf, sizeof(buf), true, WAIT_QUEUE_INTERRUPTIBLE);
+}
+
+static int read_uninterruptible_after_kill(void *arg) {
+    thread_signal_kill(get_current_thread());
+    char buf[4];
+    return (int)cbuf_read_etc(&etc_cbuf, buf, sizeof(buf), true, 0);
+}
+
+static bool helper_blocked(thread_t *t) {
+    for (int i = 0; i < 1000; i++) {
+        THREAD_LOCK(state);
+        const bool blocked = t->state == THREAD_BLOCKED;
+        THREAD_UNLOCK(state);
+        if (blocked) {
+            return true;
+        }
+        thread_sleep(1);
+    }
+    return false;
+}
+
+static bool read_etc_tests(void) {
+    BEGIN_TEST;
+
+    cbuf_initialize_etc(&etc_cbuf, sizeof(etc_cbuf_buf), etc_cbuf_buf);
+
+    // a kill ends a blocked interruptible read
+    thread_t *t = thread_create("cbuf kill", read_interruptible, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    ASSERT_NONNULL(t, "");
+    thread_resume(t);
+    ASSERT_TRUE(helper_blocked(t), "the read blocks on an empty cbuf");
+    thread_signal_kill(t);
+    int ret = 0;
+    ASSERT_EQ(NO_ERROR, thread_join(t, &ret, 5000), "the kill ends the read");
+    EXPECT_EQ(ERR_INTERRUPTED, ret, "");
+
+    // data ends it as before
+    t = thread_create("cbuf data", read_interruptible, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    ASSERT_NONNULL(t, "");
+    thread_resume(t);
+    ASSERT_TRUE(helper_blocked(t), "the read blocks on an empty cbuf");
+    EXPECT_EQ(2UL, cbuf_write(&etc_cbuf, "ab", 2, true), "");
+    ASSERT_EQ(NO_ERROR, thread_join(t, &ret, 5000), "data ends the read");
+    EXPECT_EQ(2, ret, "");
+
+    // without the flag a latched kill changes nothing: the read waits for data
+    t = thread_create("cbuf nokill", read_uninterruptible_after_kill, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    ASSERT_NONNULL(t, "");
+    thread_resume(t);
+    ASSERT_TRUE(helper_blocked(t), "the read blocks on an empty cbuf");
+    EXPECT_EQ(3UL, cbuf_write(&etc_cbuf, "cde", 3, true), "");
+    ASSERT_EQ(NO_ERROR, thread_join(t, &ret, 5000), "data ends the read");
+    EXPECT_EQ(3, ret, "");
+
+    // a non-blocking read takes no wait at all
+    char buf[4];
+    EXPECT_EQ((ssize_t)0, cbuf_read_etc(&etc_cbuf, buf, sizeof(buf), false, WAIT_QUEUE_INTERRUPTIBLE), "");
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(cbuf_tests)
 RUN_TEST(basic)
 RUN_TEST(random)
 RUN_TEST(is_full_edge_cases)
 RUN_TEST(is_full_wraparound)
 RUN_TEST(peek_tests)
+RUN_TEST(read_etc_tests)
 END_TEST_CASE(cbuf_tests)

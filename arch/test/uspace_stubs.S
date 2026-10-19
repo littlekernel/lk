@@ -9,7 +9,8 @@
 /*
  * Position independent user mode stubs, copied into a user page by
  * arch/test/uspace.cpp. Each one runs into an exception that the test's hooks
- * catch, and spins if it ever comes back.
+ * catch, and spins if it ever comes back; the spin stub only spins, until a
+ * kill ends it.
  */
 
 #if ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)
@@ -128,5 +129,20 @@ uspace_stub_jump_target:
     .quad   0
 .global uspace_stub_jump_end
 uspace_stub_jump_end:
+
+.balign 16
+
+/* spin with no trap of its own: only an interrupt brings it back to the kernel */
+.global uspace_stub_spin_start
+uspace_stub_spin_start:
+#if ARCH_ARM64
+1:
+    b       1b
+#else
+1:
+    j       1b
+#endif
+.global uspace_stub_spin_end
+uspace_stub_spin_end:
 
 #endif

@@ -66,6 +66,16 @@ void cbuf_initialize_etc(cbuf_t *cbuf, size_t len, void *buf);
 size_t cbuf_read(cbuf_t *cbuf, void *buf, size_t buflen, bool block);
 
 /**
+ * cbuf_read_etc
+ *
+ * cbuf_read() with WAIT_QUEUE_* flags (kernel/wait.h) for the blocking wait.
+ *
+ * @return The number of bytes read (or skipped), or ERR_INTERRUPTED when a
+ * kill signal ended the wait under WAIT_QUEUE_INTERRUPTIBLE.
+ */
+ssize_t cbuf_read_etc(cbuf_t *cbuf, void *buf, size_t buflen, bool block, uint flags);
+
+/**
  * cbuf_peek
  *
  * Peek at the data available for read in the cbuf right now.  Does not actually
