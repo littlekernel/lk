@@ -44,9 +44,10 @@ void platform_early_init(void) {
     LTRACEF("starting FDT scan\n");
 
     /* look for a flattened device tree in the second arg passed to us */
-    fdt = (void *)lk_boot_args[1];
 #if WITH_KERNEL_VM
-    fdt = (const void *)((uintptr_t)fdt + PERIPHERAL_BASE_VIRT);
+    fdt = paddr_to_kvaddr(lk_boot_args[1]);
+#else
+    fdt = (void *)lk_boot_args[1];
 #endif
 
     if (LOCAL_TRACE) {

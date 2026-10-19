@@ -37,7 +37,7 @@ status_t platform_set_oneshot_timer (platform_timer_callback callback, void *arg
     riscv_csr_set(RISCV_CSR_XIE, RISCV_CSR_XIE_TIE);
 
     // convert interval to ticks
-    uint64_t ticks = riscv_get_time() + ((interval * ARCH_RISCV_MTIME_RATE) / 1000u);
+    uint64_t ticks = riscv_get_time() + (((uint64_t)interval * ARCH_RISCV_MTIME_RATE) / 1000u);
 #if RISCV_M_MODE
     clint_set_timer(ticks);
 #elif RISCV_S_MODE

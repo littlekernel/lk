@@ -51,10 +51,14 @@ constexpr size_t kLeafSpan = PAGE_SIZE * (PAGE_SIZE / sizeof(ulong));
 constexpr size_t kTableSpan = kLeafSpan;
 #if RISCV_MMU == 48
 constexpr size_t kLargePages[] = { 2UL << 20, 1UL << 30 };
-#else
-constexpr size_t kLargePages[] = { kLeafSpan }; // the top level never holds a leaf
-#endif
 constexpr size_t kNumLargePages = countof(kLargePages);
+#elif RISCV_MMU == 39
+constexpr size_t kLargePages[] = { kLeafSpan }; // the top level never holds a leaf
+constexpr size_t kNumLargePages = countof(kLargePages);
+#else
+constexpr size_t kLargePages[] = { 0 }; // sv32's only large page would be a top level leaf
+constexpr size_t kNumLargePages = 0;
+#endif
 #elif ARCH_ARM
 constexpr size_t kLeafSpan = 1UL << 20;
 constexpr size_t kTableSpan = 4UL << 20; // one page holds the tables of four sections
@@ -94,8 +98,9 @@ static_assert(kWindowSize >= 3 * kLeafSpan && kWindowSize >= 2 * kTableSpan &&
               kWindowSize >= 3 * kLargestPage, "");
 
 // The x86-32 kernel aspace keeps every page table it makes: each user page
-// directory holds a copy of the kernel's entries.
-#if ARCH_X86_32
+// directory holds a copy of the kernel's entries. sv32's kernel tables below
+// the root are the static ones every user root shares, all linked at boot.
+#if ARCH_X86_32 || (ARCH_RISCV && RISCV_MMU == 32)
 constexpr bool kKernelTablesPermanent = true;
 #else
 constexpr bool kKernelTablesPermanent = false;

@@ -607,10 +607,21 @@ bool check_table_count(vmm_aspace_t *as, size_t expected) {
 #endif
 }
 
+// The table levels, what one leaf table spans and what a table one level up
+// spans, where there is one below the root (sv32 has none). Other arches take
+// riscv's sv39 boundaries, which their walks also cross.
 #if ARCH_RISCV
 constexpr size_t pt_levels = RISCV_MMU_PT_LEVELS;
+constexpr size_t leaf_span = 1UL << (PAGE_SIZE_SHIFT + RISCV_MMU_PT_SHIFT);
+#if RISCV_MMU_PT_LEVELS > 2
+constexpr size_t mid_span = 1UL << (PAGE_SIZE_SHIFT + 2 * RISCV_MMU_PT_SHIFT);
+#else
+constexpr size_t mid_span = 0;
+#endif
 #else
 constexpr size_t pt_levels = 0;
+constexpr size_t leaf_span = 2UL << 20;
+constexpr size_t mid_span = 1UL << 30;
 #endif
 
 // the first address above the user base that is aligned to size
@@ -644,34 +655,38 @@ bool map_across_table_boundaries() {
     ASSERT_EQ(4U, pmm_alloc_contiguous(4, PAGE_SIZE_SHIFT, &pa, &pages), "alloc pages");
     auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
 
-    // two pages either side of a 1GB boundary, then of a 2MB one. On riscv the
-    // first needs a table per level below the 1GB one on each side, the
-    // second two leaf tables under a shared chain.
+    // two pages either side of a mid level boundary (1GB on sv39), then of a
+    // leaf table one. On riscv the first needs a table per level below the mid
+    // one on each side, the second two leaf tables under a shared chain.
     const struct {
-        vaddr_t base;
+        size_t span;
         size_t tables;
     } ranges[] = {
-        { user_boundary(1UL << 30) - 2 * PAGE_SIZE, pt_levels + 2 },
-        { user_boundary(2UL << 20) - 2 * PAGE_SIZE, pt_levels + 1 },
+        { mid_span, pt_levels + 2 },
+        { leaf_span, pt_levels + 1 },
     };
     for (const auto &r : ranges) {
-        if (!user_range_fits(r.base, 4)) {
-            unittest_printf(" (range at %#lx is past the user aspace)", r.base);
+        if (r.span == 0) {
             continue;
         }
-        ASSERT_EQ(NO_ERROR, arch_mmu_map(&as->arch_aspace, r.base, pa, 4, kUserRW), "map");
+        const vaddr_t base = user_boundary(r.span) - 2 * PAGE_SIZE;
+        if (!user_range_fits(base, 4)) {
+            unittest_printf(" (range at %#lx is past the user aspace)", base);
+            continue;
+        }
+        ASSERT_EQ(NO_ERROR, arch_mmu_map(&as->arch_aspace, base, pa, 4, kUserRW), "map");
         EXPECT_TRUE(check_table_count(as, r.tables), "tables after map");
         for (uint i = 0; i < 4; i++) {
             paddr_t got;
             uint flags;
-            EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, r.base + i * PAGE_SIZE, &got, &flags), "query");
+            EXPECT_EQ(NO_ERROR, arch_mmu_query(&as->arch_aspace, base + i * PAGE_SIZE, &got, &flags), "query");
             EXPECT_EQ(pa + i * PAGE_SIZE, got, "paddr");
             EXPECT_EQ(query_flags(kUserRW), flags, "flags");
         }
-        EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, r.base, 4), "unmap");
+        EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, base, 4), "unmap");
         for (uint i = 0; i < 4; i++) {
             paddr_t got;
-            EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, r.base + i * PAGE_SIZE, &got, nullptr), "gone");
+            EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, base + i * PAGE_SIZE, &got, nullptr), "gone");
         }
         EXPECT_TRUE(check_table_count(as, 1), "tables after unmap");
     EXPECT_EQ(0L, tables.live(), "every table freed");
@@ -714,12 +729,12 @@ bool unmap_range_with_holes() {
 
     // a page in the leaf table after a missing one: an unmap starting in the
     // hole must stop at the end of the hole, not the end of the range
-    const vaddr_t beyond = user_boundary(2UL << 20);
+    const vaddr_t beyond = user_boundary(leaf_span);
     vm_page_t *pb = map_pattern_page(as, beyond, 7);
     ASSERT_NONNULL(pb, "map page beyond the hole");
     auto pb_cleanup = lk::make_auto_call([&]() { pmm_free_page(pb); });
-    const vaddr_t hole = beyond - (2UL << 20) >= USER_ASPACE_BASE ? beyond - (2UL << 20) : USER_ASPACE_BASE;
-    const uint span = (beyond - hole) / PAGE_SIZE + 512;
+    const vaddr_t hole = beyond - leaf_span >= USER_ASPACE_BASE ? beyond - leaf_span : USER_ASPACE_BASE;
+    const uint span = (beyond - hole) / PAGE_SIZE + leaf_span / PAGE_SIZE;
     EXPECT_EQ(NO_ERROR, arch_mmu_unmap(&as->arch_aspace, hole, span), "unmap from inside a hole");
     EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(&as->arch_aspace, beyond, &pa, nullptr), "page beyond gone");
     EXPECT_TRUE(check_table_count(as, 1), "tables reclaimed again");
@@ -731,8 +746,9 @@ bool unmap_range_with_holes() {
 }
 
 // A range filling one leaf table and parts of two more, on both sides of a
-// 1GB boundary, goes in and comes out in one call each, and the unmap takes
-// every table it emptied with it, at every level.
+// mid level boundary (a leaf table one where there is no mid level), goes in
+// and comes out in one call each, and the unmap takes every table it emptied
+// with it, at every level.
 bool reclaim_after_big_range() {
     BEGIN_TEST;
 
@@ -744,7 +760,8 @@ bool reclaim_after_big_range() {
     ASSERT_EQ(NO_ERROR, as.create("big_range"), "create aspace");
     table_tracker tables;
 
-    constexpr uint count = 1024;
+    // two leaf tables' worth, a quarter of it before the boundary
+    constexpr uint count = 2 * leaf_span / PAGE_SIZE;
     struct list_node pages = LIST_INITIAL_VALUE(pages);
     paddr_t pa;
     if (pmm_alloc_contiguous(count, PAGE_SIZE_SHIFT, &pa, &pages) != count) {
@@ -753,15 +770,15 @@ bool reclaim_after_big_range() {
     }
     auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
 
-    // 256 pages before the boundary, 768 after
-    const vaddr_t base = user_boundary(1UL << 30) - 256 * PAGE_SIZE;
+    const vaddr_t base = user_boundary(mid_span ? mid_span : leaf_span) - count / 4 * PAGE_SIZE;
     if (!user_range_fits(base, count)) {
         unittest_printf(" (range at %#lx is past the user aspace)", base);
         END_TEST;
     }
     ASSERT_EQ(NO_ERROR, arch_mmu_map(&as->arch_aspace, base, pa, count, kUserRW), "map");
-    // riscv: a chain down to the 1GB level, a 2MB level table on each side, three leaf tables
-    EXPECT_TRUE(check_table_count(as, pt_levels + 3), "tables after map");
+    // riscv: a chain down to the mid level, a table below it on each side, three
+    // leaf tables; with no mid level, the root and the three leaf tables
+    EXPECT_TRUE(check_table_count(as, mid_span ? pt_levels + 3 : pt_levels + 2), "tables after map");
 
     for (uint i = 0; i < count; i += 255) {
         paddr_t got;
@@ -791,6 +808,12 @@ bool large_page_map() {
     if (!arch_mmu_supports_user_aspaces()) {
         END_TEST;
     }
+
+#if ARCH_RISCV && RISCV_MMU_PT_LEVELS == 2
+    // sv32's only large page is a root entry, which map never makes
+    unittest_printf(" (no large page below the root)");
+    END_TEST;
+#endif
 
     scoped_user_aspace as;
     ASSERT_EQ(NO_ERROR, as.create("large_page"), "create aspace");
@@ -856,7 +879,7 @@ bool map_enomem_rollback() {
     auto pages_cleanup = lk::make_auto_call([&]() { pmm_free(&pages); });
 
     // two pages either side of a leaf table boundary
-    const vaddr_t base = user_boundary(2UL << 20) - PAGE_SIZE;
+    const vaddr_t base = user_boundary(leaf_span) - PAGE_SIZE;
     arch_aspace_t *aspace = &as->arch_aspace;
     paddr_t got;
 
@@ -866,11 +889,14 @@ bool map_enomem_rollback() {
     EXPECT_TRUE(check_table_count(as, 1), "nothing left behind");
     EXPECT_EQ(0L, tables.live(), "every table freed");
 
-    // the first table links in, the one below it does not: the empty one must go
-    tables.set_budget(1);
-    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, kUserRW), "map with one table");
-    EXPECT_TRUE(check_table_count(as, 1), "empty table unlinked");
-    EXPECT_EQ(0L, tables.live(), "every table freed");
+    // the first table links in, the one below it does not: the empty one must
+    // go. With two levels one table is all a page needs.
+    if (pt_levels > 2) {
+        tables.set_budget(1);
+        EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, base, pa, 1, kUserRW), "map with one table");
+        EXPECT_TRUE(check_table_count(as, 1), "empty table unlinked");
+        EXPECT_EQ(0L, tables.live(), "every table freed");
+    }
 
     // enough for the first page, not for the second page's leaf table
     tables.set_budget(pt_levels - 1);
@@ -879,16 +905,18 @@ bool map_enomem_rollback() {
     EXPECT_TRUE(check_table_count(as, 1), "first page's tables reclaimed");
     EXPECT_EQ(0L, tables.live(), "every table freed");
 
-    // Across a 1GB boundary: the first page's chain goes in, the second needs
-    // a fresh table below the 1GB level and one more under it, which fails.
-    // Both cleanup legs run: the page that went in is rolled back and the
-    // fresh table, orphaned, is unlinked again.
-    const vaddr_t gb = user_boundary(1UL << 30) - PAGE_SIZE;
-    tables.set_budget(pt_levels);
-    EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, gb, pa, 2, kUserRW), "map across 1GB");
-    EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, gb, &got, nullptr), "page before the boundary rolled back");
-    EXPECT_TRUE(check_table_count(as, 1), "chain and orphaned table reclaimed");
-    EXPECT_EQ(0L, tables.live(), "every table freed");
+    // Across a mid level boundary: the first page's chain goes in, the second
+    // needs a fresh table below the mid level and one more under it, which
+    // fails. Both cleanup legs run: the page that went in is rolled back and
+    // the fresh table, orphaned, is unlinked again.
+    if (mid_span) {
+        const vaddr_t mid = user_boundary(mid_span) - PAGE_SIZE;
+        tables.set_budget(pt_levels);
+        EXPECT_EQ(ERR_NO_MEMORY, arch_mmu_map(aspace, mid, pa, 2, kUserRW), "map across the mid level");
+        EXPECT_EQ(ERR_NOT_FOUND, arch_mmu_query(aspace, mid, &got, nullptr), "page before the boundary rolled back");
+        EXPECT_TRUE(check_table_count(as, 1), "chain and orphaned table reclaimed");
+        EXPECT_EQ(0L, tables.live(), "every table freed");
+    }
 
     // and with the cap lifted the same mapping works
     tables.set_budget(-1);
@@ -953,7 +981,7 @@ bool kernel_map_enomem_rollback() {
               unmap(kas, RISCV_MMU_PHYSMAP_BASE_VIRT, RISCV_MMU_PHYSMAP_PAGE_SIZE / PAGE_SIZE),
               "top level unmap refused");
     EXPECT_EQ(NO_ERROR, query(kas, RISCV_MMU_PHYSMAP_BASE_VIRT, &got, nullptr), "physmap intact");
-    EXPECT_EQ((paddr_t)0, got, "physmap base");
+    EXPECT_EQ((paddr_t)RISCV_MMU_PHYSMAP_BASE_PHYS, got, "physmap base");
 
     END_TEST;
 }

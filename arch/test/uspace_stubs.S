@@ -15,6 +15,11 @@
 
 #if ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)
 
+#if ARCH_RISCV
+/* the literals are 64 bits wide on both widths; a 32 bit stub loads the low word */
+#include <arch/riscv/asm.h>
+#endif
+
 .section .rodata
 .balign 16
 
@@ -55,8 +60,8 @@ uspace_stub_fault_start:
 .option push
 .option norelax
     lla     t0, 2f      /* auipc + addi, never gp relative */
-    ld      t0, (t0)
-    ld      a0, (t0)
+    LDR     t0, (t0)
+    LDR     a0, (t0)
 1:
     j       1b
     .balign 8
@@ -86,9 +91,9 @@ uspace_stub_store_start:
 .option push
 .option norelax
     lla     t0, uspace_stub_store_target
-    ld      t0, (t0)
+    LDR     t0, (t0)
     li      t1, 0x5678
-    sd      t1, (t0)
+    STR     t1, (t0)
     li      a0, 0x1234
     ecall
 1:
@@ -117,7 +122,7 @@ uspace_stub_jump_start:
 .option push
 .option norelax
     lla     t0, uspace_stub_jump_target
-    ld      t0, (t0)
+    LDR     t0, (t0)
     jr      t0
 1:
     j       1b

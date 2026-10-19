@@ -7,7 +7,7 @@ function HELP {
     echo "help:"
     echo "-p <project>      : specify the project to build"
     echo "-6                : 64bit"
-    echo "-S                : supervisor mode (using OpenSBI, only works in 64bit)"
+    echo "-S                : supervisor mode (using OpenSBI)"
     echo "-e                : sifive e platform"
     echo "-u                : sifive u platform"
     echo "-m <memory in MB> : memory size (default: 512 MB for virt, 8192 MB for sifive_u)"
@@ -128,9 +128,14 @@ else
     QEMU="qemu-system-riscv32"
     CPU="rv32"
     MACHINE="virt"
-    BIOS="none"
     _MEMSIZE=512
-    _PROJECT="qemu-virt-riscv32-test"
+    if (( DO_SUPERVISOR )); then
+        _PROJECT="qemu-virt-riscv32-supervisor-test"
+        BIOS="default"
+    else
+        _PROJECT="qemu-virt-riscv32-test"
+        BIOS="none"
+    fi
 fi
 # command line PROJECT and MEMSIZE override defaults
 if [[ -z "$PROJECT" ]]; then

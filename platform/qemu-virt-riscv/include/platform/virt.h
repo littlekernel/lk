@@ -20,6 +20,13 @@
 #define MEMORY_APERTURE_SIZE (1UL * 1024 * 1024 * 1024)
 #endif
 
+#if WITH_KERNEL_VM && RISCV_MMU == 32
+// sv32's physmap holds ram alone, so the devices get a window of their own,
+// which rules.mk describes to the arch
+#define PERIPHERAL_BASE_PHYS (RISCV_MMU_PERIPHERAL_BASE_PHYS)
+#define PERIPHERAL_BASE_SIZE (RISCV_MMU_PERIPHERAL_SIZE)
+#define PERIPHERAL_BASE_VIRT (RISCV_MMU_PERIPHERAL_BASE_VIRT)
+#else
 // map all of 0-1GB into kernel space in one shot
 #define PERIPHERAL_BASE_PHYS (0)
 #define PERIPHERAL_BASE_SIZE (0x40000000UL) // 1GB
@@ -30,6 +37,7 @@
 #else
 // if no mmu, just treat virt == phys
 #define PERIPHERAL_BASE_VIRT (PERIPHERAL_BASE_PHYS)
+#endif
 #endif
 
 // interrupts
@@ -48,7 +56,6 @@
 #define VIRTIO_BASE         0x10001000
 #define VIRTIO_BASE_VIRT    (PERIPHERAL_BASE_VIRT + VIRTIO_BASE)
 #define DRAM_BASE           0x80000000
-#define DRAM_BASE_VIRT      (PERIPHERAL_BASE_VIRT + DRAM_BASE)
 
 #define NUM_VIRTIO_TRANSPORTS 8
 #define VIRTIO_STRIDE 0x1000

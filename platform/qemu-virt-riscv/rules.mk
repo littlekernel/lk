@@ -19,6 +19,16 @@ RISCV_MMU ?= sv48
 endif
 endif
 
+ifeq ($(RISCV_MMU),sv32)
+# sv32's physmap holds ram alone: map the devices in the bottom 512MB of the
+# physical space (clint, plic, uart, virtio, the poweroff register) at 0xc0000000,
+# leaving the kernel's top 512MB to the vm
+GLOBAL_DEFINES += \
+    RISCV_MMU_PERIPHERAL_BASE_PHYS=0 \
+    RISCV_MMU_PERIPHERAL_BASE_VIRT=0xc0000000 \
+    RISCV_MMU_PERIPHERAL_SIZE=0x20000000
+endif
+
 MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/cmdline
 MODULE_DEPS += lib/fdt

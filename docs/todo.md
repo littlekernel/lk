@@ -102,7 +102,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 - APLIC + IMSIC support
 - CLIC support [#527]
-- time.c: interval * rate is a 32-bit multiply, wraps above ~430ms at 10MHz (fires early)
 - current_time() off by 2.4% at 32768Hz (divides by rate/1000)
 - No way to keep the compiler from using FP registers in kernel code
 - MSI: every platform returns ERR_NOT_SUPPORTED
@@ -217,6 +216,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~riscv32 supervisor mode with sv32 paging and user aspaces (qemu-virt-riscv32-supervisor-test); riscv oneshot timer interval multiplied in 64 bits~~
 - ~~clang and ld.lld from one LLVM install, LTO stops on a mismatch; riscv .got out of .data so the registration orphans stay in the image~~
 - ~~port_tests two_threads_basic flake (second reader opened after the first broadcast write); port reads of a destroyed writer return ERR_CANCELLED, multi-packet writes wake one reader per packet~~
 - ~~one arch mmu contract (map/unmap/query/protect) on every arch, arch_mmu_protect, positive R/W/X flags [#356]~~
