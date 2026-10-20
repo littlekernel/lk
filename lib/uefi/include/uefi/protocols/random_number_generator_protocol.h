@@ -26,7 +26,14 @@
 #ifndef __RANDOM_NUMBER_GENERATOR_PROTOCOL__
 #define __RANDOM_NUMBER_GENERATOR_PROTOCOL__
 
+#include <uefi/gbl_protocol_utils.h>
 #include <uefi/types.h>
+
+EFI_GUID(EFI_RNG_PROTOCOL_GUID, 0x3152bca5, 0xeade, 0x433d, 0x86, 0x2e, 0xc0,
+         0x1c, 0xdc, 0x29, 0x1f, 0x44);
+
+EFI_GUID(EFI_RNG_ALGORITHM_RAW_GUID, 0xe43176d7, 0xb6e8, 0x4827, 0xb7, 0x84,
+         0x7f, 0xfd, 0xc4, 0xb6, 0x85, 0x61);
 
 typedef EfiGuid EfiRngAlgorithm;
 typedef struct EfiRngProtocol EfiRngProtocol;

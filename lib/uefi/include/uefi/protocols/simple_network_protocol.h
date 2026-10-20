@@ -45,6 +45,9 @@
 static const uint64_t EFI_SIMPLE_NETWORK_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(1, 0);
 
+EFI_GUID(EFI_SIMPLE_NETWORK_PROTOCOL_GUID, 0xa19832b9, 0xac25, 0x11d3, 0x9a,
+         0x2d, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d);
+
 typedef struct {
   uint8_t addr[32];
 } EfiMacAddress;

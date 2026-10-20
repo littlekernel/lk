@@ -26,17 +26,11 @@
 #ifndef __GBL_EFI_COMMON_H__
 #define __GBL_EFI_COMMON_H__
 
+#include "gbl_protocol_utils.h"
 #include "types.h"
 
-// clang-format off
-#define GBL_EFI_VENDOR_GUID                                   \
-  EfiGuid {                                                   \
-    .data1=0x5a6d92f3,                                        \
-    .data2=0xa2d0,                                            \
-    .data3=0x4083,                                            \
-    .data4=[0x91, 0xa1, 0xa5, 0x0f, 0x6c, 0x3d, 0x98, 0x30]   \
-  }
-// clang-format on
+EFI_GUID(GBL_EFI_VENDOR_GUID, 0x5a6d92f3, 0xa2d0, 0x4083, 0x91, 0xa1, 0xa5,
+         0x0f, 0x6c, 0x3d, 0x98, 0x30);
 
 #define GBL_EFI_OS_BOOT_TARGET_VARNAME "gbl_os_boot_fuchsia"
 

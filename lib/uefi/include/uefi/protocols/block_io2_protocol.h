@@ -26,9 +26,13 @@
 #ifndef __BLOCK_IO2_PROTOCOL_H__
 #define __BLOCK_IO2_PROTOCOL_H__
 
+#include <uefi/gbl_protocol_utils.h>
 #include <uefi/types.h>
 
 #include "block_io_protocol.h"
+
+EFI_GUID(EFI_BLOCK_IO2_PROTOCOL_GUID, 0xa77b2472, 0xe282, 0x4e9f, 0xa2, 0x45,
+         0xc2, 0xc0, 0xe2, 0x7b, 0xbc, 0xc1);
 
 typedef struct EfiBlockIoMedia EfiBlockIoMedia;
 typedef struct EfiBlockIo2Protocol EfiBlockIo2Protocol;

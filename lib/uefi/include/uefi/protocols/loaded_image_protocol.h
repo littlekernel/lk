@@ -32,8 +32,10 @@
 
 #include "device_path_protocol.h"
 
-static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(1, 0);
+static const uint32_t EFI_LOADED_IMAGE_PROTOCOL_REVISION = 0x1000;
+
+EFI_GUID(EFI_LOADED_IMAGE_PROTOCOL_GUID, 0x5b1b31a1, 0x9562, 0x11d2, 0x8e, 0x3f,
+         0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b);
 
 typedef struct {
   uint32_t revision;

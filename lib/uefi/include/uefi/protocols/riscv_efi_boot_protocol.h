@@ -34,6 +34,9 @@
 static const uint64_t EFI_RISCV_BOOT_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(1, 0);
 
+EFI_GUID(EFI_RISCV_BOOT_PROTOCOL_GUID, 0xccd15fec, 0x6f73, 0x4eec, 0x83, 0x95,
+         0x3e, 0x69, 0xe4, 0xb9, 0x40, 0xbf);
+
 // Source: https://github.com/riscv-non-isa/riscv-uefi
 struct EfiRiscvBootProtocol {
   uint64_t revision;

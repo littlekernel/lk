@@ -33,20 +33,15 @@
 #include <uefi/gbl_protocol_utils.h>
 #include <uefi/types.h>
 
-static const uint64_t EFI_DT_FIXUP_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(1, 0);
+static const uint64_t EFI_DT_FIXUP_PROTOCOL_REVISION = 0x00010000;
 
-// Add nodes and update properties
-static const uint32_t EFI_DT_APPLY_FIXUPS = 0x00000001;
-// Reserve memory according to the /reserved-memory node and the memory
-// reservation block
-static const uint32_t EFI_DT_RESERVE_MEMORY = 0x00000002;
-static const uint32_t EFI_DT_ALL = EFI_DT_APPLY_FIXUPS | EFI_DT_RESERVE_MEMORY;
+EFI_GUID(EFI_DT_FIXUP_PROTOCOL_GUID, 0x60ed6ba9, 0xdfef, 0x4799, 0xac, 0x7b,
+         0x75, 0xe0, 0xf8, 0x33, 0x45, 0x6c);
 
 typedef struct EfiDtFixupProtocol {
   uint64_t revision;
-  EfiStatus (*fixup)(struct EfiDtFixupProtocol* self, void* fdt,
-                     size_t* buffer_size, uint32_t flags);
+  EfiStatus (*fixup)(struct EfiDtFixupProtocol* self, /* in-out */ void* fdt,
+                     /* in-out */ size_t* buffer_size);
 } EfiDtFixupProtocol;
 
 #endif  // __EFI_DT_FIXUP_PROTOCOL_H__

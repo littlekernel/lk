@@ -29,10 +29,14 @@
 #ifndef __GBL_AVB_PROTOCOL_H__
 #define __GBL_AVB_PROTOCOL_H__
 
+#include <uefi/gbl_protocol_utils.h>
 #include <uefi/types.h>
 
 static const uint64_t GBL_EFI_AVB_PROTOCOL_REVISION =
-    GBL_PROTOCOL_REVISION(0, 256);
+    GBL_PROTOCOL_REVISION(1, 0);
+
+EFI_GUID(GBL_EFI_AVB_PROTOCOL_GUID, 0x6bc66b9a, 0xd5c9, 0x4c02, 0x9d, 0xa9,
+         0x50, 0xaf, 0x19, 0x8d, 0x91, 0x2c);
 
 typedef uint64_t GblEfiAvbDeviceStatus;
 

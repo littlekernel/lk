@@ -22,7 +22,6 @@
 #include <uefi/protocols/gbl_efi_avb_protocol.h>
 #include <uefi/protocols/gbl_efi_boot_control_protocol.h>
 #include <uefi/protocols/gbl_efi_boot_memory_protocol.h>
-#include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/protocols/random_number_generator_protocol.h>
 #include <uefi/protocols/timestamp.h>
@@ -34,7 +33,7 @@
 // is weakly linked.
 
 EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
-                       size_t* buffer_size, uint32_t flags);
+                       size_t* buffer_size);
 
 EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
                            size_t bootconfig_size, const uint8_t* bootconfig,
@@ -47,6 +46,10 @@ EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol* self,
 EfiStatus select_fit_configuration(
     struct GblEfiOsConfigurationProtocol* self, size_t fit_size, const uint8_t* fit,
     size_t metadata_size, const uint8_t* metadata, size_t* selected_configuration_offset);
+
+EfiStatus fixup_kernel_commandline(
+    struct GblEfiOsConfigurationProtocol* self, size_t commandline_size,
+    const EfiChar8* commandline, size_t* fixup_buffer_size, EfiChar8* fixup);
 
 EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key);
 
@@ -77,10 +80,6 @@ EfiStatus free_pages(void *memory, size_t pages);
 // 16-byte aligned; size is the allocation size passed to the matching free.
 void *alloc_uefi_stack(size_t size);
 void free_uefi_stack(void *stack, size_t size);
-
-EfiStatus get_buffer(struct GblEfiImageLoadingProtocol *self,
-                     const GblEfiImageInfo *ImageInfo,
-                     GblEfiImageBuffer *Buffer);
 
 // uefi_malloc is used by LK to allocate memory that would be used by UEFI
 // applications
