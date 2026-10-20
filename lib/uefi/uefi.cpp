@@ -270,7 +270,7 @@ int load_sections_and_execute(ImageReader *reader,
   if (image_base == nullptr) {
     return ERR_NO_MEMORY;
   }
-  DEFER { free_pages(image_base, virtual_size / PAGE_SIZE); };
+  DEFER { free_uefi_image(image_base, virtual_size / PAGE_SIZE); };
   memset(image_base, 0, virtual_size);
   // Keep the validated header snapshot: do not parse freshly reread metadata
   // if the backing device/file changed between reads.

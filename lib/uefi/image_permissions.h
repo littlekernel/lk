@@ -2,11 +2,17 @@
 // Use of this source code is governed by a MIT-style license in LICENSE.
 #pragma once
 
+#include <uefi/types.h>
+
 #include "pe.h"
 
 // Identity-mapped, physically contiguous image storage, initially RW/NX.
 // Base-page mappings allow later protection without splitting large pages.
 void *alloc_uefi_image(size_t size, paddr_t preferred);
+
+// Release an image allocated by alloc_uefi_image(), bypassing the weak
+// free_pages() platform hook used for general UEFI allocations.
+EfiStatus free_uefi_image(void *image, size_t pages);
 
 // Sections must already have passed the loader's bounds, overlap and
 // native-page-alignment checks.
