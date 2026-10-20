@@ -26,7 +26,11 @@
 #ifndef __TIMESTAMP_PROTOCOL_H__
 #define __TIMESTAMP_PROTOCOL_H__
 
+#include <uefi/gbl_protocol_utils.h>
 #include <uefi/types.h>
+
+EFI_GUID(EFI_TIMESTAMP_PROTOCOL_GUID, 0xafbfde41, 0x2e6e, 0x4262, 0xba, 0x65,
+         0x62, 0xb9, 0x23, 0x6e, 0x54, 0x95);
 
 typedef struct {
   uint64_t frequency;

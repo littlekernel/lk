@@ -27,11 +27,24 @@
 #include <platform.h>
 #include <sys/types.h>
 #include <uefi/boot_service.h>
+#include <uefi/protocols/block_io2_protocol.h>
 #include <uefi/protocols/block_io_protocol.h>
+#include <uefi/protocols/device_path_protocol.h>
 #include <uefi/protocols/dt_fixup_protocol.h>
-#include <uefi/protocols/gbl_efi_image_loading_protocol.h>
+#include <uefi/protocols/erase_block_protocol.h>
+#include <uefi/protocols/gbl_efi_avb_protocol.h>
+#include <uefi/protocols/gbl_efi_avf_protocol.h>
+#include <uefi/protocols/gbl_efi_boot_control_protocol.h>
+#include <uefi/protocols/gbl_efi_boot_memory_protocol.h>
+#include <uefi/protocols/gbl_efi_debug_protocol.h>
+#include <uefi/protocols/gbl_efi_fastboot_protocol.h>
+#include <uefi/protocols/gbl_efi_fastboot_transport_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
+#include <uefi/protocols/load_file2_protocol.h>
 #include <uefi/protocols/loaded_image_protocol.h>
+#include <uefi/protocols/random_number_generator_protocol.h>
+#include <uefi/protocols/simple_text_input_protocol.h>
+#include <uefi/protocols/timestamp.h>
 #include <uefi/types.h>
 
 #include "blockio2_protocols.h"
@@ -64,7 +77,7 @@ const char *protocol_name(const EfiGuid *protocol) {
     const char *name;
   };
   static constexpr ProtocolGuidName kProtocolGuidNames[] = {
-      {&LOADED_IMAGE_PROTOCOL_GUID, "LOADED_IMAGE_PROTOCOL_GUID"},
+      {&EFI_LOADED_IMAGE_PROTOCOL_GUID, "EFI_LOADED_IMAGE_PROTOCOL_GUID"},
       {&EFI_DEVICE_PATH_PROTOCOL_GUID, "EFI_DEVICE_PATH_PROTOCOL_GUID"},
       {&LINUX_EFI_LOADED_IMAGE_FIXED_GUID,
        "LINUX_EFI_LOADED_IMAGE_FIXED_GUID"},
@@ -73,21 +86,21 @@ const char *protocol_name(const EfiGuid *protocol) {
       {&EFI_LOAD_FILE2_PROTOCOL_GUID, "EFI_LOAD_FILE2_PROTOCOL_GUID"},
       {&EFI_BLOCK_IO_PROTOCOL_GUID, "EFI_BLOCK_IO_PROTOCOL_GUID"},
       {&EFI_BLOCK_IO2_PROTOCOL_GUID, "EFI_BLOCK_IO2_PROTOCOL_GUID"},
-      {&EFI_TEXT_INPUT_PROTOCOL_GUID, "EFI_TEXT_INPUT_PROTOCOL_GUID"},
-      {&EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID,
-       "EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID"},
-      {&EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID,
-       "EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID"},
-      {&EFI_GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID,
-       "EFI_GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID"},
-      {&EFI_GBL_EFI_AVB_PROTOCOL_GUID, "EFI_GBL_EFI_AVB_PROTOCOL_GUID"},
-      {&EFI_GBL_EFI_FASTBOOT_PROTOCOL_GUID,
-       "EFI_GBL_EFI_FASTBOOT_PROTOCOL_GUID"},
-      {&EFI_GBL_EFI_FASTBOOT_TRANSPORT_PROTOCOL_GUID,
-       "EFI_GBL_EFI_FASTBOOT_TRANSPORT_PROTOCOL_GUID"},
+      {&EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID,
+       "EFI_SIMPLE_TEXT_INPUT_PROTOCOL_GUID"},
+      {&GBL_EFI_OS_CONFIGURATION_PROTOCOL_GUID,
+       "GBL_EFI_OS_CONFIGURATION_PROTOCOL_GUID"},
+      {&GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID,
+       "GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID"},
+      {&GBL_EFI_AVB_PROTOCOL_GUID, "GBL_EFI_AVB_PROTOCOL_GUID"},
+      {&GBL_EFI_AVF_PROTOCOL_GUID, "GBL_EFI_AVF_PROTOCOL_GUID"},
+      {&GBL_EFI_DEBUG_PROTOCOL_GUID, "GBL_EFI_DEBUG_PROTOCOL_GUID"},
+      {&GBL_EFI_FASTBOOT_PROTOCOL_GUID, "GBL_EFI_FASTBOOT_PROTOCOL_GUID"},
+      {&GBL_EFI_FASTBOOT_TRANSPORT_PROTOCOL_GUID,
+       "GBL_EFI_FASTBOOT_TRANSPORT_PROTOCOL_GUID"},
       {&EFI_DT_FIXUP_PROTOCOL_GUID, "EFI_DT_FIXUP_PROTOCOL_GUID"},
       {&EFI_TIMESTAMP_PROTOCOL_GUID, "EFI_TIMESTAMP_PROTOCOL_GUID"},
-      {&EFI_BOOT_MEMORY_PROTOCOL_GUID, "EFI_BOOT_MEMORY_PROTOCOL_GUID"},
+      {&GBL_EFI_BOOT_MEMORY_PROTOCOL_GUID, "GBL_EFI_BOOT_MEMORY_PROTOCOL_GUID"},
       {&EFI_ERASE_BLOCK_PROTOCOL_GUID, "EFI_ERASE_BLOCK_PROTOCOL_GUID"},
   };
 
@@ -132,12 +145,12 @@ EfiStatus unload(EfiHandle handle) { return EFI_STATUS_SUCCESS; }
 
 EfiHandle singleton_protocol_handle(const EfiGuid *protocol) {
   static constexpr const EfiGuid *kSingletonGuids[] = {
-      &EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID,
+      &GBL_EFI_OS_CONFIGURATION_PROTOCOL_GUID,
       &EFI_DT_FIXUP_PROTOCOL_GUID,
       &EFI_TIMESTAMP_PROTOCOL_GUID,
-      &EFI_BOOT_MEMORY_PROTOCOL_GUID,
-      &EFI_GBL_EFI_AVB_PROTOCOL_GUID,
-      &EFI_GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID,
+      &GBL_EFI_BOOT_MEMORY_PROTOCOL_GUID,
+      &GBL_EFI_AVB_PROTOCOL_GUID,
+      &GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID,
       &EFI_RNG_PROTOCOL_GUID,
   };
 
@@ -155,7 +168,7 @@ EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
   printf("%s(%p, %s, %p);\n", __FUNCTION__, handle,
          fmt_guid(protocol, name_buf, sizeof(name_buf)), intf);
 
-  if (guid_eq(protocol, LOADED_IMAGE_PROTOCOL_GUID)) {
+  if (guid_eq(protocol, EFI_LOADED_IMAGE_PROTOCOL_GUID)) {
     const auto loaded_image = static_cast<EfiLoadedImageProtocol *>(
         uefi_malloc(sizeof(EfiLoadedImageProtocol)));
     if (!loaded_image) {
@@ -289,8 +302,8 @@ EfiStatus uninstall_protocol_interface(EfiHandle handle,
 }
 
 EfiStatus load_image(bool boot_policy, EfiHandle parent_image_handle,
-                     EfiDevicePathProtocol *path, void *src, size_t src_size,
-                     EfiHandle *image_handle) {
+                     EfiDevicePathProtocol *path, const void *src,
+                     size_t src_size, EfiHandle *image_handle) {
   printf("%s is unsupported\n", __FUNCTION__);
   return EFI_STATUS_UNSUPPORTED;
 }
@@ -334,7 +347,7 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, const void **
          __FUNCTION__, fmt_guid(protocol, name_buf, sizeof(name_buf)), handle,
          agent_handle, controller_handle, attr);
 
-  if (guid_eq(protocol, LOADED_IMAGE_PROTOCOL_GUID)) {
+  if (guid_eq(protocol, EFI_LOADED_IMAGE_PROTOCOL_GUID)) {
     auto interface = reinterpret_cast<EfiLoadedImageProtocol *>(
         uefi_malloc(sizeof(EfiLoadedImageProtocol)));
     if (interface == nullptr) {
@@ -364,7 +377,7 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, const void **
       *intf = reinterpret_cast<void *>(fixup);
     }
     return EFI_STATUS_SUCCESS;
-  } else if (guid_eq(protocol, EFI_GBL_OS_CONFIGURATION_PROTOCOL_GUID)) {
+  } else if (guid_eq(protocol, GBL_EFI_OS_CONFIGURATION_PROTOCOL_GUID)) {
     GblEfiOsConfigurationProtocol *config = nullptr;
     allocate_pool(EFI_MEMORY_TYPE_BOOT_SERVICES_DATA, sizeof(*config),
                   reinterpret_cast<void **>(&config));
@@ -375,10 +388,9 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, const void **
     config->fixup_bootconfig = fixup_bootconfig;
     config->select_device_trees = select_device_trees;
     config->select_fit_configuration = select_fit_configuration;
+    config->fixup_kernel_commandline = fixup_kernel_commandline;
     *intf = reinterpret_cast<void *>(config);
     return EFI_STATUS_SUCCESS;
-  } else if (guid_eq(protocol, EFI_GBL_EFI_IMAGE_LOADING_PROTOCOL_GUID)) {
-    return EFI_STATUS_UNSUPPORTED;
   } else if (guid_eq(protocol, EFI_TIMESTAMP_PROTOCOL_GUID)) {
     EfiTimestampProtocol *ts = reinterpret_cast<EfiTimestampProtocol *>(
         uefi_malloc(sizeof(EfiTimestampProtocol)));
@@ -391,19 +403,19 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, const void **
     return EFI_STATUS_SUCCESS;
   } else if (guid_eq(protocol, EFI_ERASE_BLOCK_PROTOCOL_GUID)) {
     return open_efi_erase_block_protocol(handle, intf);
-  } else if (guid_eq(protocol, EFI_BOOT_MEMORY_PROTOCOL_GUID)) {
+  } else if (guid_eq(protocol, GBL_EFI_BOOT_MEMORY_PROTOCOL_GUID)) {
     *intf = open_boot_memory_protocol();
     if (*intf == nullptr) {
       return EFI_STATUS_OUT_OF_RESOURCES;
     }
     return EFI_STATUS_SUCCESS;
-  } else if (guid_eq(protocol, EFI_GBL_EFI_AVB_PROTOCOL_GUID)) {
+  } else if (guid_eq(protocol, GBL_EFI_AVB_PROTOCOL_GUID)) {
     *intf = open_gbl_efi_avb_protocol();
     if (*intf == nullptr) {
       return EFI_STATUS_OUT_OF_RESOURCES;
     }
     return EFI_STATUS_SUCCESS;
-  } else if (guid_eq(protocol, EFI_GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID)) {
+  } else if (guid_eq(protocol, GBL_EFI_BOOT_CONTROL_PROTOCOL_GUID)) {
     *intf = open_gbl_efi_boot_control_protocol();
     if (*intf == nullptr) {
       return EFI_STATUS_OUT_OF_RESOURCES;
@@ -426,7 +438,7 @@ EfiStatus close_protocol(EfiHandle handle, const EfiGuid *protocol,
          __FUNCTION__, fmt_guid(protocol, name_buf, sizeof(name_buf)), handle,
          agent_handle, controller_handle);
 
-  if (guid_eq(protocol, LOADED_IMAGE_PROTOCOL_GUID)) {
+  if (guid_eq(protocol, EFI_LOADED_IMAGE_PROTOCOL_GUID)) {
     return EFI_STATUS_SUCCESS;
   } else if (guid_eq(protocol, EFI_DEVICE_PATH_PROTOCOL_GUID)) {
     return EFI_STATUS_SUCCESS;

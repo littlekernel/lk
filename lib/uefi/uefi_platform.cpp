@@ -26,7 +26,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <uefi/protocols/erase_block_protocol.h>
-#include <uefi/protocols/gbl_efi_image_loading_protocol.h>
 #include <uefi/protocols/gbl_efi_os_configuration_protocol.h>
 #include <uefi/protocols/gbl_efi_avb_protocol.h>
 #include <uefi/protocols/gbl_efi_boot_control_protocol.h>
@@ -39,7 +38,7 @@
 #define LOCAL_TRACE 0
 
 __WEAK EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
-                              size_t* buffer_size, uint32_t flags) {
+                              size_t* buffer_size) {
   auto offset = fdt_subnode_offset(fdt, 0, "chosen");
   if (offset < 0) {
     printf("Failed to find chosen node %d\n", offset);
@@ -136,6 +135,14 @@ __WEAK EfiStatus select_fit_configuration(
     size_t metadata_size, const uint8_t* metadata, size_t* selected_configuration_offset) {
   printf("%s(%p, %lu, %p, %lu, %p, %p)\n", __FUNCTION__, self, fit_size, fit, metadata_size,
          metadata, selected_configuration_offset);
+  return EFI_STATUS_UNSUPPORTED;
+}
+
+__WEAK EfiStatus fixup_kernel_commandline(
+    struct GblEfiOsConfigurationProtocol* self, size_t commandline_size,
+    const EfiChar8* commandline, size_t* fixup_buffer_size, EfiChar8* fixup) {
+  printf("%s(%p, %lu, %p, %p, %p)\n", __FUNCTION__, self, commandline_size,
+         commandline, fixup_buffer_size, fixup);
   return EFI_STATUS_UNSUPPORTED;
 }
 

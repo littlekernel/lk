@@ -35,6 +35,9 @@ typedef struct EfiBlockIoProtocol EfiBlockIoProtocol;
 static const uint64_t EFI_BLOCK_IO_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(2, 31);
 
+EFI_GUID(EFI_BLOCK_IO_PROTOCOL_GUID, 0x964e5b21, 0x6459, 0x11d2, 0x8e, 0x39,
+         0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b);
+
 struct EfiBlockIoProtocol {
   uint64_t revision;
   EfiBlockIoMedia* media;

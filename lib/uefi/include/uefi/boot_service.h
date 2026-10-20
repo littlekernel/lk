@@ -101,7 +101,7 @@ typedef struct {
                                   EfiHandle* device);
   EfiStatus (*install_configuration_table)(const EfiGuid* guid, void* table);
   EfiStatus (*load_image)(bool boot_policy, EfiHandle parent_image_handle,
-                          EfiDevicePathProtocol* path, void* src,
+                          EfiDevicePathProtocol* path, const void* src,
                           size_t src_size, EfiHandle* image_handle);
   EfiStatus (*start_image)(EfiHandle image_handle, size_t* exit_data_size,
                            EfiChar16** exit_data);

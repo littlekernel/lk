@@ -32,6 +32,9 @@
 static const uint64_t EFI_ERASE_BLOCK_PROTOCOL_REVISION =
     GBL_PROTOCOL_REVISION(2, 60);
 
+EFI_GUID(EFI_ERASE_BLOCK_PROTOCOL_GUID, 0x95a9a93e, 0xa86e, 0x4926, 0xaa, 0xef,
+         0x99, 0x18, 0xe7, 0x72, 0xd9, 0x87);
+
 typedef struct EfiEraseBlockProtocol EfiEraseBlockProtocol;
 
 typedef struct {
