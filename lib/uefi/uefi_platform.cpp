@@ -39,6 +39,11 @@
 
 __WEAK EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
                               size_t* buffer_size) {
+  auto ret = fdt_open_into(fdt, fdt, *buffer_size);
+  if (ret < 0) {
+    printf("Failed to open FDT %d\n", ret);
+    return EFI_STATUS_INVALID_PARAMETER;
+  }
   auto offset = fdt_subnode_offset(fdt, 0, "chosen");
   if (offset < 0) {
     printf("Failed to find chosen node %d\n", offset);
@@ -51,20 +56,21 @@ __WEAK EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
     printf("Failed to find chosen/bootargs prop\n");
     return EFI_STATUS_SUCCESS;
   }
-  char* new_prop_data = reinterpret_cast<char*>(malloc(length));
+  static constexpr auto&& to_add =
+      "console=ttyAMA0 earlycon=pl011,mmio32,0x9000000 ";
+  const size_t new_length = length + sizeof(to_add) - 1;
+  char* new_prop_data = reinterpret_cast<char*>(malloc(new_length));
   DEFER {
     free(new_prop_data);
     new_prop_data = nullptr;
   };
   auto prop_length = strnlen(prop->data, length);
-  static constexpr auto&& to_add =
-      "console=ttyAMA0 earlycon=pl011,mmio32,0x9000000 ";
-  memset(new_prop_data, 0, length);
+  memset(new_prop_data, 0, new_length);
   memcpy(new_prop_data, to_add, sizeof(to_add) - 1);
   memcpy(new_prop_data + sizeof(to_add) - 1, prop->data, prop_length);
-  auto ret = fdt_setprop(fdt, offset, "bootargs", new_prop_data, length);
+  ret = fdt_setprop(fdt, offset, "bootargs", new_prop_data, new_length);
 
-  printf("chosen/bootargs: %d %d \"%s\"\n", ret, length, new_prop_data);
+  printf("chosen/bootargs: %d %zu \"%s\"\n", ret, new_length, new_prop_data);
 
   return EFI_STATUS_SUCCESS;
 }
@@ -80,7 +86,7 @@ __WEAK EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
   constexpr auto&& to_add =
       "\nandroidboot.fstab_suffix=cf.f2fs."
       "hctr2\nandroidboot.boot_devices=4010000000.pcie";
-  const auto final_len = sizeof(to_add);
+  const auto final_len = sizeof(to_add) - 1;
   if (final_len > *fixup_buffer_size) {
     *fixup_buffer_size = final_len;
     return EFI_STATUS_OUT_OF_RESOURCES;
