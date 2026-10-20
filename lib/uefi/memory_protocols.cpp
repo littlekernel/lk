@@ -31,6 +31,7 @@
 #include <uefi/protocols/gbl_efi_boot_memory_protocol.h>
 #include <uefi/types.h>
 
+#include "image_permissions.h"
 #include "uefi_platform.h"
 
 #define LOCAL_TRACE 0
@@ -234,34 +235,7 @@ __WEAK EfiStatus free_pool(void *mem) {
 }
 
 __WEAK EfiStatus free_pages(void *memory, size_t pages) {
-  auto pa = vaddr_to_paddr(memory);
-  if (pa != reinterpret_cast<paddr_t>(memory)) {
-    printf("WARN: virtual address %p is not identity mapped, physical addr: "
-           "%p\n",
-           memory, reinterpret_cast<void *>(pa));
-  }
-  // pmm_free_kpages expects a kernel virtual address. Keep the permanent
-  // kernel mapping before removing the UEFI identity mapping below.
-  auto kernel_memory = paddr_to_kvaddr(pa);
-  if (kernel_memory == nullptr) {
-    printf("Failed to find kernel mapping for physical pages %p %zu\n",
-           reinterpret_cast<void *>(pa), pages);
-    return EFI_STATUS_DEVICE_ERROR;
-  }
-  status_t err =
-      vmm_free_region(set_boot_aspace(), reinterpret_cast<vaddr_t>(memory));
-  if (err) {
-    printf("%s err:%d memory [%p] pages:%zu\n", __FUNCTION__, err, memory,
-           pages);
-    return EFI_STATUS_DEVICE_ERROR;
-  }
-  auto pages_freed = pmm_free_kpages(kernel_memory, pages);
-  if (pages_freed != pages) {
-    printf("Failed to free physical pages %p %zu, only freed %zu pages\n",
-           reinterpret_cast<void *>(pa), pages, pages_freed);
-    return EFI_STATUS_DEVICE_ERROR;
-  }
-  return EFI_STATUS_SUCCESS;
+  return free_uefi_image(memory, pages);
 }
 
 __WEAK void *alloc_uefi_stack(size_t size) {

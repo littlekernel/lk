@@ -24,7 +24,7 @@ bool permissions() {
   const size_t size = 2 * 1024 * 1024 + 6 * PAGE_SIZE;
   auto *image = static_cast<char *>(alloc_uefi_image(size, 0));
   ASSERT_NONNULL(image, "image allocation");
-  DEFER { free_pages(image, size / PAGE_SIZE); };
+  DEFER { free_uefi_image(image, size / PAGE_SIZE); };
   auto *aspace = set_boot_aspace();
   auto query = [&](size_t offset, uint expected) {
     uint flags = 0;
@@ -74,7 +74,7 @@ bool rejects_wx() {
   DEFER { reset_heap(); };
   auto *image = alloc_uefi_image(2 * PAGE_SIZE, 0);
   ASSERT_NONNULL(image, "image allocation");
-  DEFER { free_pages(image, 2); };
+  DEFER { free_uefi_image(image, 2); };
   IMAGE_SECTION_HEADER sections[2]{};
   sections[0].SizeOfRawData = PAGE_SIZE / 2;
   sections[0].Characteristics = 0x60000000;
@@ -158,11 +158,11 @@ bool preferred_mapping_failure_falls_back() {
   ASSERT_NONNULL(image, "mapping collision falls back to contiguous image");
   DEFER {
     if (image) {
-      free_pages(image, 2);
+      free_uefi_image(image, 2);
     }
   };
   ASSERT_NE(reinterpret_cast<void *>(preferred), image, "fallback uses another address");
-  ASSERT_EQ(EFI_STATUS_SUCCESS, free_pages(image, 2), "release fallback image");
+  ASSERT_EQ(EFI_STATUS_SUCCESS, free_uefi_image(image, 2), "release fallback image");
   image = nullptr;
   size_t after = 0;
   pmm_arena_t *arena;
@@ -200,7 +200,7 @@ bool mapping_failure_cleanup() {
     vm_ptable_budget_set(-1);
     DEFER {
       if (image) {
-        free_pages(image, 4);
+        free_uefi_image(image, 4);
       }
     };
     ASSERT_NULL(image, "injected page-table allocation failure");
@@ -211,7 +211,7 @@ bool mapping_failure_cleanup() {
   }
   auto *image = alloc_uefi_image(4 * PAGE_SIZE, 0);
   ASSERT_NONNULL(image, "allocation works after failed attempts");
-  DEFER { free_pages(image, 4); };
+  DEFER { free_uefi_image(image, 4); };
   END_TEST;
 }
 #endif
