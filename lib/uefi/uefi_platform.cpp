@@ -80,7 +80,8 @@ __WEAK EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
                                   size_t bootconfig_size,
                                   const uint8_t* bootconfig,
                                   size_t* fixup_buffer_size, uint8_t* fixup) {
-  printf("%s(%p, %s, %lu, %lu)\n", __FUNCTION__, self,
+  printf("%s(%p, %.*s, %lu, %lu)\n", __FUNCTION__, self,
+         static_cast<int>(bootconfig_size),
          reinterpret_cast<const char*>(bootconfig), bootconfig_size,
          *fixup_buffer_size);
   constexpr auto&& to_add =
@@ -89,7 +90,7 @@ __WEAK EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
   const auto final_len = sizeof(to_add) - 1;
   if (final_len > *fixup_buffer_size) {
     *fixup_buffer_size = final_len;
-    return EFI_STATUS_OUT_OF_RESOURCES;
+    return EFI_STATUS_BUFFER_TOO_SMALL;
   }
   *fixup_buffer_size = final_len;
   memcpy(fixup, to_add, final_len);
