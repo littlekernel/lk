@@ -86,31 +86,38 @@ status_t platform_set_periodic_timer(platform_timer_callback callback, void *arg
     return NO_ERROR;
 }
 
-/* Helper to atomically get the global ticks and the current counter value */
-static void systick_get_ticks_val(uint64_t *ticks, uint32_t *val) {
+/* Helper to atomically get the global ticks and the number of timer clock
+ * cycles elapsed since the last tick */
+static void systick_get_ticks_elapsed(uint64_t *ticks, uint32_t *elapsed_cycles) {
     arch_interrupt_saved_state_t state = arch_interrupt_save();
 
-    *val = SysTick->VAL;
+    uint32_t val = SysTick->VAL;
     if (unlikely(SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk)) {
         current_ticks++;
-        *val = SysTick->VAL;
+        val = SysTick->VAL;
     }
 
     *ticks = current_ticks;
 
     arch_interrupt_restore(state);
+
+    /* VAL steps through 0, reload, reload - 1, ..., 1 over a period of
+     * reload + 1 cycles: VAL == 0 is the single cycle between the 1 -> 0
+     * transition (which set COUNTFLAG) and the reload, so 0 maps to 0 elapsed
+     * cycles and reload maps to 1. */
+    *elapsed_cycles = val ? (reload + 1 - val) : 0;
 }
 
 lk_time_t current_time(void) {
     if (!systick_configured)
         return 0;
 
-    uint32_t val;
+    uint32_t elapsed_cycles;
     uint64_t ticks;
-    systick_get_ticks_val(&ticks, &val);
+    systick_get_ticks_elapsed(&ticks, &elapsed_cycles);
 
     /* convert ticks to msec */
-    uint32_t delta = (reload - val) / (tick_rate_mhz * 1000);
+    uint32_t delta = elapsed_cycles / (tick_rate_mhz * 1000);
     lk_time_t res = (ticks * tick_interval_ms) + delta;
 
     return res;
@@ -120,12 +127,12 @@ lk_bigtime_t current_time_hires(void) {
     if (!systick_configured)
         return 0;
 
-    uint32_t val;
+    uint32_t elapsed_cycles;
     uint64_t ticks;
-    systick_get_ticks_val(&ticks, &val);
+    systick_get_ticks_elapsed(&ticks, &elapsed_cycles);
 
     /* convert ticks to usec */
-    uint32_t delta = (reload - val) / tick_rate_mhz;
+    uint32_t delta = elapsed_cycles / tick_rate_mhz;
     lk_bigtime_t res = (ticks * tick_interval_us) + delta;
 
     return res;
