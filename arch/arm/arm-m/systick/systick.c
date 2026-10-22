@@ -110,7 +110,8 @@ lk_time_t current_time(void) {
     systick_get_ticks_val(&ticks, &val);
 
     /* convert ticks to msec */
-    uint32_t delta = (reload - val) / (tick_rate_mhz * 1000);
+    uint32_t delta_ticks = val ? (reload + 1 - val) : 0;
+    uint32_t delta = delta_ticks / (tick_rate_mhz * 1000);
     lk_time_t res = (ticks * tick_interval_ms) + delta;
 
     return res;
@@ -125,7 +126,8 @@ lk_bigtime_t current_time_hires(void) {
     systick_get_ticks_val(&ticks, &val);
 
     /* convert ticks to usec */
-    uint32_t delta = (reload - val) / tick_rate_mhz;
+    uint32_t delta_ticks = val ? (reload + 1 - val) : 0;
+    uint32_t delta = delta_ticks / tick_rate_mhz;
     lk_bigtime_t res = (ticks * tick_interval_us) + delta;
 
     return res;
