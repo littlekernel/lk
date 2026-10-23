@@ -29,7 +29,6 @@ static int pin_to_cpu(int cpu) {
     thread_t *t = get_current_thread();
     const int old = thread_pinned_cpu(t);
     thread_set_pinned_cpu(t, cpu);
-    thread_yield();
     return old;
 }
 

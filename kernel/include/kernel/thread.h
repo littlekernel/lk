@@ -232,11 +232,18 @@ static inline void thread_set_curr_cpu(thread_t *t, int cpu) {
 #endif
 }
 
-static inline void thread_set_pinned_cpu(thread_t *t, int cpu) {
 #if WITH_SMP
-    t->pinned_cpu = cpu;
+// Set CPU affinity (-1 unpins). Must not be called with thread_lock held.
+// Pinning the calling thread to another CPU migrates synchronously; interrupts
+// must be enabled and the target CPU active. A concurrent affinity update while
+// queued takes precedence. Pinning a READY thread wakes its target CPU.
+// A thread running on another CPU is not forced to reschedule; it can move only
+// at that CPU's next reschedule, without waking the destination CPU.
+// Blocked or suspended threads only record the new affinity.
+void thread_set_pinned_cpu(thread_t *t, int cpu);
+#else
+static inline void thread_set_pinned_cpu(thread_t *t, int cpu) {}
 #endif
-}
 
 // thread local storage
 static inline __ALWAYS_INLINE uintptr_t tls_get(uint entry) {

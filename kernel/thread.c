@@ -86,7 +86,7 @@ static void insert_in_run_queue_head(thread_t *t) {
     DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
     list_add_head(&run_queue[t->priority], &t->queue_node);
-    run_queue_bitmap |= (1<<t->priority);
+    run_queue_bitmap |= (1U << t->priority);
 }
 
 static void insert_in_run_queue_tail(thread_t *t) {
@@ -97,7 +97,7 @@ static void insert_in_run_queue_tail(thread_t *t) {
     DEBUG_ASSERT(spin_lock_held(&thread_lock));
 
     list_add_tail(&run_queue[t->priority], &t->queue_node);
-    run_queue_bitmap |= (1<<t->priority);
+    run_queue_bitmap |= (1U << t->priority);
 }
 
 static void wakeup_cpu_for_thread(thread_t *t)
@@ -114,7 +114,9 @@ static void wakeup_cpu_for_thread(thread_t *t)
 static void init_thread_struct(thread_t *t, const char *name) {
     memset(t, 0, sizeof(thread_t));
     t->magic = THREAD_MAGIC;
-    thread_set_pinned_cpu(t, -1);
+#if WITH_SMP
+    t->pinned_cpu = -1;
+#endif
     strlcpy(t->name, name, sizeof(t->name));
 }
 
@@ -449,13 +451,13 @@ static thread_t *get_top_thread(int cpu) {
                 list_delete(&newthread->queue_node);
 
                 if (list_is_empty(&run_queue[next_queue]))
-                    run_queue_bitmap &= ~(1<<next_queue);
+                    run_queue_bitmap &= ~(1U << next_queue);
 
                 return newthread;
             }
         }
 
-        local_run_queue_bitmap &= ~(1<<next_queue);
+        local_run_queue_bitmap &= ~(1U << next_queue);
     }
     /* no threads to run, select the idle thread for this cpu */
     return idle_thread(cpu);
@@ -847,6 +849,39 @@ void thread_set_priority(int priority) {
 
     THREAD_UNLOCK(state);
 }
+
+#if WITH_SMP
+void thread_set_pinned_cpu(thread_t *t, int cpu) {
+    DEBUG_ASSERT(t->magic == THREAD_MAGIC);
+    DEBUG_ASSERT(cpu >= -1 && cpu < SMP_MAX_CPUS);
+
+    bool ints_disabled = arch_ints_disabled();
+    THREAD_LOCK(state);
+
+    t->pinned_cpu = cpu;
+
+    if (cpu >= 0) {
+        if (t->state == THREAD_RUNNING && t == get_current_thread() &&
+            (uint)cpu != arch_curr_cpu_num()) {
+            DEBUG_ASSERT(!ints_disabled);
+            DEBUG_ASSERT(mp_is_cpu_active(cpu));
+            DEBUG_ASSERT(!thread_is_idle(t));
+
+            t->state = THREAD_READY;
+            insert_in_run_queue_head(t);
+            wakeup_cpu_for_thread(t);
+            thread_resched();
+
+            // Another thread may have changed our affinity while we were queued.
+            DEBUG_ASSERT(t->pinned_cpu < 0 || arch_curr_cpu_num() == (uint)t->pinned_cpu);
+        } else if (t->state == THREAD_READY) {
+            wakeup_cpu_for_thread(t);
+        }
+    }
+
+    THREAD_UNLOCK(state);
+}
+#endif
 
 /**
  * @brief  Become an idle thread
