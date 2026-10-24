@@ -424,6 +424,10 @@ usage:
         list_for_every_entry(&arena_list, a, pmm_arena_t, node) {
             dump_arena(a, false);
         }
+    } else if (console_in_panic_shell()) {
+        printf("%s %s: not available in the panic shell, only arenas is\n", argv[0].str,
+               argv[1].str);
+        return ERR_NOT_SUPPORTED;
     } else if (!strcmp(argv[1].str, "alloc")) {
         if (argc < 3) goto notenoughargs;
 
@@ -502,7 +506,7 @@ usage:
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-STATIC_COMMAND("pmm", "physical memory manager", &cmd_pmm)
+STATIC_COMMAND_MASKED("pmm", "physical memory manager", &cmd_pmm, CMD_AVAIL_ALWAYS)
 #endif
 STATIC_COMMAND_END(pmm);
 

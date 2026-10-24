@@ -226,13 +226,23 @@ usage:
 
         paddr_t pa;
         uint flags;
-        vmm_aspace_lock(aspace);
+        /* the crashed thread may hold the aspace lock */
+        const bool lock = !console_in_panic_shell();
+        if (lock) {
+            vmm_aspace_lock(aspace);
+        }
         status_t err = arch_mmu_query(&aspace->arch_aspace, argv[2].u, &pa, &flags);
-        vmm_aspace_unlock(aspace);
+        if (lock) {
+            vmm_aspace_unlock(aspace);
+        }
         printf("arch_mmu_query returns %d\n", err);
         if (err >= 0) {
             printf("\tpa 0x%lx, flags 0x%x\n", pa, flags);
         }
+    } else if (console_in_panic_shell()) {
+        printf("%s %s: not available in the panic shell, only phys2virt and virt2phys are\n",
+               argv[0].str, argv[1].str);
+        return ERR_NOT_SUPPORTED;
     } else if (!strcmp(argv[1].str, "map")) {
         if (argc < 6) goto notenoughargs;
 
@@ -282,7 +292,7 @@ usage:
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-STATIC_COMMAND("vm", "vm commands", &cmd_vm)
+STATIC_COMMAND_MASKED("vm", "vm commands", &cmd_vm, CMD_AVAIL_ALWAYS)
 #endif
 STATIC_COMMAND_END(vm);
 
