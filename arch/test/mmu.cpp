@@ -479,7 +479,6 @@ bool smp_shootdown() {
     // stay off the cpu the other thread runs on, or landing there would switch it out
     thread_t *self = get_current_thread();
     thread_set_pinned_cpu(self, arch_curr_cpu_num());
-    thread_yield();
     auto unpin = lk::make_auto_call([&]() { thread_set_pinned_cpu(self, -1); });
     const mp_cpu_mask_t others = mp_get_active_mask() & ~(1U << arch_curr_cpu_num());
     if (others == 0) {
@@ -562,7 +561,6 @@ bool free_active_aspace() {
     // being scheduled there.
     thread_t *self = get_current_thread();
     thread_set_pinned_cpu(self, arch_curr_cpu_num());
-    thread_yield();
     const uint my_cpu = arch_curr_cpu_num();
     const mp_cpu_mask_t others = mp_get_active_mask() & ~(1U << my_cpu);
     if (others != 0) {
