@@ -13,7 +13,7 @@ LK uses a 4-layer modular build system:
      the shared `project/virtual/{test,fs,minip}.mk` fragments and the board's `project/target/*.mk`
    - Projects include other project fragments: `include project/virtual/test.mk`
 
-2. **Target** (`target/*.mk`) - Board-specific configuration combining platform + hardware details
+2. **Target** (`target/<board>/rules.mk`) - Board-specific configuration combining platform + hardware details
    - Defines memory layout: `MEMBASE`, `MEMSIZE`, `KERNEL_BASE`
    - GPIO configs, peripheral addresses for specific boards
 
@@ -359,6 +359,27 @@ Examples from the repository:
 For in-progress (WIP) work on a branch that is intended to be collapsed or merged eventually, a `WIP` prefix is acceptable:
 
 - `WIP [fs][fat]: add mkdir support and tests`
+
+### Keeping documentation current
+
+A change that alters behavior, an API, a build variable, a script flag, a command or where
+files live updates the prose that describes it in the same commit. That prose lives in more
+places than the obvious one:
+
+- `README.md`, this file, and `docs/*.md`
+- per-component READMEs (`lib/uefi/README.md`, `platform/mps2/README.md`,
+  `target/*/README.md`, ...)
+- header comments, module comments and test descriptions
+- `--help`/usage text of the scripts
+
+Search for the old name, flag or path with `rg` across the whole tree rather than trusting
+memory of where it is mentioned, and re-read the surrounding text for statements the change
+made false; appending a new paragraph is not enough. A new document gets a line in
+`docs/index.md`. Finished or abandoned work moves within `docs/todo.md` following the rules
+at the top of that file.
+
+Docs and comments describe the code as it is. The story of a change (what was broken, what
+it used to do) belongs in the commit message, not in a comment or doc.
 
 ### Style enforced by `.clang-format`
 

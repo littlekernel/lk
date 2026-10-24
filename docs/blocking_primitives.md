@@ -40,7 +40,7 @@ typedef struct mutex {
 - **Ownership**: Only the thread that acquired the mutex can release it
 - **Non-recursive**: A thread cannot acquire the same mutex multiple times
 - **Thread context only**: Cannot be used from interrupt context
-- **Priority inheritance**: Implicit through wait queue mechanism
+- **No priority inheritance**: A high priority waiter does not boost the holder
 
 #### API
 
@@ -96,7 +96,7 @@ See [`semaphore.h`](../kernel/include/kernel/semaphore.h) implementation details
 
 ```c
 typedef struct semaphore {
-    int magic;          // Magic number for validation
+    uint32_t magic;     // Magic number for validation
     int count;          // Available resource count
     wait_queue_t wait;  // Wait queue for blocked threads
 } semaphore_t;
@@ -106,13 +106,15 @@ typedef struct semaphore {
 
 - **Resource counting**: Tracks available resource instances
 - **No ownership**: Any thread can post/wait on a semaphore
-- **Thread context only**: Cannot be used from interrupt context
+- **Waiting needs thread context**: `sem_post(sem, false)` and `sem_trywait()` may be called
+  from interrupt context
 - **FIFO ordering**: Waiting threads are woken in FIFO order
 
 #### API
 
 ```c
-void sem_init(semaphore_t *sem, unsigned int value);
+// Static initialization: semaphore_t s = SEMAPHORE_INITIAL_VALUE(s, count);
+void sem_init(semaphore_t *sem, int initial_count);
 void sem_destroy(semaphore_t *sem);
 status_t sem_wait(semaphore_t *sem);                   // Infinite timeout
 status_t sem_timedwait(semaphore_t *sem, lk_time_t timeout);
@@ -153,8 +155,8 @@ See [`event.h`](../kernel/include/kernel/event.h) implementation details.
 
 ```c
 typedef struct event {
-    int magic;          // Magic number for validation
-    bool signaled;      // Current signal state
+    uint32_t magic;     // Magic number for validation
+    uint32_t signaled;  // Current signal state, accessed atomically
     uint flags;         // Behavior flags
     wait_queue_t wait;  // Wait queue for blocked threads
 } event_t;
@@ -175,6 +177,7 @@ typedef struct event {
 #### API
 
 ```c
+// Static initialization: event_t e = EVENT_INITIAL_VALUE(e, initial, flags);
 void event_init(event_t *e, bool initial, uint flags);
 void event_destroy(event_t *e);
 status_t event_wait(event_t *e);                      // Infinite timeout
@@ -239,10 +242,12 @@ typedef struct {
 } port_packet_t;
 
 typedef struct {
-    void *ctx;           // Associated context
+    void *ctx;            // ctx passed to port_open() for the read port
     port_packet_t packet; // Message data
 } port_result_t;
 ```
+
+`PORT_PACKET_LEN` is two pointers wide.
 
 #### Port Types
 
@@ -254,68 +259,100 @@ typedef struct {
 
 ```c
 typedef enum {
-    PORT_MODE_BROADCAST,   // Multiple readers can connect
-    PORT_MODE_UNICAST,     // Single reader connection
-    PORT_MODE_BIG_BUFFER   // Larger internal buffer
+    PORT_MODE_BROADCAST   = 0,  // Any number of read ports
+    PORT_MODE_UNICAST     = 1,  // A single read port
+    PORT_MODE_BIG_BUFFER  = 2,  // Flag, only valid as PORT_MODE_UNICAST | PORT_MODE_BIG_BUFFER
 } port_mode_t;
 ```
 
 #### Key Properties
 
-- **Named channels**: Ports are identified by name strings
-- **Buffered communication**: Internal buffering prevents blocking on send
+- **Named channels**: Ports are identified by names of at most `PORT_NAME_LEN - 1` (11)
+  characters
+- **Non-blocking writes**: `port_write()` never blocks. A buffer holds 8 packets (64 with
+  `PORT_MODE_BIG_BUFFER`), and a write that does not fit fails
 - **Flexible topology**: Broadcast and unicast communication patterns
-- **Context passing**: Associate arbitrary context with messages
+- **Per-reader context**: The `ctx` given to `port_open()` comes back in every result read
+  through that read port, which identifies the source when reading a port group
+- **Runtime only**: Ports are heap objects with no static initializer
 
 #### API
 
 ```c
-void port_init(void);
+// Write side. If the name exists, the existing port is returned with ERR_ALREADY_EXISTS.
 status_t port_create(const char *name, port_mode_t mode, port_t *port);
-status_t port_destroy(port_t port);
-status_t port_open(const char *name, void *ctx, port_t *port);
-status_t port_close(port_t port);
+// All or nothing per read port. ERR_NOT_ENOUGH_BUFFER if no read port is open and the
+// port's own buffer is full, ERR_PARTIAL_WRITE if any read port's buffer was full.
 status_t port_write(port_t port, const port_packet_t *pk, size_t count);
-status_t port_read(port_t port, port_result_t *result);
-status_t port_read_timeout(port_t port, port_result_t *result, lk_time_t timeout);
 
-// Port groups for multiplexed reading
-status_t port_group_create(port_t *group);
+// Read side. Fails with ERR_NOT_FOUND until the write port exists.
+status_t port_open(const char *name, void *ctx, port_t *port);
+// Read from a read port or a port group. A timeout of 0 polls.
+status_t port_read(port_t port, lk_time_t timeout, port_result_t *result);
+
+// Port groups, read with port_read(). A read port can be in one group at a time.
+status_t port_group(port_t *ports, size_t count, port_t *group);
 status_t port_group_add(port_t group, port_t port);
 status_t port_group_remove(port_t group, port_t port);
-status_t port_group_read(port_t group, port_result_t *result);
-status_t port_group_read_timeout(port_t group, port_result_t *result, lk_time_t timeout);
+
+// Closes any kind of port. A closed write port can still be opened and read.
+status_t port_close(port_t port);
+// Write ports only, and only once closed. Read ports drain what is queued, then
+// return ERR_CANCELLED.
+status_t port_destroy(port_t port);
 ```
 
 #### Usage Example
 
 ```c
-// Producer thread
-void producer_thread(void *arg) {
-    port_t write_port;
-    port_create("data_channel", PORT_MODE_BROADCAST, &write_port);
+static port_t write_port, read_port;
 
+// Set up both ends before the threads start. Packets queued while no read port
+// is open are handed to the first one to open, but port_destroy() drops them.
+status_t channel_init(void) {
+    status_t err = port_create("data", PORT_MODE_UNICAST, &write_port);
+    if (err < 0)
+        return err;
+    return port_open("data", NULL, &read_port);
+}
+
+static int producer_thread(void *arg) {
     port_packet_t packet;
-    // Fill packet with data
     fill_packet_data(&packet);
 
-    port_write(write_port, &packet, 1);
-    port_destroy(write_port);
-}
-
-// Consumer thread
-void consumer_thread(void *arg) {
-    port_t read_port;
-    port_open("data_channel", NULL, &read_port);
-
-    port_result_t result;
-    if (port_read_timeout(read_port, &result, 1000) == NO_ERROR) {
-        // Process received data
-        process_packet_data(&result.packet);
+    if (port_write(write_port, &packet, 1) < 0) {
+        // the reader's buffer is full
     }
 
-    port_close(read_port);
+    // A write port must be closed before it is destroyed.
+    port_close(write_port);
+    port_destroy(write_port);
+    return 0;
 }
+
+static int consumer_thread(void *arg) {
+    port_result_t result;
+    status_t err;
+    while ((err = port_read(read_port, 1000, &result)) == NO_ERROR) {
+        process_packet_data(&result.packet);
+    }
+    // ERR_TIMED_OUT, or ERR_CANCELLED once the write port is destroyed and drained
+    port_close(read_port);
+    return 0;
+}
+```
+
+Waiting on several read ports at once:
+
+```c
+port_t group;
+port_t members[] = { read_port_a, read_port_b };
+port_group(members, 2, &group);
+
+port_result_t result;
+port_read(group, INFINITE_TIME, &result);  // result.ctx tells which member it came from
+
+port_close(group);  // does not close the members
 ```
 
 ### 5. Spinlocks
@@ -325,10 +362,11 @@ See [`spinlock.h`](../kernel/include/kernel/spinlock.h) implementation details.
 
 #### Structure
 
-Architecture-specific spinlock implementation with common interface:
+Architecture-specific spinlock implementation with common interface. Each architecture's
+`<arch/spinlock.h>` defines `spin_lock_t` (a word sized integer) and `SPIN_LOCK_INITIAL_VALUE`:
 
 ```c
-typedef arch_spin_lock_t spin_lock_t;
+typedef unsigned long spin_lock_t;  // arm64; other architectures use unsigned int or unsigned long
 ```
 
 #### Key Properties
@@ -415,6 +453,10 @@ int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t error);
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t error);
 ```
 
+Every call except `wait_queue_init()` must be made with the global `thread_lock` held
+(`THREAD_LOCK(state)` / `THREAD_UNLOCK(state)` from `thread.h`), and so with interrupts
+disabled. The wake calls may be made from interrupt context with `reschedule` false.
+
 #### Timeout Handling
 
 - **INFINITE_TIME**: Block indefinitely until signaled
@@ -434,7 +476,9 @@ The wait queues provide no mechanism to handle priority inversion at this time. 
 - **ERR_NOT_READY**: Resource not available (try operations)
 - **ERR_INVALID_ARGS**: Invalid parameters
 - **ERR_OBJECT_DESTROYED**: Primitive was destroyed while waiting
-- **ERR_NOT_ENOUGH_BUFFER**: Insufficient buffer space (ports)
+- **ERR_NOT_ENOUGH_BUFFER**: Port write did not fit, no read port open
+- **ERR_PARTIAL_WRITE**: Port write did not fit in at least one read port's buffer
+- **ERR_CANCELLED**: Port read after the write port was destroyed and drained
 - **ERR_THREAD_DETACHED**: Thread was detached (join operations)
 
 #### Panic Conditions
@@ -450,11 +494,13 @@ Debug builds include assertions that will panic on:
 
 #### CPU Wakeup
 
-When threads are unblocked, the scheduler automatically handles CPU wakeup:
+When threads are unblocked, the scheduler sends reschedule IPIs to other CPUs:
 
-- **Pinned threads**: Wake the specific CPU where the thread is pinned
-- **Unpinned threads**: Find a CPU to run the thread on and wake it up
-- **Load balancing**: Distribution across available CPUs
+- **Pinned threads**: The CPU the thread is pinned to
+- **Unpinned threads**: Every other active CPU; the first to reschedule takes the thread from
+  the shared run queue
+- CPUs running a real-time thread are skipped. The waking CPU switches only when the caller
+  reschedules: `resched = true`, or an interrupt handler returning `INT_RESCHEDULE`
 
 #### Memory Ordering
 
@@ -481,7 +527,6 @@ When threads are unblocked, the scheduler automatically handles CPU wakeup:
 - Critical sections may be long
 - Thread context is available
 - Resource contention is possible
-- Priority inheritance is needed
 
 **Use Spinlocks when:**
 
@@ -503,10 +548,11 @@ When threads are unblocked, the scheduler automatically handles CPU wakeup:
 
 ```c
 // Using semaphores
-semaphore_t empty_slots, full_slots;
-mutex_t buffer_lock;
+semaphore_t empty_slots = SEMAPHORE_INITIAL_VALUE(empty_slots, NUM_SLOTS);
+semaphore_t full_slots = SEMAPHORE_INITIAL_VALUE(full_slots, 0);
+mutex_t buffer_lock = MUTEX_INITIAL_VALUE(buffer_lock);
 
-void producer(void) {
+void producer(int data) {
     sem_wait(&empty_slots);      // Wait for space
     mutex_acquire(&buffer_lock); // Protect buffer
     add_to_buffer(data);
@@ -514,12 +560,13 @@ void producer(void) {
     sem_post(&full_slots, true); // Signal data available
 }
 
-void consumer(void) {
+int consumer(void) {
     sem_wait(&full_slots);       // Wait for data
     mutex_acquire(&buffer_lock); // Protect buffer
-    data = remove_from_buffer();
+    int data = remove_from_buffer();
     mutex_release(&buffer_lock);
     sem_post(&empty_slots, true); // Signal space available
+    return data;
 }
 ```
 
@@ -527,7 +574,7 @@ void consumer(void) {
 
 ```c
 // Using events for completion notification
-event_t work_complete;
+event_t work_complete = EVENT_INITIAL_VALUE(work_complete, false, 0);
 
 void worker_thread(void) {
     // Perform work
@@ -588,20 +635,24 @@ void release_resource(resource_t *res) {
 
 All blocking primitives (except spinlocks) require:
 
-- **Thread context**: Cannot be used from interrupt handlers
-- **Interrupts enabled**: Should not be called with interrupts disabled
+- **Thread context to wait**: Acquire and wait calls cannot be made from interrupt handlers.
+  `event_signal()` and `sem_post()` may be called from interrupt context with `resched = false`
+- **Interrupts enabled**: Calls that may block must not be made with interrupts disabled
 - **No spinlocks held**: Deadlock risk if thread spinlocks are held
 
 ### Scheduler Integration
 
-- **Automatic blocking**: Primitives automatically use `thread_block()`
+- **Blocking**: Primitives block through `wait_queue_block()` with `thread_lock` held
 - **Priority preservation**: Blocked threads maintain their priority
-- **Fair scheduling**: FIFO ordering within priority levels
-- **Efficient wakeup**: Minimal overhead for thread state transitions
+- **Wakeup placement**: Woken threads go to the head of their priority's run queue, ahead of
+  threads that were already ready at that priority
 
 ### Memory Management
 
-- **Static initialization**: All primitives support compile-time initialization
+- **Static initialization**: `MUTEX_INITIAL_VALUE`, `SEMAPHORE_INITIAL_VALUE`,
+  `EVENT_INITIAL_VALUE`, `WAIT_QUEUE_INITIAL_VALUE` and `SPIN_LOCK_INITIAL_VALUE`. Ports are
+  created at runtime only
 - **Dynamic allocation**: Runtime initialization for dynamically allocated primitives
 - **Cleanup requirements**: Proper destruction prevents resource leaks
-- **Magic number validation**: Debug builds validate primitive integrity
+- **Magic number validation**: Debug builds check the magic of mutexes, events and wait queues.
+  Semaphores are checked only through their embedded wait queue

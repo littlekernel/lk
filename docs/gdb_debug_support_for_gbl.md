@@ -11,12 +11,14 @@ First, we need to build the GBL with the following steps.
 
 ### Download GBL
 
- * GBL_MANIFEST_URL_DEFAULT="https://android.googlesource.com/kernel/manifest/"
- * GBL_MANIFEST_BRANCH_DEFAULT="uefi-gbl-mainline"
- * mkdir -p gbl
- * cd gbl
- * repo init -u ${GBL_MANIFEST_URL} -b ${GBL_MANIFEST_BRANCH}
- * repo sync
+```bash
+GBL_MANIFEST_URL="https://android.googlesource.com/kernel/manifest/"
+GBL_MANIFEST_BRANCH="uefi-gbl-mainline"
+mkdir -p gbl
+cd gbl
+repo init -u ${GBL_MANIFEST_URL} -b ${GBL_MANIFEST_BRANCH}
+repo sync
+```
 
 ### Build GBL with Debug Target
 
@@ -40,23 +42,28 @@ First, we need to build the GBL with the following steps.
 
 ### Run qemu
 
- * APP1=/path/to/gbl.efi
- * qemu-system-aarch64 -machine virt \
-     -m 1024M \
-     -cpu cortex-a57 \
-     -nographic \
-     -kernel build-qemu-virt-arm64-test/lk.elf \
-     -drive if=none,file=${APP1},id=blk1,format=raw \
-     -gdb tcp::13333
+```bash
+APP1=/path/to/gbl.efi
+qemu-system-aarch64 -machine virt \
+    -m 1024M \
+    -cpu cortex-a57 \
+    -nographic \
+    -kernel build-qemu-virt-arm64-test/lk.elf \
+    -drive if=none,file=${APP1},id=blk1,format=raw \
+    -device virtio-blk-device,drive=blk1 \
+    -gdb tcp::13333
+```
 
 ### Run GBL
 
  In the LK prompt. Use the following commands.
 
- * uefi_set_var gbl_debug 1
- * uefi_load virtio0
+```text
+uefi_set_var gbl_debug 1
+uefi_load virtio0
+```
 
- And we will see the following message.
+ The output looks like this (addresses vary):
 
 ```
 bio_read returns 4096, took 5 msecs (819200 bytes/sec)
@@ -65,10 +72,8 @@ Valid UEFI application found.
 Failed to allocate physical memory size 7073792 at specified address 0x140000000 fallback to regular allocation
 Relocating image from 0x140000000 to 0x53600000
 Entry function located at 0x53604db0
-platform_setup_system_table is called
 Calling kernel with stack [0x54800000, 0x548fffff]
 locate_handle_buffer(0x2, (0x3152bca5 0xeade 0x433d 0x441f29dc1cc02e86), search_key=0)
-Required protocol not found: EfiRngProtocol
 SECURITY WARNING: Failed to generate stack canary, using static default: Unsupported
 open_protocol(LOADED_IMAGE_PROTOCOL_GUID, handle=0x53600000, agent_handle=0x53600000, controller_handle=0, attr=0x1)
 Image base: 0x53600000

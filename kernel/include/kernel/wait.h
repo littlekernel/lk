@@ -16,7 +16,7 @@ __BEGIN_CDECLS
 // The wait queue is the basis for all locking primitives.
 // It is a simple FIFO queue of threads that are blocked waiting for some
 // condition to be met.  The wait queue is used by mutexes, semaphores,
-// condition variables, and other synchronization primitives.
+// events, ports and thread_join().
 //
 // The wait queue is not a general purpose queue, it is only used for
 // blocking threads.  It is not intended to be used for other purposes.

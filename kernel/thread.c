@@ -274,7 +274,7 @@ static bool thread_is_real_time_or_idle(thread_t *t) {
  *
  * @param t  Thread to resume
  *
- * @return NO_ERROR on success, ERR_NOT_SUSPENDED if thread was not suspended.
+ * @return NO_ERROR. A thread that is not suspended keeps its state.
  */
 status_t thread_resume(thread_t *t) {
     DEBUG_ASSERT(t->magic == THREAD_MAGIC);

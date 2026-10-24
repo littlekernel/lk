@@ -11,7 +11,7 @@ docs](https://developer.arm.com/documentation/100966/latest/Introduction-to-FVPs
 
 1- Download FVP Base
 
-[FVP_Base_RevC-2xAEMvA_11.xx_x_Linux64](https://developer.arm.com/Tools%20and%20Software/Fixed%20Virtual%20Platforms/Arm%20Architecture%20FVPs)
+[FVP_Base_RevC-2xAEMvA_11.xx_xx_Linux64](https://developer.arm.com/Tools%20and%20Software/Fixed%20Virtual%20Platforms/Arm%20Architecture%20FVPs)
 
 2- Clone the repo
 
@@ -30,7 +30,7 @@ scripts/fetch-toolchains.py --prefix aarch64-elf
 4- Add toolchain to PATH
 
 ```shell
-export PATH=$PWD/toolchain/aarch64-elf-14.2.0-Linux-x86_64/bin:$PATH
+export PATH=$PWD/$(ls -d toolchain/aarch64-elf-*/bin | tail -1):$PATH
 ```
 
 5- Build kernel
@@ -44,7 +44,7 @@ make fvp-base-test
 ```shell
 cd ..
 git clone https://github.com/ARM-software/arm-trusted-firmware.git 
-cd arm-trsuted-firmware
+cd arm-trusted-firmware
 ```
 
 7- Build Trusted Firmware-A (TF-A)

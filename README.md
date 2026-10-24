@@ -55,7 +55,7 @@ the bootloader or secure-world OS beneath the system the user sees:
 | ------------ | ------------- |
 | ARM64        | ARMv8 and ARMv9, 4K/16K/64K pages |
 | ARM32        | ARMv7+ Cortex-A, Cortex-M (ARMv6-M through ARMv8.1-M) |
-| RISC-V       | RV32 and RV64, machine or supervisor mode, sv32/sv39/sv48 |
+| RISC-V       | RV32 and RV64 in machine mode; RV64 in supervisor mode with sv39 or sv48 paging |
 | x86          | 32-bit and x86-64 |
 | m68k         | 68000 through 68040 |
 | MIPS         | MIPS32 (build only, not covered by the boot tests) |

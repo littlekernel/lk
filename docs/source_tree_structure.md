@@ -1,143 +1,134 @@
 # LK Source Tree Structure
 
-This document describes the organization and structure of the Little Kernel (LK) source code repository.
+This document describes the organization of the LK source tree. [AGENTS.md](../AGENTS.md)
+covers the build system in more depth.
 
 ## Top-Level Directories
 
 ### `/arch/`
-Architecture-specific code for different CPU architectures:
-- `arm/` - ARM 32-bit and cortex-m support
-- `arm64/` - ARM 64-bit support
-- `riscv/` - RISC-V 32-bit and 64-bit support
-- `m68k/` - Motorola 68000 support
-- `mips/` - MIPS support
-- `x86/` - x86 and x86_64 support
+Architecture-specific code:
+- `arm/` - ARM 32-bit: Cortex-A (`arm/`) and Cortex-M (`arm-m/`)
+- `arm64/` - ARM 64-bit
+- `riscv/` - RISC-V 32-bit and 64-bit, machine or supervisor mode
+- `m68k/` - Motorola 680x0
+- `mips/` - MIPS32
+- `x86/` - x86 32-bit and x86-64
+- `test/` - architecture unit tests (MMU, FPU context switching)
 
-Each architecture directory contains:
-- CPU-specific initialization code
-- Memory management unit (MMU) setup
-- Exception and interrupt handling
-- Low level context switching and thread support
-- Architecture-specific assembly code
+An architecture directory holds CPU initialization, exception and interrupt entry, context
+switching, cache and barrier operations, and on architectures with an MMU, the page table
+code. The per-arch `rules.mk` sets the compiler flags and, where needed, `toolchain.mk`
+picks the toolchain prefix.
+
+### `/top/`
+The top level module: `lk_main()` and the boot sequence (`main.c`), init hooks (`init.c`),
+and the `lk/` headers shared by everything (`lk/err.h`, `lk/list.h`, `lk/console_cmd.h`,
+`lk/init.h`, ...).
 
 ### `/kernel/`
-Core kernel functionality:
-- `mutex.c`, `semaphore.c` - Synchronization primitives
-- `mp.c` - Symmetric multiprocessing support
-- `timer.c` - Kernel timers
-- `event.c` - Event handling
-- `port.c` - Message passing
-- `thread.c` - Threading system and scheduler
-- `vm/` - Virtual memory management
-- `novm/` - Memory management for architectures without an mmu
+Core kernel:
+- `thread.c` - threads and the scheduler
+- `mutex.c`, `semaphore.c`, `event.c` - blocking primitives
+- `port.c` - message ports
+- `timer.c` - kernel timers
+- `mp.c` - multiprocessor support
+- `vm/` - physical and virtual memory management, for architectures with an MMU
+- `novm/` - page allocator for architectures without one
+- `test/` - unit tests for the primitives above
 
 ### `/lib/`
-Library and utility code:
-- `libc/` - Basic C library functions
-- `libcpp/` - Subset of the C++ standard library
+Libraries, each its own module, pulled in by projects as needed. Some of the larger ones:
+- `libc/`, `libcpp/` - minimal C library, freestanding subset of the C++ standard library
 - `lktl/` - LK's own C++ library (namespace `lk`), header only
-- `bio/` - Block I/O layer
-- `fs/` - File system support
-- `heap/` - Dynamic memory allocation
-- `io/` - I/O utilities
-- `console/` - Console and debugging support
-- `cksum/` - Checksum algorithms
-- `debug/` - Debugging utilities
-- many more helper libraries and utility routines
+- `heap/` - heap front end with selectable allocators (miniheap, dlmalloc, cmpctmalloc)
+- `console/` - command line console; `app/shell` puts a prompt on it
+- `bio/`, `partition/` - block I/O layer and partition scanning (MBR, GPT)
+- `fs/` - filesystem layer with FAT, ext2, 9p, spifs and memfs
+- `minip/` - TCP/IP stack
+- `fdtwalk/` - helpers that configure the system from a device tree
+- `uefi/` - UEFI loader for running UEFI applications such as the Android GBL
+- `unittest/` - the unit test framework behind `ut all`
+- `backtrace/`, `symtab/` - frame pointer stack walks and in-kernel symbol lookup
 
 ### `/dev/`
-Device drivers organized by category:
-- `bus/` - Bus drivers (PCI, etc.)
-- `display/` - Display and graphics drivers
-- `interrupt/` - Interrupt controller drivers
-- `net/` - Network device drivers
-- `timer/` - Hardware timer drivers
-- `uart/` - Serial port drivers
-- `usb/` - USB device side drivers
-- `virtio/` - VirtIO device support
+Device drivers, by category:
+- `block/` - AHCI, IDE
+- `bus/` - PCI and PCIe
+- `interrupt/` - interrupt controllers (ARM GIC, RISC-V PLIC, ...)
+- `net/` - network interface drivers
+- `timer/` - timer drivers
+- `uart/` - serial ports
+- `usb/` - USB device side stack
+- `virtio/` - virtio block, net, gpu, rng and 9p
+- `fbcon/`, `gpio/`, `gpio_i2c/`, `keys/`, `power/`, `cache/` - smaller drivers and interfaces
 
 ### `/platform/`
-Platform specific code (not all listed):
-- `qemu-*/` - QEMU virtual machine platforms
-- `fvp-base/` - ARM Fixed Virtual Platform support
-- `stm32*/` - Support for various STM32 SOCs
-- Hardware-specific board support packages
-- Platform initialization and device tree handling
+SoC or system level support: memory map, interrupt controller and timer setup, device
+discovery. Examples:
+- `qemu-virt-arm/`, `qemu-virt-riscv/`, `qemu-virt-m68k/`, `pc/` - emulated and PC platforms
+- `fvp-base/` - ARM Fixed Virtual Platform
+- `stm32*/`, `nrf5*/`, `rp2*/`, `lpc*/` - microcontroller families
+- `jh7110/`, `spacemit-k1/`, `eic7700/`, `sifive/` - RISC-V SoCs
 
 ### `/target/`
-Target specific code:
-- A specific board or combination of platform and architecture. For example:
-- `stm32f4-discovery`
-- `pc-x86`
-- `pico`
+A board: one platform plus board specific details such as pin assignments, clocks and
+memory size. Each lives in `target/<board>/rules.mk`. For example `stm32f4-discovery`
+selects the `stm32f4xx` platform, which in turn selects the `arm` architecture.
+
+### `/project/`
+The buildable configurations. `project/<name>.mk` picks a target and lists the modules to
+include; `make <name>` builds it. `project/virtual/` holds fragments shared by many projects
+(tests, filesystems, networking) and `project/target/` holds per-board fragments.
 
 ### `/app/`
-Application and test code:
-- Test applications for kernel functionality
-- Sample applications demonstrating LK features
-- Shell and command-line interface
-- Network applications and services
-- Location where general embedded device logic go
+Apps start automatically at boot through `APP_START`: the shell, network services, the
+`lkboot` loader, test and benchmark commands in `app/tests/`, and the place for the main
+logic of an embedded product.
 
 ### `/external/`
-Third-party code and libraries:
-- External dependencies
-- Imported code from other projects
-- Third-party drivers and utilities
+Code that originates outside LK, laid out to mirror the tree (`external/lib`,
+`external/arch`, `external/platform`). The build searches `external/` like the root, so
+`external/lib/cksum` is the `lib/cksum` module. Third-party code here keeps its own license.
+
+### `/rust/`
+Rust crates linked into the kernel when a project is built with `USE_RUST=1`.
 
 ### `/scripts/`
-Build and development scripts:
-- `do-qemu*` - QEMU launch scripts for different architectures
-- `fetch-toolchains.py` - Toolchain download utility
-- Build automation and testing scripts
+- `do-qemu*` - build a project and launch it under QEMU
+- `run-qemu-boot-tests.py` - build, boot and run the unit tests across architectures
+- `buildall` - build every project
+- `fetch-toolchains.py` - download prebuilt toolchains
+- `check-module-deps.py` - find `#include`s not covered by `MODULE_DEPS`
 
 ### `/tools/`
-Development and build tools:
-- Custom build utilities
-- Code generation tools
-- Development helpers
+Host tools: `mkimage` and `lkboot` for LK boot images, `bin2h.py`, `nettool.py`.
 
 ### `/docs/`
-Documentation:
-- Architecture documentation
-- Platform-specific guides
-- API documentation
-- Development guides
+Longer documentation, indexed in [index.md](index.md).
 
-## Key Files
+## Build System Files
 
-### `/make/`
-Build system components:
-- Makefile fragments for different components
-- Architecture and platform build rules
-- Toolchain configuration
-
-### Root Directory Files
-- `Makefile` - Main build system entry point
-- `engine.mk` - Core build engine
-- `project/*.mk` - Project configuration files
-- `target/*.mk` - Target-specific build configurations
+- `makefile` - entry point; re-invokes make on `engine.mk` with the search paths
+- `engine.mk` - core build engine: project, target, platform and arch resolution, toolchain
+  selection, global flags
+- `make/` - the shared machinery: `module.mk` (module definition), `compile.mk`,
+  `build.mk` (final link), `macros.mk`, `recurse.mk`, `help.mk`
+- `local.mk` - optional, untracked, silently included for local settings
+- `lk_inc.mk.example` - template for building LK from an outer directory
 
 ## Build System Organization
 
-The LK build system is modular and component-based:
+A build is assembled in four layers:
 
-1. **Projects** (`project/*.mk`) define high-level configurations
-2. **Targets** (`target/*.mk`) specify platform and architecture combinations
-3. **Modules** (scattered throughout source tree) define buildable components
-4. **Rules** (`make/*.mk`) provide build logic for different file types
+1. **Project** (`project/<name>.mk`) - selects a target and lists modules
+2. **Target** (`target/<board>/rules.mk`) - board details; selects a platform
+3. **Platform** (`platform/<soc>/rules.mk`) - SoC support; selects an architecture
+4. **Architecture** (`arch/<arch>/rules.mk`) - CPU support and compiler flags
 
-Each directory can contain:
-- `rules.mk` - Module definition and build rules
-- Source files (`.c`, `.cpp`, `.S`)
-- Local headers and includes
-
-## Module System
-
-LK uses a module-based build system where each component is defined as a module:
+Every component is a module: a directory with a `rules.mk` that lists its sources and its
+dependencies on other modules.
 
 ```make
-# Example module definition in rules.mk
 LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
@@ -152,24 +143,5 @@ MODULE_DEPS += \
 include make/module.mk
 ```
 
-This allows for:
-- Selective compilation of components
-- Dependency management between modules
-- Platform-specific module inclusion/exclusion
-- Modular kernel configuration
-
-## Platform and Architecture Interaction
-
-The relationship between platforms and architectures:
-
-1. **Architecture** (`/arch/`) provides CPU-specific low-level support
-2. **Platform** (`/platform/`) provides system-specific support (generally system-on-chip)
-3. **Target** (`/target/`) combines a specific platform with board specific customization (GPIOs, etc)
-4. **Project** (`/project/`) selects the target and a list of modules to include for a complete system
-
-Example target `stm32f4-discovery` combines:
-- Platform: `stm32f4xx` (support for STM32 F4 series SOC)
-- Architecture: `arm` (32-bit ARM)
-- Modules: Selected via project configuration
-
-This structure allows LK to support diverse hardware while maintaining code reuse and modularity.
+Only modules reachable from the project's list are built. A module's `include/` directory
+is added to the global include path.

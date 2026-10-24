@@ -35,6 +35,9 @@ non-secure world.
   entry point to the non-secure kernel or bootloader. We use little kernel as
   BL33.
 
+The memory usage tables below are the TF-A v2.12.0 debug build's report; other versions
+and build options differ.
+
 #### Memory Usage (bytes) [RAM]
 
 | Component |   Start   |   Limit   |  Size   |  Free   | Total  |
@@ -69,6 +72,10 @@ You can find these settings in the `platform_def.h` header file:
   address](https://github.com/ARM-software/arm-trusted-firmware/blob/v2.12.0/plat/arm/board/fvp/include/platform_def.h#L143)
 
 
+LK does not take the device tree address from `x0`; it reads the DTB at the fixed
+`0x82000000` (`DTB_BASE_VIRT` in `platform/fvp-base/include/platform/fvp-base.h`), so it
+depends on TF-A placing it there.
+
 DTS for FVP Base you can find at [fdts](https://github.com/ARM-software/arm-trusted-firmware/tree/v2.12.0/fdts)
 
 ### Peripheral Address Map
@@ -76,10 +83,13 @@ DTS for FVP Base you can find at [fdts](https://github.com/ARM-software/arm-trus
 The peripheral address map for the FVP Base platform can be found in the following documentation:
 [Base Platform memory map](https://developer.arm.com/documentation/100964/latest/Base-Platform/Base-Platform-memory/Base-Platform-memory-map?lang=en)
 
-Currently, little kernel supports:
+LK uses:
 
-- **UART0,PL011**
-- **GICv2**
+- **UART0** (PL011) at `0x1c090000`, interrupt 37
+- **GICv2**, distributor at `0x2f000000`, CPU interface at `0x2c000000`
+- **Generic timer**, virtual timer (CNTV) on PPI 27
+- **PSCI** for reset and power off
+- **Memory** discovered from the device tree
 
 ### Interrupt Assignment
 
