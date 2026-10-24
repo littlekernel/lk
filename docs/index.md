@@ -1,128 +1,54 @@
-# LK (Little Kernel) Documentation
+# LK Documentation
 
-Welcome to the LK (Little Kernel) documentation. LK is a small operating system designed for embedded systems, offering a lightweight kernel with threading, memory management, and device drivers.
+The [README](../README.md) has the overview of LK: what it is, where it is used, the
+supported architectures and platforms, and a quick start. This page indexes the longer
+documents in the tree.
 
-## Table of Contents
+## Getting started
 
-### Getting Started
-- [Getting Started Guide](getting_started.md) - Quick start guide for building and running LK
-- [TODO List](todo.md) - Current development tasks and known issues
+- [Getting Started Guide](getting_started.md) - fetching a toolchain, the first build, and
+  setting up an out-of-tree project with its own app
+- [AGENTS.md](../AGENTS.md) - a dense reference for the build system (projects, targets,
+  platforms, modules), build options, test runners and code conventions
 
-### Core Kernel Documentation
-- [Threading and Scheduler System](threading_and_scheduler.md) - Comprehensive guide to LK's preemptive multithreading system
-- [Blocking Primitives](blocking_primitives.md) - Synchronization primitives (mutexes, semaphores, events, ports, spinlocks)
-- [Intrusive Lists](list.md) - The lk/list.h doubly linked list and its C++ wrapper
-- [VMM Overview](vmm_overview.md) - Virtual Memory Management system architecture and implementation
-- [Filesystem Layer](fs.md) - The mount namespace, the vnode interface, and how to write a filesystem
-- [Source Tree Structure](source_tree_structure.md) - Organization and structure of the LK source code repository
+## Kernel
 
-### Platform-Specific Documentation
+- [Threading and Scheduler](threading_and_scheduler.md) - threads, priorities, the run queues
+  and SMP scheduling
+- [Blocking Primitives](blocking_primitives.md) - mutexes, semaphores, events, ports and
+  spinlocks
+- [VMM Overview](vmm_overview.md) - boot mappings and the boot allocator, the PMM, address
+  spaces, the arch MMU contract, and user address spaces
+- [Intrusive Lists](list.md) - `lk/list.h` and its C++ wrapper in `lib/lktl`
+- [Filesystem Layer](fs.md) - the mount namespace, the vnode interface, and how to write a
+  filesystem
+- [Source Tree Structure](source_tree_structure.md) - what lives where in the repository
 
-#### ARM Fixed Virtual Platform (FVP)
-- [FVP Base - How to Run](fvp-base/how_to_run.md) - Build and run instructions for FVP Base platform
-- [FVP Base - Internal Overview](fvp-base/internal.md) - Boot sequence, memory layout, and peripheral details
+## Booting, networking and debugging
 
-### Development and Testing
-- [Booting via UEFI (x86-64)](uefi_boot.md) - The in-kernel EFI stub and testing with QEMU + OVMF
-- [Network Setup for QEMU](lk_tap.md) - Setting up tun/tap networking for QEMU testing
-- [GDB Debug Support for GBL](gdb_debug_support_for_gbl.md) - Debugging GBL using GDB with UEFI debug support protocol
+- [Booting via UEFI (x86-64)](uefi_boot.md) - the in-kernel EFI stub, tested with QEMU and OVMF
+- [UEFI loader](../lib/uefi/README.md) - `lib/uefi`, which loads and runs UEFI applications
+  from LK: running it and its regression tests
+- [GDB Debug Support for GBL](gdb_debug_support_for_gbl.md) - debugging GBL through the UEFI
+  debug support protocol
+- [Network Setup for QEMU](lk_tap.md) - tun/tap networking for QEMU runs
 
-## Architecture Overview
+## Platforms and boards
 
-LK is designed as a modular kernel with the following key components:
+- ARM Fixed Virtual Platform: [how to run](fvp-base/how_to_run.md) and
+  [internal overview](fvp-base/internal.md) (boot sequence, memory map, peripherals)
+- [ARM MPS2/MPS3](../platform/mps2/README.md) - the QEMU Cortex-M boards that cover every
+  core generation from M3 to M55
+- [SiFive HiFive Premier P550](../target/hifive-premier-p550/README.md)
+- [Banana Pi BPI-F3](../target/bananapi-f3/README.md)
 
-- **Threading System**: Preemptive multithreading with priority-based scheduling
-- **Memory Management**: Physical memory management (PMM) and virtual memory management (VMM)
-- **Synchronization**: Comprehensive set of blocking primitives for thread coordination
-- **Device Support**: Drivers for common embedded peripherals
-- **Platform Abstraction**: Support for multiple CPU architectures and platforms
+## Components
 
-## Supported Architectures
+- [spifs](../lib/fs/spifs/README.md) - a small flat filesystem for SPI NOR flash
 
-- ARM (32-bit and 64-bit)
-- RISC-V (32-bit and 64-bit)
-- x86/x86_64
-- Motorola 68000
-- MIPS
-- VAX (experimental)
+## Project
 
-## Supported Platforms
-
-- QEMU virtual platforms (ARM, RISC-V, x86)
-- ARM Fixed Virtual Platform (FVP)
-- Various embedded development boards
-- Custom hardware platforms
-
-## Key Features
-
-- **Real-time capable**: Priority-based preemptive scheduler with real-time thread support
-- **Memory protection**: Virtual memory management with address space isolation
-- **SMP support**: Symmetric multiprocessing for multi-core systems
-- **Modular design**: Component-based architecture for easy customization
-- **Small footprint**: Designed for resource-constrained embedded systems
-
-## Contributing
-
-LK is an open-source project. For the latest development status and to contribute:
-
-- [GitHub Repository](https://github.com/littlekernel/lk)
-- [Issue Tracker](https://github.com/littlekernel/lk/issues)
-
-## Quick Start
-
-1. Install or build a recent version of qemu. Make sure qemu-system-riscv64 is in your path.
-
-2. Clone the repository:
-
-   ```bash
-   git clone https://github.com/littlekernel/lk
-   cd lk
-   ```
-
-3. Download a toolchain:
-
-   ```bash
-   scripts/fetch-toolchains.py --prefix riscv64-elf
-   export PATH=$PWD/toolchain/riscv64-elf-15.1.0-Linux-x86_64/bin:$PATH
-   ```
-
-4. Build and run:
-
-   ```bash
-   make qemu-virt-riscv64-test
-   scripts/do-qemuriscv -6S
-   ```
-
-For detailed instructions, see the [Getting Started Guide](getting_started.md).
-
-This will get you a interactive prompt into LK which is running in qemu
-arm64 machine 'virt' emulation. type 'help' for commands.
-
-Note: for ubuntu x86-64
-sudo apt-get install gcc-aarch64-linux-gnu
-or fetch a prebuilt toolchain from
-https://newos.org/toolchains/aarch64-elf-15.1.0-Linux-x86_64.tar.xz
-
-### Building with LLVM-based toolchains
-
-To build LK with a LLVM-based toolchain you will have to manually specify the compiler and linker in the environemnt.
-Unlike GCC clang is a cross-compiler by default, so the target needs to be specified as part of the CC/CXX/CPP variables.
-For example, assuming LLVM is in `/opt/llvm/bin/`, the following command will work to build for 64-bit RISC-V:
-
-```bash
-gmake qemu-virt-riscv64-test 'CC=/opt/llvm/bin/clang --target=riscv64-unknown-elf' 'CPP=/opt/llvm/bin/clang-cpp --target=riscv64-unknown-elf' 'CXX=/opt/llvm/bin/clang++ --target=riscv64-unknown-elf' 'LD=/opt/llvm/bin/ld.lld' TOOLCHAIN_PREFIX=/opt/llvm/bin/llvm- CPPFILT=/opt/llvm/bin/llvm-cxxfilt
-```
-
-TOOLCHAIN_PREFIX can be set to use the LLVM binutils, but due to the different naming of `llvm-cxxfilt` vs `c++filt` it needs to be set explicitly.
-
-To build for AArch64 the command looks similar, just with a different `--target=` flag.
-
-```bash
-gmake qemu-virt-arm64-test 'CC=/opt/llvm/bin/clang --target=aarch64-unknown-elf' 'CPP=/opt/llvm/bin/clang-cpp --target=aarch64-unknown-elf' 'CXX=/opt/llvm/bin/clang++ --target=aarch64-unknown-elf' 'LD=/opt/llvm/bin/ld.lld' TOOLCHAIN_PREFIX=/opt/llvm/bin/llvm- CPPFILT=/opt/llvm/bin/llvm-cxxfilt
-```
-
----
-
-## [TODO](todo.md)
-
-*This documentation covers the core aspects of the LK kernel. For specific implementation details, refer to the source code and individual documentation files.*
+- [TODO list](todo.md) - open work, ideas and recently landed changes
+- [GitHub repository](https://github.com/littlekernel/lk),
+  [issues](https://github.com/littlekernel/lk/issues), and `#lk` on
+  [Libera.Chat](https://libera.chat)

@@ -7,12 +7,11 @@ This document describes the organization and structure of the Little Kernel (LK)
 ### `/arch/`
 Architecture-specific code for different CPU architectures:
 - `arm/` - ARM 32-bit and cortex-m support
-- `arm64/` - ARM 32-bit and 64-bit support
+- `arm64/` - ARM 64-bit support
 - `riscv/` - RISC-V 32-bit and 64-bit support
 - `m68k/` - Motorola 68000 support
 - `mips/` - MIPS support
 - `x86/` - x86 and x86_64 support
-- `vax/` - VAX support (experimental)
 
 Each architecture directory contains:
 - CPU-specific initialization code
@@ -37,7 +36,6 @@ Library and utility code:
 - `libc/` - Basic C library functions
 - `libcpp/` - Subset of the C++ standard library
 - `lktl/` - LK's own C++ library (namespace `lk`), header only
-- `libm/` - Math library
 - `bio/` - Block I/O layer
 - `fs/` - File system support
 - `heap/` - Dynamic memory allocation

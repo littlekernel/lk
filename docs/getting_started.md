@@ -49,6 +49,15 @@ make qemu-virt-riscv64-test TOOLCHAIN=clang LD=ld.lld
 make qemu-virt-riscv64-test TOOLCHAIN=clang LTO_MODE=thin
 ```
 
+`TOOLCHAIN=clang` uses the `clang` on the PATH and the LLVM tools installed beside it, or
+failing that the newest `/usr/lib/llvm-*/bin`. Clang is a cross compiler already, so no
+target-specific toolchain is needed. Point `CLANG_BINDIR` at another LLVM install to use
+that instead:
+
+```bash
+make qemu-virt-riscv64-test TOOLCHAIN=clang LD=ld.lld CLANG_BINDIR=/opt/llvm/bin
+```
+
 6. Test the kernel with Qemu using the provided script
 
 ```bash
