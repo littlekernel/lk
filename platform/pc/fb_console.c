@@ -7,7 +7,6 @@
 #include <dev/display.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
-#include <kernel/spinlock.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <lk/trace.h>
@@ -27,7 +26,6 @@ static void *display_fb_region;
 static bool display_initialized = false;
 static uint32_t foreground_color = 0x00FFFFFF;
 static uint32_t background_color = 0x00000000;
-static spin_lock_t fb_console_lock = SPIN_LOCK_INITIAL_VALUE;
 
 /* Double buffering for improved scroll performance */
 static void *display_backbuffer = NULL;
@@ -339,8 +337,6 @@ void fb_console_dputc(char c) {
         return;
     }
 
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&fb_console_lock);
-
     switch (c) {
         case '\t':
             curr_x = (curr_x + 8) & ~7; // Move to next tab
@@ -384,7 +380,5 @@ void fb_console_dputc(char c) {
         scroll();
         curr_y = view_window.y2;
     }
-
-    spin_unlock_irqrestore(&fb_console_lock, state);
 }
 

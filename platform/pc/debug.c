@@ -10,6 +10,7 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lib/cbuf.h>
+#include <lk/err.h>
 #include <lk/reg.h>
 #include <platform.h>
 #include <platform/debug.h>
@@ -40,8 +41,14 @@ static const int uart_irq =
 
 cbuf_t console_input_buf;
 
-/* serializes console output, and guards the uart and VGA console state */
+/*
+ * Serializes console output, and guards the uart, VGA and framebuffer console
+ * state. Output that re-enters on the cpu already holding it, from a fault or NMI
+ * partway through a character, goes ahead without it so that the crash report
+ * still comes out instead of deadlocking.
+ */
 static spin_lock_t console_lock = SPIN_LOCK_INITIAL_VALUE;
+static int console_lock_owner = -1;
 
 /*
  * THRE with the FIFO on means the whole FIFO is free, so the line status only has
@@ -109,6 +116,24 @@ static void debug_uart_putc(char c) {
     uart_tx_free--;
 }
 
+// interrupts disabled; returns false if this cpu already held the lock
+static bool console_lock_acquire(void) {
+    const int cpu = (int)arch_curr_cpu_num();
+    if (console_lock_owner == cpu) {
+        return false;
+    }
+    spin_lock(&console_lock);
+    console_lock_owner = cpu;
+    return true;
+}
+
+static void console_lock_release(bool acquired) {
+    if (acquired) {
+        console_lock_owner = -1;
+        spin_unlock(&console_lock);
+    }
+}
+
 // console_lock held
 static void console_putc(char c, bool fb_console) {
     if (fb_console) {
@@ -122,20 +147,52 @@ static void console_putc(char c, bool fb_console) {
 void platform_dputc(char c) {
     const bool fb_console = fb_console_present();
 
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&console_lock);
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
+    const bool acquired = console_lock_acquire();
     if (c == '\n') {
         console_putc('\r', fb_console);
     }
     console_putc(c, fb_console);
-    spin_unlock_irqrestore(&console_lock, state);
+    console_lock_release(acquired);
+    arch_interrupt_restore(state);
 }
 
 int platform_dgetc(char *c, bool wait) {
     // whoever reads input is looking at the cursor
     if (!fb_console_present() && vga_console_present()) {
-        arch_interrupt_saved_state_t state = spin_lock_irqsave(&console_lock);
+        arch_interrupt_saved_state_t state = arch_interrupt_save();
+        const bool acquired = console_lock_acquire();
         vga_console_sync_cursor();
-        spin_unlock_irqrestore(&console_lock, state);
+        console_lock_release(acquired);
+        arch_interrupt_restore(state);
     }
     return cbuf_read_char(&console_input_buf, c, wait);
+}
+
+/*
+ * Panic time i/o, for the panic shell: the polled uart only, without console_lock
+ * and without touching the screens, so it works whatever state a crashed cpu left
+ * the console in. Input is polled since the panic shell runs with interrupts off.
+ */
+static void panic_uart_putc(char c) {
+    while ((inp(uart_io_port + 5) & (1 << 5)) == 0); // THRE
+    outp(uart_io_port + 0, c);
+}
+
+void platform_pputc(char c) {
+    if (c == '\n') {
+        panic_uart_putc('\r');
+    }
+    panic_uart_putc(c);
+}
+
+int platform_pgetc(char *c, bool wait) {
+    do {
+        if (inp(uart_io_port + 5) & (1 << 0)) { // data ready
+            *c = inp(uart_io_port + 0);
+            return 0;
+        }
+    } while (wait);
+
+    return ERR_NOT_READY;
 }

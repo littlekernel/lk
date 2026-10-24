@@ -23,6 +23,7 @@ struct fb_console_boot_info {
 void fb_console_init(const struct fb_console_boot_info *boot_info);
 void fb_console_init_postvm(void);
 bool fb_console_present(void);
+// Not locked; platform_dputc serializes callers.
 void fb_console_dputc(char c);
 
 __END_CDECLS
