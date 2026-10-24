@@ -450,6 +450,14 @@ Console commands are placed in linker section `"console_cmds"` and auto-register
 
 **Note:** If `lib/console` not in build, these macros expand to nothing and the code should not be emitted.
 
+**Panic shell.** Platforms that set `PLATFORM_SUPPORTS_PANIC_SHELL` drop into a polled shell on the
+debug uart after a panic, running with interrupts off and with whatever locks the crashed thread
+held. It only offers commands registered with `STATIC_COMMAND_MASKED(..., CMD_AVAIL_ALWAYS)` (or
+`CMD_AVAIL_PANIC` for panic-only ones). Mark a command that way only if it takes no locks, does not
+allocate and does not block: a mutex asserts there, and anything reached through ACPI takes one. A
+command that normally needs a lock checks `console_in_panic_shell()` to skip it, or to refuse the
+subcommands that cannot work there; `threads`, `heap`, `pmm` and `vm` are examples.
+
 #### Defining Applications
 
 Apps start automatically at boot (unless `APP_FLAG_NO_AUTOSTART`):
