@@ -8,6 +8,7 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 __BEGIN_CDECLS
@@ -27,7 +28,8 @@ void *miniheap_realloc(void *, size_t);
 void miniheap_free(void *);
 
 void miniheap_init(void *ptr, size_t len);
-void miniheap_dump(void);
+// panic_time skips the heap lock, which the crashed thread may hold
+void miniheap_dump(bool panic_time);
 void miniheap_trim(void);
 
 __END_CDECLS

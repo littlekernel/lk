@@ -100,8 +100,8 @@ void dump_callback(void *start, void *end, size_t used_bytes, void *arg) {
     printf("\t\tstart %p end %p used_bytes %zu\n", start, end, used_bytes);
 }
 
-static inline void HEAP_DUMP(void) {
-    struct mallinfo minfo = dlmallinfo();
+static inline void HEAP_DUMP(bool panic_time) {
+    struct mallinfo minfo = panic_time ? dlmallinfo_unlocked() : dlmallinfo();
 
     printf("\tmallinfo (dlmalloc):\n");
     printf("\t\tarena space 0x%zx\n", minfo.arena);
@@ -111,6 +111,11 @@ static inline void HEAP_DUMP(void) {
     printf("\t\ttotal allocated 0x%zx\n", minfo.uordblks);
     printf("\t\tfree 0x%zx\n", minfo.fordblks);
     printf("\t\treleasable space 0x%zx\n", minfo.keepcost);
+
+    if (panic_time) {
+        printf("\theap block list: not available in the panic shell, it takes the heap lock\n");
+        return;
+    }
 
     printf("\theap block list:\n");
 
@@ -247,16 +252,23 @@ void heap_delayed_free(void *ptr) {
     spin_unlock_irqrestore(&delayed_free_lock, state);
 }
 
-static void heap_dump(void) {
-    HEAP_DUMP();
+// panic_time skips the heap locks, which the crashed thread may hold
+static void heap_dump(bool panic_time) {
+    HEAP_DUMP(panic_time);
 
     printf("\tdelayed free list:\n");
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&delayed_free_lock);
+    arch_interrupt_saved_state_t state = arch_interrupt_save();
+    if (!panic_time) {
+        spin_lock(&delayed_free_lock);
+    }
     struct list_node *node;
     list_for_every(&delayed_free_list, node) {
         printf("\t\tnode %p\n", node);
     }
-    spin_unlock_irqrestore(&delayed_free_lock, state);
+    if (!panic_time) {
+        spin_unlock(&delayed_free_lock);
+    }
+    arch_interrupt_restore(state);
 }
 
 #if LK_DEBUGLEVEL > 1
@@ -264,7 +276,7 @@ static void heap_dump(void) {
 static int cmd_heap(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
-STATIC_COMMAND("heap", "heap debug commands", &cmd_heap)
+STATIC_COMMAND_MASKED("heap", "heap debug commands", &cmd_heap, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_END(heap);
 
 static int cmd_heap(int argc, const console_cmd_args *argv) {
@@ -283,7 +295,11 @@ usage:
     }
 
     if (strcmp(argv[1].str, "info") == 0) {
-        heap_dump();
+        heap_dump(console_in_panic_shell());
+    } else if (console_in_panic_shell()) {
+        printf("%s %s: not available in the panic shell, only info is\n", argv[0].str,
+               argv[1].str);
+        return ERR_NOT_SUPPORTED;
     } else if (strcmp(argv[1].str, "trace") == 0) {
         heap_trace = !heap_trace;
         printf("heap trace is now %s\n", heap_trace ? "on" : "off");

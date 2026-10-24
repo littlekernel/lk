@@ -348,6 +348,10 @@ void dlmalloc_inspect_all(void(*handler)(void*, void *, size_t, void*),
 */
 
 struct mallinfo dlmallinfo(void);
+
+/* LK: mallinfo without taking the heap lock, for the panic shell. Only reads, but the
+   numbers are inconsistent if another cpu is in the heap at the same time. */
+struct mallinfo dlmallinfo_unlocked(void);
 #endif  /* NO_MALLINFO */
 
 /*

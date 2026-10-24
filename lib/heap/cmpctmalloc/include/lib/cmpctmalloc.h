@@ -8,6 +8,7 @@
 #pragma once
 
 #include <lk/compiler.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 __BEGIN_CDECLS
@@ -18,7 +19,8 @@ void cmpct_free(void *);
 void *cmpct_memalign(size_t size, size_t alignment);
 
 void cmpct_init(void);
-void cmpct_dump(void);
+// panic_time skips the heap lock, which the crashed thread may hold
+void cmpct_dump(bool panic_time);
 void cmpct_trim(void);
 
 __END_CDECLS

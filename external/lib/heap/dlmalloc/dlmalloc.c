@@ -3548,40 +3548,46 @@ static void do_check_malloc_state(mstate m) {
 /* ----------------------------- statistics ------------------------------ */
 
 #if !NO_MALLINFO
+/* LK: the body of internal_mallinfo, without the lock */
+static struct mallinfo internal_mallinfo_nolock(mstate m) {
+  struct mallinfo nm = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  check_malloc_state(m);
+  if (is_initialized(m)) {
+    size_t nfree = SIZE_T_ONE; /* top always free */
+    size_t mfree = m->topsize + TOP_FOOT_SIZE;
+    size_t sum = mfree;
+    msegmentptr s = &m->seg;
+    while (s != 0) {
+      mchunkptr q = align_as_chunk(s->base);
+      while (segment_holds(s, q) &&
+             q != m->top && q->head != FENCEPOST_HEAD) {
+        size_t sz = chunksize(q);
+        sum += sz;
+        if (!is_inuse(q)) {
+          mfree += sz;
+          ++nfree;
+        }
+        q = next_chunk(q);
+      }
+      s = s->next;
+    }
+
+    nm.arena    = sum;
+    nm.ordblks  = nfree;
+    nm.hblkhd   = m->footprint - sum;
+    nm.usmblks  = m->max_footprint;
+    nm.uordblks = m->footprint - mfree;
+    nm.fordblks = mfree;
+    nm.keepcost = m->topsize;
+  }
+  return nm;
+}
+
 static struct mallinfo internal_mallinfo(mstate m) {
   struct mallinfo nm = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
   ensure_initialization();
   if (!PREACTION(m)) {
-    check_malloc_state(m);
-    if (is_initialized(m)) {
-      size_t nfree = SIZE_T_ONE; /* top always free */
-      size_t mfree = m->topsize + TOP_FOOT_SIZE;
-      size_t sum = mfree;
-      msegmentptr s = &m->seg;
-      while (s != 0) {
-        mchunkptr q = align_as_chunk(s->base);
-        while (segment_holds(s, q) &&
-               q != m->top && q->head != FENCEPOST_HEAD) {
-          size_t sz = chunksize(q);
-          sum += sz;
-          if (!is_inuse(q)) {
-            mfree += sz;
-            ++nfree;
-          }
-          q = next_chunk(q);
-        }
-        s = s->next;
-      }
-
-      nm.arena    = sum;
-      nm.ordblks  = nfree;
-      nm.hblkhd   = m->footprint - sum;
-      nm.usmblks  = m->max_footprint;
-      nm.uordblks = m->footprint - mfree;
-      nm.fordblks = mfree;
-      nm.keepcost = m->topsize;
-    }
-
+    nm = internal_mallinfo_nolock(m);
     POSTACTION(m);
   }
   return nm;
@@ -5433,6 +5439,13 @@ size_t dlmalloc_set_footprint_limit(size_t bytes) {
 struct mallinfo dlmallinfo(void) {
   return internal_mallinfo(gm);
 }
+
+#if defined(LK)
+struct mallinfo dlmallinfo_unlocked(void) {
+  ensure_initialization();
+  return internal_mallinfo_nolock(gm);
+}
+#endif
 #endif /* NO_MALLINFO */
 
 #if !NO_MALLOC_STATS

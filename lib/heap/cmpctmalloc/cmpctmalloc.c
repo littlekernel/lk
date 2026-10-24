@@ -67,8 +67,10 @@ static void dump_free(header_t *header) {
             header->size);
 }
 
-void cmpct_dump(void) {
-    lock();
+void cmpct_dump(bool panic_time) {
+    if (!panic_time) {
+        lock();
+    }
     dprintf(INFO, "Heap dump (using cmpctmalloc):\n");
     dprintf(INFO, "\tsize %lu, remaining %lu\n", (unsigned long)theheap.size,
             (unsigned long)theheap.remaining);
@@ -86,7 +88,10 @@ void cmpct_dump(void) {
             dump_free(&free_area->header);
         }
     }
-    unlock();
+
+    if (!panic_time) {
+        unlock();
+    }
 }
 
 // Operates in sizes that don't include the allocation header.

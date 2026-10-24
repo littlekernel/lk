@@ -133,17 +133,22 @@ static void dump_free_chunk(struct free_heap_chunk *chunk) {
             chunk->len);
 }
 
-void miniheap_dump(void) {
+void miniheap_dump(bool panic_time) {
     dprintf(INFO, "Heap dump (using miniheap):\n");
     dprintf(INFO, "\tbase %p, len 0x%zx\n", theheap.base, theheap.len);
     dprintf(INFO, "\tfree list:\n");
 
-    mutex_acquire(&theheap.lock);
+    if (!panic_time) {
+        mutex_acquire(&theheap.lock);
+    }
 
     for (struct free_heap_chunk *chunk = theheap.free_list; chunk; chunk = chunk->next) {
         dump_free_chunk(chunk);
     }
-    mutex_release(&theheap.lock);
+
+    if (!panic_time) {
+        mutex_release(&theheap.lock);
+    }
 }
 
 // try to insert this free chunk into the free list, consuming the chunk by merging it with
