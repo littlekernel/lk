@@ -269,24 +269,29 @@ static bool int_vector_same(const struct int_vector *a, const struct int_vector 
 // Dump the whole vector table 0-255. Runs of vectors whose entries are identical (which in
 // practice means runs of unallocated dynamic vectors, or the unused tail of a fixed range)
 // are collapsed into a single line so the interesting entries stand out.
+static struct int_vector read_int_vector(uint vector) {
+    /* the crashed thread may hold the lock */
+    if (console_in_panic_shell()) {
+        return int_table[vector];
+    }
+
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
+    struct int_vector v = int_table[vector];
+    spin_unlock_irqrestore(&lock, state);
+    return v;
+}
+
 static void dump_vector_table(void) {
     printf("vector     range          alloc type     trig  gsi   handler(s)\n");
 
     uint start = 0;
-    struct int_vector cur;
-    {
-        arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
-        cur = int_table[0];
-        spin_unlock_irqrestore(&lock, state);
-    }
+    struct int_vector cur = read_int_vector(0);
 
     for (uint i = 1; i <= INT_VECTORS; i++) {
         struct int_vector next = {};
         bool same = false;
         if (i < INT_VECTORS) {
-            arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
-            next = int_table[i];
-            spin_unlock_irqrestore(&lock, state);
+            next = read_int_vector(i);
             // don't merge across the named ranges so the range column stays meaningful
             same = int_vector_same(&cur, &next) &&
                    vector_range_name(start) == vector_range_name(i);
@@ -342,6 +347,11 @@ static int cmd_ioapic(int argc, const console_cmd_args *argv) {
     }
 
     if (!strcmp(argv[1].str, "irq")) {
+        if (console_in_panic_shell()) {
+            printf("%s irq: not available in the panic shell, the route lookup uses ACPI\n",
+                   argv[0].str);
+            return ERR_NOT_SUPPORTED;
+        }
         if (argc < 3) {
             printf("usage: %s irq <legacy_irq>\n", argv[0].str);
             return -1;
@@ -926,8 +936,10 @@ void platform_init_interrupts_postvm(void) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("ioapic", "dump ioapic redirection state; ioapic irq <n>; ioapic gsi <n>; ioapic vectors",
-               &cmd_ioapic)
-STATIC_COMMAND("vectors", "dump the cpu interrupt vector table", &cmd_vectors)
+STATIC_COMMAND_MASKED("ioapic",
+               "dump ioapic redirection state; ioapic irq <n>; ioapic gsi <n>; ioapic vectors",
+               &cmd_ioapic, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("vectors", "dump the cpu interrupt vector table", &cmd_vectors,
+               CMD_AVAIL_ALWAYS)
 STATIC_COMMAND("irqroute", "show legacy irq to gsi/ioapic route", &cmd_irqroute)
 STATIC_COMMAND_END(pc_interrupts);
