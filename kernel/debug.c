@@ -28,18 +28,17 @@
 #include <stdio.h>
 
 static int cmd_threads(int argc, const console_cmd_args *argv);
-static int cmd_threads_panic(int argc, const console_cmd_args *argv);
 static int cmd_threadstats(int argc, const console_cmd_args *argv);
 static int cmd_threadload(int argc, const console_cmd_args *argv);
 static int cmd_kevlog(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
-STATIC_COMMAND("threads", "list kernel threads", &cmd_threads)
-STATIC_COMMAND_MASKED("threads", "list kernel threads", &cmd_threads_panic, CMD_AVAIL_PANIC)
+STATIC_COMMAND_MASKED("threads", "list kernel threads", &cmd_threads, CMD_AVAIL_ALWAYS)
 #endif
 #if THREAD_STATS
-STATIC_COMMAND("threadstats", "thread level statistics", &cmd_threadstats)
+STATIC_COMMAND_MASKED("threadstats", "thread level statistics", &cmd_threadstats,
+                      CMD_AVAIL_ALWAYS)
 STATIC_COMMAND("threadload", "toggle thread load display", &cmd_threadload)
 #endif
 #if WITH_KERNEL_EVLOG
@@ -50,17 +49,12 @@ STATIC_COMMAND_END(kernel);
 #if LK_DEBUGLEVEL > 1
 static int cmd_threads(int argc, const console_cmd_args *argv) {
     printf("thread list:\n");
-    dump_all_threads();
-
-    return 0;
-}
-
-static int cmd_threads_panic(int argc, const console_cmd_args *argv) {
-    /* call the unsafe version of the thread dump routine since the
-     * thread lock may be held at crash time.
-     */
-    printf("thread list:\n");
-    dump_all_threads_unlocked();
+    /* the crashed thread may hold the thread lock */
+    if (console_in_panic_shell()) {
+        dump_all_threads_unlocked();
+    } else {
+        dump_all_threads();
+    }
 
     return 0;
 }
@@ -87,7 +81,12 @@ static int cmd_threadstats(int argc, const console_cmd_args *argv) {
         printf("\ttimers: %lu\n", thread_stats[i].timers);
     }
 
-    dump_threads_stats();
+    /* the crashed thread may hold the thread lock */
+    if (console_in_panic_shell()) {
+        dump_threads_stats_unlocked();
+    } else {
+        dump_threads_stats();
+    }
     return 0;
 }
 

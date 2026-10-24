@@ -171,6 +171,7 @@ bool arch_thread_get_backtrace_regs(const thread_t *t, uintptr_t *pc, uintptr_t 
 void dump_all_threads(void);
 void dump_all_threads_unlocked(void);
 void dump_threads_stats(void);
+void dump_threads_stats_unlocked(void);
 
 // scheduler routines
 void thread_yield(void); // give up the cpu voluntarily

@@ -1047,10 +1047,9 @@ void dump_all_threads(void) {
 }
 
 #if THREAD_STATS
-void dump_threads_stats(void) {
+void dump_threads_stats_unlocked(void) {
     thread_t *t;
 
-    THREAD_LOCK(state);
     list_for_every_entry (&thread_list, t, thread_t, thread_list_node) {
         if (t->magic != THREAD_MAGIC) {
             dprintf(INFO, "bad magic on thread struct %p, aborting.\n", t);
@@ -1068,6 +1067,11 @@ void dump_threads_stats(void) {
                 percent / 100, percent % 100);
         dprintf(INFO, "\t\tLast time run: %lld\n", t->stats.last_run_timestamp);
     }
+}
+
+void dump_threads_stats(void) {
+    THREAD_LOCK(state);
+    dump_threads_stats_unlocked();
     THREAD_UNLOCK(state);
 }
 #endif

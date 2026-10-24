@@ -30,6 +30,18 @@ typedef int (*console_cmd_func)(int argc, const console_cmd_args *argv);
 #define CMD_AVAIL_PANIC  (0x1 << 1)
 #define CMD_AVAIL_ALWAYS (CMD_AVAIL_NORMAL | CMD_AVAIL_PANIC)
 
+/* True on the cpu running the panic shell, where interrupts are off and the crashed thread
+ * may hold any lock. CMD_AVAIL_ALWAYS commands check it to skip locks and to refuse
+ * anything that would block or allocate.
+ */
+#if WITH_LIB_CONSOLE
+bool console_in_panic_shell(void);
+#else
+static inline bool console_in_panic_shell(void) {
+    return false;
+}
+#endif
+
 __END_CDECLS
 
 /* Register a static block of commands at init time when lib/console is
