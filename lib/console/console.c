@@ -41,7 +41,7 @@
 // writes the split up tokens into, which keeps the two in sync.
 #define MAX_LINE_LEN 1024
 
-#define PANIC_LINE_LEN 32
+#define PANIC_LINE_LEN 80
 
 #define MAX_NUM_ARGS 16
 
