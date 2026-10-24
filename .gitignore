@@ -9,6 +9,7 @@
 .clangd
 .mypy_cache
 .rsync-filter
+.serena
 .vscode
 TAGS
 __pycache__/
