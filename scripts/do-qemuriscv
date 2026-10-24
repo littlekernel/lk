@@ -136,7 +136,7 @@ fi
 if [[ -z "$PROJECT" ]]; then
     PROJECT=$_PROJECT
 fi
-if [[ -z "$MEMSIZE" ]]; then
+if (( ! MEMSIZE )); then
     MEMSIZE=$_MEMSIZE
 fi
 
