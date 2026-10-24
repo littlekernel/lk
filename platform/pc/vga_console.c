@@ -7,68 +7,117 @@
  * https://opensource.org/licenses/MIT
  */
 #include <arch/x86.h>
-#include <lib/io.h>
+#include <assert.h>
 #include <platform/pc.h>
 #include <platform/vga_console.h>
-#include <stdarg.h>
-#include <stdio.h>
+#include <string.h>
 
-/* memory mapped framebuffer */
-#define FB (0xB8000U + KERNEL_ASPACE_BASE)
+/*
+ * 80x25 text mode console.
+ *
+ * Under a hypervisor every access to text memory and every CRTC port write is a
+ * trap, so the console never reads text memory back and keeps writes to a
+ * minimum: the screen contents live in a RAM copy, scrolling moves the CRTC start
+ * address down through the 32KB text window instead of copying the screen, and
+ * only the newly exposed row is written. When the window runs out the screen is
+ * rewritten from the RAM copy at the top of the window. The hardware cursor follows
+ * at each newline and when vga_console_sync_cursor() is called, not on every
+ * character.
+ */
 
-/* CGA values */
-#define CURSOR_START      0x0A
-#define CURSOR_END        0x0B
-#define VIDEO_ADDRESS_MSB 0x0C
-#define VIDEO_ADDRESS_LSB 0x0D
-#define CURSOR_POS_MSB    0x0E
-#define CURSOR_POS_LSB    0x0F
+/* text memory window, in character cells */
+#define VRAM       ((volatile uint16_t *)(0xB8000U + KERNEL_ASPACE_BASE))
+#define VRAM_CELLS (0x8000 / 2)
 
-/* curr settings */
-static unsigned char curr_x;
-static unsigned char curr_y;
-static unsigned char curr_start;
-static unsigned char curr_end;
-static unsigned char curr_attr = 0x7;
+#define COLS        80
+#define ROWS        25
+#define CELLS       (COLS * ROWS)
+#define TAB_WIDTH   8
+#define ATTR        0x07
+#define BLANK       ((ATTR << 8) | ' ')
 
-/* video page buffer */
-#define VPAGE_SIZE 2048
-#define PAGE_MAX   8
+/* CRTC registers */
+#define CRTC_START_HI  0x0C
+#define CRTC_START_LO  0x0D
+#define CRTC_CURSOR_HI 0x0E
+#define CRTC_CURSOR_LO 0x0F
 
-static int active_page = 0;
-static int visual_page = 0;
+/* the RAM copy of the visible screen */
+static uint16_t screen[CELLS];
+
+/* cell offset in text memory of the top row, programmed into the CRTC start address */
+static unsigned int origin;
+static unsigned int curr_x;
+static unsigned int curr_y;
+static bool cursor_dirty;
 static bool console_initialized = false;
 
-static int curs_x[PAGE_MAX];
-static int curs_y[PAGE_MAX];
+/* the stores to text memory are unsigned long sized, which a row is a multiple of */
+static_assert((COLS * sizeof(uint16_t)) % sizeof(unsigned long) == 0, "");
 
-static struct {
-    int x1, y1, x2, y2;
-} view_window = { 0, 0, 79, 24 };
+/* index and data in one 16 bit write, one trap instead of two */
+static void crtc_write16(uint8_t reg_hi, uint8_t reg_lo, uint16_t val) {
+    outpw(CGA_INDEX_REG, (uint16_t)(reg_hi | (val & 0xff00)));
+    outpw(CGA_INDEX_REG, (uint16_t)(reg_lo | (val << 8)));
+}
 
-static void set_visual_page(int page);
-static void set_active_page(int page);
-static int get_visual_page(void);
-static int get_active_page(void);
-static void place(int x, int y);
-static void cursor(int start, int end);
-static void _clear(char c, char attr, int x1, int y1, int x2, int y2);
-static void clear(void);
-static void _scroll(char attr, int x1, int y1, int x2, int y2);
-static void scroll(void);
-static void curr_save(void);
-static void curr_restore(void);
-static void cputs(char *s);
-static void window(int x1, int y1, int x2, int y2);
-static void putc_xy(int x, int y, char attr, char c);
-static void puts_xy(int x, int y, char attr, char *s);
-static int printf_xy(int x, int y, char attr, char *fmt, ...) __PRINTFLIKE(4, 5);
+/* copy screen cells [first, first + count) to text memory, count a multiple of a row */
+static void vram_copy(unsigned int first, unsigned int count) {
+    volatile unsigned long *dst = (volatile unsigned long *)(VRAM + origin + first);
+    const uint16_t *src = screen + first;
+    for (size_t i = 0; i < count * sizeof(uint16_t) / sizeof(unsigned long); i++) {
+        unsigned long w;
+        memcpy(&w, src + i * (sizeof(w) / sizeof(*src)), sizeof(w));
+        dst[i] = w;
+    }
+}
+
+static void update_cursor(void) {
+    crtc_write16(CRTC_CURSOR_HI, CRTC_CURSOR_LO, (uint16_t)(origin + curr_y * COLS + curr_x));
+    cursor_dirty = false;
+}
+
+static void scroll(void) {
+    memmove(screen, screen + COLS, (CELLS - COLS) * sizeof(uint16_t));
+    for (unsigned int i = CELLS - COLS; i < CELLS; i++) {
+        screen[i] = BLANK;
+    }
+
+    if (origin + COLS + CELLS <= VRAM_CELLS) {
+        origin += COLS;
+        vram_copy(CELLS - COLS, COLS);
+    } else {
+        /* the window is off screen at the top, so redrawing there is not visible */
+        origin = 0;
+        vram_copy(0, CELLS);
+    }
+    crtc_write16(CRTC_START_HI, CRTC_START_LO, (uint16_t)origin);
+}
+
+static void newline(void) {
+    if (curr_y == ROWS - 1) {
+        scroll();
+    } else {
+        curr_y++;
+    }
+}
+
+static void put_cell(char c) {
+    const unsigned int i = curr_y * COLS + curr_x;
+    const uint16_t cell = (uint16_t)((ATTR << 8) | (unsigned char)c);
+    screen[i] = cell;
+    VRAM[origin + i] = cell;
+}
 
 void vga_console_init(void) {
-    curr_save();
-    window(0, 0, 79, 24);
-    clear();
-    place(0, 0);
+    for (unsigned int i = 0; i < CELLS; i++) {
+        screen[i] = BLANK;
+    }
+    origin = 0;
+    curr_x = curr_y = 0;
+    vram_copy(0, CELLS);
+    crtc_write16(CRTC_START_HI, CRTC_START_LO, 0);
+    update_cursor();
     console_initialized = true;
 }
 
@@ -76,185 +125,42 @@ bool vga_console_present(void) {
     return console_initialized;
 }
 
-static void set_visual_page(int page) {
-    unsigned short page_offset = page * VPAGE_SIZE;
-    visual_page = page;
-
-    outp(CGA_INDEX_REG, VIDEO_ADDRESS_LSB);
-    outp(CGA_DATA_REG, page_offset & 0xFF);
-    outp(CGA_INDEX_REG, VIDEO_ADDRESS_MSB);
-    outp(CGA_DATA_REG, (page_offset >> 8) & 0xFF);
-}
-
-static void set_active_page(int page) {
-    curs_x[active_page] = curr_x;
-    curs_y[active_page] = curr_y;
-    curr_x = curs_x[page];
-    curr_y = curs_y[page];
-    active_page = page;
-}
-
-static int get_visual_page(void) {
-    return visual_page;
-}
-
-static int get_active_page(void) {
-    return active_page;
-}
-
-static void place(int x, int y) {
-    unsigned short cursor_word = x + y * 80 + active_page * VPAGE_SIZE;
-
-    /*
-     * program CGA using index reg, then data reg
-     */
-    outp(CGA_INDEX_REG, CURSOR_POS_LSB);
-    outp(CGA_DATA_REG, cursor_word & 0xFF);
-    outp(CGA_INDEX_REG, CURSOR_POS_MSB);
-    outp(CGA_DATA_REG, (cursor_word >> 8) & 0xFF);
-
-    curr_x = x;
-    curr_y = y;
-}
-
-static void cursor(int start, int end) {
-    outp(CGA_INDEX_REG, CURSOR_START);
-    outp(CGA_DATA_REG, start);
-    outp(CGA_INDEX_REG, CURSOR_END);
-    outp(CGA_DATA_REG, end);
-}
-
-static void curr_save(void) {
-#if 0
-    /* grab some info from the bios data area (these should be defined in memmap.h */
-    curr_attr = *((unsigned char *)FB + 159);
-    curr_x = *((unsigned char *)0x00450);
-    curr_y = *((unsigned char *)0x00451);
-    curr_end = *((unsigned char *)0x00460);
-    curr_start = *((unsigned char *)0x00461);
-#endif
-    active_page = visual_page = 0;
-}
-
-static void curr_restore(void) {
-#if 0
-    *((unsigned char *)0x00450) = curr_x;
-    *((unsigned char *)0x00451) = curr_y;
-#endif
-
-    place(curr_x, curr_y);
-    cursor(curr_start, curr_end);
-}
-
-static void window(int x1, int y1, int x2, int y2) {
-    view_window.x1 = x1;
-    view_window.y1 = y1;
-    view_window.x2 = x2;
-    view_window.y2 = y2;
-
-    // place(x1, y1);
-}
-
-static void _clear(char c, char attr, int x1, int y1, int x2, int y2) {
-    register int i, j;
-    unsigned short w = attr;
-
-    w <<= 8;
-    w |= c;
-    for (i = x1; i <= x2; i++) {
-        for (j = y1; j <= y2; j++) {
-            *((unsigned short *)(uintptr_t)(FB + 2 * i + 160 * j + 2 * active_page * VPAGE_SIZE)) =
-                w;
-        }
+void vga_console_sync_cursor(void) {
+    if (cursor_dirty) {
+        update_cursor();
     }
-
-    place(x1, y1);
-    curr_y = y1;
-    curr_x = x1;
-}
-
-static void clear(void) {
-    _clear(' ', curr_attr, view_window.x1, view_window.y1, view_window.x2, view_window.y2);
-}
-
-static void _scroll(char attr, int x1, int y1, int x2, int y2) {
-    register int x, y;
-    unsigned short xattr = attr << 8, w;
-    unsigned char *v = (unsigned char *)(uintptr_t)(FB + active_page * (2 * VPAGE_SIZE));
-
-    for (y = y1 + 1; y <= y2; y++) {
-        for (x = x1; x <= x2; x++) {
-            w = *((unsigned short *)(v + 2 * (y * 80 + x)));
-            *((unsigned short *)(v + 2 * ((y - 1) * 80 + x))) = w;
-        }
-    }
-
-    for (x = x1; x <= x2; x++) {
-        *((unsigned short *)(v + 2 * ((y - 1) * 80 + x))) = xattr;
-    }
-}
-
-static void scroll(void) {
-    _scroll(curr_attr, view_window.x1, view_window.y1, view_window.x2, view_window.y2);
 }
 
 void vga_console_putc(char c) {
-    static unsigned short scan_x, x, y;
-    unsigned char *v = (unsigned char *)(uintptr_t)(FB + active_page * (2 * VPAGE_SIZE));
-    x = curr_x;
-    y = curr_y;
-
     switch (c) {
         case '\t':
-            x += 8;
-            if (x >= view_window.x2 + 1) {
-                x = view_window.x1;
-                if (y == view_window.y2) {
-                    scroll();
-                } else {
-                    y++;
-                }
-            } else {
-                scan_x = 0;
-
-                while ((scan_x + 8) < x) {
-                    scan_x += 8;
-                }
-
-                x = scan_x;
+            curr_x = (curr_x + TAB_WIDTH) & ~(TAB_WIDTH - 1);
+            if (curr_x >= COLS) {
+                curr_x = 0;
+                newline();
             }
             break;
-
         case '\r':
-            x = view_window.x1;
+            curr_x = 0;
             break;
-
         case '\n':
-            if (y == view_window.y2) {
-                scroll();
-            } else {
-                y++;
-            }
-            break;
-
+            newline();
+            update_cursor();
+            return;
         case '\b':
-            x--;
-            *(v + 2 * (x + y * 80)) = ' ';
-            break;
-
-        default:
-            *(v + 2 * (x + y * 80)) = c;
-            x++;
-
-            if (x >= view_window.x2 + 1) {
-                x = view_window.x1;
-                if (y == view_window.y2) {
-                    scroll();
-                } else {
-                    y++;
-                }
+            if (curr_x > 0) {
+                curr_x--;
+                put_cell(' ');
             }
+            break;
+        default:
+            put_cell(c);
+            if (++curr_x == COLS) {
+                curr_x = 0;
+                newline();
+            }
+            break;
     }
 
-    place(x, y);
+    cursor_dirty = true;
 }

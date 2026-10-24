@@ -18,4 +18,7 @@ void vga_console_init(void);
 bool vga_console_present(void);
 void vga_console_putc(char c);
 
+// Move the hardware cursor to the output position, which putc only does at newlines.
+void vga_console_sync_cursor(void);
+
 __END_CDECLS

@@ -7,6 +7,7 @@
  */
 #include <arch/x86.h>
 #include <hw/multiboot.h>
+#include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lib/cbuf.h>
 #include <lk/reg.h>
@@ -38,6 +39,9 @@ static const int uart_irq =
     (DEBUG_COM_PORT == 1 || DEBUG_COM_PORT == 3) ? INT_COM1_COM3 : INT_COM2_COM4;
 
 cbuf_t console_input_buf;
+
+/* serializes console output, and guards the VGA console state */
+static spin_lock_t console_lock = SPIN_LOCK_INITIAL_VALUE;
 
 extern uint32_t _multiboot2_info;
 
@@ -87,12 +91,9 @@ static void debug_uart_putc(char c) {
     outp(uart_io_port + 0, c);
 }
 
-void platform_dputc(char c) {
-    if (c == '\n') {
-        platform_dputc('\r');
-    }
-
-    if (fb_console_present()) {
+// console_lock held
+static void console_putc(char c, bool fb_console) {
+    if (fb_console) {
         fb_console_dputc(c);
     } else if (vga_console_present()) {
         vga_console_putc(c);
@@ -100,6 +101,23 @@ void platform_dputc(char c) {
     debug_uart_putc(c);
 }
 
+void platform_dputc(char c) {
+    const bool fb_console = fb_console_present();
+
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&console_lock);
+    if (c == '\n') {
+        console_putc('\r', fb_console);
+    }
+    console_putc(c, fb_console);
+    spin_unlock_irqrestore(&console_lock, state);
+}
+
 int platform_dgetc(char *c, bool wait) {
+    // whoever reads input is looking at the cursor
+    if (!fb_console_present() && vga_console_present()) {
+        arch_interrupt_saved_state_t state = spin_lock_irqsave(&console_lock);
+        vga_console_sync_cursor();
+        spin_unlock_irqrestore(&console_lock, state);
+    }
     return cbuf_read_char(&console_input_buf, c, wait);
 }
