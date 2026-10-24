@@ -251,6 +251,6 @@ static int cmd_zynq_gpio(int argc, const console_cmd_args *argv) {
 }
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 1
-STATIC_COMMAND("zynq_gpio", "Dump Zynq GPIO registers", &cmd_zynq_gpio)
+STATIC_COMMAND_MASKED("zynq_gpio", "Dump Zynq GPIO registers", &cmd_zynq_gpio, CMD_AVAIL_ALWAYS)
 #endif
 STATIC_COMMAND_END(zynq_gpio);

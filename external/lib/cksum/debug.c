@@ -37,9 +37,9 @@ static int cmd_cksum_bench(int argc, const console_cmd_args *argv);
 
 STATIC_COMMAND_START
 #if LK_DEBUGLEVEL > 0
-STATIC_COMMAND("crc16", "crc16", &cmd_crc16)
-STATIC_COMMAND("crc32", "crc32", &cmd_crc32)
-STATIC_COMMAND("adler32", "adler32", &cmd_adler32)
+STATIC_COMMAND_MASKED("crc16", "crc16", &cmd_crc16, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("crc32", "crc32", &cmd_crc32, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("adler32", "adler32", &cmd_adler32, CMD_AVAIL_ALWAYS)
 #endif
 #if LK_DEBUGLEVEL > 1
 STATIC_COMMAND("bench_cksum", "benchmark the checksum routines", &cmd_cksum_bench)

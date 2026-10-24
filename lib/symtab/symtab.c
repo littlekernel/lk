@@ -79,6 +79,6 @@ static int cmd_sym(int argc, const console_cmd_args *argv) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("sym", "look up the symbol containing an address", &cmd_sym)
+STATIC_COMMAND_MASKED("sym", "look up the symbol containing an address", &cmd_sym, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_END(symtab);
 #endif

@@ -258,15 +258,20 @@ static int cmdline_cmd_int(int argc, const console_cmd_args *argv) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("cmdline", "print the current kernel command line", &cmdline_cmd_show)
-STATIC_COMMAND("cmdline_has", "check whether a command line variable is present",
-               &cmdline_cmd_present)
-STATIC_COMMAND("cmdline_value", "print the raw command line value for a variable",
-               &cmdline_cmd_value)
+STATIC_COMMAND_MASKED("cmdline", "print the current kernel command line",
+               &cmdline_cmd_show, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("cmdline_has", "check whether a command line variable is present",
+               &cmdline_cmd_present, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("cmdline_value", "print the raw command line value for a variable",
+               &cmdline_cmd_value, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND("cmdline_string", "print a command line value as an unescaped string",
                &cmdline_cmd_string)
-STATIC_COMMAND("cmdline_bool", "read a command line variable as a bool", &cmdline_cmd_bool)
-STATIC_COMMAND("cmdline_u32", "read a command line variable as a uint32", &cmdline_cmd_u32)
-STATIC_COMMAND("cmdline_u64", "read a command line variable as a uint64", &cmdline_cmd_u64)
-STATIC_COMMAND("cmdline_int", "read a command line variable as an int", &cmdline_cmd_int)
+STATIC_COMMAND_MASKED("cmdline_bool", "read a command line variable as a bool",
+               &cmdline_cmd_bool, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("cmdline_u32", "read a command line variable as a uint32",
+               &cmdline_cmd_u32, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("cmdline_u64", "read a command line variable as a uint64",
+               &cmdline_cmd_u64, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("cmdline_int", "read a command line variable as an int",
+               &cmdline_cmd_int, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_END(cmdline);

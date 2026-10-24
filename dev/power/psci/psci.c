@@ -94,6 +94,6 @@ static int cmd_psci_version(int argc, const console_cmd_args *argv) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("psci_version", "show psci version", &cmd_psci_version)
+STATIC_COMMAND_MASKED("psci_version", "show psci version", &cmd_psci_version, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_END(psci);
 #endif

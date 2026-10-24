@@ -46,7 +46,7 @@ static int cmd_version(int argc, const console_cmd_args *argv) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("version", "print version", &cmd_version)
+STATIC_COMMAND_MASKED("version", "print version", &cmd_version, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_END(version);
 
 #if LK_DEBUGLEVEL > 0

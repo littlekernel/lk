@@ -475,7 +475,7 @@ STATIC_COMMAND("mtest", "simple memory test", &cmd_memtest)
 STATIC_COMMAND("chain", "chain load another binary", &cmd_chain)
 STATIC_COMMAND("sleep", "sleep number of seconds", &cmd_sleep)
 STATIC_COMMAND("sleepm", "sleep number of milliseconds", &cmd_sleep)
-STATIC_COMMAND("time", "print current time", &cmd_time)
-STATIC_COMMAND("timeh", "print current time hires", &cmd_timeh)
+STATIC_COMMAND_MASKED("time", "print current time", &cmd_time, CMD_AVAIL_ALWAYS)
+STATIC_COMMAND_MASKED("timeh", "print current time hires", &cmd_timeh, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_END(mem);
 

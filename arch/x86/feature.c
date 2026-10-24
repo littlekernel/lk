@@ -707,8 +707,9 @@ static int cmd_cpuinfo(int argc, const console_cmd_args *argv) {
 }
 
 STATIC_COMMAND_START
-STATIC_COMMAND("cpuinfo", "dump x86 cpu identification and features ('cpuinfo raw' for cpuid leaves)",
-               &cmd_cpuinfo)
+STATIC_COMMAND_MASKED("cpuinfo",
+               "dump x86 cpu identification and features ('cpuinfo raw' for cpuid leaves)",
+               &cmd_cpuinfo, CMD_AVAIL_ALWAYS)
 STATIC_COMMAND_END(cpuinfo);
 
 #endif // WITH_LIB_CONSOLE
