@@ -6,6 +6,7 @@
  * https://opensource.org/licenses/MIT
  */
 #include <arch/x86.h>
+#include <lk/console_cmd.h>
 #include <lk/debug.h>
 #include <lk/err.h>
 #include <platform.h>
@@ -38,9 +39,11 @@
 #define BOCHS_ACPI_PM1A_CNT_PORT 0xb004
 #define ACPI_SLP_EN              (1u << 13)
 
+// ACPI runs AML, which takes mutexes, so the panic shell goes straight to the
+// fixed ports. Without ACPI, poweroff only works on QEMU and Bochs.
 static void pc_reboot(void) {
 #if WITH_LIB_ACPI
-    if (acpi_reboot() == NO_ERROR) {
+    if (!console_in_panic_shell() && acpi_reboot() == NO_ERROR) {
         return;
     }
 #endif
@@ -55,7 +58,7 @@ static void pc_reboot(void) {
 
 static void pc_shutdown(void) {
 #if WITH_LIB_ACPI
-    if (acpi_shutdown() == NO_ERROR) {
+    if (!console_in_panic_shell() && acpi_shutdown() == NO_ERROR) {
         return;
     }
 #endif
