@@ -264,30 +264,46 @@ static void FixLeftPointer(header_t *right, header_t *new_left) {
     right->left = (header_t *)(((uintptr_t)new_left & ~1) | tag);
 }
 
-static void *large_alloc(size_t size) {
+// An allocation too big for any bucket gets an OS allocation of its own: left
+// sentinel, the allocation, right sentinel. Any padding needed to align the
+// payload goes into the left sentinel, so freeing the allocation always finds
+// both sentinels as its neighbors and returns the whole OS allocation.
+static void *large_alloc(size_t size, size_t alignment) {
 #ifdef CMPCT_DEBUG
     size_t requested_size = size;
 #endif
     size = ROUNDUP(size, HEAP_ALIGN);
+    // The free area starts HEAP_ALIGN aligned, so aligning the payload moves it
+    // up by at most alignment - HEAP_ALIGN.
+    size_t padding = alignment > HEAP_ALIGN ? alignment - HEAP_ALIGN : 0;
     free_t *free_area = NULL;
     lock();
-    if (heap_grow(size, &free_area) < 0) {
+    // heap_grow() sizes include the allocation header.
+    if (heap_grow(size + sizeof(header_t) + padding, &free_area) < 0) {
         unlock();
         return 0;
     }
-    void *result =
-        create_allocation_header(free_area, 0, free_area->header.size, free_area->header.left);
+    header_t *left_sentinel = untag(free_area->header.left);
+    header_t *right_sentinel = right_header(&free_area->header);
+    size_t area_size = free_area->header.size;
     // Normally the 'remaining free space' counter would be decremented when we
     // unlink the free area from its bucket.  However in this case the free
     // area was too big to go in any bucket and we had it in our own
     // "free_area" variable so there is no unlinking and we have to adjust the
     // counter here.
-    theheap.remaining -= free_area->header.size;
+    theheap.remaining -= area_size;
+
+    uintptr_t payload = ROUNDUP((uintptr_t)(&free_area->header + 1), alignment);
+    header_t *header = (header_t *)payload - 1;
+    size_t shift = (char *)header - (char *)free_area;
+    left_sentinel->size += shift;
+    void *result = create_allocation_header(header, 0, area_size - shift, left_sentinel);
+    FixLeftPointer(right_sentinel, header);
     unlock();
 #ifdef CMPCT_DEBUG
     memset(result, ALLOC_FILL, requested_size);
     memset((char *)result + requested_size, PADDING_FILL,
-           free_area->header.size - (requested_size + sizeof(header_t)));
+           header->size - (requested_size + sizeof(header_t)));
 #endif
     return result;
 }
@@ -368,7 +384,7 @@ void *cmpct_alloc(size_t size) {
     }
 
     if (size + sizeof(header_t) > (1u << HEAP_ALLOC_VIRTUAL_BITS)) {
-        return large_alloc(size);
+        return large_alloc(size, HEAP_ALIGN);
     }
 
     size_t rounded_up;
@@ -422,6 +438,12 @@ void *cmpct_memalign(size_t size, size_t alignment) {
         return cmpct_alloc(size);
     }
     size_t padded_size = size + alignment + sizeof(free_t) + sizeof(header_t);
+    // A large allocation aligns in place. Splitting off a leading fragment
+    // instead would leave it free in the heap, where other allocations can take
+    // it, and then the large allocation could never be returned to the OS.
+    if (padded_size + sizeof(header_t) > (1u << HEAP_ALLOC_VIRTUAL_BITS)) {
+        return large_alloc(size, alignment);
+    }
     char *unaligned = (char *)cmpct_alloc(padded_size);
     if (unaligned == NULL) {
         return NULL;

@@ -330,10 +330,101 @@ static bool test_cmpct_random_allocs(void) {
     END_TEST;
 }
 
+// Allocations bigger than the largest bucket get an OS allocation of their own.
+#define LARGE_ALLOC_SIZE (1u << HEAP_ALLOC_VIRTUAL_BITS)
+
+// Takes every free area in the heap with minimum sized allocations, chained
+// through their first word, so nothing freed afterwards can coalesce with free
+// space. Does not grow the heap.
+static void *soak_free_areas(void) {
+    void *chain = NULL;
+    while (theheap.remaining != 0) {
+        void **p = cmpct_alloc(sizeof(void *));
+        *p = chain;
+        chain = p;
+    }
+    return chain;
+}
+
+static void release_chain(void *chain) {
+    while (chain) {
+        void *next = *(void **)chain;
+        cmpct_free(chain);
+        chain = next;
+    }
+}
+
+// Fills the whole payload, then frees it and checks the OS allocation went
+// back in one piece: an overrun of the payload or a left neighbor that is not
+// the left sentinel would leave the heap bigger than before.
+static bool fill_free_and_check_returned(void *p, size_t size, size_t heap_size_before) {
+    BEGIN_TEST;
+
+    memset(p, 0xa5, size);
+    void *soak = soak_free_areas();
+    cmpct_free(p);
+    EXPECT_EQ(heap_size_before, theheap.size, "large allocation not returned to the OS whole");
+    release_chain(soak);
+
+    END_TEST;
+}
+
+static bool test_cmpct_large_alloc(void) {
+    BEGIN_TEST;
+
+    // Sizes whose OS allocation, sentinels included, lands exactly on a page
+    // boundary, and their neighbors.
+    const size_t base = LARGE_ALLOC_SIZE + PAGE_SIZE - 2 * sizeof(header_t);
+    for (size_t size = base - HEAP_ALIGN; size <= base + HEAP_ALIGN; size += HEAP_ALIGN / 2) {
+        cmpct_trim();
+        size_t heap_size = theheap.size;
+        void *p = cmpct_alloc(size);
+        if (!p) {
+            unittest_printf("skipping, %zu bytes would not allocate ", size);
+            break;
+        }
+        if (!fill_free_and_check_returned(p, size, heap_size)) {
+            unittest_printf("        failed for size %zu\n", size);
+            all_ok = false;
+        }
+    }
+
+    END_TEST;
+}
+
+static bool test_cmpct_large_memalign(void) {
+    BEGIN_TEST;
+
+    const size_t alignments[] = {
+        HEAP_ALIGN * 2, 64, 256, PAGE_SIZE, PAGE_SIZE * 4, LARGE_ALLOC_SIZE / 4,
+    };
+    for (size_t i = 0; i < countof(alignments); i++) {
+        const size_t alignment = alignments[i];
+        cmpct_trim();
+        size_t heap_size = theheap.size;
+        void *p = cmpct_memalign(LARGE_ALLOC_SIZE, alignment);
+        if (!p) {
+            unittest_printf("skipping, %u bytes would not allocate ", LARGE_ALLOC_SIZE);
+            break;
+        }
+        EXPECT_EQ(0u, (uintptr_t)p % alignment, "large memalign misaligned");
+        // Small allocations made while the block is live must not take any of
+        // its OS allocation; the soak in the helper takes any space that is free.
+        if (!fill_free_and_check_returned(p, LARGE_ALLOC_SIZE, heap_size)) {
+            unittest_printf("        failed for alignment %zu\n", alignment);
+            all_ok = false;
+        }
+    }
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(cmpctmalloc_tests)
 RUN_TEST(test_cmpct_buckets)
 RUN_TEST(test_cmpct_get_back_newly_freed)
 RUN_TEST(test_cmpct_return_to_os)
 RUN_TEST(test_cmpct_trim)
 RUN_TEST(test_cmpct_random_allocs)
+RUN_TEST(test_cmpct_large_alloc)
+RUN_TEST(test_cmpct_large_memalign)
 END_TEST_CASE(cmpctmalloc_tests)
