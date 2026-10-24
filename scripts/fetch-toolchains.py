@@ -25,6 +25,19 @@ DEFAULT_TOOLCHAIN_DIR = LK_ROOT.joinpath("toolchain")
 
 TAR_EXT = ".tar.xz"
 
+# The prefixes the arch rules.mk/toolchain.mk files default to. The host carries
+# more, for architectures LK no longer supports.
+LK_PREFIXES = [
+    "aarch64-elf",
+    "arm-eabi",
+    "i386-elf",
+    "m68k-elf",
+    "mips-elf",
+    "riscv32-elf",
+    "riscv64-elf",
+    "x86_64-elf",
+]
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -39,9 +52,14 @@ def main() -> int:
     )
     parser.add_argument(
         "--prefix",
-        help="a toolchain prefix on which to match. If none are specified, all prefixes"
-        " will match",
+        help="a toolchain prefix on which to match. If none are specified, the prefixes"
+        " LK uses will match: " + " ".join(LK_PREFIXES),
         nargs="*",
+    )
+    parser.add_argument(
+        "--all",
+        help="match every prefix on the host, not just the ones LK uses",
+        action="store_true",
     )
     parser.add_argument(
         "--version",
@@ -88,6 +106,8 @@ def main() -> int:
     toolchains.sort()
     if args.prefix:
         toolchains = [t for t in toolchains if t.prefix in args.prefix]
+    elif not args.all:
+        toolchains = [t for t in toolchains if t.prefix in LK_PREFIXES]
     if args.version == "latest":
         # Since we sorted lexicographically on (prefix, version tokens), to pick out the
         # latest versions we need only iterate through and pick out the last entry for a

@@ -11,7 +11,8 @@ cd lk
 ```
 
 2. Download a toolchain. `scripts/fetch-toolchains.py` installs the latest prebuilt one for
-   your host into `lk/toolchain/`; `--list` shows what is available.
+   your host into `lk/toolchain/`. With no `--prefix` it fetches every architecture LK
+   builds for; `--list` shows what would be fetched.
 
 ```bash
 scripts/fetch-toolchains.py --prefix riscv64-elf
