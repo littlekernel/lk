@@ -40,8 +40,16 @@ static const int uart_irq =
 
 cbuf_t console_input_buf;
 
-/* serializes console output, and guards the VGA console state */
+/* serializes console output, and guards the uart and VGA console state */
 static spin_lock_t console_lock = SPIN_LOCK_INITIAL_VALUE;
+
+/*
+ * THRE with the FIFO on means the whole FIFO is free, so the line status only has
+ * to be polled once per FIFO's worth of output. Each port access is a trap under a
+ * hypervisor.
+ */
+static unsigned int uart_tx_fifo_depth = 1;
+static unsigned int uart_tx_free;
 
 extern uint32_t _multiboot2_info;
 
@@ -68,8 +76,13 @@ void platform_init_debug_early(void) {
     outp(uart_io_port + 0, divisor & 0xff); // lsb
     outp(uart_io_port + 1, divisor >> 8);   // msb
     outp(uart_io_port + 3, 3);              // 8N1
-    outp(uart_io_port + 2, 0x07);           // enable FIFO, clear, 14-byte threshold
+    outp(uart_io_port + 2, 0x07);           // enable FIFO, clear both, 1-byte rx threshold
     outp(uart_io_port + 4, 0x3);            // drive flow control bits high
+
+    // a 16550A reports a working FIFO in IIR[7:6], an 8250 or 16550 does not
+    if ((inp(uart_io_port + 2) & 0xc0) == 0xc0) {
+        uart_tx_fifo_depth = 16;
+    }
 }
 
 void platform_init_debug(void) {
@@ -86,9 +99,14 @@ void platform_init_debug(void) {
     outp(uart_io_port + 4, mcr | 0x8);
 }
 
+// console_lock held
 static void debug_uart_putc(char c) {
-    while ((inp(uart_io_port + 5) & (1 << 6)) == 0);
+    if (uart_tx_free == 0) {
+        while ((inp(uart_io_port + 5) & (1 << 5)) == 0); // THRE
+        uart_tx_free = uart_tx_fifo_depth;
+    }
     outp(uart_io_port + 0, c);
+    uart_tx_free--;
 }
 
 // console_lock held
