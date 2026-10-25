@@ -334,6 +334,81 @@ status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size
     return _fdt_walk(fdt, walker);
 }
 
+#if ARCH_RISCV
+status_t fdt_walk_find_plic_contexts(const void *fdt, uint32_t cause,
+                                     struct fdt_walk_plic_context *context, size_t *context_count) {
+    const size_t max_count = *context_count;
+    *context_count = 0;
+
+    int plic = fdt_node_offset_by_compatible(fdt, -1, "sifive,plic-1.0.0");
+    if (plic < 0) {
+        plic = fdt_node_offset_by_compatible(fdt, -1, "riscv,plic0");
+    }
+    if (plic < 0) {
+        return ERR_NOT_FOUND;
+    }
+
+    int lenp;
+    const auto *prop = static_cast<const fdt32_t *>(fdt_getprop(fdt, plic, "interrupts-extended", &lenp));
+    if (!prop || lenp <= 0) {
+        return ERR_NOT_FOUND;
+    }
+    const size_t cells = static_cast<size_t>(lenp) / sizeof(fdt32_t);
+
+    // One entry per context, in context order: the phandle of a hart's local interrupt
+    // controller followed by its #interrupt-cells, the first of which is the cause the
+    // context raises. Entries for other causes (the other mode, or -1 for a hole) still
+    // occupy a context number.
+    uint32_t ctx = 0;
+    for (size_t i = 0; i < cells; ctx++) {
+        int intc = fdt_node_offset_by_phandle(fdt, fdt32_ld(&prop[i++]));
+
+        uint32_t intc_cells = 1;
+        if (intc >= 0) {
+            const auto *ic = static_cast<const fdt32_t *>(fdt_getprop(fdt, intc, "#interrupt-cells", &lenp));
+            if (ic && lenp == sizeof(fdt32_t)) {
+                intc_cells = fdt32_ld(ic);
+            }
+        }
+        if (intc_cells == 0 || i + intc_cells > cells) {
+            LTRACEF("malformed interrupts-extended at cell %zu\n", i);
+            return ERR_BAD_LEN;
+        }
+
+        const uint32_t this_cause = fdt32_ld(&prop[i]);
+        i += intc_cells;
+        if (intc < 0 || this_cause != cause) {
+            continue;
+        }
+
+        // the interrupt controller is a child of its cpu node, whose reg is the hart id
+        int cpu = fdt_parent_offset(fdt, intc);
+        if (cpu < 0) {
+            continue;
+        }
+        const auto *reg = static_cast<const uint8_t *>(fdt_getprop(fdt, cpu, "reg", &lenp));
+        if (!reg || lenp <= 0) {
+            continue;
+        }
+        int ac = fdt_address_cells(fdt, fdt_parent_offset(fdt, cpu));
+        size_t remaining = static_cast<size_t>(lenp);
+        uint64_t hart_id;
+        if (ac < 0 || consume_cells_u64(&reg, &remaining, static_cast<size_t>(ac), &hart_id, false) != NO_ERROR) {
+            continue;
+        }
+
+        LTRACEF("context %u: hart %llu cause %u\n", ctx, hart_id, this_cause);
+        if (*context_count < max_count) {
+            context[*context_count].hart_id = static_cast<uint32_t>(hart_id);
+            context[*context_count].context = ctx;
+            (*context_count)++;
+        }
+    }
+
+    return NO_ERROR;
+}
+#endif
+
 status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *memory, size_t *mem_count,
                               struct fdt_walk_memory_region *reserved_memory, size_t *reserved_mem_count) {
     /* if >= 0, we're inside /reserved-memory */

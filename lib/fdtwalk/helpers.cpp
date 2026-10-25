@@ -41,6 +41,9 @@
 #if WITH_DEV_INTERRUPT_ARM_GIC
 #include <dev/interrupt/arm_gic.h>
 #endif
+#if WITH_DEV_INTERRUPT_RISCV_PLIC
+#include <dev/interrupt/riscv_plic.h>
+#endif
 
 // A few helper routines to configure subsystems such as cpu, memory, and pci busses based
 // on the information in a device tree.
@@ -206,6 +209,28 @@ status_t fdtwalk_setup_cpus_riscv(const void *fdt) {
 #endif
 
     return err;
+}
+#endif
+
+#if WITH_DEV_INTERRUPT_RISCV_PLIC
+status_t fdtwalk_setup_plic(const void *fdt) {
+    struct fdt_walk_plic_context contexts[32];
+    size_t count = countof(contexts);
+
+    status_t err = fdt_walk_find_plic_contexts(fdt, RISCV_INTERRUPT_XEXT, contexts, &count);
+    if (err < NO_ERROR) {
+        dprintf(INFO, "FDT: no PLIC contexts found (%d)\n", err);
+        return err;
+    }
+
+    dprintf(INFO, "FDT: PLIC context per hart:");
+    for (size_t i = 0; i < count; i++) {
+        dprintf(INFO, " %u:%u", contexts[i].hart_id, contexts[i].context);
+        plic_set_hart_context(contexts[i].hart_id, contexts[i].context);
+    }
+    dprintf(INFO, "\n");
+
+    return NO_ERROR;
 }
 #endif
 

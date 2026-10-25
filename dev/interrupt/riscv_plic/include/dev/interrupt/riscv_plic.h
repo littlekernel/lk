@@ -18,10 +18,17 @@ __BEGIN_CDECLS
 // Arguments are base address of mapped registers, number of fixed irqs,
 // and a special third argument.
 //
-// hart0_m_only is used to tell the PLIC to assume that hart0 only has machine
-// mode, and occupies only one target on the PLIC. So far Sifive and other similar
-// designs use this, whereas flatter designs do not. See plic.c for more details.
+// Each hart's interrupt target (context) on the PLIC comes from plic_set_hart_context(),
+// which a platform with a device tree calls before this, usually via fdtwalk_setup_plic().
+// For harts with no recorded context the driver falls back to a fixed layout:
+// hart0_m_only says hart0 only has machine mode and occupies a single target, as on
+// SiFive and similar designs, whereas flatter designs give every hart an M and S target.
+// See plic.c for more details.
 void plic_early_init(uintptr_t base, size_t num_irqs_, bool hart0_m_only);
+
+// Record the PLIC context that routes external interrupts for the current privilege
+// mode to the given hart.
+void plic_set_hart_context(unsigned int hart, unsigned int context);
 
 void plic_init(void);
 

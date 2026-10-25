@@ -10,6 +10,7 @@ MODULE_SRCS += $(LOCAL_DIR)/helpers.cpp
 MODULE_WEAK_DEPS += \
 	dev/bus/pci \
 	dev/interrupt/arm_gic \
+	dev/interrupt/riscv_plic \
 	dev/power/psci \
 	lib/cmdline
 

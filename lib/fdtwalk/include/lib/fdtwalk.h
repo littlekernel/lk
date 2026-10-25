@@ -47,6 +47,14 @@ struct fdt_walk_cpu_info {
 #endif
 };
 
+#if ARCH_RISCV
+// A PLIC interrupt target (context) and the hart it delivers to.
+struct fdt_walk_plic_context {
+    uint32_t hart_id;
+    uint32_t context;
+};
+#endif
+
 #define FDT_WALK_MAX_GIC_ITS 4
 #define FDT_WALK_MAX_GIC_V2M 4
 
@@ -100,6 +108,11 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *, siz
 status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *memory, size_t *mem_count,
                               struct fdt_walk_memory_region *reserved_memory, size_t *reserved_mem_count);
 status_t fdt_walk_find_cpus(const void *fdt, struct fdt_walk_cpu_info *cpu, size_t *cpu_count);
+#if ARCH_RISCV
+// The PLIC contexts that raise interrupt cause 'cause' (RISCV_INTERRUPT_SEXT or _MEXT) on a hart.
+status_t fdt_walk_find_plic_contexts(const void *fdt, uint32_t cause,
+                                     struct fdt_walk_plic_context *context, size_t *context_count);
+#endif
 
 // Helper routines that initialize various subsystems based on device tree info
 status_t fdtwalk_setup_memory(const void *fdt, paddr_t fdt_phys, paddr_t default_mem_base, size_t default_mem_size);
@@ -118,6 +131,10 @@ status_t fdtwalk_setup_pci(const void *fdt);
 #endif
 #if WITH_DEV_INTERRUPT_ARM_GIC
 status_t fdtwalk_setup_gic(const void *fdt);
+#endif
+#if WITH_DEV_INTERRUPT_RISCV_PLIC
+// Records each hart's PLIC context for the current mode; call before plic_early_init().
+status_t fdtwalk_setup_plic(const void *fdt);
 #endif
 
 __END_CDECLS

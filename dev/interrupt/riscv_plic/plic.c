@@ -34,13 +34,22 @@ static bool hart0_m_only = false;
 
 #define PLIC_PRIORITY(irq)          (plic_base_virt + 4 * (irq))
 #define PLIC_PENDING(irq)           (plic_base_virt + 0x1000 + (4 * ((irq) / 32)))
+
+// Contexts recorded by plic_set_hart_context(), indexed by hart id.
+#define MAX_HARTS 64
+#define NO_CONTEXT 0xffff
+static uint16_t hart_context[MAX_HARTS] = { [0 ... MAX_HARTS - 1] = NO_CONTEXT };
+
 #define PLIC_ENABLE(irq, hart)      (plic_base_virt + 0x2000 + (0x80 * plic_hart_index(hart)) + (4 * ((irq) / 32)))
 #define PLIC_THRESHOLD(hart)        (plic_base_virt + 0x200000 + (0x1000 * plic_hart_index(hart)))
 #define PLIC_COMPLETE(hart)         (plic_base_virt + 0x200004 + (0x1000 * plic_hart_index(hart)))
 #define PLIC_CLAIM(hart)            PLIC_COMPLETE(hart)
 
-// Mapping of HART to interrupt target is annoyingly complex. Switch between two modes
-// based on the hart0_m_only bool:
+// Maps a hart to its interrupt target for the current mode, the PLIC's 'context'.
+//
+// The device tree describes this in the PLIC node's interrupts-extended property, one
+// entry per context, and platforms record it with plic_set_hart_context(). Without that,
+// one of two fixed layouts is assumed, based on the hart0_m_only bool:
 //
 // On the JH7110 (like other sifive socs) the first HART only has one mode, machine
 // and the subsequent harts have both machine and supervisor. The interrupt targets
@@ -62,8 +71,13 @@ static bool hart0_m_only = false;
 // HART 2 supervisor mode = 5
 // ...
 //
-// This routine maps harts to the current mode's interrupt target
+// Neither holds everywhere: qemu's 'virt' machine under KVM has only a supervisor
+// target per hart, so the device tree is the authority when it is present.
 static unsigned int plic_hart_index(unsigned int hart) {
+    if (likely(hart < MAX_HARTS && hart_context[hart] != NO_CONTEXT)) {
+        return hart_context[hart];
+    }
+
     unsigned int index;
     if (hart0_m_only) {
 #if RISCV_M_MODE
@@ -84,6 +98,16 @@ static unsigned int plic_hart_index(unsigned int hart) {
 #endif
     }
     return index;
+}
+
+void plic_set_hart_context(unsigned int hart, unsigned int context) {
+    if (hart >= MAX_HARTS || context >= NO_CONTEXT) {
+        printf("PLIC: hart %u context %u out of range, ignoring\n", hart, context);
+        return;
+    }
+
+    LTRACEF("hart %u context %u\n", hart, context);
+    hart_context[hart] = context;
 }
 
 void plic_early_init(uintptr_t base, size_t num_irqs_, bool hart0_m_only_) {
