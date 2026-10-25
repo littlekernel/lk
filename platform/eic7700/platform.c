@@ -50,8 +50,6 @@ void platform_early_init(void) {
 
     TRACE;
     // every hart has both an M and an S mode context, so the targets are flat
-    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, false);
-
     LTRACEF("starting FDT scan\n");
 
     /* look for a flattened device tree in the second arg passed to us */
@@ -68,6 +66,10 @@ void platform_early_init(void) {
 
     // detect secondary cores to start
     fdtwalk_setup_cpus_riscv(fdt);
+
+    // find each hart's PLIC interrupt target, then bring up the PLIC
+    fdtwalk_setup_plic(fdt);
+    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, false);
 
     // pick up /chosen/bootargs, which is how lk.autorun gets in from U-Boot
     fdtwalk_setup_cmdline(fdt);

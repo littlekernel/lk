@@ -39,8 +39,6 @@ void platform_early_init(void) {
     // bring the console uart up first, so early output has somewhere to go
     platform_init_uart_early();
 
-    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, false);
-
     LTRACEF("starting FDT scan\n");
 
     /* look for a flattened device tree in the second arg passed to us */
@@ -59,6 +57,10 @@ void platform_early_init(void) {
 
     // detect secondary cores to start
     fdtwalk_setup_cpus_riscv(fdt);
+
+    // find each hart's PLIC interrupt target, then bring up the PLIC
+    fdtwalk_setup_plic(fdt);
+    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, false);
 
     // initialize cmdline from device tree
     fdtwalk_setup_cmdline(fdt);

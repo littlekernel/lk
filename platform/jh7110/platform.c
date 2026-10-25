@@ -37,8 +37,6 @@ void platform_early_init(void) {
     platform_init_uart_early();
 
     TRACE;
-    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, true);
-
     LTRACEF("starting FDT scan\n");
 
     /* look for a flattened device tree in the second arg passed to us */
@@ -55,6 +53,10 @@ void platform_early_init(void) {
 
     // detect secondary cores to start
     fdtwalk_setup_cpus_riscv(fdt);
+
+    // find each hart's PLIC interrupt target, then bring up the PLIC
+    fdtwalk_setup_plic(fdt);
+    plic_early_init(PLIC_BASE_VIRT, NUM_IRQS, true);
 
     LTRACEF("done scanning FDT\n");
 
