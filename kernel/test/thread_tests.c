@@ -25,6 +25,8 @@
 #include <kernel/mutex.h>
 #include <kernel/semaphore.h>
 #include <kernel/thread.h>
+#include <kernel/timer.h>
+#include <platform.h>
 
 /* -------------------------------------------------------------------------- */
 /* mutex                                                                       */
@@ -562,6 +564,64 @@ static bool test_thread_pin_cpu_update(void) {
     END_TEST;
 }
 
+static enum handler_return timer_cancel_test_cb(timer_t *timer, lk_time_t now, void *arg) {
+    event_t *evt = (event_t *)arg;
+    event_signal(evt, false);
+    return INT_RESCHEDULE;
+}
+
+static bool test_timer_cancel_past_due_newhead(void) {
+    BEGIN_TEST;
+
+    thread_t *self = get_current_thread();
+    int old_pinned = thread_pinned_cpu(self);
+    thread_set_pinned_cpu(self, 0);
+
+    /* Freshly reschedule after a sleep so preempt_timer[0] is armed ~10ms out
+     * and will not sit ahead of our 1ms test timers. */
+    thread_sleep(1);
+
+    event_t evt1;
+    event_t evt2;
+    event_init(&evt1, false, 0);
+    event_init(&evt2, false, 0);
+
+    timer_t t1 = TIMER_INITIAL_VALUE(t1);
+    timer_t t2 = TIMER_INITIAL_VALUE(t2);
+
+    /* Align to ~500us into a 1ms tick so that a 1ms oneshot hardware countdown
+     * expires ~500us after current_time() increments to t0 + 1. */
+    lk_time_t t0 = current_time();
+    while (current_time() == t0) {
+    }
+    t0 = current_time();
+    lk_bigtime_t hires0 = current_time_hires();
+    while (current_time_hires() - hires0 < 500) {
+    }
+
+    timer_set_oneshot(&t1, 1, timer_cancel_test_cb, &evt1);
+    timer_set_oneshot(&t2, 1, timer_cancel_test_cb, &evt2);
+
+    /* Wait for current_time() to reach t1/t2's scheduled_time (t0 + 1) before
+     * the ~1ms hardware countdown initiated at t0 + 0.5ms finishes. */
+    while (current_time() == t0) {
+    }
+
+    /* Cancelling the head timer t1 now promotes t2 to the head with
+     * t2.scheduled_time <= current_time() (delay == 0). t2 must still fire. */
+    timer_cancel(&t1);
+
+    status_t err = event_wait_timeout(&evt2, 100);
+    EXPECT_EQ(NO_ERROR, err, "second timer did not fire after cancelling head timer");
+
+    timer_cancel(&t2);
+    event_destroy(&evt1);
+    event_destroy(&evt2);
+    thread_set_pinned_cpu(self, old_pinned);
+
+    END_TEST;
+}
+
 BEGIN_TEST_CASE(thread_tests)
 RUN_TEST(test_mutex_static_init);
 RUN_TEST(test_mutex_mutual_exclusion);
@@ -577,4 +637,5 @@ RUN_TEST(test_thread_join_after_exit);
 RUN_TEST(test_thread_detach);
 RUN_TEST(test_thread_pin_cpu);
 RUN_TEST(test_thread_pin_cpu_update);
+RUN_TEST(test_timer_cancel_past_due_newhead);
 END_TEST_CASE(thread_tests)
