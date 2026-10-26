@@ -8,8 +8,9 @@ MODULE_DEFINES := \
 	MSPACES=1 \
 	GBL_EFI_DISABLE_CPP_ENUMS=1 \
 
+# lib/watchdog's header only, not the module; LKROOT-relative so an overlay build finds it
 MODULE_INCLUDES += \
-	lib/watchdog/include \
+	$(LKROOT)/lib/watchdog/include \
 
 MODULE_DEPS += \
 	lib/bio \
