@@ -189,6 +189,19 @@ __WEAK void arm64_user_exception(struct arm64_iframe_long *iframe, uint32_t esr,
     arm64_user_exception_unhandled(iframe, esr, far);
 }
 
+__WEAK void arm64_user_kill(void) {
+    thread_exit(ERR_INTERRUPTED);
+}
+
+/* The last stop before EL0, whatever the exception was: a thread killed while
+ * it ran, slept or sat preempted ends here instead of going back. */
+void arm64_el0_return_check(void);
+void arm64_el0_return_check(void) {
+    if (unlikely(thread_signals(get_current_thread()) & THREAD_SIGNAL_KILL)) {
+        arm64_user_kill();
+    }
+}
+
 void arm64_sync_exception(struct arm64_iframe_long *iframe);
 void arm64_sync_exception(struct arm64_iframe_long *iframe) {
     struct fault_handler_table_entry *fault_handler;

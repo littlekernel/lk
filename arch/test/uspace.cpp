@@ -11,8 +11,9 @@
  * enters it with arch_enter_uspace(), and the arch's user exception hooks,
  * overridden here, record what came back and end the thread. Covers the
  * lower-EL/U-mode entry and exit paths, the syscall hook, a user access to
- * kernel memory being caught rather than crashing the kernel, and
- * arch_mmu_protect() taking effect for user stores and fetches.
+ * kernel memory being caught rather than crashing the kernel,
+ * arch_mmu_protect() taking effect for user stores and fetches, and a kill
+ * ending a thread that spins in user mode.
  */
 
 #if ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)
@@ -20,6 +21,7 @@
 #include <arch.h>
 #include <arch/mmu.h>
 #include <arch/ops.h>
+#include <kernel/mp.h>
 #include <kernel/thread.h>
 #include <kernel/vm.h>
 #include <lib/unittest.h>
@@ -33,7 +35,6 @@
 #else
 #include <arch/riscv.h>
 #include <arch/riscv/iframe.h>
-#include <kernel/mp.h>
 #endif
 
 extern "C" const uint8_t uspace_stub_syscall_start[], uspace_stub_syscall_end[];
@@ -288,7 +289,6 @@ bool user_protect() {
     END_TEST;
 }
 
-#if ARCH_RISCV
 // Kill a thread spinning in user mode on cpu. It is killed while preempted (cpu
 // is this one) or while running (another cpu, interrupted by the kill); either
 // way it meets the signal on its way back to user mode, and the arch's default
@@ -338,7 +338,6 @@ bool user_kill() {
 
     END_TEST;
 }
-#endif
 
 } // namespace
 
@@ -392,9 +391,7 @@ BEGIN_TEST_CASE(arch_uspace_tests)
 RUN_TEST(user_syscall);
 RUN_TEST(user_fault);
 RUN_TEST(user_protect);
-#if ARCH_RISCV
 RUN_TEST(user_kill);
-#endif
 END_TEST_CASE(arch_uspace_tests)
 
 #endif // ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)
