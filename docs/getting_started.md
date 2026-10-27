@@ -62,6 +62,27 @@ scripts/do-qemuriscv -6
 
 Type `help` at the `]` prompt for the list of commands. `Ctrl-A x` exits QEMU.
 
+## Editor Setup (compile_commands.json)
+
+Every build writes a compilation database for clangd, clang-tidy and similar tools to
+`build-<project>/compile_commands.json`. No wrapper such as `bear` is needed. Each project
+has its own, since the same file compiles with different flags per architecture. Add the
+`compdb` target to point a `compile_commands.json` symlink in the source root at one of
+them, and run it again with another project to switch. On its own it compiles the objects
+and writes the database but does not link the image:
+
+```bash
+make qemu-virt-riscv64-test compdb
+```
+
+The compile rules write one entry per object as they build it, so an incremental build
+keeps the entries for objects it did not rebuild. An object with no recorded entry is
+left out and counted in a warning; `make <project> clean` and a rebuild records it.
+
+With a gcc cross toolchain, if clangd cannot find the compiler's own headers (such as
+`<stdarg.h>`), start it with `--query-driver` naming the compiler, for example
+`--query-driver=/opt/toolchains/*/bin/*-gcc`.
+
 ## Build A Hello App
 
 LK can build modules and projects that live outside its own tree. The outer directory gets

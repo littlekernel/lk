@@ -207,6 +207,9 @@ Build artifacts include object files, libraries, executables, and generated head
 - `<module>/module_config.h` - per-module generated header recording its `MODULE_DEPS` and
   `MODULE_WEAK_DEPS`, which `scripts/check-module-deps.py` reads
 - lk-symtab-pass1.elf / lk-symtab-pass2.elf - intermediate links when `lib/symtab` is in the build
+- compile_commands.json - compilation database for clangd/clang-tidy, joined from the
+  `<object>.o.json` entry each compile rule writes beside its object; `make <project> compdb`
+  symlinks `./compile_commands.json` to it (see `docs/getting_started.md`)
 
 Each module is linked into an ELF intermediate file named `<module>.mod.o` via ld -r.
 The module and object file paths follow the same path structure as the source files.

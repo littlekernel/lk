@@ -495,7 +495,8 @@ $(ALLOBJS): $(GLOBAL_SRCDEPS)
 all:: $(EXTRA_BUILDDEPS)
 
 clean: $(EXTRA_CLEANDEPS)
-	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex $(OUTELF).dump
+	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex $(OUTELF).dump $(COMPDB)
+	rm -f $(addsuffix .json,$(ALLOBJS))
 
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftpboot
@@ -504,7 +505,38 @@ tags: $(BUILDDIR)/srcfiles.txt $(BUILDDIR)/include_paths.txt
 	$(info generating tags)
 	@ctags -L $<
 
-.PHONY: all clean install list-arch list-toolchain tags
+# Join the per-object entries the compile recipes wrote into one compilation database
+# for this build. Remade on every build, since the set of objects can change without
+# any of them being rebuilt; the file is only replaced when its contents change.
+# Paths are relative to BUILDDIR to keep the recipe's command line short.
+COMPDB := $(BUILDDIR)/compile_commands.json
+COMPDB_ENTRIES := $(patsubst $(BUILDDIR)/%,%,$(addsuffix .json,$(sort $(ALLOBJS))))
+all:: $(COMPDB)
+
+$(COMPDB): $(ALLOBJS) compdb-force
+	$(info generating $@)
+	@$(MKDIR)
+	$(NOECHO)cd $(BUILDDIR) || exit 1; missing=0; \
+	for f in $(COMPDB_ENTRIES); do \
+		if [ -f $$f ]; then echo $$f; else missing=$$((missing+1)); fi; \
+	done > compile_commands.list; \
+	{ echo '['; xargs cat < compile_commands.list | sed '$$!s/$$/,/'; echo ']'; } > compile_commands.json.tmp; \
+	rm -f compile_commands.list; \
+	$(call TESTANDREPLACEFILE,compile_commands.json.tmp,compile_commands.json) >/dev/null; \
+	if [ $$missing -ne 0 ]; then \
+		echo "warning: $$missing objects in $(BUILDDIR) have no compile command recorded;" \
+			"they were built before compile_commands.json support. 'make $(PROJECT) clean' and rebuild to include them."; \
+	fi
+
+# Point ./compile_commands.json at this build's database, for tools that look for it in
+# the source root. Repoint it by running 'make <project> compdb' for another project.
+compdb: $(COMPDB)
+	$(info linking compile_commands.json -> $(COMPDB))
+	$(NOECHO)ln -sf $(COMPDB) compile_commands.json
+
+compdb-force:
+
+.PHONY: all clean compdb compdb-force install list-arch list-toolchain tags
 
 # generate a config.h file with all of the GLOBAL_DEFINES laid out in #define format
 configheader:

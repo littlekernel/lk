@@ -59,6 +59,17 @@ define MAKECONFIGHEADER
 	$(call TESTANDREPLACEFILE,$1.tmp,$1)
 endef
 
+# Escape $1 for use inside a double quoted JSON string that is itself inside a
+# single quoted shell argument.
+COMPDB_ESCAPE = $(subst ','\'',$(subst ",\",$(subst \,\\,$1)))
+
+# Write the compile_commands.json entry for the object being built to $@.json.
+# $1 is the full compile command. Used from inside the compile recipes, which is
+# where $< and $@ are defined. Plain printf, as GNU make 3.81 has no $(file).
+define COMPDB_WRITE_ENTRY
+	printf '%s\n' '{"directory": "$(call COMPDB_ESCAPE,$(CURDIR))", "file": "$(call COMPDB_ESCAPE,$<)", "output": "$(call COMPDB_ESCAPE,$@)", "command": "$(call COMPDB_ESCAPE,$(strip $1))"}' > $@.json
+endef
+
 # Note: no -c here. The only caller passes -fsyntax-only, and clang errors out
 # with -Wunused-command-line-argument (promoted by the -Werror the caller also
 # passes) if -c is combined with it, which made every probe answer 'no'.
