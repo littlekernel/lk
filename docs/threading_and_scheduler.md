@@ -121,14 +121,15 @@ builds it is an empty stub. What it does beyond recording the CPU depends on the
 - **Blocked, sleeping or suspended threads**: only record the CPU, which takes effect when the
   thread next becomes runnable. Pinning before `thread_resume()` is the simple case.
 
-Unpinning (`-1`) only clears the field. `kernel/test/thread_tests.c` covers the self-migration
-and repinning a queued thread.
+Unpinning (`-1`) only clears the field. `kernel/test/thread_tests.c` covers the self-migration,
+repinning a queued thread and repinning a sleeping thread.
 
 ### Inter-CPU Communication
 
 - **Reschedule IPIs**: Resuming a thread or waking it from a wait queue sends a reschedule IPI
-  to the CPU it is pinned to, or to every other active CPU if it is unpinned. CPUs running a real-time thread are skipped,
-  and the local CPU is never signalled
+  to the CPU it is pinned to, or to every other active CPU if it is unpinned. A pinned thread
+  whose `thread_sleep()` ends also signals the CPU it is pinned to. CPUs running a real-time thread
+  are skipped, and the local CPU is never signalled
 - **CPU-specific idle threads**: Each CPU has its own idle thread, pinned to it
 - **Per-CPU preemption timers**: Independent timer management per CPU
 

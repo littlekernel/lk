@@ -564,6 +564,77 @@ static bool test_thread_pin_cpu_update(void) {
     END_TEST;
 }
 
+#if WITH_SMP
+static int pin_sleeper_thread(void *arg) {
+    thread_sleep(100);
+    return (int)arch_curr_cpu_num();
+}
+#endif
+
+// Repin a sleeping thread to an idle CPU. Its sleep timer still fires on the
+// CPU it fell asleep on, which then has to wake the new one.
+static bool test_thread_pin_sleeping(void) {
+    BEGIN_TEST;
+
+#if WITH_SMP
+    thread_t *self = get_current_thread();
+    const int old_pin = thread_pinned_cpu(self);
+    const uint home = arch_curr_cpu_num();
+    const mp_cpu_mask_t others = mp_get_active_mask() & ~(1U << home);
+    if (!others) {
+        unittest_printf("only one CPU is active; skipping pinned sleeper test\n");
+        END_TEST;
+    }
+    const uint sleep_cpu = __builtin_ctz(others);
+
+    // Stay on home, so it is idle while we wait in thread_join() below.
+    thread_set_pinned_cpu(self, home);
+
+    // Retry if the sleeper wakes up before we get to repin it.
+    bool repinned_asleep = false;
+    for (int attempt = 0; attempt < 3 && !repinned_asleep; attempt++) {
+        thread_t *t = thread_create("pin sleeper", &pin_sleeper_thread, NULL,
+                                    DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+        EXPECT_NONNULL(t, "could not create sleeper thread");
+        if (!t) {
+            break;
+        }
+        thread_set_pinned_cpu(t, sleep_cpu);
+        thread_resume(t);
+
+        bool asleep = false;
+        for (int i = 0; i < 50 && !asleep; i++) {
+            thread_sleep(1);
+            THREAD_LOCK(state);
+            asleep = t->state == THREAD_SLEEPING;
+            THREAD_UNLOCK(state);
+        }
+        thread_set_pinned_cpu(t, home);
+        {
+            THREAD_LOCK(state);
+            repinned_asleep = asleep && t->state == THREAD_SLEEPING;
+            THREAD_UNLOCK(state);
+        }
+
+        int ran_on = -1;
+        status_t err = thread_join(t, &ran_on, repinned_asleep ? 1000 : INFINITE_TIME);
+        if (repinned_asleep) {
+            EXPECT_EQ(NO_ERROR, err, "sleeping thread repinned to an idle CPU never ran");
+            if (err != NO_ERROR) {
+                // It is still queued for home; blocking here lets home run it.
+                thread_join(t, &ran_on, INFINITE_TIME);
+            }
+            EXPECT_EQ((int)home, ran_on, "sleeper did not run on its new CPU");
+        }
+    }
+    EXPECT_TRUE(repinned_asleep, "sleeper kept waking up before it could be repinned");
+
+    thread_set_pinned_cpu(self, old_pin);
+#endif
+
+    END_TEST;
+}
+
 static enum handler_return timer_cancel_test_cb(timer_t *timer, lk_time_t now, void *arg) {
     event_t *evt = (event_t *)arg;
     event_signal(evt, false);
@@ -637,5 +708,6 @@ RUN_TEST(test_thread_join_after_exit);
 RUN_TEST(test_thread_detach);
 RUN_TEST(test_thread_pin_cpu);
 RUN_TEST(test_thread_pin_cpu_update);
+RUN_TEST(test_thread_pin_sleeping);
 RUN_TEST(test_timer_cancel_past_due_newhead);
 END_TEST_CASE(thread_tests)
