@@ -741,9 +741,18 @@ static enum handler_return thread_sleep_handler(timer_t *timer, lk_time_t now, v
     t->state = THREAD_READY;
     insert_in_run_queue_head(t);
 
+    // It may have been pinned to another CPU while it slept. Only that CPU can
+    // run it, so wake that CPU; a local reschedule would not pick it up.
+    enum handler_return ret = INT_RESCHEDULE;
+    const int pinned_cpu = thread_pinned_cpu(t);
+    if (pinned_cpu >= 0 && (uint)pinned_cpu != arch_curr_cpu_num()) {
+        wakeup_cpu_for_thread(t);
+        ret = INT_NO_RESCHEDULE;
+    }
+
     THREAD_UNLOCK(state);
 
-    return INT_RESCHEDULE;
+    return ret;
 }
 
 /**

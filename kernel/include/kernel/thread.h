@@ -239,7 +239,7 @@ static inline void thread_set_curr_cpu(thread_t *t, int cpu) {
 // queued takes precedence. Pinning a READY thread wakes its target CPU.
 // A thread running on another CPU is not forced to reschedule; it can move only
 // at that CPU's next reschedule, without waking the destination CPU.
-// Blocked or suspended threads only record the new affinity.
+// Blocked, sleeping or suspended threads only record the new affinity.
 void thread_set_pinned_cpu(thread_t *t, int cpu);
 #else
 static inline void thread_set_pinned_cpu(thread_t *t, int cpu) {}
