@@ -29,11 +29,11 @@ static inline uint arch_curr_cpu_num(void) {
     return 0;
 }
 
-// Default barriers for architectures that generally don't need them
-// TODO: do we need these for mips?
-#define mb()        CF
-#define wmb()       CF
-#define rmb()       CF
+// The architecture only orders uncached (device) and cached coherent accesses across a
+// sync. Uniprocessor only, so the smp variants need only stop the compiler.
+#define mb()        __asm__ volatile("sync" ::: "memory")
+#define wmb()       mb()
+#define rmb()       mb()
 #define smp_mb()    CF
 #define smp_wmb()   CF
 #define smp_rmb()   CF
