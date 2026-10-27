@@ -177,7 +177,8 @@ void arm_secondary_entry(uint asm_cpu_num) {
 
     /* we're done, tell the main cpu we're up */
     atomic_add(&secondaries_to_init, -1);
-    smp_mb();
+    // sev is not a memory access, so only a dsb has the store visible before the boot cpu wakes
+    DSB;
     __asm__ volatile("sev");
 
     // Finish secondary cpu initialization and enter the scheduler
