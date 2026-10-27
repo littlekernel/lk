@@ -86,7 +86,10 @@ enum handler_return riscv_software_exception(void) {
     sbi_clear_ipi();
 #endif
 
-    rmb();
+    // Clear the pending bit before taking the reasons, or a reason and its IPI
+    // landing in between are both lost. The clear is device output (an MMIO
+    // store to the CLINT, or a CSR write), so this needs the o -> rw fence.
+    mb();
     int reason = atomic_swap(&ipi_data[curr_cpu], 0);
     LTRACEF("cpu %u reason %#x\n", curr_cpu, reason);
 
