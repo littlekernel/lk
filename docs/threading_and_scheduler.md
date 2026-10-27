@@ -108,11 +108,21 @@ void thread_set_pinned_cpu(thread_t *t, int cpu);  // -1 unpins
 int thread_pinned_cpu(const thread_t *t);          // -1 if unpinned
 ```
 
-Both are inline accessors in `kernel/thread.h`. `thread_set_pinned_cpu()` only writes the field:
-it does not take `thread_lock` or move the thread, and the scheduler honours it the next time
-the thread is picked to run. Pinning before `thread_resume()` is the simple case. A running
-thread stays on its current CPU until it blocks, yields or is preempted, and yielding does not
-signal the target CPU, which picks the thread up the next time it reschedules.
+`thread_set_pinned_cpu()` takes `thread_lock`, so it must not be called with it held; on non-SMP
+builds it is an empty stub. What it does beyond recording the CPU depends on the thread's state:
+
+- **The calling thread, pinned to another CPU**: migrates synchronously. The thread is requeued at
+  the head of the run queue, the target CPU is sent a reschedule IPI, and the call returns once the
+  thread is running there. Interrupts must be enabled, the target CPU must be active, and the idle
+  thread cannot do this.
+- **A READY thread**: the target CPU is sent a reschedule IPI so it picks the thread up.
+- **A thread running on another CPU**: is not forced off it. It moves at that CPU's next
+  reschedule, and the destination CPU is not woken.
+- **Blocked, sleeping or suspended threads**: only record the CPU, which takes effect when the
+  thread next becomes runnable. Pinning before `thread_resume()` is the simple case.
+
+Unpinning (`-1`) only clears the field. `kernel/test/thread_tests.c` covers the self-migration
+and repinning a queued thread.
 
 ### Inter-CPU Communication
 
