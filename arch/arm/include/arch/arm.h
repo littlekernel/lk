@@ -22,14 +22,15 @@
 */
 __BEGIN_CDECLS
 
-#if ARM_ISA_ARMV7 || ARM_ISA_ARMV8
+#if ARM_ISA_ARMV7 || ARM_ISA_ARMV8 || ARM_ISA_ARMV6M
 #define DSB __asm__ volatile("dsb" ::: "memory")
 #define DMB __asm__ volatile("dmb" ::: "memory")
 #define ISB __asm__ volatile("isb" ::: "memory")
-#elif ARM_ISA_ARMV6 || ARM_ISA_ARMV6M
+#elif ARM_ISA_ARMV6
+// the cp15 c7 barrier operations that the v7 instructions replaced
 #define DSB __asm__ volatile("mcr p15, 0, %0, c7, c10, 4" :: "r" (0) : "memory")
+#define DMB __asm__ volatile("mcr p15, 0, %0, c7, c10, 5" :: "r" (0) : "memory")
 #define ISB __asm__ volatile("mcr p15, 0, %0, c7, c5, 4" :: "r" (0) : "memory")
-#define DMB __asm__ volatile("nop")
 #else
 #error unhandled arm isa
 #endif
