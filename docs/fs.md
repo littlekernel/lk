@@ -4,7 +4,7 @@
 
 `lib/fs` provides a single mount namespace and a small set of POSIX-shaped calls
 (`fs_open_file`, `fs_read_dir`, `fs_make_dir`, ...) over any number of mounted
-filesystems. Five filesystems ship in the tree:
+filesystems. Six filesystems ship in the tree:
 
 | module         | media                         | writable | notes |
 |----------------|-------------------------------|----------|-------|
@@ -12,12 +12,13 @@ filesystems. Five filesystems ship in the tree:
 | `lib/fs/spifs` | a `lib/bio` device (SPI flash)| yes      | flat, no directories; `FS_IOCTL_GET_FILE_ADDR` for execute-in-place |
 | `lib/fs/fat`   | a `lib/bio` device            | yes      | FAT12/16/32, long names; C++ |
 | `lib/fs/ext2`  | a `lib/bio` device            | no       | read only, including symlinks |
+| `lib/fs/rofs`  | a `lib/bio` device            | no       | an image built ahead of time by `scripts/mkrofs.py`; `FS_IOCTL_GET_FILE_ADDR` on a mapped device |
 | `lib/fs/9p`    | a virtio-9p device            | yes      | 9P2000.L to a host directory under QEMU |
 
 The layer owns path resolution. A filesystem never sees a path: it is asked to
 resolve **one component at a time** relative to a directory it previously handed
 back. That is what makes mount stitching, `..`, symlink following and the
-unlink-while-open rule uniform across all five, rather than five slightly
+unlink-while-open rule uniform across all six, rather than six slightly
 different implementations of each.
 
 `lib/fs/plan.md` is the design document for this arrangement and records the
@@ -88,7 +89,8 @@ directory entry, and `0:0` is a legal location (the first entry of a FAT12/16
 root directory), so it sets the high bit; 9p uses `qid.path + 1`. Getting this
 wrong is quiet: that one object gets a fresh vnode per open, and the busy check
 below stops working for it. A filesystem whose objects are owned elsewhere and
-never move (memfs, spifs) can just use the object's address.
+never move (memfs, spifs) can just use the object's address, and rofs uses its index
+entry's number plus one.
 
 **Unlink and rmdir are refused with `ERR_BUSY` while a handle is open.** The
 layer checks this before calling the filesystem, so no filesystem implements
@@ -141,8 +143,9 @@ follows a symlink) and **not** across `read`, `write`, `truncate`, `stat` or
 Holding it across `lookup` means a lookup that does I/O serializes the whole
 layer — ext2 holds it across bcache reads, spifs across a flash erase and ToC
 commit. memfs, spifs, ext2, FAT and 9p each serialize on a per-mount mutex of
-their own (and the 9p transport allows one outstanding RPC besides), so for those
-this costs nothing today. If a real target ever shows contention, the upgrade
+their own (and the 9p transport allows one outstanding RPC besides), and rofs
+looks names up in an index it read whole at mount, so for those this costs
+nothing today. If a real target ever shows contention, the upgrade
 path is a per-node busy flag: mark the node, drop the lock around the filesystem
 call, wake waiters afterwards.
 
@@ -215,7 +218,7 @@ Most members are optional: a NULL one makes the corresponding call return
   component on a flat filesystem is `ERR_NOT_FOUND`, not `ERR_NOT_SUPPORTED`.
 - **`readdir` reports end of directory as `ERR_NOT_FOUND`**, and does **not**
   list `.` or `..`. The layer flattens both lexically, so listing them would only
-  make every caller filter them out; none of the five filesystems does. They
+  make every caller filter them out; none of the six filesystems does. They
   remain resolvable as path components.
 - **The mount root is openable.** `fs_open_file()` on a mount point succeeds and
   `stat` on it reports `is_dir` with a zero size, rather than failing. Every
@@ -243,6 +246,7 @@ attached and check the result afterwards:
 ```bash
 ./scripts/run-fat-tests.py          # FAT12/16/32, verified with fsck.fat and mtools
 ./scripts/run-ext2-tests.py         # 1K and 4K block ext2 images
+./scripts/run-rofs-tests.py         # mkrofs.py images at three alignments
 scripts/do-qemuarm -6 -f <dir>      # 9p: exports <dir> to the guest
 ```
 
