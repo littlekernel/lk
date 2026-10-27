@@ -8,7 +8,10 @@ mkrofs.py at each alignment, checks it with mkrofs.py --list, then boots the qem
 with the image attached. The in-guest rofs_tests suite reads the manifest and checks every file
 and every directory listing against it; test.rofs.required=1 makes a missing device a
 failure rather than a skip. rofs is read-only, so the image must come back byte for byte as
-it went in.
+it went in. Last, the same tree is linked into the test project with lib/fs/rofs/embed
+(EXTERNAL_MODULES, a build of its own under $BUILDROOT/rofs-embed or a scratch directory) and
+checked the same way on the memory device it registers, where every file is also read in
+place at its address, which must keep the image's alignment.
 
   ./scripts/run-rofs-tests.py                  arm64, every alignment
   ./scripts/run-rofs-tests.py --arch riscv64   a different architecture
@@ -121,6 +124,24 @@ def run_one(tree, align, arch, timeout, quiet, scratch_dir):
     return ok
 
 
+def run_embedded(tree, arch, timeout, quiet, scratch_dir):
+    image = os.path.join(scratch_dir, 'embed.rofs')
+    subprocess.run([sys.executable, MKROFS, '-o', image, '-a', '4096', '-d', tree], check=True)
+    build_root = os.path.join(os.environ.get('BUILDROOT', scratch_dir), 'rofs-embed')
+    env = dict(os.environ, EXTERNAL_MODULES='lib/fs/rofs/embed', ROFS_EMBED_IMAGE=image,
+               ROFS_EMBED_NAME='rofs0', ROFS_EMBED_ALIGN='4096', BUILDROOT=build_root)
+    cmd = [BOOT_TESTS, '--arch', arch, '--timeout', str(timeout),
+           '-A', 'test.rofs.device=rofs0',
+           '-A', 'test.rofs.required=1']
+    if quiet:
+        cmd.append('--quiet')
+
+    print(f"\n=== embedded, align 4096, on {arch} (device rofs0, built in {build_root}) ===")
+    ok = subprocess.run(cmd, env=env).returncode == 0
+    print(f"  embedded: {'PASS' if ok else 'FAIL'}")
+    return ok
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -143,6 +164,8 @@ def main():
         for align in args.aligns or ALIGNS:
             results[f'align {align}'] = run_one(tree, align, args.arch, args.timeout,
                                                  args.quiet, scratch_dir)
+        results['embedded'] = run_embedded(tree, args.arch, args.timeout, args.quiet,
+                                           scratch_dir)
     finally:
         shutil.rmtree(scratch_dir, ignore_errors=True)
 

@@ -15,6 +15,13 @@ filesystems. Six filesystems ship in the tree:
 | `lib/fs/rofs`  | a `lib/bio` device            | no       | an image built ahead of time by `scripts/mkrofs.py`; `FS_IOCTL_GET_FILE_ADDR` on a mapped device |
 | `lib/fs/9p`    | a virtio-9p device            | yes      | 9P2000.L to a host directory under QEMU |
 
+An rofs image can come with the kernel: `lib/fs/rofs/embed` links `ROFS_EMBED_IMAGE` into the
+binary at `ROFS_EMBED_ALIGN` (default 4096) and registers it as the memory block device
+`ROFS_EMBED_NAME` (default `rofs0`) before the platform's own devices appear, so it mounts like
+any other device, and every file on it is reachable in place at an address that keeps the
+image's alignment. Any project can take it on the command line:
+`make <project> EXTERNAL_MODULES=lib/fs/rofs/embed ROFS_EMBED_IMAGE=<image>`.
+
 The layer owns path resolution. A filesystem never sees a path: it is asked to
 resolve **one component at a time** relative to a directory it previously handed
 back. That is what makes mount stitching, `..`, symlink following and the

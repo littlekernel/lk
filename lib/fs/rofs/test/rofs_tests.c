@@ -23,8 +23,9 @@
 // entries, mount them over a memory block device and check the tree, the reads and the
 // ioctls, then refuse a corrupt copy of the good image for each rule the format has. The
 // device test checks an image scripts/mkrofs.py made, on the device test.rofs.device names
-// (scripts/run-rofs-tests.py attaches it): its MANIFEST lists every directory and every file
-// with its size and CRC-32, and the test checks each, and that every directory lists exactly
+// (scripts/run-rofs-tests.py attaches it, or links it in): its MANIFEST lists every directory
+// and every file with its size and CRC-32, and the test checks each, read through the layer and,
+// on a mapped device, in place at the image's alignment, and that every directory lists exactly
 // what the manifest says it holds.
 
 #define RAM_DEV "rofs-test"
@@ -596,6 +597,40 @@ static bool file_sum(const char *path, uint64_t *size, uint32_t *crc) {
     return ok && off == st.size;
 }
 
+// On a mapped device, the file at path read in place: whether it is there, at a multiple of
+// align, with the size and CRC-32 it should have. *mapped says whether the device is mapped.
+static bool in_place_matches(const char *path, uint32_t align, uint64_t size, uint32_t crc,
+                             bool *mapped) {
+    *mapped = false;
+    filehandle *f;
+    if (fs_open_file(path, &f) < 0) {
+        return false;
+    }
+    bool ok = true;
+    if (fs_file_ioctl(f, FS_IOCTL_IS_LINEAR, mapped) < 0) {
+        *mapped = false;
+    }
+    if (*mapped) {
+        void *addr = NULL;
+        ok = fs_file_ioctl(f, FS_IOCTL_GET_FILE_ADDR, &addr) == NO_ERROR &&
+             (uintptr_t)addr % align == 0 &&
+             (uint32_t)crc32(crc32(0, NULL, 0), addr, (unsigned int)size) == crc;
+    }
+    fs_close_file(f);
+    return ok;
+}
+
+// the image's file alignment, from its header on the device
+static uint32_t image_align(const char *dev) {
+    bdev_t *b = bio_open(dev);
+    struct rofs_header h;
+    const bool read = b && bio_read(b, &h, 0, sizeof(h)) == (ssize_t)sizeof(h);
+    if (b) {
+        bio_close(b);
+    }
+    return read ? LE32(h.align) : 0;
+}
+
 struct manifest_entry {
     char type; // 'd' or 'f'
     unsigned long size;
@@ -737,7 +772,9 @@ static bool test_rofs_device(void) {
 
     const int n = manifest_parse(buf, m, MANIFEST_MAX);
     ASSERT_GT(n, 0, "manifest lines");
-    int files = 0, dirs = 0;
+    const uint32_t align = image_align(dev);
+    ASSERT_NE(0u, align, "the image's alignment");
+    int files = 0, dirs = 0, in_place = 0;
     for (int i = 0; i < n; i++) {
         if (m[i].type == 'f') {
             snprintf(path, FS_MAX_PATH_LEN, DEV_MOUNT "/%s", m[i].path);
@@ -749,13 +786,16 @@ static bool test_rofs_device(void) {
                                 (unsigned long long)size, (unsigned int)crc);
             }
             EXPECT_TRUE(ok && size == m[i].size && crc == m[i].crc, m[i].path);
+            bool mapped;
+            EXPECT_TRUE(in_place_matches(path, align, m[i].size, m[i].crc, &mapped), m[i].path);
+            in_place += mapped;
             files++;
         } else {
             EXPECT_TRUE(dir_matches(m, n, m[i].path, path, child), m[i].path);
             dirs++;
         }
     }
-    unittest_printf(" %d files and %d directories ", files, dirs);
+    unittest_printf(" %d files (%d read in place) and %d directories ", files, in_place, dirs);
     EXPECT_GT(dirs, 0, "the root at least");
 
     free(child);
