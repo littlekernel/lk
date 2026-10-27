@@ -168,7 +168,7 @@ static inline void arch_set_current_thread(struct thread *t) {
 #define wmb()       DSB
 #define rmb()       DSB
 
-#ifdef WITH_SMP
+#if WITH_SMP
 #define smp_mb()    DMB
 #define smp_wmb()   DMB
 #define smp_rmb()   DMB

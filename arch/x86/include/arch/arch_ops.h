@@ -65,14 +65,14 @@ static inline uint arch_curr_cpu_num(void) {
 #define wmb() __asm__ volatile("sfence" : : : "memory")
 #else
 // Store to the top of the stack as a load/store barrier. Cannot
-// rely on SS2 being intrinsically available for older i386 class hardware.
+// rely on SSE2 being intrinsically available for older i386 class hardware.
 #define __storeload_barrier __asm__ volatile("lock; addl $0, (%%esp)" : : : "memory", "cc")
 #define mb()                __storeload_barrier
 #define rmb()               __storeload_barrier
 #define wmb()               __storeload_barrier
 #endif
 
-#ifdef WITH_SMP
+#if WITH_SMP
 // XXX probably too strict
 #define smp_mb()  mb()
 #define smp_rmb() rmb()

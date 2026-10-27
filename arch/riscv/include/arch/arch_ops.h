@@ -54,7 +54,7 @@ static inline uint arch_curr_cpu_num(void) {
 #define wmb()       __asm__ volatile("fence ow,ow" ::: "memory")
 #define rmb()       __asm__ volatile("fence ir,ir" ::: "memory")
 
-#ifdef WITH_SMP
+#if WITH_SMP
 #define smp_mb()    __asm__ volatile("fence rw,rw" ::: "memory")
 #define smp_wmb()   __asm__ volatile("fence w,w" ::: "memory")
 #define smp_rmb()   __asm__ volatile("fence r,r" ::: "memory")
