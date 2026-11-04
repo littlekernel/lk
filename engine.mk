@@ -26,6 +26,10 @@ ifneq ($(IGNORE_LOCAL_MK),1)
 -include local.mk
 endif
 
+ifneq ($(filter .. ../%,$(LKROOT) $(LKINC)),)
+$(error LKROOT and LKINC must not start with '..' or objects will escape BUILDDIR; symlink the tree into the workspace instead, e.g. ln -s ../lk lk with LKROOT := lk)
+endif
+
 # If one of our goals (from the commandline) happens to have a
 # matching project/goal.mk, then we should re-invoke make with
 # that project name specified...
