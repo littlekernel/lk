@@ -21,6 +21,7 @@
 #include <limits.h>
 #include <lib/cksum.h>
 #include <lk/compiler.h>
+#include <lk/trace.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,6 +54,8 @@
 #include "io_stack.h"
 #include "memory_protocols.h"
 #include "uefi_platform.h"
+
+#define LOCAL_TRACE 0
 
 namespace {
 
@@ -165,8 +168,8 @@ EfiHandle singleton_protocol_handle(const EfiGuid *protocol) {
 EfiStatus handle_protocol(EfiHandle handle, const EfiGuid *protocol,
                           void **intf) {
   char name_buf[64];
-  printf("%s(%p, %s, %p);\n", __FUNCTION__, handle,
-         fmt_guid(protocol, name_buf, sizeof(name_buf)), intf);
+  LTRACEF("%p, %s, %p\n", handle, fmt_guid(protocol, name_buf, sizeof(name_buf)),
+          intf);
 
   if (guid_eq(protocol, EFI_LOADED_IMAGE_PROTOCOL_GUID)) {
     const auto loaded_image = static_cast<EfiLoadedImageProtocol *>(
@@ -221,8 +224,8 @@ EfiStatus locate_handle(EfiLocateHandleSearchType search_type,
 
   const EfiHandle singleton_handle = singleton_protocol_handle(protocol);
   char name_buf[64];
-  printf("%s(0x%x, %s, search_key=%p)\n", __FUNCTION__, search_type,
-         fmt_guid(protocol, name_buf, sizeof(name_buf)), search_key);
+  LTRACEF("0x%x, %s, search_key=%p\n", search_type,
+          fmt_guid(protocol, name_buf, sizeof(name_buf)), search_key);
 
   if (singleton_handle != nullptr) {
     const size_t required_size = sizeof(EfiHandle);
@@ -330,22 +333,21 @@ void copy_mem(void *dest, const void *src, size_t len) {
 void set_mem(void *buf, size_t len, uint8_t val) { memset(buf, val, len); }
 
 EfiTpl raise_tpl(EfiTpl new_tpl) {
-  printf("%s is called %zu\n", __FUNCTION__, new_tpl);
+  LTRACEF("%zu\n", new_tpl);
   return EFI_TPL_APPLICATION;
 }
 
 void restore_tpl(EfiTpl old_tpl) {
-  printf("%s is called %zu\n", __FUNCTION__, old_tpl);
+  LTRACEF("%zu\n", old_tpl);
 }
 
 EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, const void **intf,
                         EfiHandle agent_handle, EfiHandle controller_handle,
                         EfiOpenProtocolAttributes attr) {
   char name_buf[64];
-  printf("%s(%s, handle=%p, agent_handle=%p, controller_handle=%p, "
-         "attr=0x%x)\n",
-         __FUNCTION__, fmt_guid(protocol, name_buf, sizeof(name_buf)), handle,
-         agent_handle, controller_handle, attr);
+  LTRACEF("%s, handle=%p, agent_handle=%p, controller_handle=%p, attr=0x%x\n",
+          fmt_guid(protocol, name_buf, sizeof(name_buf)), handle, agent_handle,
+          controller_handle, attr);
 
   if (guid_eq(protocol, EFI_LOADED_IMAGE_PROTOCOL_GUID)) {
     auto interface = reinterpret_cast<EfiLoadedImageProtocol *>(
@@ -434,9 +436,9 @@ EfiStatus open_protocol(EfiHandle handle, const EfiGuid *protocol, const void **
 EfiStatus close_protocol(EfiHandle handle, const EfiGuid *protocol,
                          EfiHandle agent_handle, EfiHandle controller_handle) {
   char name_buf[64];
-  printf("%s(%s, handle=%p, agent_handle=%p, controller_handle=%p)\n",
-         __FUNCTION__, fmt_guid(protocol, name_buf, sizeof(name_buf)), handle,
-         agent_handle, controller_handle);
+  LTRACEF("%s, handle=%p, agent_handle=%p, controller_handle=%p\n",
+          fmt_guid(protocol, name_buf, sizeof(name_buf)), handle, agent_handle,
+          controller_handle);
 
   if (guid_eq(protocol, EFI_LOADED_IMAGE_PROTOCOL_GUID)) {
     return EFI_STATUS_SUCCESS;
