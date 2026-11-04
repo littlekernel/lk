@@ -17,12 +17,15 @@
 
 #include "runtime_service_provider.h"
 
+#include <lk/trace.h>
 #include <platform.h>
 #include <stdio.h>
 #include <string.h>
 #include <uefi/types.h>
 
 #include "variable_mem.h"
+
+#define LOCAL_TRACE 0
 
 namespace {
 
@@ -82,7 +85,7 @@ EfiStatus GetVariable(const uint16_t *VariableName, const EfiGuid *VendorGuid,
     return EFI_STATUS_SUCCESS;
   }
 
-  printf("%s(%s) is unsupported\n", __FUNCTION__, buffer);
+  LTRACEF("%s(%s) is unsupported\n", __FUNCTION__, buffer);
   return EFI_STATUS_UNSUPPORTED;
 }
 

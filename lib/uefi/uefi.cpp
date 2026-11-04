@@ -50,6 +50,8 @@
 #include "uefi_platform.h"
 #include "variable_mem.h"
 
+#define LOCAL_TRACE 0
+
 namespace {
 
 constexpr auto EFI_SYSTEM_TABLE_SIGNATURE =
@@ -297,8 +299,8 @@ int load_sections_and_execute(ImageReader *reader,
       return ERR_IO;
     }
   }
-  printf("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
-         image_base);
+  LTRACEF("Relocating image from 0x%llx to %p\n", optional_header->ImageBase,
+          image_base);
   if (relocate_image(image_base, optional_header->SizeOfImage) != 0) {
     printf("Failed to relocate image\n");
     return ERR_BAD_STATE;
@@ -311,7 +313,7 @@ int load_sections_and_execute(ImageReader *reader,
   }
   auto entry = reinterpret_cast<int (*)(void *, void *)>(
       image_base + optional_header->AddressOfEntryPoint);
-  printf("Entry function located at %p\n", entry);
+  LTRACEF("Entry function located at %p\n", entry);
 
   auto *system_table = static_cast<EfiSystemTable *>(alloc_page(PAGE_SIZE));
   if (system_table == nullptr) {
@@ -370,7 +372,7 @@ int load_sections_and_execute(ImageReader *reader,
     printf("UEFI stack %p is not 16-byte aligned\n", stack);
     return ERR_INVALID_ARGS;
   }
-  printf("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
+  LTRACEF("Calling kernel with stack [%p, %p]\n", stack, stack + kStackSize - 1);
   int ret = static_cast<int>(
       call_with_stack(stack + kStackSize, entry, image_base, &table));
 
@@ -436,7 +438,7 @@ int load_pe_file(ImageReader *reader) {
     printf("error reading PE header from %s: %zd\n", name, err);
     return ERR_IO;
   }
-  dprintf(INFO, "bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
+  LTRACEF("bio_read returns %d, took %u msecs (%d bytes/sec)\n", (int)err,
           (uint)t, (uint32_t)((uint64_t)err * 1000 / t));
 
   const size_t header_bytes = static_cast<size_t>(err);
@@ -511,7 +513,7 @@ int load_pe_file(ImageReader *reader) {
            optional_header->SectionAlignment, static_cast<size_t>(PAGE_SIZE));
     return ERR_NOT_SUPPORTED;
   }
-  printf("Valid UEFI application found.\n");
+  LTRACEF("Valid UEFI application found.\n");
   auto ret = load_sections_and_execute(reader, pe_header, address, header_bytes);
   printf("UEFI Application return code: %d\n", ret);
   return ret;

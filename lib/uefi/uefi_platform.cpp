@@ -140,16 +140,16 @@ __WEAK EfiStatus select_device_trees(struct GblEfiOsConfigurationProtocol* self,
 __WEAK EfiStatus select_fit_configuration(
     struct GblEfiOsConfigurationProtocol* self, size_t fit_size, const uint8_t* fit,
     size_t metadata_size, const uint8_t* metadata, size_t* selected_configuration_offset) {
-  printf("%s(%p, %lu, %p, %lu, %p, %p)\n", __FUNCTION__, self, fit_size, fit, metadata_size,
-         metadata, selected_configuration_offset);
+  LTRACEF("%s(%p, %lu, %p, %lu, %p, %p)\n", __FUNCTION__, self, fit_size, fit, metadata_size,
+          metadata, selected_configuration_offset);
   return EFI_STATUS_UNSUPPORTED;
 }
 
 __WEAK EfiStatus fixup_kernel_commandline(
     struct GblEfiOsConfigurationProtocol* self, size_t commandline_size,
     const EfiChar8* commandline, size_t* fixup_buffer_size, EfiChar8* fixup) {
-  printf("%s(%p, %lu, %p, %p, %p)\n", __FUNCTION__, self, commandline_size,
-         commandline, fixup_buffer_size, fixup);
+  LTRACEF("%s(%p, %lu, %p, %p, %p)\n", __FUNCTION__, self, commandline_size,
+          commandline, fixup_buffer_size, fixup);
   return EFI_STATUS_UNSUPPORTED;
 }
 
