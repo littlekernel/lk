@@ -249,9 +249,10 @@ $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
 list-toolchain:
 else
 
-# TODO: rethink how this works and perhaps have the arch rules.mk set up CC, OBJCOPY, etc
-# so that they can be a bit more flexible in how they are set up.
-# Also consider using ARCH_CC, etc to disambiguate between host and target toolchains.
+# Target tools are LK_CC, LK_LD and so on. The bare names are never read: they usually
+# mean the host toolchain and are often exported in the environment for host builds.
+$(call CHECK_RENAMED,CC:LK_CC LD:LK_LD OBJDUMP:LK_OBJDUMP OBJCOPY:LK_OBJCOPY \
+    CPPFILT:LK_CXXFILT SIZE:LK_SIZE NM:LK_NM STRIP:LK_STRIP)
 
 # default to no ccache
 CCACHE ?=
@@ -270,47 +271,47 @@ ifeq ($(TOOLCHAIN),clang)
     CLANG_PATH := $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/clang),$(shell which clang 2>/dev/null))
     CLANG_CC := $(if $(CLANG_PATH),$(CLANG_PATH),clang)
     CLANG_TARGET ?= $(CLANG_ARCH_TRIPLE)
-    CC ?= $(CCACHE) $(CLANG_CC) --target=$(CLANG_TARGET)
+    LK_CC ?= $(CCACHE) $(CLANG_CC) --target=$(CLANG_TARGET)
 
     # DWARF 4 for compatibility with GNU binutils
     GLOBAL_COMPILEFLAGS += -gdwarf-4
 
     LLD_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/ld.lld)) $(shell which ld.lld 2>/dev/null))
-    ifeq ($(LD),ld.lld)
+    ifeq ($(LK_LD),ld.lld)
         ifeq ($(LLD_PATH),)
             $(error ld.lld linker requested but not found. Please install lld package or set CLANG_BINDIR)
         endif
-        override LD := $(LLD_PATH)
+        override LK_LD := $(LLD_PATH)
     else
-        LD ?= $(if $(LLD_PATH),$(LLD_PATH),$(TOOLCHAIN_PREFIX)ld)
+        LK_LD ?= $(if $(LLD_PATH),$(LLD_PATH),$(TOOLCHAIN_PREFIX)ld)
     endif
 
     OBJDUMP_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-objdump)) $(shell which llvm-objdump 2>/dev/null))
-    OBJDUMP ?= $(if $(OBJDUMP_PATH),$(OBJDUMP_PATH),$(TOOLCHAIN_PREFIX)objdump)
+    LK_OBJDUMP ?= $(if $(OBJDUMP_PATH),$(OBJDUMP_PATH),$(TOOLCHAIN_PREFIX)objdump)
 
     OBJCOPY_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-objcopy)) $(shell which llvm-objcopy 2>/dev/null))
-    OBJCOPY ?= $(if $(OBJCOPY_PATH),$(OBJCOPY_PATH),$(TOOLCHAIN_PREFIX)objcopy)
+    LK_OBJCOPY ?= $(if $(OBJCOPY_PATH),$(OBJCOPY_PATH),$(TOOLCHAIN_PREFIX)objcopy)
 
-    CPPFILT_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-cxxfilt)) $(shell which llvm-cxxfilt 2>/dev/null))
-    CPPFILT ?= $(if $(CPPFILT_PATH),$(CPPFILT_PATH),$(TOOLCHAIN_PREFIX)c++filt)
+    CXXFILT_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-cxxfilt)) $(shell which llvm-cxxfilt 2>/dev/null))
+    LK_CXXFILT ?= $(if $(CXXFILT_PATH),$(CXXFILT_PATH),$(TOOLCHAIN_PREFIX)c++filt)
 
     SIZE_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-size)) $(shell which llvm-size 2>/dev/null))
-    SIZE ?= $(if $(SIZE_PATH),$(SIZE_PATH),$(TOOLCHAIN_PREFIX)size)
+    LK_SIZE ?= $(if $(SIZE_PATH),$(SIZE_PATH),$(TOOLCHAIN_PREFIX)size)
 
     NM_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-nm)) $(shell which llvm-nm 2>/dev/null))
-    NM ?= $(if $(NM_PATH),$(NM_PATH),$(TOOLCHAIN_PREFIX)nm)
+    LK_NM ?= $(if $(NM_PATH),$(NM_PATH),$(TOOLCHAIN_PREFIX)nm)
 
     STRIP_PATH := $(firstword $(if $(CLANG_BINDIR),$(wildcard $(CLANG_BINDIR)/llvm-strip)) $(shell which llvm-strip 2>/dev/null))
-    STRIP ?= $(if $(STRIP_PATH),$(STRIP_PATH),$(TOOLCHAIN_PREFIX)strip)
+    LK_STRIP ?= $(if $(STRIP_PATH),$(STRIP_PATH),$(TOOLCHAIN_PREFIX)strip)
 else
-    CC ?= $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
-    LD ?= $(TOOLCHAIN_PREFIX)ld
-    OBJDUMP ?= $(TOOLCHAIN_PREFIX)objdump
-    OBJCOPY ?= $(TOOLCHAIN_PREFIX)objcopy
-    CPPFILT ?= $(TOOLCHAIN_PREFIX)c++filt
-    SIZE ?= $(TOOLCHAIN_PREFIX)size
-    NM ?= $(TOOLCHAIN_PREFIX)nm
-    STRIP ?= $(TOOLCHAIN_PREFIX)strip
+    LK_CC ?= $(CCACHE) $(TOOLCHAIN_PREFIX)gcc
+    LK_LD ?= $(TOOLCHAIN_PREFIX)ld
+    LK_OBJDUMP ?= $(TOOLCHAIN_PREFIX)objdump
+    LK_OBJCOPY ?= $(TOOLCHAIN_PREFIX)objcopy
+    LK_CXXFILT ?= $(TOOLCHAIN_PREFIX)c++filt
+    LK_SIZE ?= $(TOOLCHAIN_PREFIX)size
+    LK_NM ?= $(TOOLCHAIN_PREFIX)nm
+    LK_STRIP ?= $(TOOLCHAIN_PREFIX)strip
 endif
 
 # Detect whether we are using ld.lld, assuming it is named ld.lld. If we don't
@@ -321,20 +322,20 @@ endif
 # reports "LLD" and would be taken for a usable cross linker even when it is
 # the Mach-O only flavor, as on macOS, enabling flags and code paths that then
 # fail confusingly. LLD is only wanted here when it has been asked for by name
-# (LD=ld.lld), so that is what we look for.
-LINKER_TYPE := $(if $(filter %ld.lld,$(notdir $(firstword $(LD)))),lld,bfd)
+# (LK_LD=ld.lld), so that is what we look for.
+LINKER_TYPE := $(if $(filter %ld.lld,$(notdir $(firstword $(LK_LD)))),lld,bfd)
 $(info LINKER_TYPE=$(LINKER_TYPE))
 # Detect whether we are compiling with GCC or Clang
-COMPILER_TYPE := $(shell $(CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
+COMPILER_TYPE := $(shell $(LK_CC) -v 2>&1 | grep -q "clang version" && echo clang || echo gcc)
 $(info COMPILER_TYPE=$(COMPILER_TYPE))
 
 # Find libgcc.a (or equivalent) for this compiler/multilib combination.
-# This must happen here, now that CC/TOOLCHAIN are fully resolved above --
+# This must happen here, now that LK_CC/TOOLCHAIN are fully resolved above --
 # under TOOLCHAIN=clang this lets Clang report its own runtime library for
 # targets where it has one; otherwise fall back to querying a matching
 # cross GCC. (arch/*/rules.mk, included earlier, sets ARCH_COMPILEFLAGS and
 # friends used below to select the right multilib variant.)
-LIBGCC ?= $(shell $(CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) $(THUMBCFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name 2>/dev/null)
+LIBGCC ?= $(shell $(LK_CC) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) $(THUMBCFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name 2>/dev/null)
 ifeq ($(wildcard $(LIBGCC)),)
 LIBGCC := $(shell $(TOOLCHAIN_PREFIX)gcc $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) $(ARCH_COMPILEFLAGS_FLOAT) $(THUMBCFLAGS) $(GLOBAL_CFLAGS) -print-libgcc-file-name 2>/dev/null)
 endif
@@ -352,15 +353,15 @@ GLOBAL_LTO_COMPILEFLAGS :=
 ifneq ($(LTO_MODE),off)
 ifeq ($(COMPILER_TYPE),clang)
 ifneq ($(LINKER_TYPE),lld)
-$(error LTO_MODE=$(LTO_MODE) with TOOLCHAIN=clang requires ld.lld, which has native LTO support; got LD=$(LD))
+$(error LTO_MODE=$(LTO_MODE) with TOOLCHAIN=clang requires ld.lld, which has native LTO support; got LK_LD=$(LK_LD))
 endif
 # LTO code generation runs inside ld.lld, which must come from the same LLVM release as the
 # compiler: a newer one can read an older clang's target features differently (LLVM 21 drops
 # M from clang 18's "+m,...,-zmmul") and quietly emit libcalls for every multiply and divide.
-CLANG_MAJOR := $(firstword $(subst ., ,$(shell $(CC) -dumpversion)))
-LLD_MAJOR := $(shell $(LD) --version | sed -n 's/.*LLD \([0-9][0-9]*\)\..*/\1/p')
+CLANG_MAJOR := $(firstword $(subst ., ,$(shell $(LK_CC) -dumpversion)))
+LLD_MAJOR := $(shell $(LK_LD) --version | sed -n 's/.*LLD \([0-9][0-9]*\)\..*/\1/p')
 ifneq ($(CLANG_MAJOR),$(LLD_MAJOR))
-$(error LTO_MODE=$(LTO_MODE) needs clang and ld.lld from the same LLVM release; got clang $(CLANG_MAJOR) and ld.lld $(LLD_MAJOR) ($(LD)), set CLANG_BINDIR)
+$(error LTO_MODE=$(LTO_MODE) needs clang and ld.lld from the same LLVM release; got clang $(CLANG_MAJOR) and ld.lld $(LLD_MAJOR) ($(LK_LD)), set CLANG_BINDIR)
 endif
 GLOBAL_LTO_COMPILEFLAGS += -flto=$(LTO_MODE)
 else
@@ -368,7 +369,7 @@ $(error LTO_MODE=$(LTO_MODE) is not yet supported for COMPILER_TYPE=$(COMPILER_T
 endif
 endif
 
-# Now that CC is defined we can check if warning flags are supported and add
+# Now that LK_CC is defined we can check if warning flags are supported and add
 # them to GLOBAL_COMPILEFLAGS if they are.
 ifeq ($(call is_warning_flag_supported,-Wnonnull-compare),yes)
 GLOBAL_COMPILEFLAGS += -Wno-nonnull-compare
@@ -476,7 +477,7 @@ GLOBAL_DEFINES += LTO_MODE=\"$(LTO_MODE)\"
 GLOBAL_DEFINES += GLOBAL_LTO_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LTO_COMPILEFLAGS))\"
 GLOBAL_DEFINES += TOOLCHAIN_PREFIX=\"$(subst $(SPACE),_,$(TOOLCHAIN_PREFIX))\"
 GLOBAL_DEFINES += TOOLCHAIN=\"$(subst $(SPACE),_,$(TOOLCHAIN))\"
-GLOBAL_DEFINES += LD=\"$(subst $(SPACE),_,$(LD))\"
+GLOBAL_DEFINES += LK_LD=\"$(subst $(SPACE),_,$(LK_LD))\"
 GLOBAL_DEFINES += LIBGCC=\"$(subst $(SPACE),_,$(LIBGCC))\"
 
 # Bare names from the old module format, which the build never reads. Values from the

@@ -171,7 +171,7 @@ MODULE_OBJECT := $(call TOBUILDDIR,$(MODULE_SRCDIR).mod.o)
 $(MODULE_OBJECT): $(MODULE_OBJS) $(MODULE_EXTRA_OBJS)
 	@$(MKDIR)
 	$(info linking $@)
-	$(NOECHO)$(LD) $(GLOBAL_MODULE_LDFLAGS) -r $^ -o $@
+	$(NOECHO)$(LK_LD) $(GLOBAL_MODULE_LDFLAGS) -r $^ -o $@
 
 # track the module object for make clean
 GENERATED += $(MODULE_OBJECT)

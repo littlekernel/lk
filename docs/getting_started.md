@@ -38,7 +38,7 @@ make qemu-virt-riscv64-test
 
 # Or build using Clang / Clang+LLD
 make qemu-virt-riscv64-test TOOLCHAIN=clang
-make qemu-virt-riscv64-test TOOLCHAIN=clang LD=ld.lld
+make qemu-virt-riscv64-test TOOLCHAIN=clang LK_LD=ld.lld
 
 # Or build using Clang with link-time optimization (thin or full)
 make qemu-virt-riscv64-test TOOLCHAIN=clang LTO_MODE=thin
@@ -50,8 +50,13 @@ target-specific toolchain is needed. Point `CLANG_BINDIR` at another LLVM instal
 that instead:
 
 ```bash
-make qemu-virt-riscv64-test TOOLCHAIN=clang LD=ld.lld CLANG_BINDIR=/opt/llvm/bin
+make qemu-virt-riscv64-test TOOLCHAIN=clang LK_LD=ld.lld CLANG_BINDIR=/opt/llvm/bin
 ```
+
+A single target tool can be overridden with `LK_CC`, `LK_LD`, `LK_OBJDUMP`, `LK_OBJCOPY`,
+`LK_CXXFILT`, `LK_SIZE`, `LK_NM` or `LK_STRIP`. The bare `CC`, `LD` and so on usually name
+the host toolchain, so the build ignores them in the environment and rejects them on the
+command line or in a makefile.
 
 6. Run it under QEMU. The `do-qemu*` scripts rebuild the project first, then boot it;
    `-h` lists their options.

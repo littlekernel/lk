@@ -172,7 +172,7 @@ for tc in "${TOOLCHAINS[@]}"; do
         TC_ARGS=("TOOLCHAIN=clang")
         TC_SUFFIX="-clang"
     elif [ "$tc" == "clang-lld" ]; then
-        TC_ARGS=("TOOLCHAIN=clang" "LD=ld.lld")
+        TC_ARGS=("TOOLCHAIN=clang" "LK_LD=ld.lld")
         TC_SUFFIX="-clang-lld"
     else
         TC_ARGS=("TOOLCHAIN=gcc")

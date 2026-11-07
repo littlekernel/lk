@@ -168,7 +168,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 ## Build system
 
 - Prefix toolchain vars ARCH_CC etc (engine.mk TODO); there is no CXX or AR
-- arch/x86/rules.mk cc-option probe runs before CC is set, x86-32 loses -fno-stack-protector
+- arch/x86/rules.mk cc-option probe runs before LK_CC is set, x86-32 loses -fno-stack-protector
 - gcc LTO ($(error) today); arm-m LTO broken
 - riscv: no -mgeneral-regs-only equivalent; arm32 relies on the default soft abi
 - .cpp -> .cc? (94 .cpp files, .cc rules already exist)

@@ -35,7 +35,7 @@ Hello World!
 The loader regressions are part of LK's `ut all` suite in test builds:
 
 ```sh
-make qemu-virt-arm64-test TOOLCHAIN=clang LD=ld.lld IGNORE_LOCAL_MK=1
+make qemu-virt-arm64-test TOOLCHAIN=clang LK_LD=ld.lld IGNORE_LOCAL_MK=1
 qemu-system-aarch64 -cpu max -m 512 -smp 1 -machine virt,highmem=off \
     -kernel build-qemu-virt-arm64-test/lk.elf -net none -nographic \
     -monitor none -append 'lk.autorun=ut+all;poweroff'

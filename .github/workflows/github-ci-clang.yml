@@ -66,7 +66,7 @@ jobs:
       DEBUG: ${{ matrix.debug }}
       UBSAN: 0  # UBSan runtimes for baremetal are not part of the toolchain
       TOOLCHAIN: clang
-      LD: ld.lld  # force the LLVM linker instead of falling back to bfd
+      LK_LD: ld.lld  # force the LLVM linker instead of falling back to bfd
     steps:
     - name: banner
       shell: bash
@@ -135,7 +135,7 @@ jobs:
       TOOLCHAIN_VER: 20
       DEBUG: 0
       TOOLCHAIN: clang
-      LD: ld.lld
+      LK_LD: ld.lld
       LTO_MODE: ${{ matrix.lto }}
     steps:
     - name: checkout

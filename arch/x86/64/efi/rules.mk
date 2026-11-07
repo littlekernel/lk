@@ -38,7 +38,7 @@ MODULE_SRCS += \
 EFISTUB_RELOC_STAMP := $(call TOBUILDDIR,$(LOCAL_DIR)/reloc-check.stamp)
 $(EFISTUB_RELOC_STAMP): $(call TOBUILDDIR,$(LOCAL_DIR)/efi-stub.c.o)
 	@echo checking $< for absolute relocations
-	$(NOECHO)$(OBJDUMP) -r $< | awk 'BEGIN{rc=0} /RELOCATION RECORDS FOR/{sec=$$NF} $$2 ~ /^R_X86_64_(64|32|32S)$$/ && sec !~ /debug|eh_frame/ {print "error: EFI stub absolute relocation in "sec" "$$0; rc=1} END{exit rc}'
+	$(NOECHO)$(LK_OBJDUMP) -r $< | awk 'BEGIN{rc=0} /RELOCATION RECORDS FOR/{sec=$$NF} $$2 ~ /^R_X86_64_(64|32|32S)$$/ && sec !~ /debug|eh_frame/ {print "error: EFI stub absolute relocation in "sec" "$$0; rc=1} END{exit rc}'
 	$(NOECHO)touch $@
 
 EXTRA_BUILDDEPS += $(EFISTUB_RELOC_STAMP)

@@ -102,7 +102,7 @@ Distribution cross compilers such as `gcc-aarch64-linux-gnu` also work.
 
 ```bash
 make qemu-virt-arm64-test                                  # output in build-qemu-virt-arm64-test/
-make qemu-virt-arm64-test TOOLCHAIN=clang LD=ld.lld        # Clang + LLD
+make qemu-virt-arm64-test TOOLCHAIN=clang LK_LD=ld.lld        # Clang + LLD
 make qemu-virt-arm64-test TOOLCHAIN=clang LTO_MODE=thin    # with ThinLTO
 make qemu-virt-arm64-test USE_RUST=1                       # link in the Rust crates
 make qemu-virt-arm64-test DEBUG=0                          # release build

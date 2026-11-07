@@ -45,7 +45,7 @@ SYMTAB_LINK_OBJS := $(ALLMODULE_OBJS) $(filter-out $(SYMTAB_DATA_OBJ),$(EXTRA_OB
 define SYMTAB_COMPILE
 	@$(MKDIR)
 	$(info compiling $<)
-	$(NOECHO)$(CC) $(GLOBAL_OPTFLAGS) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) \
+	$(NOECHO)$(LK_CC) $(GLOBAL_OPTFLAGS) $(GLOBAL_COMPILEFLAGS) $(ARCH_COMPILEFLAGS) \
 		$(GLOBAL_CFLAGS) $(ARCH_CFLAGS) $(GLOBAL_INCLUDES) -c $< -o $@
 endef
 
@@ -54,7 +54,7 @@ endef
 # $1 - the table object to link in
 define SYMTAB_LINK
 	$(info linking $@)
-	$(NOECHO)$(LD) $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -d -T $(LINKER_SCRIPT) \
+	$(NOECHO)$(LK_LD) $(GLOBAL_LDFLAGS) $(ARCH_LDFLAGS) -d -T $(LINKER_SCRIPT) \
 		$(addprefix -T,$(EXTRA_LINKER_SCRIPTS)) \
 		$(SYMTAB_LINK_OBJS) $1 $(LIBGCC) -o $@
 endef
@@ -82,10 +82,10 @@ $(SYMTAB_PASS2_ELF): $(SYMTAB_LINK_OBJS) $(SYMTAB_PASS1_DATA_OBJ) $(LINKER_SCRIP
 	$(call SYMTAB_LINK,$(SYMTAB_PASS1_DATA_OBJ))
 
 $(SYMTAB_PASS1_NM): $(SYMTAB_PASS1_ELF)
-	$(NOECHO)$(NM) -n --defined-only $< > $@
+	$(NOECHO)$(LK_NM) -n --defined-only $< > $@
 
 $(SYMTAB_PASS2_NM): $(SYMTAB_PASS2_ELF)
-	$(NOECHO)$(NM) -n --defined-only $< > $@
+	$(NOECHO)$(LK_NM) -n --defined-only $< > $@
 
 $(SYMTAB_PASS1_DATA_C): $(SYMTAB_PASS1_NM) $(SYMTAB_GENERATOR)
 	$(SYMTAB_GENERATE)
@@ -97,7 +97,7 @@ $(SYMTAB_DATA_C): $(SYMTAB_PASS2_NM) $(SYMTAB_GENERATOR)
 # which would leave every symbol in the image silently off by some amount.
 $(SYMTAB_VERIFY_STAMP): $(OUTELF) $(SYMTAB_PASS2_NM) $(SYMTAB_GENERATOR)
 	$(info verifying symbol table: $@)
-	$(NOECHO)$(NM) -n --defined-only $(OUTELF) > $(SYMTAB_FINAL_NM)
+	$(NOECHO)$(LK_NM) -n --defined-only $(OUTELF) > $(SYMTAB_FINAL_NM)
 	$(NOECHO)$(SYMTAB_GENERATOR) --verify $(SYMTAB_PASS2_NM) $(SYMTAB_FINAL_NM)
 	$(NOECHO)touch $@
 

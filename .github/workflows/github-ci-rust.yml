@@ -66,14 +66,14 @@ jobs:
         # Map the GCC toolchain prefix to a clang --target argument:
         CLANG_TRIPLE=$(echo "${GCC_TOOLCHAIN_PREFIX}" | sed 's/-elf-/-unknown-elf/g')
         LLVM_BINDIR=/usr/lib/llvm-${{ matrix.toolchain-ver }}/bin
-        echo "CC=${LLVM_BINDIR}/clang --target=${CLANG_TRIPLE}" >> $GITHUB_ENV
-        echo "LD=${LLVM_BINDIR}/ld.lld" >> $GITHUB_ENV
-        echo "OBJDUMP=${LLVM_BINDIR}/llvm-objdump" >> $GITHUB_ENV
-        echo "OBJCOPY=${LLVM_BINDIR}/llvm-objcopy" >> $GITHUB_ENV
-        echo "CPPFILT=${LLVM_BINDIR}/llvm-cxxfilt" >> $GITHUB_ENV
-        echo "SIZE=${LLVM_BINDIR}/llvm-size" >> $GITHUB_ENV
-        echo "NM=${LLVM_BINDIR}/llvm-nm" >> $GITHUB_ENV
-        echo "STRIP=${LLVM_BINDIR}/llvm-strip" >> $GITHUB_ENV
+        echo "LK_CC=${LLVM_BINDIR}/clang --target=${CLANG_TRIPLE}" >> $GITHUB_ENV
+        echo "LK_LD=${LLVM_BINDIR}/ld.lld" >> $GITHUB_ENV
+        echo "LK_OBJDUMP=${LLVM_BINDIR}/llvm-objdump" >> $GITHUB_ENV
+        echo "LK_OBJCOPY=${LLVM_BINDIR}/llvm-objcopy" >> $GITHUB_ENV
+        echo "LK_CXXFILT=${LLVM_BINDIR}/llvm-cxxfilt" >> $GITHUB_ENV
+        echo "LK_SIZE=${LLVM_BINDIR}/llvm-size" >> $GITHUB_ENV
+        echo "LK_NM=${LLVM_BINDIR}/llvm-nm" >> $GITHUB_ENV
+        echo "LK_STRIP=${LLVM_BINDIR}/llvm-strip" >> $GITHUB_ENV
         echo "TOOLCHAIN_PREFIX=/invalid/prefix/should/not/be/used" >> $GITHUB_ENV
         echo "LIBGCC=" >> $GITHUB_ENV
         cat "$GITHUB_ENV"

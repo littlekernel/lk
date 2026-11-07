@@ -443,7 +443,7 @@ linkerscript.phony:
 $(OUTELF).stack: LOCAL_DIR:=$(LOCAL_DIR)
 $(OUTELF).stack: $(OUTELF)
 	$(NOECHO)echo generating stack usage $@
-	$(NOECHO)$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -d $< | $(LOCAL_DIR)/stackusage | $(CPPFILT) | sort -n -k 1 -r > $@
+	$(NOECHO)$(LK_OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -d $< | $(LOCAL_DIR)/stackusage | $(LK_CXXFILT) | sort -n -k 1 -r > $@
 
 EXTRA_BUILDDEPS += $(OUTELF).stack
 GENERATED += $(OUTELF).stack

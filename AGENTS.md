@@ -83,8 +83,10 @@ make qemu-virt-arm64-test DEBUG=0
 # Build with Clang compiler
 make qemu-virt-arm64-test TOOLCHAIN=clang
 
-# Build with Clang compiler and LLVM LLD linker
-make qemu-virt-arm64-test TOOLCHAIN=clang LD=ld.lld
+# Build with Clang compiler and LLVM LLD linker. Target tools are LK_CC, LK_LD, LK_OBJDUMP,
+# LK_OBJCOPY, LK_CXXFILT, LK_SIZE, LK_NM and LK_STRIP; bare CC, LD etc. are ignored in the
+# environment and rejected on the command line or in a makefile.
+make qemu-virt-arm64-test TOOLCHAIN=clang LK_LD=ld.lld
 
 # Build with Clang + LTO (thin or full; requires ld.lld, which is picked by default)
 make qemu-virt-arm64-test TOOLCHAIN=clang LTO_MODE=thin

@@ -154,7 +154,7 @@ class QEMUTestRunner:
         if toolchain in ('clang', 'clang-lld'):
             env['TOOLCHAIN'] = 'clang'
             if toolchain == 'clang-lld':
-                env['LD'] = 'ld.lld'
+                env['LK_LD'] = 'ld.lld'
             # engine.mk picks the LLVM install (CLANG_BINDIR) when it is not set
 
         # Create the QEMU commandline
