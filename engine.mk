@@ -26,10 +26,6 @@ ifneq ($(IGNORE_LOCAL_MK),1)
 -include local.mk
 endif
 
-ifneq ($(filter .. ../%,$(LKROOT) $(LKINC)),)
-$(error LKROOT and LKINC must not start with '..' or objects will escape BUILDDIR; symlink the tree into the workspace instead, e.g. ln -s ../lk lk with LKROOT := lk)
-endif
-
 # If one of our goals (from the commandline) happens to have a
 # matching project/goal.mk, then we should re-invoke make with
 # that project name specified...
@@ -67,6 +63,17 @@ DEBUG ?= 2
 
 BUILDDIR_SUFFIX ?=
 BUILDDIR := $(BUILDROOT)/build-$(PROJECT)$(BUILDDIR_SUFFIX)
+
+# Source roots are appended to BUILDDIR to form output paths, so none may climb out
+# of it. Only normalized copies are checked; the static pattern compile rules keep
+# the original spelling.
+ESCAPING_ROOTS := $(sort $(foreach r,$(LKROOT) $(LKINC),\
+    $(if $(call PATH_WITHIN,$(BUILDDIR),$(BUILDDIR)/$(r)),,$(r))))
+ifneq ($(ESCAPING_ROOTS),)
+$(error source root(s) '$(ESCAPING_ROOTS)' escape BUILDDIR '$(BUILDDIR)'; \
+    symlink the tree into the workspace instead, e.g. ln -s ../lk lk with LKROOT := lk)
+endif
+
 OUTBIN := $(BUILDDIR)/lk.bin
 OUTELF := $(BUILDDIR)/lk.elf
 CONFIGHEADER := $(BUILDDIR)/config.h

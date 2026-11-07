@@ -10,6 +10,12 @@ MKDIR = if [ ! -d $(dir $@) ]; then mkdir -p $(dir $@); fi
 # prepends the BUILD_DIR var to each item in the list
 TOBUILDDIR = $(addprefix $(BUILDDIR)/,$(1))
 
+# Non-empty if path $2 stays inside directory $1 (or is $1) once '.' and '..'
+# are collapsed. Both sides are normalized under a fixed fake root rather than the
+# cwd, so the answer does not depend on where make runs. No spaces or '%' in either.
+PATH_WITHIN = $(filter $(abspath /_/$(1)) $(patsubst %/,%,$(abspath /_/$(1)))/%,\
+    $(abspath $(addprefix /_/,$(2))))
+
 # converts specified variable to boolean value
 TOBOOL = $(if $(filter-out 0 false,$1),true,false)
 

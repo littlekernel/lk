@@ -89,6 +89,10 @@ LK can build modules and projects that live outside its own tree. The outer dire
 a copy of LK's top level `makefile` and an `lk_inc.mk` that says where everything is; `lk`
 itself sits inside it, as a clone, a git submodule or a symlink.
 
+Objects are placed at `BUILDDIR/<source path>`, so `LKROOT` and `LKINC` entries that
+climb out of `BUILDDIR` once appended to it, such as `../lk` or `./../lk`, are rejected.
+Use the symlink layout below instead.
+
 ```text
 ~/lk-work/
     lk/                    # the clone from the Quick Start
