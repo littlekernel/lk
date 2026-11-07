@@ -32,6 +32,8 @@ endif
 		$(addprefix -T,$(EXTRA_LINKER_SCRIPTS)) \
 		$(ALLMODULE_OBJS) $(EXTRA_OBJS) $(LIBGCC) -Map=$(OUTELF).map -o $@
 
+GENERATED += $(OUTELF).map
+
 $(OUTELF).sym: $(OUTELF)
 	$(info generating symbols: $@)
 	$(NOECHO)$(OBJDUMP) -t $< | $(CPPFILT) > $@
@@ -84,6 +86,8 @@ $(BUILDDIR)/include_paths.txt: $(OUTELF)
 	@$(MKDIR)
 	$(info generating $@)
 	$(NOECHO)echo $(subst -I,,$(sort $(GLOBAL_INCLUDES))) | tr ' ' '\n' > $@
+
+GENERATED += $(BUILDDIR)/srcfiles.txt $(BUILDDIR)/include_paths.txt
 
 #include arch/$(ARCH)/compile.mk
 
