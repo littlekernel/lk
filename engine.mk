@@ -479,19 +479,21 @@ GLOBAL_DEFINES += TOOLCHAIN=\"$(subst $(SPACE),_,$(TOOLCHAIN))\"
 GLOBAL_DEFINES += LD=\"$(subst $(SPACE),_,$(LD))\"
 GLOBAL_DEFINES += LIBGCC=\"$(subst $(SPACE),_,$(LIBGCC))\"
 
-ifneq ($(OBJS),)
+# Bare names from the old module format, which the build never reads. Values from the
+# environment are ignored: CFLAGS and CPPFLAGS are often exported for host builds.
+ifneq ($(call SET_IN_MAKE,OBJS),)
 $(warning OBJS=$(OBJS))
 $(error OBJS is not empty, please convert to new module format)
 endif
-ifneq ($(OPTFLAGS),)
+ifneq ($(call SET_IN_MAKE,OPTFLAGS),)
 $(warning OPTFLAGS=$(OPTFLAGS))
 $(error OPTFLAGS is not empty, please use GLOBAL_OPTFLAGS or MODULE_OPTFLAGS)
 endif
-ifneq ($(CFLAGS),)
+ifneq ($(call SET_IN_MAKE,CFLAGS),)
 $(warning CFLAGS=$(CFLAGS))
 $(error CFLAGS is not empty, please use GLOBAL_CFLAGS or MODULE_CFLAGS)
 endif
-ifneq ($(CPPFLAGS),)
+ifneq ($(call SET_IN_MAKE,CPPFLAGS),)
 $(warning CPPFLAGS=$(CPPFLAGS))
 $(error CPPFLAGS is not empty, please use GLOBAL_CPPFLAGS or MODULE_CPPFLAGS)
 endif
