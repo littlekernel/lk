@@ -12,7 +12,7 @@
 # MODULE_OPTFLAGS : OPTFLAGS local to this module
 # MODULE_COMPILEFLAGS : COMPILEFLAGS local to this module
 # MODULE_CFLAGS : CFLAGS local to this module
-# MODULE_CPPFLAGS : CPPFLAGS local to this module
+# MODULE_CXXFLAGS : C++ flags local to this module
 # MODULE_ASMFLAGS : ASMFLAGS local to this module
 # MODULE_INCLUDES : include directories local to this module
 # MODULE_SRCDEPS : extra dependencies that all of this module's files depend on
@@ -47,6 +47,9 @@ ifneq ($(OBJS),)
 $(warning OBJS = $(OBJS))
 $(error MODULE $(MODULE) is probably setting OBJS, change to MODULE_SRCS)
 endif
+endif
+ifneq ($(call SET_IN_MAKE,MODULE_CPPFLAGS),)
+$(error MODULE $(MODULE) sets MODULE_CPPFLAGS, which has been renamed to MODULE_CXXFLAGS)
 endif
 
 ifneq ($(filter $(MODULE),$(DENY_MODULES)),)
@@ -90,7 +93,7 @@ ifneq (,$(findstring extra_warnings,$(MODULE_OPTIONS)))
 # that invoked us to override with a -Wno-...
 MODULE_COMPILEFLAGS := $(EXTRA_MODULE_COMPILEFLAGS) $(MODULE_COMPILEFLAGS)
 MODULE_CFLAGS := $(EXTRA_MODULE_CFLAGS) $(MODULE_CFLAGS)
-MODULE_CPPFLAGS := $(EXTRA_MODULE_CPPFLAGS) $(MODULE_CPPFLAGS)
+MODULE_CXXFLAGS := $(EXTRA_MODULE_CXXFLAGS) $(MODULE_CXXFLAGS)
 MODULE_ASMFLAGS := $(EXTRA_MODULE_ASMFLAGS) $(MODULE_ASMFLAGS)
 MODULE_OPTIONS_COPY := $(filter-out extra_warnings,$(MODULE_OPTIONS_COPY))
 endif
@@ -111,7 +114,7 @@ MODULE_DEFINES += MODULE_NAME=\"$(subst $(SPACE),_,$(MODULE))\"
 MODULE_DEFINES += MODULE_OPTIONS=\"$(subst $(SPACE),_,$(MODULE_OPTIONS))\"
 MODULE_DEFINES += MODULE_COMPILEFLAGS=\"$(subst $(SPACE),_,$(MODULE_COMPILEFLAGS))\"
 MODULE_DEFINES += MODULE_CFLAGS=\"$(subst $(SPACE),_,$(MODULE_CFLAGS))\"
-MODULE_DEFINES += MODULE_CPPFLAGS=\"$(subst $(SPACE),_,$(MODULE_CPPFLAGS))\"
+MODULE_DEFINES += MODULE_CXXFLAGS=\"$(subst $(SPACE),_,$(MODULE_CXXFLAGS))\"
 MODULE_DEFINES += MODULE_ASMFLAGS=\"$(subst $(SPACE),_,$(MODULE_ASMFLAGS))\"
 MODULE_DEFINES += MODULE_OPTFLAGS=\"$(subst $(SPACE),_,$(MODULE_OPTFLAGS))\"
 MODULE_DEFINES += MODULE_INCLUDES=\"$(subst $(SPACE),_,$(MODULE_INCLUDES))\"
@@ -202,7 +205,7 @@ MODULE_DEFINES :=
 MODULE_OPTFLAGS :=
 MODULE_COMPILEFLAGS :=
 MODULE_CFLAGS :=
-MODULE_CPPFLAGS :=
+MODULE_CXXFLAGS :=
 MODULE_ASMFLAGS :=
 MODULE_SRCDEPS :=
 MODULE_INCLUDES :=

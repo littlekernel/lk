@@ -97,8 +97,8 @@ GLOBAL_CFLAGS := --std=gnu11 -Werror-implicit-function-declaration -Wstrict-prot
 # the include path; the kernel provides its own freestanding subset in
 # lib/libcpp. An accidental #include <vector> should fail loudly instead of
 # silently picking up whatever hosted headers sit next to the cross compiler.
-GLOBAL_CPPFLAGS := --std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wno-mismatched-tags
-GLOBAL_CPPFLAGS += -nostdinc++
+GLOBAL_CXXFLAGS := --std=c++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -Wno-mismatched-tags
+GLOBAL_CXXFLAGS += -nostdinc++
 GLOBAL_ASMFLAGS := -DASSEMBLY
 GLOBAL_LDFLAGS :=
 
@@ -113,7 +113,7 @@ endif
 # option (see make/module.mk re: MODULE_OPTIONS).
 EXTRA_MODULE_COMPILEFLAGS := -Wmissing-declarations -Wredundant-decls
 EXTRA_MODULE_CFLAGS := -Wmissing-prototypes
-EXTRA_MODULE_CPPFLAGS :=
+EXTRA_MODULE_CXXFLAGS :=
 EXTRA_MODULE_ASMFLAGS :=
 
 #GLOBAL_COMPILEFLAGS += -Wpacked
@@ -133,7 +133,7 @@ ARCH_COMPILEFLAGS :=
 ARCH_COMPILEFLAGS_NOFLOAT := # flags used when compiling with floating point support
 ARCH_COMPILEFLAGS_FLOAT := # flags for when not compiling with floating point support
 ARCH_CFLAGS :=
-ARCH_CPPFLAGS :=
+ARCH_CXXFLAGS :=
 ARCH_ASMFLAGS :=
 ARCH_LDFLAGS :=
 ARCH_OBJDUMP_FLAGS :=
@@ -463,14 +463,14 @@ GLOBAL_DEFINES += GLOBAL_INCLUDES=\"$(subst $(SPACE),_,$(GLOBAL_INCLUDES))\"
 GLOBAL_DEFINES += GLOBAL_COMPILEFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_COMPILEFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_OPTFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_OPTFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_CFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CFLAGS))\"
-GLOBAL_DEFINES += GLOBAL_CPPFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CPPFLAGS))\"
+GLOBAL_DEFINES += GLOBAL_CXXFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_CXXFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_ASMFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_ASMFLAGS))\"
 GLOBAL_DEFINES += GLOBAL_LDFLAGS=\"$(subst $(SPACE),_,$(GLOBAL_LDFLAGS))\"
 GLOBAL_DEFINES += ARCH_COMPILEFLAGS=\"$(subst $(SPACE),_,$(ARCH_COMPILEFLAGS))\"
 GLOBAL_DEFINES += ARCH_COMPILEFLAGS_FLOAT=\"$(subst $(SPACE),_,$(ARCH_COMPILEFLAGS_FLOAT))\"
 GLOBAL_DEFINES += ARCH_COMPILEFLAGS_NOFLOAT=\"$(subst $(SPACE),_,$(ARCH_COMPILEFLAGS_NOFLOAT))\"
 GLOBAL_DEFINES += ARCH_CFLAGS=\"$(subst $(SPACE),_,$(ARCH_CFLAGS))\"
-GLOBAL_DEFINES += ARCH_CPPFLAGS=\"$(subst $(SPACE),_,$(ARCH_CPPFLAGS))\"
+GLOBAL_DEFINES += ARCH_CXXFLAGS=\"$(subst $(SPACE),_,$(ARCH_CXXFLAGS))\"
 GLOBAL_DEFINES += ARCH_ASMFLAGS=\"$(subst $(SPACE),_,$(ARCH_ASMFLAGS))\"
 GLOBAL_DEFINES += ARCH_LDFLAGS=\"$(subst $(SPACE),_,$(ARCH_LDFLAGS))\"
 GLOBAL_DEFINES += LTO_MODE=\"$(LTO_MODE)\"
@@ -481,7 +481,8 @@ GLOBAL_DEFINES += LK_LD=\"$(subst $(SPACE),_,$(LK_LD))\"
 GLOBAL_DEFINES += LIBGCC=\"$(subst $(SPACE),_,$(LIBGCC))\"
 
 # Bare names from the old module format, which the build never reads. Values from the
-# environment are ignored: CFLAGS and CPPFLAGS are often exported for host builds.
+# environment are ignored: CFLAGS, CPPFLAGS and CXXFLAGS are often exported for host
+# builds.
 ifneq ($(call SET_IN_MAKE,OBJS),)
 $(warning OBJS=$(OBJS))
 $(error OBJS is not empty, please convert to new module format)
@@ -496,8 +497,16 @@ $(error CFLAGS is not empty, please use GLOBAL_CFLAGS or MODULE_CFLAGS)
 endif
 ifneq ($(call SET_IN_MAKE,CPPFLAGS),)
 $(warning CPPFLAGS=$(CPPFLAGS))
-$(error CPPFLAGS is not empty, please use GLOBAL_CPPFLAGS or MODULE_CPPFLAGS)
+$(error CPPFLAGS is not empty, please use GLOBAL_CXXFLAGS or MODULE_CXXFLAGS)
 endif
+ifneq ($(call SET_IN_MAKE,CXXFLAGS),)
+$(warning CXXFLAGS=$(CXXFLAGS))
+$(error CXXFLAGS is not empty, please use GLOBAL_CXXFLAGS or MODULE_CXXFLAGS)
+endif
+
+# C++ flags are *_CXXFLAGS; *_CPPFLAGS conventionally means preprocessor flags.
+$(call CHECK_RENAMED,GLOBAL_CPPFLAGS:GLOBAL_CXXFLAGS ARCH_CPPFLAGS:ARCH_CXXFLAGS \
+    EXTRA_MODULE_CPPFLAGS:EXTRA_MODULE_CXXFLAGS)
 
 $(info LIBGCC = $(LIBGCC))
 $(info GLOBAL_COMPILEFLAGS = $(GLOBAL_COMPILEFLAGS))
