@@ -275,7 +275,7 @@ CMD+=("$@")
 function prepare_esp {
     (( DO_UEFI )) || return 0
     local esp="${PROJECT_BUILDDIR}/esp"
-    rm -rf "$esp"
+    rm -rf -- "$esp"
     mkdir -p "$esp"
     # fresh NVRAM every run so stale Boot#### entries don't redirect the boot
     cp "$OVMF_VARS" "${PROJECT_BUILDDIR}/OVMF_VARS.fd"

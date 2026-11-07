@@ -23,7 +23,7 @@ help:
 	@echo "WERROR = 1 : treat warnings as errors"
 	@echo "DEBUG = 0,1,2 : set debug level (0=NONE, 1=INFO, 2=DEBUG), default is 2"
 	@echo "V = 0,1 : set build verbosity level (0=normal, 1=verbose), default is 0"
-	@echo "BUILDROOT = <directory that holds the build-<project> directories> (default is .)"
+	@echo "BUILDROOT = <directory that holds the build-<project> directories> (default, or if empty, is .)"
 	@echo "BUILDDIR = <path to build directory> (default is \$$(BUILDROOT)/build-<project>)"
 	@echo "BUILDDIR_SUFFIX = <suffix to add to build directory> (default is empty)"
 	@echo ""

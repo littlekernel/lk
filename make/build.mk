@@ -50,10 +50,10 @@ $(OUTELF).lst: $(OUTELF)
 $(OUTELF).debug.lst: $(OUTELF)
 	$(info generating listing: $@)
 	$(NOECHO){ \
-		$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -l -S $< 2>$@.err | $(CPPFILT) > $@; \
+		$(OBJDUMP) $(ARCH_OBJDUMP_FLAGS) -l -S $< 2>"$@.err" | $(CPPFILT) > $@; \
 		rc=$$?; \
-		sed '/: failed to find source/d' $@.err >&2; \
-		rm -f $@.err; \
+		sed '/: failed to find source/d' "$@.err" >&2; \
+		rm -f -- "$@.err"; \
 		exit $$rc; \
 	}
 	$(NOECHO)echo "# vim: ts=8 nolist nowrap" >> $@

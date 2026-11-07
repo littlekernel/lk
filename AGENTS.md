@@ -186,7 +186,8 @@ BUILDROOT=/scratch/lkbuild scripts/do-qemuarm -6
 The scripts read it only from the environment. A `BUILDROOT` passed on the make command
 line, or set with `:=` in `local.mk`, moves make's output but not where the scripts look
 for it. `BUILDROOT ?=` in `local.mk` does nothing, since the top level `makefile` has
-already defaulted it to `.` by then.
+already defaulted it to `.` by then. An empty `BUILDROOT` means `.` in make and the
+scripts alike.
 
 Build artifacts include object files, libraries, executables, and generated headers:
 

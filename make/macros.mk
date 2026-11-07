@@ -34,12 +34,12 @@ UC = $(subst a,A,$(subst b,B,$(subst c,C,$(subst d,D,$(subst e,E,$(subst f,F,$(s
 define TESTANDREPLACEFILE
 	if [ -f "$2" ]; then \
 		if cmp -- "$1" "$2"; then \
-			rm -f -- $1; \
+			rm -f -- "$1"; \
 		else \
-			mv -- $1 $2; \
+			mv -- "$1" "$2"; \
 		fi \
 	else \
-		mv -- $1 $2; \
+		mv -- "$1" "$2"; \
 	fi
 endef
 

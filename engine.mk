@@ -5,11 +5,16 @@ include make/macros.mk
 
 BUILDROOT ?= .
 
+# Directory holding build-*. An empty BUILDROOT means '.', as in the scripts; taken
+# literally it would put build-* at / and spotless would delete it there. Recursive so
+# a BUILDROOT set later in local.mk still applies.
+BUILDROOT_DIR = $(or $(strip $(BUILDROOT)),.)
+
 # 'make spotless' is a special rule that skips most of the rest of the build system and
 # simply deletes everything in build-*
 ifeq ($(MAKECMDGOALS),spotless)
 spotless:
-	rm -rf -- "$(BUILDROOT)"/build-*
+	rm -rf -- "$(BUILDROOT_DIR)"/build-*
 else
 
 ifndef LKROOT
@@ -62,7 +67,7 @@ endif # PROJECT == null
 DEBUG ?= 2
 
 BUILDDIR_SUFFIX ?=
-BUILDDIR := $(BUILDROOT)/build-$(PROJECT)$(BUILDDIR_SUFFIX)
+BUILDDIR := $(BUILDROOT_DIR)/build-$(PROJECT)$(BUILDDIR_SUFFIX)
 
 # Source roots are appended to BUILDDIR to form output paths, so none may climb out
 # of it. Only normalized copies are checked; the static pattern compile rules keep
@@ -506,8 +511,8 @@ $(ALLOBJS): $(GLOBAL_SRCDEPS)
 all:: $(EXTRA_BUILDDEPS)
 
 clean: $(EXTRA_CLEANDEPS)
-	rm -f $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex $(OUTELF).dump $(COMPDB)
-	rm -f $(addsuffix .json,$(ALLOBJS))
+	rm -f -- $(ALLOBJS) $(DEPS) $(GENERATED) $(OUTBIN) $(OUTELF) $(OUTELF).lst $(OUTELF).debug.lst $(OUTELF).sym $(OUTELF).sym.sorted $(OUTELF).size $(OUTELF).hex $(OUTELF).dump $(COMPDB)
+	rm -f -- $(addsuffix .json,$(ALLOBJS))
 
 install: all
 	scp $(OUTBIN) 192.168.0.4:/tftpboot
@@ -527,12 +532,12 @@ all:: $(COMPDB)
 $(COMPDB): $(ALLOBJS) compdb-force
 	$(info generating $@)
 	@$(MKDIR)
-	$(NOECHO)cd $(BUILDDIR) || exit 1; missing=0; \
+	$(NOECHO)cd -- "$(BUILDDIR)" || exit 1; missing=0; \
 	for f in $(COMPDB_ENTRIES); do \
 		if [ -f $$f ]; then echo $$f; else missing=$$((missing+1)); fi; \
 	done > compile_commands.list; \
 	{ echo '['; xargs cat < compile_commands.list | sed '$$!s/$$/,/'; echo ']'; } > compile_commands.json.tmp; \
-	rm -f compile_commands.list; \
+	rm -f -- compile_commands.list; \
 	$(call TESTANDREPLACEFILE,compile_commands.json.tmp,compile_commands.json) >/dev/null; \
 	if [ $$missing -ne 0 ]; then \
 		echo "warning: $$missing objects in $(BUILDDIR) have no compile command recorded;" \
