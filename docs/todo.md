@@ -196,7 +196,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 ## Docs
 
 - DEBUG_ASSERT / ASSERT / dprintf levels / LK_DEBUGLEVEL blurb
-- stale text: workflow comments "DEBUG=0 has no console"; run-qemu-boot-tests --timeout help says 30s
+- stale text: workflow comments "LK_DEBUG=0 has no console"; run-qemu-boot-tests --timeout help says 30s
 
 ## Platforms / ports
 
@@ -211,7 +211,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - fix MOUDLE_OPTIONS typo in lib/fixed_point/rules.mk
 - drop stale lib/partition include + dep from dev/virtio/block
 - arm64 WITH_KERNEL_VM ?= 1  ->  := 1
-- fix the two stale "DEBUG=0 has no console" workflow comments and the 30s help text
+- fix the two stale "LK_DEBUG=0 has no console" workflow comments and the 30s help text
 - check-gcc-atomic-builtins.sh: drop or1k, probe a v6-M target, then commit or delete it
 
 ## Recently landed

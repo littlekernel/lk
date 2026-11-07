@@ -34,8 +34,8 @@ function HELP {
     echo "-l        : also build with Clang + LLD"
     echo "-e        : build with WERROR=1"
     echo "-j <jobs> : parallel jobs for make"
-    echo "-r        : also build DEBUG=0"
-    echo "-D <level>: build at this DEBUG level only (repeatable); overrides -r"
+    echo "-r        : also build LK_DEBUG=0"
+    echo "-D <level>: build at this LK_DEBUG level only (repeatable); overrides -r"
     echo "-u        : also build with UBSAN=1"
     echo "-q        : hide output of build"
     echo "-h        : for help"
@@ -77,8 +77,8 @@ done
 
 shift $((OPTIND-1))
 
-# Which DEBUG levels to build. Default is just the normal debug build; -r adds a
-# DEBUG=0 pass on top of it. -D selects levels explicitly, which is what lets a
+# Which LK_DEBUG levels to build. Default is just the normal debug build; -r adds a
+# LK_DEBUG=0 pass on top of it. -D selects levels explicitly, which is what lets a
 # CI job build exactly one configuration instead of the whole sequence.
 if (( ${#DEBUG_LEVELS[@]} == 0 )); then
     DEBUG_LEVELS=(2)
@@ -88,7 +88,7 @@ if (( ${#DEBUG_LEVELS[@]} == 0 )); then
 fi
 
 # The build directory suffix for a given debug level, keeping the historical
-# names: DEBUG=2 is unsuffixed and DEBUG=0 is "-release".
+# names: LK_DEBUG=2 is unsuffixed and LK_DEBUG=0 is "-release".
 function debug_suffix {
     case "$1" in
         2) echo "" ;;
@@ -187,7 +187,7 @@ for tc in "${TOOLCHAINS[@]}"; do
 
     for p in $PROJECTS; do
         echo "building $p$BUILDDIR_SUFFIX $WERROR_MSG"
-        log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN DEBUG=$dbg PROJECT=$p nice "$DIR"/make-parallel || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
+        log env JOBS="$JOBS" "${TC_ARGS[@]}" WERROR=$WERROR UBSAN=$UBSAN PROJECT=$p nice "$DIR"/make-parallel LK_DEBUG=$dbg || FAILED="$FAILED $p$BUILDDIR_SUFFIX"
         BUILDDIRS+=("${BUILDROOT:-.}/build-$p$BUILDDIR_SUFFIX")
     done
 done

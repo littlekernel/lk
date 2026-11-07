@@ -77,8 +77,12 @@ make PROJECT=qemu-virt-arm64-test
 # Override heap implementation
 make qemu-virt-arm64-test LK_HEAP_IMPLEMENTATION=cmpctmalloc
 
-# Debug builds (default DEBUG=2, set to 0 for release)
-make qemu-virt-arm64-test DEBUG=0
+# Debug builds (default LK_DEBUG=2, set to 0 for release). LK_DEBUG must be 0-3 and also
+# works from the environment, so through every script (LK_DEBUG=0 scripts/do-qemuarm).
+# Code sees it as LK_DEBUGLEVEL. A bare DEBUG is rejected on the command line or in a
+# makefile and ignored with a warning in the environment, since the name is common for
+# other tools.
+make qemu-virt-arm64-test LK_DEBUG=0
 
 # Build with Clang compiler
 make qemu-virt-arm64-test TOOLCHAIN=clang
@@ -105,13 +109,13 @@ scripts/buildall -q -e -r  # quiet, warnings-as-errors, release builds
 scripts/buildall -c -q     # build all with Clang
 scripts/buildall -l -q     # build all with Clang + LLD
 scripts/buildall -e -d     # also fail on undeclared module header deps (what CI runs)
-scripts/buildall -D 0 -u   # build one specific config: DEBUG=0 with UBSAN=1
+scripts/buildall -D 0 -u   # build one specific config: LK_DEBUG=0 with UBSAN=1
 
 Output will be written to buildall.log. To run the build with full output during the build, omit the -q flag.
 
-Note `buildall` assigns `DEBUG` and `UBSAN` itself, so setting them in the environment
-has no effect. Select the configuration with flags instead: `-D <level>` builds exactly
-that debug level (repeatable), `-r` adds a `DEBUG=0` pass on top of the default one, and
+Note `buildall` assigns `LK_DEBUG` and `UBSAN` itself, so setting them in the environment
+has no effect on it. Select the configuration with flags instead: `-D <level>` builds exactly
+that debug level (repeatable), `-r` adds a `LK_DEBUG=0` pass on top of the default one, and
 `-u` turns on UBSAN. Build directories are suffixed accordingly (`-release`, `-ubsan`),
 so several configurations can coexist in one tree.
 ```
@@ -119,7 +123,7 @@ so several configurations can coexist in one tree.
 The file local.mk is silently included if it exists in the root directory. Additional variables can be defined in this file to customize the build instead of needing to pass them on the command line.
 
 Because the inclusion is silent, it applies to test runs too, and nothing on the command
-line hints that it is in play. A `local.mk` setting `TOOLCHAIN`, `WERROR`, `DEBUG` or
+line hints that it is in play. A `local.mk` setting `TOOLCHAIN`, `WERROR`, `LK_DEBUG` or
 `LK_HEAP_IMPLEMENTATION` changes what `scripts/buildall` and
 `scripts/run-qemu-boot-tests.py` actually exercise, which is a common reason a local result
 disagrees with CI. The customary `?=` form only wins where nothing else sets the variable,
@@ -310,7 +314,7 @@ scripts/do-qemuarm -6 -A 'lk.autorun=sleep 5; ut all; poweroff'
   console script.
 - Ending the script with `poweroff` makes QEMU exit once the script is done, which is how
   `scripts/run-qemu-boot-tests.py` drives its runs. Note `poweroff` is only registered when
-  `LK_DEBUGLEVEL > 1` (i.e. the default `DEBUG=2`).
+  `LK_DEBUGLEVEL > 1` (i.e. the default `LK_DEBUG=2`).
 - The script is capped at 511 bytes. On PC targets `platform/pc` copies the multiboot command
   line into a 256 byte buffer, which caps the *entire* command line there.
 - The script runs on the shell app's thread, whose stack size can be overridden with
@@ -566,12 +570,13 @@ and CI passes `-d`, so an undeclared dependency fails the gcc CI matrix.
 
 ### Debugging
 
-- Multiple DEBUG build levels, controlled via `DEBUG` make variable:
-  - `DEBUG=0`: no DEBUG_ASSERT, dprintf only for ALWAYS level
-  - `DEBUG=1`: DEBUG_ASSERT enabled, dprintf at INFO and ALWAYS
-  - `DEBUG=2`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS
-  - `DEBUG=3`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS, some extra runtime checks.
-- 'DEBUG=2' is default
+- Multiple debug build levels, controlled via the `LK_DEBUG` make variable (command line,
+  makefile or environment), which code sees as `LK_DEBUGLEVEL`:
+  - `LK_DEBUG=0`: no DEBUG_ASSERT, dprintf only for ALWAYS level
+  - `LK_DEBUG=1`: DEBUG_ASSERT enabled, dprintf at INFO and ALWAYS
+  - `LK_DEBUG=2`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS
+  - `LK_DEBUG=3`: DEBUG_ASSERT enabled, dprintf at DEBUG, INFO, ALWAYS, some extra runtime checks.
+- `LK_DEBUG=2` is the default
 - The do-qemu* scripts have no GDB flag (`-s` is the CPU count). Use `-X` to print the QEMU
   command line, then run it by hand with `-s -S` appended to wait for GDB on :1234.
 - Print output via `printf()` goes to console (UART or QEMU serial)

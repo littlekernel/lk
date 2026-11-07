@@ -45,7 +45,7 @@ jobs:
       ARCH: ${{ matrix.arch }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
       # ${{ matrix.toolchain-arch }}-${{ matrix.toolchain-ver }}-Linux-x86_64
-      # NOTE: DEBUG is deliberately not set here. buildall assigns it itself, so an
+      # NOTE: LK_DEBUG is deliberately not set here. buildall assigns it itself, so an
       # inherited value is silently ignored; it is passed to it as -D instead.
       TOOLCHAIN: # compute below
       TOOLCHAIN_ALT: # compute below
@@ -57,7 +57,7 @@ jobs:
         grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
         echo ARCH = $ARCH
         echo TOOLCHAIN_VER = $TOOLCHAIN_VER
-        echo DEBUG = ${{ matrix.debug }}
+        echo LK_DEBUG = ${{ matrix.debug }}
 
     # check out the source
     - name: checkout
@@ -138,8 +138,8 @@ jobs:
         export -n TOOLCHAIN_ALT
         export -n TOOLCHAIN_VER
         export -n ARCH
-        # -D builds exactly this DEBUG level, so each matrix job covers one distinct
-        # configuration. Passing DEBUG in the environment does nothing: buildall
+        # -D builds exactly this LK_DEBUG level, so each matrix job covers one distinct
+        # configuration. Passing LK_DEBUG in the environment does nothing: buildall
         # sets it itself.
         # -d fails the run if any module includes headers of a module it does not
         # declare in MODULE_DEPS / MODULE_WEAK_DEPS (scripts/check-module-deps.py)

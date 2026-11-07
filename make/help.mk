@@ -22,7 +22,7 @@ help:
 	@echo "TOOLCHAIN_PREFIX = <absolute path to toolchain or relative path with prefix>"
 	@echo "TOOLCHAIN_<arch>_PREFIX = <absolute path to toolchain or relative path with prefix for a particular architecture>"
 	@echo "WERROR = 1 : treat warnings as errors"
-	@echo "DEBUG = 0,1,2 : set debug level (0=NONE, 1=INFO, 2=DEBUG), default is 2"
+	@echo "LK_DEBUG = 0,1,2,3 : set debug level (0=NONE, 1=INFO, 2=DEBUG, 3=extra checks), default is 2"
 	@echo "V = 0,1 : set build verbosity level (0=normal, 1=verbose), default is 0"
 	@echo "BUILDROOT = <directory that holds the build-<project> directories> (default, or if empty, is .)"
 	@echo "BUILDDIR = <path to build directory> (default is \$$(BUILDROOT)/build-<project>)"

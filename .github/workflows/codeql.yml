@@ -151,7 +151,7 @@ jobs:
     #   -e  WERROR would abort extraction on a warning github-ci.yml already catches
     #   -d  the module dep check belongs to github-ci.yml
     #   -r/-u/-c  release/UBSAN/clang variants would just re-extract the same code
-    # Bare buildall builds each project once at DEBUG=2 with gcc, which is also what
+    # Bare buildall builds each project once at LK_DEBUG=2 with gcc, which is also what
     # we want: DEBUG_ASSERT() compiles away at LK_DEBUGLEVEL <= 1, and a database
     # built that way reports false null derefs after every assert based check.
     #

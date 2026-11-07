@@ -63,7 +63,7 @@ jobs:
     env:
       PROJECT: ${{ matrix.project }}
       TOOLCHAIN_VER: ${{ matrix.toolchain-ver }}
-      DEBUG: ${{ matrix.debug }}
+      LK_DEBUG: ${{ matrix.debug }}
       UBSAN: 0  # UBSan runtimes for baremetal are not part of the toolchain
       TOOLCHAIN: clang
       LK_LD: ld.lld  # force the LLVM linker instead of falling back to bfd
@@ -75,7 +75,7 @@ jobs:
         grep -oP '(?<=model name\t: ).*' /proc/cpuinfo|head -n1
         echo PROJECT = $PROJECT
         echo TOOLCHAIN_VER = $TOOLCHAIN_VER
-        echo DEBUG = $DEBUG
+        echo LK_DEBUG = $LK_DEBUG
         echo UBSAN = $UBSAN
 
     - name: checkout
@@ -100,7 +100,7 @@ jobs:
       shell: bash
       run: |
         make -j $(nproc)
-    # When LK is compiled with DEBUG=0, there's no console and no way for us
+    # When LK is compiled with LK_DEBUG=0, there's no console and no way for us
     # to read test output
     - name: qemu
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
@@ -133,7 +133,7 @@ jobs:
     env:
       PROJECT: qemu-virt-arm64-test
       TOOLCHAIN_VER: 20
-      DEBUG: 0
+      LK_DEBUG: 0
       TOOLCHAIN: clang
       LK_LD: ld.lld
       LTO_MODE: ${{ matrix.lto }}

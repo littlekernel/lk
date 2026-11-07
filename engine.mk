@@ -64,7 +64,19 @@ endif # DEFAULT_PROJECT == something
 
 endif # PROJECT == null
 
-DEBUG ?= 2
+# LK_DEBUG is the build's debug switch, 0-3, default 2. It may come from the environment.
+# Code sees it as LK_DEBUGLEVEL. DEBUG is never read: the name is often exported for
+# unrelated tools (DEBUG=* for Node, DEBUG=1 for TF-A).
+$(call CHECK_RENAMED,DEBUG:LK_DEBUG)
+ifneq ($(filter environment%,$(origin DEBUG)),)
+ifeq ($(origin LK_DEBUG),undefined)
+$(warning DEBUG=$(DEBUG) from the environment is ignored, the debug level is set with LK_DEBUG)
+endif
+endif
+LK_DEBUG ?= 2
+ifneq ($(words $(LK_DEBUG))$(filter 0 1 2 3,$(LK_DEBUG)),1$(strip $(LK_DEBUG)))
+$(error LK_DEBUG must be one of 0 1 2 3, not '$(LK_DEBUG)')
+endif
 
 BUILDDIR_SUFFIX ?=
 BUILDDIR := $(BUILDROOT_DIR)/build-$(PROJECT)$(BUILDDIR_SUFFIX)
@@ -405,7 +417,7 @@ $(info PLATFORM = $(PLATFORM))
 $(info TARGET = $(TARGET))
 $(info ARCH = $(ARCH))
 $(info TOOLCHAIN_PREFIX = $(TOOLCHAIN_PREFIX))
-$(info DEBUG = $(DEBUG))
+$(info LK_DEBUG = $(LK_DEBUG))
 
 # include the top level module that includes basic always-there modules
 include top/rules.mk
@@ -427,11 +439,7 @@ GLOBAL_DEFINES += \
 	LK_EMBEDDED=$(LK_EMBEDDED) \
 	$(addsuffix =1,$(addprefix WITH_,$(ALLMODULES)))
 
-# debug build?
-ifneq ($(DEBUG),)
-GLOBAL_DEFINES += \
-	LK_DEBUGLEVEL=$(DEBUG)
-endif
+GLOBAL_DEFINES += LK_DEBUGLEVEL=$(LK_DEBUG)
 
 # allow additional defines from outside the build system
 ifneq ($(EXTERNAL_DEFINES),)
