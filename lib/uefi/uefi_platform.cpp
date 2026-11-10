@@ -23,6 +23,7 @@
 #include <libfdt.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <platform.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <uefi/protocols/erase_block_protocol.h>
@@ -39,39 +40,61 @@
 
 __WEAK EfiStatus efi_dt_fixup(struct EfiDtFixupProtocol* self, void* fdt,
                               size_t* buffer_size) {
-  auto ret = fdt_open_into(fdt, fdt, *buffer_size);
-  if (ret < 0) {
-    printf("Failed to open FDT %d\n", ret);
+  const void* host_fdt = get_fdt();
+  if (host_fdt == nullptr) {
+    return EFI_STATUS_SUCCESS;
+  }
+  const size_t gbl_fdt_size = fdt_totalsize(fdt);
+  const size_t required_size = fdt_totalsize(host_fdt) + gbl_fdt_size;
+  if (*buffer_size < required_size) {
+    *buffer_size = required_size;
+    return EFI_STATUS_BUFFER_TOO_SMALL;
+  }
+  auto src_chosen = fdt_subnode_offset(fdt, 0, "chosen");
+  if (src_chosen < 0) {
+    printf("Failed to find chosen node in GBL FDT %d\n", src_chosen);
     return EFI_STATUS_INVALID_PARAMETER;
   }
-  auto offset = fdt_subnode_offset(fdt, 0, "chosen");
-  if (offset < 0) {
-    printf("Failed to find chosen node %d\n", offset);
-    return EFI_STATUS_SUCCESS;
+
+  void* gbl_fdt = malloc(gbl_fdt_size);
+  if (gbl_fdt == nullptr) {
+    return EFI_STATUS_OUT_OF_RESOURCES;
   }
-  int length = 0;
-  auto prop = fdt_get_property(fdt, offset, "bootargs", &length);
+  DEFER { free(gbl_fdt); };
+  memcpy(gbl_fdt, fdt, gbl_fdt_size);
 
-  if (prop == nullptr) {
-    printf("Failed to find chosen/bootargs prop\n");
-    return EFI_STATUS_SUCCESS;
+  auto ret = fdt_open_into(host_fdt, fdt, *buffer_size);
+  if (ret < 0) {
+    printf("Failed to open host FDT %d\n", ret);
+    return EFI_STATUS_INVALID_PARAMETER;
   }
-  static constexpr auto&& to_add =
-      "console=ttyAMA0 earlycon=pl011,mmio32,0x9000000 ";
-  const size_t new_length = length + sizeof(to_add) - 1;
-  char* new_prop_data = reinterpret_cast<char*>(malloc(new_length));
-  DEFER {
-    free(new_prop_data);
-    new_prop_data = nullptr;
-  };
-  auto prop_length = strnlen(prop->data, length);
-  memset(new_prop_data, 0, new_length);
-  memcpy(new_prop_data, to_add, sizeof(to_add) - 1);
-  memcpy(new_prop_data + sizeof(to_add) - 1, prop->data, prop_length);
-  ret = fdt_setprop(fdt, offset, "bootargs", new_prop_data, new_length);
 
-  printf("chosen/bootargs: %d %zu \"%s\"\n", ret, new_length, new_prop_data);
-
+  auto dst_chosen = fdt_subnode_offset(fdt, 0, "chosen");
+  if (dst_chosen < 0) {
+    dst_chosen = fdt_add_subnode(fdt, 0, "chosen");
+    if (dst_chosen < 0) {
+      printf("Failed to add chosen node %d\n", dst_chosen);
+      return EFI_STATUS_INVALID_PARAMETER;
+    }
+  }
+  int prop_offset = 0;
+  fdt_for_each_property_offset(prop_offset, gbl_fdt, src_chosen) {
+    const char* prop_name = nullptr;
+    int prop_len = 0;
+    const void* prop_val =
+        fdt_getprop_by_offset(gbl_fdt, prop_offset, &prop_name, &prop_len);
+    if (prop_val == nullptr || prop_name == nullptr) {
+      printf("Failed to read property from GBL FDT %d\n", prop_len);
+      return EFI_STATUS_INVALID_PARAMETER;
+    }
+    ret = fdt_setprop(fdt, dst_chosen, prop_name, prop_val, prop_len);
+    if (ret < 0) {
+      printf("Failed to set chosen/%s prop %d\n", prop_name, ret);
+      return EFI_STATUS_INVALID_PARAMETER;
+    }
+  }
+  fdt_pack(fdt);
+  *buffer_size = fdt_totalsize(fdt);
   return EFI_STATUS_SUCCESS;
 }
 
@@ -86,7 +109,16 @@ __WEAK EfiStatus fixup_bootconfig(struct GblEfiOsConfigurationProtocol* self,
          *fixup_buffer_size);
   constexpr auto&& to_add =
       "\nandroidboot.fstab_suffix=cf.f2fs."
-      "hctr2\nandroidboot.boot_devices=4010000000.pcie";
+      "hctr2\nandroidboot.boot_devices=4010000000.pcie"
+      "\nandroidboot.modem_simulator_ports=9600"
+      "\nandroidboot.vendor.apex.com.android.hardware.gatekeeper="
+      "com.android.hardware.gatekeeper.nonsecure"
+      "\nandroidboot.vendor.apex.com.android.hardware.graphics.composer="
+      "com.android.hardware.graphics.composer.ranchu"
+      "\nandroidboot.vendor.apex.com.android.hardware.keymint="
+      "com.android.hardware.keymint.rust_nonsecure"
+      "\nandroidboot.vendor.apex.com.google.emulated.camera.provider.hal="
+      "com.google.emulated.camera.provider.hal";
   const auto final_len = sizeof(to_add) - 1;
   if (final_len > *fixup_buffer_size) {
     *fixup_buffer_size = final_len;
@@ -150,7 +182,16 @@ __WEAK EfiStatus fixup_kernel_commandline(
     const EfiChar8* commandline, size_t* fixup_buffer_size, EfiChar8* fixup) {
   LTRACEF("%s(%p, %lu, %p, %p, %p)\n", __FUNCTION__, self, commandline_size,
           commandline, fixup_buffer_size, fixup);
-  return EFI_STATUS_UNSUPPORTED;
+  constexpr auto&& to_add =
+      "console=ttyAMA0 earlycon=pl011,mmio32,0x9000000";
+  const auto final_len = sizeof(to_add) - 1;
+  if (final_len > *fixup_buffer_size) {
+    *fixup_buffer_size = final_len;
+    return EFI_STATUS_BUFFER_TOO_SMALL;
+  }
+  *fixup_buffer_size = final_len;
+  memcpy(fixup, to_add, final_len);
+  return EFI_STATUS_SUCCESS;
 }
 
 __WEAK EfiStatus exit_boot_services(EfiHandle image_handle, size_t map_key) {
