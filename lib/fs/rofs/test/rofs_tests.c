@@ -437,6 +437,12 @@ static const struct corruption corruptions[] = {
     {"name not terminated", 0, E_NAME_LEN, 2, 4},
     {"name inside the entries", 0, E_NAME, 4, 0},
     {"name past the index", 0, E_NAME, 4, 1 << 20},
+    // offsets far enough out to leave mapped memory on a 64 bit kernel, at the root and in
+    // bin's run, which mount compares as it checks bin
+    {"name far past the index", 0, E_NAME, 4, 0x7ffffff0},
+    {"name at the top of the offsets", 0, E_NAME, 4, 0xffffff00},
+    {"name far past the index in a directory", 6, E_NAME, 4, 0x7ffffff0},
+    {"name at the top of the offsets in a directory", 6, E_NAME, 4, 0xffffff00},
     {"unknown type", 0, E_TYPE, 1, 3},
     {"reserved set", 0, E_RESERVED, 1, 1},
     {"file not aligned", 0, E_OFFSET, 8, RAM_ALIGN + 1},

@@ -102,12 +102,10 @@ static bool sorted_run(const rofs_t *fs, uint32_t first, uint32_t count) {
     return true;
 }
 
-// Entry i, with *next the entry the next directory's run starts at, which a directory's moves on.
+// Entry i's place in the tree, with *next the entry the next directory's run starts at, which a
+// directory's moves on. Every name has been checked.
 static bool valid_entry(const rofs_t *fs, uint32_t align, uint32_t i, uint32_t *next) {
     const struct rofs_entry *e = &fs->entries[i];
-    if (e->reserved != 0 || !valid_name(fs, e)) {
-        return false;
-    }
     switch (e->type) {
         case ROFS_TYPE_FILE:
             return (e->offset & (align - 1)) == 0 && e->offset <= fs->image_size &&
@@ -214,7 +212,14 @@ static status_t rofs_mount(struct bdev *dev, enum fs_mount_options options, fsco
         e->name_len = LE16(e->name_len);
         e->offset = LE64(e->offset);
         e->size = LE64(e->size);
+        if (e->reserved != 0 || !valid_name(fs, e)) {
+            LTRACEF("entry %u's name is not valid\n", i);
+            err = ERR_NOT_VALID;
+            goto fail;
+        }
     }
+    // From here every entry_name() is a NUL-terminated string inside the index, which the sort
+    // checks below, lookup and readdir read without checking again.
     if (!sorted_run(fs, 0, fs->root_count)) {
         err = ERR_NOT_VALID;
         goto fail;
