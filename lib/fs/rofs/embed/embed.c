@@ -12,6 +12,7 @@
 #include <lk/compiler.h>
 #include <lk/err.h>
 #include <lk/init.h>
+#include <lk/pow2.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -39,9 +40,18 @@ static void rofs_embed_init(uint level) {
         return;
     }
     memcpy(&h, rofs_embed_start, sizeof(h));
-    // a file's address in the image is only as aligned as the image is
+    // only what this hook reads; mount checks the rest
+    if (LE32(h.magic) != ROFS_MAGIC) {
+        printf("rofs: the embedded image is not an rofs image\n");
+        return;
+    }
     const uint32_t align = LE32(h.align);
-    if ((uintptr_t)rofs_embed_start % align) {
+    if (align == 0 || !ispow2(align)) {
+        printf("rofs: the embedded image's alignment %u is not a power of two\n", align);
+        return;
+    }
+    // a file's address in the image is only as aligned as the image is
+    if ((uintptr_t)rofs_embed_start & (align - 1)) {
         printf("rofs: the embedded image's files are %u aligned, but it is linked at %#lx\n",
                align, (unsigned long)(uintptr_t)rofs_embed_start);
         return;
