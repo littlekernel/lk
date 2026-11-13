@@ -96,7 +96,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - Feature detection (read the ID registers, mirror x86/riscv feature.c)
 - arm64_elX_to_el1: stay in VHE if already in it? SCR_EL3.NS? CNTHCTL_EL2 / ICC_SRE_EL2?
 - Chainload support [#526]
-- WITH_KERNEL_VM=0 doesn't link; force it on and drop the #ifs
+- WITH_KERNEL_VM=0 doesn't link; drop the remaining #if WITH_KERNEL_VM checks (forced on in rules.mk)
 
 ## RISC-V
 
@@ -117,7 +117,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - pc needs a port-I/O accessor in dwc8250; platform/pc/uart.c is #if 0, delete it
     - private pl011: bcm28xx, rp23xx (via pico sdk)
     - goldfish_tty (platform-local in qemu-virt-m68k)
-- Delete dev/driver.c (orphan, includes the removed dev/driver.h)
 - MSI / MSI-X
     - pci allocate_msi/msix: single vector only, leaks on error
     - qemu-virt-arm hardcodes the GICv2m doorbell, route through the gic driver
@@ -139,7 +138,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - lib/partition
     - extended / logical partitions (EBR walk)
     - scan at probe (only `bio partscan` calls partition_publish today)
-    - virtio-block has a stale lib/partition include + dep
     - expose GPT name/type guid; 4K sector devices untested
 - Binary search tree from trusty [#297]
 - bits.h: 1UL masks break for bit >= 32 on 32-bit; clz/ctz/ffs macro names collide
@@ -188,15 +186,12 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Testing
 
-- lib/fixed_point/rules.mk has `MOUDLE_OPTIONS` typo, its tests never build
 - lib/norfs/test unreachable
-- lib/libc/test/a.out is a tracked host binary, delete
 - fibo and mem_test could be unit tests; app/stringtests has no libc unittest; disktest console only
 
 ## Docs
 
 - DEBUG_ASSERT / ASSERT / dprintf levels / LK_DEBUGLEVEL blurb
-- stale text: workflow comments "LK_DEBUG=0 has no console"; run-qemu-boot-tests --timeout help says 30s
 
 ## Platforms / ports
 
@@ -206,15 +201,15 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Quickie
 
-- delete dev/driver.c
-- delete lib/libc/test/a.out
-- fix MOUDLE_OPTIONS typo in lib/fixed_point/rules.mk
-- drop stale lib/partition include + dep from dev/virtio/block
-- arm64 WITH_KERNEL_VM ?= 1  ->  := 1
-- fix the two stale "LK_DEBUG=0 has no console" workflow comments and the 30s help text
 - check-gcc-atomic-builtins.sh: drop or1k, probe a v6-M target, then commit or delete it
 
 ## Recently landed
+
+- ~~delete dev/driver.c and lib/libc/test/a.out~~
+- ~~fix MOUDLE_OPTIONS typo in lib/fixed_point/rules.mk~~
+- ~~drop stale lib/partition include + dep from dev/virtio/block~~
+- ~~arm64 WITH_KERNEL_VM := 1~~
+- ~~remove stale "LK_DEBUG=0 has no console" workflow comments and fix run-qemu-boot-tests --timeout help text~~
 
 - ~~docs pass: README front page, docs index, getting started out-of-tree build, threading/blocking/VMM docs checked against the code~~
 - ~~clang and ld.lld from one LLVM install, LTO stops on a mismatch; riscv .got out of .data so the registration orphans stay in the image~~

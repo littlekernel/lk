@@ -34,7 +34,7 @@ endif
 ARCH_OPTFLAGS ?= -O2
 
 # we have a mmu and want the vmm/pmm
-WITH_KERNEL_VM ?= 1
+WITH_KERNEL_VM := 1
 
 ifeq (true,$(call TOBOOL,$(WITH_KERNEL_VM)))
 

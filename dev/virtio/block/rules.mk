@@ -6,7 +6,6 @@ MODULE_SRCS += $(LOCAL_DIR)/virtio-block.cpp
 
 MODULE_DEPS += \
 	dev/virtio \
-	lib/bio \
-	lib/partition
+	lib/bio
 
 include make/module.mk

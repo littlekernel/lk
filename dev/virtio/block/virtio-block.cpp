@@ -13,7 +13,6 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lib/bio.h>
-#include <lib/partition.h>
 #include <lk/compiler.h>
 #include <lk/debug.h>
 #include <lk/err.h>

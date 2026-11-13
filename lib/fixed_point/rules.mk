@@ -5,6 +5,6 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += \
 	$(LOCAL_DIR)/fixed_point.c
 
-MOUDLE_OPTIONS := test
+MODULE_OPTIONS := test
 
 include make/module.mk

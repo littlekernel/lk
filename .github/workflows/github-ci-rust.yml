@@ -83,8 +83,6 @@ jobs:
       shell: bash
       run: |
         make -j $(nproc) USE_RUST=1
-    # When LK is compiled with LK_DEBUG=0, there's no console and no way for us
-    # to read test output
     - name: qemu
       if: ${{ matrix.project == 'qemu-virt-arm64-test' }}
       shell: bash

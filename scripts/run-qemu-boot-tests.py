@@ -444,7 +444,7 @@ def main():
     parser.add_argument('--ubsan', action='store_true',
                         help='build with UBSAN=1 and fail if the run reports any undefined behavior')
     parser.add_argument('--timeout', type=int, default=None, metavar='SECONDS',
-                       help='Override the per-architecture QEMU timeout (default: 30s)')
+                       help='Override the per-architecture QEMU timeout (default: per-architecture, 90s; 120s for x86-64-uefi)')
 
     args = parser.parse_args()
 
