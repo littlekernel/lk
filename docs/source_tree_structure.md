@@ -43,7 +43,7 @@ Libraries, each its own module, pulled in by projects as needed. Some of the lar
 - `heap/` - heap front end with selectable allocators (miniheap, dlmalloc, cmpctmalloc)
 - `console/` - command line console; `app/shell` puts a prompt on it
 - `bio/`, `partition/` - block I/O layer and partition scanning (MBR, GPT)
-- `fs/` - filesystem layer with FAT, ext2, 9p, spifs and memfs
+- `fs/` - filesystem layer with FAT, ext2, 9p, spifs, memfs and rofs
 - `minip/` - TCP/IP stack
 - `fdtwalk/` - helpers that configure the system from a device tree
 - `uefi/` - UEFI loader for running UEFI applications such as the Android GBL

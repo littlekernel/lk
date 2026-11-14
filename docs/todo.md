@@ -181,6 +181,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - Fold scripts/uefi_unittest.exp (arm64 uefi_load test, clang workflow only) into the regular boot test run
 - run-ext2-tests.py and run-rofs-tests.py not in CI
 - github-ci-rust.yml does not build qemu-virt-riscv32-supervisor-test (USE_RUST=1 boots and passes ut all on QEMU 11.1)
+- github-ci-clang.yml does not build qemu-virt-riscv32-supervisor-test
 - Reproducible builds [#447]
 - PGO evaluation [#387]
 

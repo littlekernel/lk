@@ -43,7 +43,7 @@ the bootloader or secure-world OS beneath the system the user sees:
   operation on everything else
 - Modular make-based build: pick a project, get exactly the modules it lists
 - A large library of optional components:
-  - filesystems: FAT, ext2, 9p, spifs, memfs, with GPT partition support
+  - filesystems: FAT, ext2, 9p, spifs, memfs, rofs, with GPT partition support
   - the `minip` TCP/IP stack, virtio, PCI/PCIe, ACPI, device tree
   - an interactive shell and console commands, a unit test framework
   - symbolic backtraces, UBSAN, a UEFI loader and boot stub
@@ -55,7 +55,7 @@ the bootloader or secure-world OS beneath the system the user sees:
 | ------------ | ------------- |
 | ARM64        | ARMv8 and ARMv9, 4K/16K/64K pages |
 | ARM32        | ARMv7+ Cortex-A, Cortex-M (ARMv6-M through ARMv8.1-M) |
-| RISC-V       | RV32 and RV64 in machine mode; RV64 in supervisor mode with sv39 or sv48 paging |
+| RISC-V       | RV32 and RV64 in machine mode; supervisor mode with paging: sv32 on RV32, sv39 or sv48 on RV64 |
 | x86          | 32-bit and x86-64 |
 | m68k         | 68000 through 68040 |
 | MIPS         | MIPS32 (build only, not covered by the boot tests) |

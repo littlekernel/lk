@@ -182,6 +182,7 @@ void event_init(event_t *e, bool initial, uint flags);
 void event_destroy(event_t *e);
 status_t event_wait(event_t *e);                      // Infinite timeout
 status_t event_wait_timeout(event_t *e, lk_time_t timeout);
+status_t event_wait_etc(event_t *e, lk_time_t timeout, uint flags);  // WAIT_QUEUE_* flags
 int event_signal(event_t *e, bool reschedule);        // Returns number of threads woken
 status_t event_unsignal(event_t *e);
 bool event_initialized(event_t *e);
@@ -448,6 +449,7 @@ See [`wait.h`](../kernel/include/kernel/wait.h) implementation details.
 void wait_queue_init(wait_queue_t *wait);
 void wait_queue_destroy(wait_queue_t *wait, bool reschedule);
 status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout);
+status_t wait_queue_block_etc(wait_queue_t *wait, lk_time_t timeout, uint flags);
 int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t error);
 int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t error);
 status_t thread_unblock_from_wait_queue(thread_t *t, status_t error);
@@ -462,6 +464,24 @@ disabled. The wake calls may be made from interrupt context with `reschedule` fa
 - **INFINITE_TIME**: Block indefinitely until signaled
 - **0**: Return immediately with ERR_TIMED_OUT if would block
 - **Positive values**: Block for specified milliseconds, return ERR_TIMED_OUT on expiration
+
+#### Interruptible Waits
+
+`thread_signal_kill(t)` latches `THREAD_SIGNAL_KILL` on a thread. Nothing ends the thread from
+outside: it ends itself at the next point that looks at the signal, which a wait does only when
+asked to.
+
+- `wait_queue_block_etc()`, `event_wait_etc()` and `thread_sleep_etc()` take `WAIT_QUEUE_*`
+  flags; with flags 0 they are the plain calls
+- Under `WAIT_QUEUE_INTERRUPTIBLE` a kill ends the wait with `ERR_INTERRUPTED`, and a wait
+  started with the kill already latched returns `ERR_INTERRUPTED` without blocking. The caller
+  unwinds and lets the thread exit
+- Every other wait (a mutex, a semaphore, a plain `event_wait()`) runs to its normal end with
+  the signal still latched, so only waits that may last a long time need to opt in
+- arm64 and riscv hand a thread with the signal latched to the user-space host's kill hook
+  (`arm64_user_kill()`, `riscv_user_kill()`) instead of letting it enter or return to user
+  mode. A thread running in user mode on another CPU is interrupted by the kill, real-time or
+  not, so it meets the hook at once
 
 ### Priority Inheritance
 
@@ -480,6 +500,7 @@ The wait queues provide no mechanism to handle priority inversion at this time. 
 - **ERR_PARTIAL_WRITE**: Port write did not fit in at least one read port's buffer
 - **ERR_CANCELLED**: Port read after the write port was destroyed and drained
 - **ERR_THREAD_DETACHED**: Thread was detached (join operations)
+- **ERR_INTERRUPTED**: A kill signal ended, or refused, a `WAIT_QUEUE_INTERRUPTIBLE` wait
 
 #### Panic Conditions
 
@@ -499,8 +520,9 @@ When threads are unblocked, the scheduler sends reschedule IPIs to other CPUs:
 - **Pinned threads**: The CPU the thread is pinned to
 - **Unpinned threads**: Every other active CPU; the first to reschedule takes the thread from
   the shared run queue
-- CPUs running a real-time thread are skipped. The waking CPU switches only when the caller
-  reschedules: `resched = true`, or an interrupt handler returning `INT_RESCHEDULE`
+- CPUs running a real-time thread are skipped, except by `thread_signal_kill()` interrupting
+  the CPU its target runs on. The waking CPU switches only when the caller reschedules:
+  `resched = true`, or an interrupt handler returning `INT_RESCHEDULE`
 
 #### Memory Ordering
 

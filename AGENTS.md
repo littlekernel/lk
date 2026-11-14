@@ -349,6 +349,16 @@ from the host with both `fsck.fat` and `mtools`:
 It works on a scratch copy of each image and the in-guest tests clean up after
 themselves, so runs are repeatable without rebuilding the images.
 
+ext2 and rofs have runners of the same shape. `scripts/run-ext2-tests.py` covers 1K and 4K
+block images. `scripts/run-rofs-tests.py` builds images with `scripts/mkrofs.py` at three
+alignments, then links one into the kernel with `lib/fs/rofs/embed` and checks it on the
+read only memory device that registers:
+
+```bash
+./scripts/run-ext2-tests.py
+./scripts/run-rofs-tests.py --arch riscv64
+```
+
 ## Code Conventions
 
 ### Commit Message Style

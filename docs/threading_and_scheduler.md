@@ -51,7 +51,8 @@ Threads can be marked as real-time using `thread_set_real_time()`, which sets
 - Are never preempted by the quantum timer, at any priority. They run until they block, yield,
   or something on their own CPU triggers a reschedule
 - Mark their CPU as real-time while running, if their priority is above `DEFAULT_PRIORITY`.
-  Reschedule IPIs skip real-time CPUs, so other CPUs do not interrupt them
+  Reschedule IPIs skip real-time CPUs, so other CPUs do not interrupt them. The one exception
+  is `thread_signal_kill()`, which interrupts the CPU its target is running on regardless
 
 ## Scheduler Algorithm
 
@@ -129,7 +130,8 @@ repinning a queued thread and repinning a sleeping thread.
 - **Reschedule IPIs**: Resuming a thread or waking it from a wait queue sends a reschedule IPI
   to the CPU it is pinned to, or to every other active CPU if it is unpinned. A pinned thread
   whose `thread_sleep()` ends also signals the CPU it is pinned to. CPUs running a real-time thread
-  are skipped, and the local CPU is never signalled
+  are skipped, and the local CPU is never signalled. `thread_signal_kill()` sends one to the CPU
+  its target is running on, real-time or not
 - **CPU-specific idle threads**: Each CPU has its own idle thread, pinned to it
 - **Per-CPU preemption timers**: Independent timer management per CPU
 
@@ -159,10 +161,19 @@ thread_t *thread_create_etc(thread_t *t,
 status_t thread_resume(thread_t *t);                           // Start suspended thread
 void thread_exit(int retcode);                                 // Terminate current thread
 void thread_sleep(lk_time_t delay);                            // Sleep for specified time
+status_t thread_sleep_etc(lk_time_t delay, uint flags);        // thread_sleep() with WAIT_QUEUE_* flags
+void thread_signal_kill(thread_t *t);                          // Ask a thread to end itself
+uint32_t thread_signals(const thread_t *t);                    // THREAD_SIGNAL_* latched on t
 status_t thread_join(thread_t *t, int *retcode, lk_time_t timeout);
 status_t thread_detach(thread_t *t);                           // Detach thread for auto-cleanup
 status_t thread_detach_and_resume(thread_t *t);                // thread_detach(), then thread_resume()
 ```
+
+`thread_signal_kill()` latches `THREAD_SIGNAL_KILL` and stops nothing by itself. The thread ends
+at its next kill point: a wait made with `WAIT_QUEUE_INTERRUPTIBLE` returns `ERR_INTERRUPTED`
+for the code to unwind on, and on arm64 and riscv a thread about to enter or return to user
+mode goes to the arch's kill hook instead. See "Interruptible Waits" in
+[blocking_primitives.md](blocking_primitives.md).
 
 ### Thread Properties
 
@@ -203,6 +214,7 @@ Wait queues provide the foundation for thread synchronization primitives:
 ```c
 void wait_queue_init(wait_queue_t *wait);
 status_t wait_queue_block(wait_queue_t *wait, lk_time_t timeout);
+status_t wait_queue_block_etc(wait_queue_t *wait, lk_time_t timeout, uint flags);
 int wait_queue_wake_one(wait_queue_t *wait, bool reschedule, status_t error);
 int wait_queue_wake_all(wait_queue_t *wait, bool reschedule, status_t error);
 void wait_queue_destroy(wait_queue_t *wait, bool reschedule);
@@ -374,6 +386,7 @@ the holder.
 - **ERR_NOT_BLOCKED**: Thread not in blocked state
 - **ERR_THREAD_DETACHED**: Operation on detached thread
 - **ERR_OBJECT_DESTROYED**: Wait queue destroyed
+- **ERR_INTERRUPTED**: A kill signal ended a `WAIT_QUEUE_INTERRUPTIBLE` wait
 - **ERR_INVALID_ARGS**: Invalid function arguments
 
 ### Panic Conditions
