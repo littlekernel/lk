@@ -184,6 +184,12 @@ status_t bio_publish_subdevice(const char *parent_dev,
 // Returns 0 on success or negative error.
 int create_membdev(const char *name, void *ptr, size_t len);
 
+// As above, over memory that must not be written, such as an image linked into
+// the kernel's rodata: writes and erases fail with ERR_NOT_SUPPORTED. The
+// memory map ioctls still hand out the address, for reading only.
+// Returns 0 on success or negative error.
+int create_ro_membdev(const char *name, const void *ptr, size_t len);
+
 // As above, but presents itself like a NOR flash part: it publishes a single
 // uniform erase region of erase_size bytes and erases to erase_byte. Intended
 // for exercising the erase-before-write paths of flash aware code without real

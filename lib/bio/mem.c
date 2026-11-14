@@ -181,19 +181,23 @@ static int mem_bdev_ioctl(struct bdev *bdev, int request, void *argp) {
     }
 }
 
-/* hooks shared by both flavors; the caller has already run bio_initialize_bdev */
-static void mem_bdev_set_hooks(mem_bdev_t *mem, void *ptr) {
+/* hooks shared by every flavor; the caller has already run bio_initialize_bdev.
+ * A read only device keeps bio's default write hooks, which fail with
+ * ERR_NOT_SUPPORTED, and the default erase with them, as it goes through write. */
+static void mem_bdev_set_hooks(mem_bdev_t *mem, void *ptr, bool writable) {
     mem->ptr = ptr;
     mem->dev.read = mem_bdev_read;
     mem->dev.read_async = mem_bdev_read_async;
     mem->dev.read_block = mem_bdev_read_block;
-    mem->dev.write = mem_bdev_write;
-    mem->dev.write_async = mem_bdev_write_async;
-    mem->dev.write_block = mem_bdev_write_block;
+    if (writable) {
+        mem->dev.write = mem_bdev_write;
+        mem->dev.write_async = mem_bdev_write_async;
+        mem->dev.write_block = mem_bdev_write_block;
+    }
     mem->dev.ioctl = mem_bdev_ioctl;
 }
 
-int create_membdev(const char *name, void *ptr, size_t len) {
+static int create_plain_membdev(const char *name, void *ptr, size_t len, bool writable) {
     if (name == NULL || ptr == NULL) {
         return ERR_INVALID_ARGS;
     }
@@ -208,12 +212,21 @@ int create_membdev(const char *name, void *ptr, size_t len) {
                         BIO_FLAGS_NONE);
 
     /* our bits */
-    mem_bdev_set_hooks(mem, ptr);
+    mem_bdev_set_hooks(mem, ptr, writable);
 
     /* register it */
     bio_register_device(&mem->dev);
 
     return 0;
+}
+
+int create_membdev(const char *name, void *ptr, size_t len) {
+    return create_plain_membdev(name, ptr, len, true);
+}
+
+int create_ro_membdev(const char *name, const void *ptr, size_t len) {
+    /* nothing stores through the pointer once the write hooks are left out */
+    return create_plain_membdev(name, (void *)ptr, len, false);
 }
 
 int create_nor_membdev(const char *name, void *ptr, size_t len,
@@ -247,7 +260,7 @@ int create_nor_membdev(const char *name, void *ptr, size_t len,
     bio_initialize_bdev(&nor->mem.dev, name, BLOCKSIZE, len / BLOCKSIZE, 1,
                         &nor->geometry, BIO_FLAGS_NONE);
 
-    mem_bdev_set_hooks(&nor->mem, ptr);
+    mem_bdev_set_hooks(&nor->mem, ptr, true);
     nor->mem.dev.erase = mem_bdev_erase;
 
     /* bio_initialize_bdev zeroes erase_byte, so this has to come after it */

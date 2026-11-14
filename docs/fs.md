@@ -16,10 +16,11 @@ filesystems. Six filesystems ship in the tree:
 | `lib/fs/9p`    | a virtio-9p device            | yes      | 9P2000.L to a host directory under QEMU |
 
 An rofs image can come with the kernel: `lib/fs/rofs/embed` links `ROFS_EMBED_IMAGE` into the
-binary at `ROFS_EMBED_ALIGN` (default 4096) and registers it as the memory block device
-`ROFS_EMBED_NAME` (default `rofs0`) before the platform's own devices appear, so it mounts like
-any other device, and every file on it is reachable in place at an address that keeps the
-image's alignment. Any project can take it on the command line:
+binary at `ROFS_EMBED_ALIGN` (default 4096) and registers it as the read only memory block
+device `ROFS_EMBED_NAME` (default `rofs0`, `create_ro_membdev()`: writes and erases fail with
+`ERR_NOT_SUPPORTED`, as the image sits in the kernel's rodata) before the platform's own devices
+appear, so it mounts like any other device, and every file on it is reachable in place at an
+address that keeps the image's alignment. Any project can take it on the command line:
 `make <project> EXTERNAL_MODULES=lib/fs/rofs/embed ROFS_EMBED_IMAGE=<image>`.
 
 The layer owns path resolution. A filesystem never sees a path: it is asked to

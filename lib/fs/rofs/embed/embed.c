@@ -56,8 +56,7 @@ static void rofs_embed_init(uint level) {
                align, (unsigned long)(uintptr_t)rofs_embed_start);
         return;
     }
-    // the device only reads it
-    status_t err = create_membdev(ROFS_EMBED_NAME, (void *)rofs_embed_start, len);
+    status_t err = create_ro_membdev(ROFS_EMBED_NAME, rofs_embed_start, len);
     if (err < 0) {
         printf("rofs: no device %s for the embedded image: %d\n", ROFS_EMBED_NAME, err);
     }

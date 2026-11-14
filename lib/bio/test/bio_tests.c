@@ -1038,6 +1038,52 @@ static bool memdev_default_erase(void) {
     END_TEST;
 }
 
+// A read only device reads and maps like the plain one, and refuses every way
+// of changing the memory under it.
+static bool ro_memdev_refuses_writes(void) {
+    BEGIN_TEST;
+
+    uint8_t *mem = memalign(CACHE_LINE, TEST_DEVICE_SIZE);
+    ASSERT_NONNULL(mem, "failed to allocate memory");
+    memset(mem, 0xAA, TEST_DEVICE_SIZE);
+
+    EXPECT_EQ(0, create_ro_membdev("test_bdev_ro", mem, TEST_DEVICE_SIZE), "");
+
+    bdev_t *dev = bio_open("test_bdev_ro");
+    ASSERT_NONNULL(dev, "failed to open device");
+
+    uint8_t *buf = malloc(BLOCK_SIZE);
+    ASSERT_NONNULL(buf, "failed to allocate buffer");
+
+    EXPECT_EQ((ssize_t)BLOCK_SIZE, bio_read(dev, buf, BLOCK_SIZE, BLOCK_SIZE), "read");
+    EXPECT_EQ(0xAA, buf[0], "");
+    EXPECT_EQ((ssize_t)BLOCK_SIZE, bio_read_block(dev, buf, 1, 1), "read block");
+
+    void *map_addr = NULL;
+    EXPECT_EQ(NO_ERROR, bio_ioctl(dev, BIO_IOCTL_GET_MAP_ADDR, &map_addr), "");
+    EXPECT_EQ((uintptr_t)mem, (uintptr_t)map_addr, "");
+
+    memset(buf, 0x55, BLOCK_SIZE);
+    EXPECT_EQ(ERR_NOT_SUPPORTED, bio_write(dev, buf, 0, BLOCK_SIZE), "write");
+    EXPECT_EQ(ERR_NOT_SUPPORTED, bio_write(dev, buf, 3, 5), "unaligned write");
+    EXPECT_EQ(ERR_NOT_SUPPORTED, bio_write_block(dev, buf, 0, 1), "write block");
+    EXPECT_EQ(ERR_NOT_SUPPORTED, bio_erase(dev, 0, BLOCK_SIZE), "erase");
+
+    for (size_t i = 0; i < TEST_DEVICE_SIZE; i++) {
+        if (mem[i] != 0xAA) {
+            EXPECT_EQ(0xAA, mem[i], "the memory is untouched");
+            break;
+        }
+    }
+
+    free(buf);
+    bio_close(dev);
+    bio_unregister_device(dev);
+    free(mem);
+
+    END_TEST;
+}
+
 static bool nor_memdev_create_rejects_bad_args(void) {
     BEGIN_TEST;
 
@@ -1086,6 +1132,7 @@ RUN_TEST(memdev_direct_ops_clamp)
 RUN_TEST(memdev_create_rejects_null_args)
 RUN_TEST(memdev_ioctl_memory_map)
 RUN_TEST(memdev_default_erase)
+RUN_TEST(ro_memdev_refuses_writes)
 RUN_TEST(nor_memdev_geometry)
 RUN_TEST(nor_memdev_erase)
 RUN_TEST(nor_memdev_create_rejects_bad_args)
