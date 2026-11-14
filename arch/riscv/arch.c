@@ -10,6 +10,7 @@
 #include <arch/ops.h>
 #include <arch/riscv.h>
 #include <assert.h>
+#include <kernel/thread.h>
 #include <lk/debug.h>
 #include <lk/init.h>
 #include <lk/main.h>
@@ -171,6 +172,12 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     // Disable interrupts, now we're committed and cannot tolerate any exceptions
     // or interrupts until we get to user space.
     arch_disable_ints();
+
+    // A kill latched before this point is met here; one that lands later
+    // interrupts user mode and is met on the way back.
+    if (unlikely(thread_signals(ct) & THREAD_SIGNAL_KILL)) {
+        riscv_user_kill(NULL);
+    }
 
     riscv_csr_write(sstatus, status);
     riscv_csr_write(sepc, entry_point);

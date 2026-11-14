@@ -368,13 +368,17 @@ the kernel through weak hooks the arch provides: `arm64_syscall()` and
 `arm64_user_exception()`, `riscv_syscall_handler()` and
 `riscv_user_exception()`. The defaults print the frame and end the thread with
 `thread_exit()` rather than panicking, and an override that wants the same
-fallback can call the `*_unhandled()` variants. On arm64 the kernel keeps its
+fallback can call the `*_unhandled()` variants. A third weak hook,
+`arm64_user_kill()` or `riscv_user_kill()`, takes a thread that has
+`THREAD_SIGNAL_KILL` latched in place of its entry or return to user mode; the
+default ends it with `ERR_INTERRUPTED`. On arm64 the kernel keeps its
 percpu pointer in x18, which user space may overwrite, so the vectors for
 exceptions from EL0 reload it from a slot at the top of the thread's kernel
 stack that `arch_enter_uspace()` fills and every return to EL0 refreshes.
 `arch_uspace_tests` in `arch/test/` runs a stub through a syscall and a fault
-this way on both arches, and a store and a jump into a page before and after
-`arch_mmu_protect()` changes it.
+this way on both arches, a store and a jump into a page before and after
+`arch_mmu_protect()` changes it, and a kill of a thread spinning in user mode
+and of one that has yet to enter it.
 
 # Physical to virtual mapping
 

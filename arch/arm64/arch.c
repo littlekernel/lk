@@ -168,6 +168,12 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
 
     arch_disable_ints();
 
+    // A kill latched before this point is met here; one that lands later
+    // interrupts EL0 and is met on the way back.
+    if (unlikely(thread_signals(ct) & THREAD_SIGNAL_KILL)) {
+        arm64_user_kill();
+    }
+
     asm volatile(
         "mov    sp, %[kstack];"
         "msr    sp_el0, %[ustack];"

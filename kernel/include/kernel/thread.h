@@ -127,8 +127,9 @@ typedef struct thread {
 
 // Kill: the thread is to end at its next safe point. An interruptible wait
 // (WAIT_QUEUE_INTERRUPTIBLE) returns ERR_INTERRUPTED and the code unwinds; on
-// its way back to user mode the arch hands the thread to the user-space host's
-// kill hook. Elsewhere the signal stays latched and nothing changes.
+// its way into or back to user mode the arch hands the thread to the
+// user-space host's kill hook. Elsewhere the signal stays latched and nothing
+// changes.
 #define THREAD_SIGNAL_KILL (1u << 0)
 
 // thread priority

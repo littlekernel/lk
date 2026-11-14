@@ -13,7 +13,7 @@
  * lower-EL/U-mode entry and exit paths, the syscall hook, a user access to
  * kernel memory being caught rather than crashing the kernel,
  * arch_mmu_protect() taking effect for user stores and fetches, and a kill
- * ending a thread that spins in user mode.
+ * ending a thread that spins in user mode or has yet to enter it.
  */
 
 #if ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)
@@ -301,7 +301,7 @@ bool kill_spinning_user_thread(const user_env &env, uint cpu) {
     ASSERT_NONNULL(t, "thread_create");
     thread_set_pinned_cpu(t, cpu);
     thread_resume(t);
-    // time to reach user mode; a kill sent before that is met at the first trap
+    // time to reach user mode; a kill sent before that is met at the entry instead
     thread_sleep(20);
     thread_signal_kill(t);
 
@@ -334,6 +334,38 @@ bool user_kill() {
         thread_sleep(1);
     }
     EXPECT_EQ(NO_ERROR, err, "free aspace");
+    env.as = nullptr;
+
+    END_TEST;
+}
+
+// A thread killed before it runs never reaches user mode: arch_enter_uspace()
+// hands it to the kill hook, so the syscall its stub opens with is never made.
+bool user_kill_before_entry() {
+    BEGIN_TEST;
+
+    test_active = true;
+    auto done = lk::make_auto_call([]() { test_active = false; });
+
+    user_env env;
+    ASSERT_TRUE(user_env_setup(&env), "setup");
+    ASSERT_TRUE(user_env_load(&env, uspace_stub_syscall_start, uspace_stub_syscall_end), "load");
+
+    syscalls = 0;
+    uspace_thread_args args = { .env = &env };
+    thread_t *t = thread_create("uspace_kill", uspace_thread, &args, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
+    ASSERT_NONNULL(t, "thread_create");
+    thread_set_pinned_cpu(t, arch_curr_cpu_num());
+    thread_signal_kill(t);
+    thread_resume(t);
+
+    int retcode = 0;
+    ASSERT_EQ(NO_ERROR, thread_join(t, &retcode, 5000), "join");
+    EXPECT_EQ(ERR_INTERRUPTED, retcode, "exit code set by the kill hook");
+    EXPECT_EQ(0, syscalls, "syscalls seen");
+
+    // the thread is gone, so no cpu has the aspace loaded any more
+    EXPECT_EQ(NO_ERROR, vmm_free_aspace(env.as), "free aspace");
     env.as = nullptr;
 
     END_TEST;
@@ -392,6 +424,7 @@ RUN_TEST(user_syscall);
 RUN_TEST(user_fault);
 RUN_TEST(user_protect);
 RUN_TEST(user_kill);
+RUN_TEST(user_kill_before_entry);
 END_TEST_CASE(arch_uspace_tests)
 
 #endif // ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)

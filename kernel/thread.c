@@ -818,8 +818,8 @@ status_t thread_sleep_etc(lk_time_t delay, uint flags) {
  * interruptible wait is woken with ERR_INTERRUPTED; one running on another cpu
  * gets a reschedule ipi, so a thread in user mode traps and meets the kill on
  * its way back. Any other thread keeps the signal until its next interruptible
- * wait or its next return to user mode. The thread ends itself: nothing here
- * stops it.
+ * wait or its next entry or return to user mode. The thread ends itself:
+ * nothing here stops it.
  *
  * @param t  The thread to signal, which may be the current one
  */
