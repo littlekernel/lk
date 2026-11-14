@@ -12,8 +12,9 @@
  * overridden here, record what came back and end the thread. Covers the
  * lower-EL/U-mode entry and exit paths, the syscall hook, a user access to
  * kernel memory being caught rather than crashing the kernel,
- * arch_mmu_protect() taking effect for user stores and fetches, and a kill
- * ending a thread that spins in user mode or has yet to enter it.
+ * arch_mmu_protect() taking effect for user stores and fetches, a kill
+ * ending a thread that spins in user mode or has yet to enter it, and on arm64
+ * FIQs staying masked through all of it.
  */
 
 #if ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)
@@ -57,6 +58,7 @@ constexpr uint kX = ARCH_MMU_FLAG_PERM_EXECUTE;
 volatile bool test_active;
 volatile int syscalls;
 volatile ulong syscall_arg;
+volatile ulong syscall_spsr; // arm64 only
 volatile int faults;
 volatile ulong fault_cause; // arm64: ESR, riscv: scause
 volatile ulong fault_addr;  // arm64: FAR, riscv: stval
@@ -152,6 +154,7 @@ bool user_env_run(const user_env &env, int *retcode) {
 
     syscalls = 0;
     syscall_arg = 0;
+    syscall_spsr = 0;
     faults = 0;
     fault_cause = 0;
     fault_addr = 0;
@@ -194,6 +197,9 @@ bool user_syscall() {
     EXPECT_EQ(1, syscalls, "syscalls seen");
     EXPECT_EQ(kSyscallMagic, syscall_arg, "syscall argument");
     EXPECT_EQ(0, faults, "faults seen");
+#if ARCH_ARM64
+    EXPECT_TRUE(BIT(syscall_spsr, 6), "FIQs masked in user mode");
+#endif
 
     END_TEST;
 }
@@ -371,6 +377,19 @@ bool user_kill_before_entry() {
     END_TEST;
 }
 
+#if ARCH_ARM64
+// PSTATE.F is not switched with the thread, so the kernel never unmasks FIQs.
+// Runs last: the exceptions from EL0, kills and thread switches above must
+// have left this cpu as they found it.
+bool kernel_fiqs_masked() {
+    BEGIN_TEST;
+
+    EXPECT_TRUE(arch_fiqs_disabled(), "FIQs masked at EL1");
+
+    END_TEST;
+}
+#endif
+
 } // namespace
 
 // The hooks are weak in the arch; these strong definitions take over for the
@@ -383,6 +402,7 @@ void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit) {
     }
     syscalls = syscalls + 1;
     syscall_arg = iframe->r[0];
+    syscall_spsr = iframe->spsr;
     thread_exit(0);
 }
 
@@ -425,6 +445,9 @@ RUN_TEST(user_fault);
 RUN_TEST(user_protect);
 RUN_TEST(user_kill);
 RUN_TEST(user_kill_before_entry);
+#if ARCH_ARM64
+RUN_TEST(kernel_fiqs_masked);
+#endif
 END_TEST_CASE(arch_uspace_tests)
 
 #endif // ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)

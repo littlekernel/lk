@@ -172,13 +172,11 @@ regrestore_short
 .endm
 
 .macro irq_exception_body, restore
-    msr daifclr, #1 /* reenable fiqs once elr and spsr have been saved */
     mov x0, sp
     bl  platform_irq
     cbz x0, .Lirq_exception_no_preempt\@
     bl  thread_preempt
 .Lirq_exception_no_preempt\@:
-    msr daifset, #1 /* disable fiqs to protect elr and spsr restore */
     b   \restore
 .endm
 

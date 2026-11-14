@@ -97,7 +97,11 @@ void arm64_early_init_percpu(void) {
     // TODO: read feature bits on cpu 0
     arm64_enable_cycle_counter();
 
-    arch_enable_fiqs();
+    // FIQs stay masked, here and in the spsr arch_enter_uspace() builds for
+    // EL0. Nothing routes or handles one, and PSTATE.F is not part of a
+    // thread's context: a path that unmasked it would hand the cpu to the next
+    // thread in whatever state it was in at the switch.
+    arch_disable_fiqs();
 }
 
 // called very early in the main boot sequence on the boot cpu
@@ -161,10 +165,10 @@ void arch_enter_uspace(vaddr_t entry_point, vaddr_t user_stack_top) {
     /* set up a default spsr to get into 64bit user space:
      * zeroed NZCV
      * no SS, no IL, no D
-     * all interrupts enabled
+     * A and I unmasked, F masked as it is at EL1
      * mode 0: EL0t
      */
-    uint64_t spsr = 0;
+    uint64_t spsr = (1 << 6);
 
     arch_disable_ints();
 
