@@ -143,6 +143,11 @@ void riscv_user_exception(long cause, ulong epc, struct riscv_short_iframe *fram
     riscv_user_exception_unhandled(cause, epc, frame);
 }
 
+__WEAK
+void riscv_user_kill(struct riscv_short_iframe *frame) {
+    thread_exit(ERR_INTERRUPTED);
+}
+
 #if RISCV_MMU
 // A page fault the tables do not explain is a translation this hart cached
 // before the entry was made valid: drop everything the hart holds and let the
@@ -249,5 +254,11 @@ void riscv_exception_handler(long cause, ulong epc, struct riscv_short_iframe *f
 
     if (ret == INT_RESCHEDULE) {
         thread_preempt();
+    }
+
+    // The last stop before user mode, whatever the trap was: a thread killed
+    // while it ran, slept or sat preempted ends here instead of going back.
+    if (!kernel && unlikely(thread_signals(get_current_thread()) & THREAD_SIGNAL_KILL)) {
+        riscv_user_kill(frame);
     }
 }

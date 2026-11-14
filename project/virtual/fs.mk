@@ -6,5 +6,6 @@ MODULES += \
     lib/fs/fat \
     lib/fs/spifs \
     lib/fs/memfs \
+    lib/fs/rofs \
     lib/partition
 

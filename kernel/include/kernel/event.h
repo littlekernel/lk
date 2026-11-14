@@ -73,6 +73,10 @@ void event_destroy(event_t *);
 // If the event is signaled, it will return NO_ERROR.
 status_t event_wait_timeout(event_t *, lk_time_t);
 
+// event_wait_timeout() with WAIT_QUEUE_* flags (kernel/wait.h): under
+// WAIT_QUEUE_INTERRUPTIBLE a kill signal ends the wait with ERR_INTERRUPTED.
+status_t event_wait_etc(event_t *, lk_time_t, uint flags);
+
 // Signal the event, waking up any threads waiting on it.
 // If reschedule is true, it will reschedule the thread that was waiting.
 // May be called during interrupt context, but in that case reschedule must be false.

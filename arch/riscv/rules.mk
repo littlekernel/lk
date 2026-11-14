@@ -95,6 +95,9 @@ KERNEL_ASPACE_SIZE := 0x80000000
 USER_ASPACE_BASE   := 0x01000000
 USER_ASPACE_SIZE   := 0x7e000000
 
+# the physmap maps MEMBASE, not physical 0, at the base of the kernel's half
+KERNEL_BASE ?= $(KERNEL_ASPACE_BASE)
+
 else ifeq ($(RISCV_MMU),none)
 else
 $(error Unknown RISCV_MMU: "$(strip $(RISCV_MMU))" (valid values are "none", "sv32", "sv39", "sv48"))

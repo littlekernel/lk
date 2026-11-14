@@ -251,6 +251,12 @@ enum handler_return riscv_platform_irq(void);
 void riscv_syscall_handler(struct riscv_short_iframe *frame);
 void riscv_user_exception(long cause, ulong epc, struct riscv_short_iframe *frame);
 
+// Weak hook for a thread about to return to user mode from any trap with
+// THREAD_SIGNAL_KILL latched (thread_signal_kill()). Runs with interrupts
+// disabled and must not return. The default ends the thread with
+// ERR_INTERRUPTED; a user-space host overrides it to account for the thread.
+void riscv_user_kill(struct riscv_short_iframe *frame) __NO_RETURN;
+
 // what the hooks do unless overridden; an override can fall back to these
 void riscv_syscall_unhandled(struct riscv_short_iframe *frame) __NO_RETURN;
 void riscv_user_exception_unhandled(long cause, ulong epc, struct riscv_short_iframe *frame) __NO_RETURN;

@@ -102,7 +102,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 - APLIC + IMSIC support
 - CLIC support [#527]
-- time.c: interval * rate is a 32-bit multiply, wraps above ~430ms at 10MHz (fires early)
 - current_time() off by 2.4% at 32768Hz (divides by rate/1000)
 - No way to keep the compiler from using FP registers in kernel code
 - MSI: every platform returns ERR_NOT_SUPPORTED
@@ -204,6 +203,9 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - check-gcc-atomic-builtins.sh: drop or1k, probe a v6-M target, then commit or delete it
 
 ## Recently landed
+
+- ~~merged the lkuser side branch: lk::ref_ptr, kill signal and interruptible waits (arm64/riscv end killed user threads at return to user), lib/fs/rofs + rofs/embed~~
+- ~~riscv32 supervisor mode with sv32 paging and user aspaces (qemu-virt-riscv32-supervisor-test); riscv oneshot timer interval multiplied in 64 bits~~
 
 - ~~delete dev/driver.c and lib/libc/test/a.out~~
 - ~~fix MOUDLE_OPTIONS typo in lib/fixed_point/rules.mk~~

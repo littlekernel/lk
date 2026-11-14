@@ -28,10 +28,6 @@
 
 #define LOCAL_TRACE 0
 
-#if __riscv_xlen == 32
-#error "32 bit mmu not supported yet"
-#endif
-
 // global, generally referenced in start.S
 
 // the one main kernel top page table, used by the kernel address space
@@ -46,10 +42,12 @@ riscv_pte_t trampoline_pgtable[RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 paddr_t trampoline_pgtable_phys; // filled in by start.S
 
 // pre-allocated second level page tables, one page sized table per kernel
-// entry of the top level table. Every kernel top level entry is populated at
-// boot, so user space top level tables stay in sync with the kernel's by
-// simply taking a copy of those entries.
-riscv_pte_t kernel_l2_pgtable[RISCV_MMU_KERNEL_PT_ENTRIES][RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
+// entry of the top level table that no boot mapping fills with leaves. Every
+// kernel top level entry is populated at boot, so user space top level tables
+// stay in sync with the kernel's by simply taking a copy of those entries.
+constexpr size_t kernel_l2_pgtable_count =
+    RISCV_MMU_KERNEL_PT_ENTRIES - RISCV_MMU_PHYSMAP_PAGE_COUNT - RISCV_MMU_PERIPHERAL_PAGE_COUNT;
+riscv_pte_t kernel_l2_pgtable[kernel_l2_pgtable_count][RISCV_MMU_PT_ENTRIES] __ALIGNED(PAGE_SIZE);
 static_assert(sizeof(kernel_l2_pgtable[0]) == PAGE_SIZE, "");
 paddr_t kernel_l2_pgtable_phys; // filled in by start.S
 
@@ -57,12 +55,23 @@ paddr_t kernel_l2_pgtable_phys; // filled in by start.S
 struct mmu_initial_mapping mmu_initial_mappings[] = {
     // all of memory, mapped in start.S
     {
-        .phys = 0,
+        .phys = RISCV_MMU_PHYSMAP_BASE_PHYS,
         .virt = RISCV_MMU_PHYSMAP_BASE_VIRT,
         .size = RISCV_MMU_PHYSMAP_SIZE,
         .flags = 0,
         .name = "memory"
     },
+
+#ifdef RISCV_MMU_PERIPHERAL_SIZE
+    // the platform's devices, mapped in riscv_early_mmu_init()
+    {
+        .phys = RISCV_MMU_PERIPHERAL_BASE_PHYS,
+        .virt = RISCV_MMU_PERIPHERAL_BASE_VIRT,
+        .size = RISCV_MMU_PERIPHERAL_SIZE,
+        .flags = MMU_INITIAL_MAPPING_FLAG_DEVICE,
+        .name = "peripherals"
+    },
+#endif
 
     // null entry to terminate the list
     { }
@@ -140,6 +149,8 @@ void riscv_set_satp(uint asid, paddr_t pt) {
     satp = RISCV_SATP_MODE_SV48 << RISCV_SATP_MODE_SHIFT;
 #elif RISCV_MMU == 39
     satp = RISCV_SATP_MODE_SV39 << RISCV_SATP_MODE_SHIFT;
+#elif RISCV_MMU == 32
+    satp = RISCV_SATP_MODE_SV32 << RISCV_SATP_MODE_SHIFT;
 #else
 #error implement
 #endif
@@ -434,15 +445,15 @@ bool table_is_empty(volatile riscv_pte_t *table) {
 // Called as a walk leaves the table at level. If the walk cleared entries in
 // it (its dirty bit) and it is now empty, unlink it from the parent entry and
 // collect its page on freed_tables, which marks the parent's table dirty in
-// turn. Levels above highest are never unlinked, nor is anything without a
-// list to collect on.
-void leave_table(volatile riscv_pte_t *const ptep_at_level[], uint level, uint highest,
+// turn. Levels above highest are never unlinked (highest -1: none is), nor is
+// anything without a list to collect on.
+void leave_table(volatile riscv_pte_t *const ptep_at_level[], uint level, int highest,
                  uint *dirty, struct list_node *freed_tables) {
     if (!(*dirty & (1u << level))) {
         return;
     }
     *dirty &= ~(1u << level);
-    if (!freed_tables || level > highest) {
+    if (!freed_tables || (int)level > highest) {
         return;
     }
 
@@ -495,8 +506,10 @@ int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, size_t count, F callback
 
     DEBUG_ASSERT(aspace);
 
+    // the highest level whose tables may be unlinked: below the root, and for
+    // the kernel below the static tables it links, so none at all at two levels
     constexpr uint top = RISCV_MMU_PT_LEVELS - 1;
-    const uint highest = (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) ? top - 2 : top - 1;
+    const int highest = (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) ? (int)top - 2 : (int)top - 1;
 
     volatile riscv_pte_t *ptep_at_level[RISCV_MMU_PT_LEVELS];
     uint dirty = 0; // bit per level: an entry in that level's table was cleared
@@ -592,7 +605,7 @@ int riscv_pt_walk(arch_aspace_t *aspace, vaddr_t vaddr, size_t count, F callback
     // keeps ptep_at_level valid at every level the sweep looks at.
     DEBUG_ASSERT((dirty & ((1u << level) - 1)) == 0);
     if (dirty) {
-        for (uint l = 0; l <= highest; l++) {
+        for (int l = 0; l <= highest; l++) {
             leave_table(ptep_at_level, l, highest, &dirty, freed_tables);
         }
     }
@@ -628,18 +641,22 @@ leaf leaf_at(arch_aspace_t *aspace, vaddr_t vaddr) {
 }
 
 // Whether unmap or protect may change [vaddr, vaddr + count pages), decided
-// before either touches anything. The physmap's top level leaves are fixed:
+// before either touches anything. The top level leaves of the boot mappings
+// (the physmap, and the peripheral window where there is one) are fixed:
 // every user root holds a copy of them. Nor may a large page be split, and
 // only the two ends of the range can cut one.
-static_assert(RISCV_MMU_PHYSMAP_BASE_VIRT == KERNEL_ASPACE_BASE, "a range touching the physmap starts in it");
 status_t check_range_ends(arch_aspace_t *aspace, vaddr_t vaddr, size_t count) {
-    if ((aspace->flags & ARCH_ASPACE_FLAG_KERNEL) &&
-        vaddr - RISCV_MMU_PHYSMAP_BASE_VIRT < RISCV_MMU_PHYSMAP_SIZE) {
-        LTRACEF("range at %#lx touches the physmap\n", vaddr);
-        return ERR_NOT_SUPPORTED;
+    const vaddr_t last = vaddr + (count - 1) * PAGE_SIZE;
+
+    if (aspace->flags & ARCH_ASPACE_FLAG_KERNEL) {
+        for (const mmu_initial_mapping *m = mmu_initial_mappings; m->size > 0; m++) {
+            if (vaddr <= m->virt + (m->size - 1) && last >= m->virt) {
+                LTRACEF("range at %#lx touches the boot mapping '%s'\n", vaddr, m->name);
+                return ERR_NOT_SUPPORTED;
+            }
+        }
     }
 
-    const vaddr_t last = vaddr + (count - 1) * PAGE_SIZE;
     const vaddr_t ends[] = { vaddr, last };
     for (const vaddr_t va : ends) {
         const leaf l = leaf_at(aspace, va);
@@ -1066,12 +1083,39 @@ void riscv_early_mmu_init() {
     // only a full width field is worth allocating from
     riscv_use_asids = !RISCV_ASID_FALLBACK && (riscv_asid_mask == RISCV_SATP_ASID_MASK);
 
-    // install zeroed page tables to the unused portions of the kernel page tables
-    for (auto i = kernel_start_index; i <= kernel_end_index; i++) {
-        if ((trampoline_pgtable[i] & RISCV_PTE_V) == 0) {
-            trampoline_pgtable[i] = RISCV_PTE_PPN_TO_PTE(kernel_l2_pgtable_phys + (i - kernel_start_index) * PAGE_SIZE) | RISCV_PTE_V;
+    // Map the boot mappings past the physmap, which start.S did, with top level
+    // leaves like it: the kernel's top level is never written after this, since
+    // every user root copies it.
+    for (const mmu_initial_mapping *m = &mmu_initial_mappings[1]; m->size > 0; m++) {
+        constexpr size_t leaf_size = page_size_per_level(RISCV_MMU_PT_LEVELS - 1);
+        if (!IS_ALIGNED(m->virt, leaf_size) || !IS_ALIGNED(m->phys, leaf_size) || !IS_ALIGNED(m->size, leaf_size) ||
+            m->virt < KERNEL_ASPACE_BASE || m->virt + (m->size - 1) > KERNEL_ASPACE_BASE + (KERNEL_ASPACE_SIZE - 1)) {
+            panic("boot mapping '%s' is not made of whole kernel top level entries\n", m->name);
+        }
+        const riscv_pte_t perms = (m->flags & MMU_INITIAL_MAPPING_FLAG_DEVICE) ? (RISCV_PTE_R | RISCV_PTE_W)
+                                                                              : (RISCV_PTE_R | RISCV_PTE_W | RISCV_PTE_X);
+        for (size_t off = 0; off < m->size; off += leaf_size) {
+            const uint i = vaddr_to_index(m->virt + off, RISCV_MMU_PT_LEVELS - 1);
+            if (trampoline_pgtable[i] & RISCV_PTE_V) {
+                panic("boot mapping '%s' overlaps another at %#lx\n", m->name, m->virt + off);
+            }
+            trampoline_pgtable[i] = RISCV_PTE_PPN_TO_PTE(m->phys + off) | perms |
+                                    RISCV_PTE_A | RISCV_PTE_D | RISCV_PTE_G | RISCV_PTE_V;
         }
     }
+
+    // install zeroed page tables to the unused portions of the kernel page tables
+    size_t l2_used = 0;
+    for (auto i = kernel_start_index; i <= kernel_end_index; i++) {
+        if ((trampoline_pgtable[i] & RISCV_PTE_V) == 0) {
+            if (l2_used == kernel_l2_pgtable_count) {
+                panic("more empty kernel top level entries than static tables\n");
+            }
+            trampoline_pgtable[i] = RISCV_PTE_PPN_TO_PTE(kernel_l2_pgtable_phys + l2_used * PAGE_SIZE) | RISCV_PTE_V;
+            l2_used++;
+        }
+    }
+    DEBUG_ASSERT(l2_used == kernel_l2_pgtable_count);
 
     // copy the top parts of the kernel page table from the trampoline page table
     for (auto i = kernel_start_index; i <= kernel_end_index; i++) {

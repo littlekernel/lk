@@ -17,17 +17,21 @@
 typedef uintptr_t riscv_pte_t;
 #endif
 
-#define KB                (1024UL)
-#define MB                (1024UL*1024UL)
-#define GB                (1024UL*1024UL*1024UL)
-
 // some constants based on our particular implementation
+//
+// The physmap is a run of top level leaves at the bottom of the kernel's half
+// that maps physical memory from RISCV_MMU_PHYSMAP_BASE_PHYS up. sv39 and sv48
+// map from physical 0, which covers the devices below ram as well. sv32 has
+// room for ram alone, so its physmap starts at MEMBASE, and a platform with
+// devices to reach before the vm is up describes a window for them with
+// RISCV_MMU_PERIPHERAL_BASE_PHYS/_VIRT/_SIZE, mapped the same way at boot.
 #if RISCV_MMU == 48
 #define RISCV_MMU_PT_LEVELS 4
 #define RISCV_MMU_PT_SHIFT  9
 #define RISCV_MMU_PT_ENTRIES 512 // 1 << PT_SHIFT
 #define RISCV_MMU_CANONICAL_MASK ((1UL << 48) - 1)
 #define RISCV_MMU_PPN_BITS 56
+#define RISCV_MMU_PHYSMAP_BASE_PHYS (0)
 #define RISCV_MMU_PHYSMAP_BASE_VIRT (KERNEL_ASPACE_BASE)
 #define RISCV_MMU_PHYSMAP_PAGE_SIZE (1UL << 39)
 #define RISCV_MMU_PHYSMAP_PAGE_COUNT 1
@@ -37,6 +41,7 @@ typedef uintptr_t riscv_pte_t;
 #define RISCV_MMU_PT_ENTRIES 512 // 1 << PT_SHIFT
 #define RISCV_MMU_CANONICAL_MASK ((1UL << 39) - 1)
 #define RISCV_MMU_PPN_BITS 56
+#define RISCV_MMU_PHYSMAP_BASE_PHYS (0)
 #define RISCV_MMU_PHYSMAP_BASE_VIRT (KERNEL_ASPACE_BASE)
 #define RISCV_MMU_PHYSMAP_PAGE_SIZE (1UL << 30)
 #define RISCV_MMU_PHYSMAP_PAGE_COUNT 64
@@ -44,11 +49,12 @@ typedef uintptr_t riscv_pte_t;
 #define RISCV_MMU_PT_LEVELS 2
 #define RISCV_MMU_PT_SHIFT  10
 #define RISCV_MMU_PT_ENTRIES 1024 // 1 << PT_SHIFT
-#define RISCV_MMU_CANONICAL_MASK UINT32_MASK
+#define RISCV_MMU_CANONICAL_MASK (0xffffffffUL)
 #define RISCV_MMU_PPN_BITS 32
+#define RISCV_MMU_PHYSMAP_BASE_PHYS (MEMBASE)
 #define RISCV_MMU_PHYSMAP_BASE_VIRT (KERNEL_ASPACE_BASE)
-#define RISCV_MMU_PHYSMAP_PAGE_SIZE (1UL << 30)
-#define RISCV_MMU_PHYSMAP_PAGE_COUNT 1
+#define RISCV_MMU_PHYSMAP_PAGE_SIZE (1UL << 22)
+#define RISCV_MMU_PHYSMAP_PAGE_COUNT 256 // 1GB
 #else
 #error implement
 #endif
@@ -57,8 +63,14 @@ typedef uintptr_t riscv_pte_t;
 
 // number of page table entries for the kernel and user half
 // TODO: compute directly from KERNEL/USER_ASPACE_SIZE
-#define RISCV_MMU_USER_PT_ENTRIES 256
-#define RISCV_MMU_KERNEL_PT_ENTRIES 256
+#define RISCV_MMU_USER_PT_ENTRIES (RISCV_MMU_PT_ENTRIES / 2)
+#define RISCV_MMU_KERNEL_PT_ENTRIES (RISCV_MMU_PT_ENTRIES / 2)
+
+#ifdef RISCV_MMU_PERIPHERAL_SIZE
+#define RISCV_MMU_PERIPHERAL_PAGE_COUNT (RISCV_MMU_PERIPHERAL_SIZE / RISCV_MMU_PHYSMAP_PAGE_SIZE)
+#else
+#define RISCV_MMU_PERIPHERAL_PAGE_COUNT 0
+#endif
 
 // page table bits
 #define RISCV_PTE_V         (1 << 0) // valid
@@ -84,6 +96,11 @@ typedef uintptr_t riscv_pte_t;
 #define RISCV_PTE_RSVD_MASK (0x7fUL << 54) // reserved
 #define RISCV_PTE_PBMT_MASK (0x3UL << 61)  // Svpbmt memory type
 #define RISCV_PTE_N         (1UL << 63)    // Svnapot
+#else
+// an sv32 entry is all ppn above the low ten bits
+#define RISCV_PTE_RSVD_MASK (0UL)
+#define RISCV_PTE_PBMT_MASK (0UL)
+#define RISCV_PTE_N         (0UL)
 #endif
 
 // SATP register, contains the current mmu mode, address space id, and

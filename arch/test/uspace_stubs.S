@@ -9,10 +9,16 @@
 /*
  * Position independent user mode stubs, copied into a user page by
  * arch/test/uspace.cpp. Each one runs into an exception that the test's hooks
- * catch, and spins if it ever comes back.
+ * catch, and spins if it ever comes back; the spin stub only spins, until a
+ * kill ends it.
  */
 
 #if ARCH_ARM64 || (ARCH_RISCV && RISCV_S_MODE && RISCV_MMU)
+
+#if ARCH_RISCV
+/* the literals are 64 bits wide on both widths; a 32 bit stub loads the low word */
+#include <arch/riscv/asm.h>
+#endif
 
 .section .rodata
 .balign 16
@@ -54,8 +60,8 @@ uspace_stub_fault_start:
 .option push
 .option norelax
     lla     t0, 2f      /* auipc + addi, never gp relative */
-    ld      t0, (t0)
-    ld      a0, (t0)
+    LDR     t0, (t0)
+    LDR     a0, (t0)
 1:
     j       1b
     .balign 8
@@ -85,9 +91,9 @@ uspace_stub_store_start:
 .option push
 .option norelax
     lla     t0, uspace_stub_store_target
-    ld      t0, (t0)
+    LDR     t0, (t0)
     li      t1, 0x5678
-    sd      t1, (t0)
+    STR     t1, (t0)
     li      a0, 0x1234
     ecall
 1:
@@ -116,7 +122,7 @@ uspace_stub_jump_start:
 .option push
 .option norelax
     lla     t0, uspace_stub_jump_target
-    ld      t0, (t0)
+    LDR     t0, (t0)
     jr      t0
 1:
     j       1b
@@ -128,5 +134,20 @@ uspace_stub_jump_target:
     .quad   0
 .global uspace_stub_jump_end
 uspace_stub_jump_end:
+
+.balign 16
+
+/* spin with no trap of its own: only an interrupt brings it back to the kernel */
+.global uspace_stub_spin_start
+uspace_stub_spin_start:
+#if ARCH_ARM64
+1:
+    b       1b
+#else
+1:
+    j       1b
+#endif
+.global uspace_stub_spin_end
+uspace_stub_spin_end:
 
 #endif

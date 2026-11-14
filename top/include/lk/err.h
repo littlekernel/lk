@@ -57,5 +57,6 @@
 #define ERR_ACCESS_DENIED       (-43)
 #define ERR_PARTIAL_WRITE       (-44)
 #define ERR_NO_ROUTE            (-45)
+#define ERR_INTERRUPTED         (-46)
 
 #define ERR_USER_BASE           (-16384)

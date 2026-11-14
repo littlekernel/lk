@@ -15,7 +15,8 @@
 static const struct dwc8250_config uart_config = {
     .base = UART0_BASE_VIRT,
     .irq = IRQ_UART0,
-    .flag = 0,
+    // input goes to the console buffer when the build has one (CONSOLE_HAS_INPUT_BUFFER)
+    .flag = DWC8250_FLAG_DEBUG_UART,
     .reg_style = DWC8250_REG_8,
 };
 

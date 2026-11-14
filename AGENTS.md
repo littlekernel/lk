@@ -1,6 +1,6 @@
 # LK Kernel Development Guide
 
-LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on diverse 32/64-bit architectures. It's used extensively in embedded systems, including Android bootloaders. Written primarily in C and assembly, with a limited C++ subset: `lib/libcpp` provides a curated portion of the C++17 standard library (see `lib/libcpp/include/` for the authoritative list), built with no exceptions, no RTTI, and no dynamic containers. `lib/lktl` is LK's own header-only C++ library (namespace `lk`: the intrusive list, `auto_call`, `function`, `function_ref`); `lk/cpp.h` holds the `DISALLOW_*` macros.
+LK is a small, SMP-aware embedded OS kernel designed for supervisor mode on diverse 32/64-bit architectures. It's used extensively in embedded systems, including Android bootloaders. Written primarily in C and assembly, with a limited C++ subset: `lib/libcpp` provides a curated portion of the C++17 standard library (see `lib/libcpp/include/` for the authoritative list), built with no exceptions, no RTTI, and no dynamic containers. `lib/lktl` is LK's own header-only C++ library (namespace `lk`: the intrusive list, `auto_call`, `function`, `function_ref`, `ref_ptr`); `lk/cpp.h` holds the `DISALLOW_*` macros.
 
 ## Architecture Overview
 
@@ -280,8 +280,9 @@ The do-qemu* scripts auto-build before launching QEMU. Note they default to `dlm
 # --help for the full list.
 ./scripts/run-qemu-boot-tests.py --arch x86-64-uefi
 
-# The other page table geometries: arm64 with 16K and 64K pages, riscv64 with sv39
-./scripts/run-qemu-boot-tests.py --arch arm64-16k --arch arm64-64k --arch riscv64-sv39
+# The other page table geometries: arm64 with 16K and 64K pages, riscv64 with sv39,
+# riscv32 in supervisor mode with sv32 (qemu-virt-riscv32-supervisor-test)
+./scripts/run-qemu-boot-tests.py --arch arm64-16k --arch arm64-64k --arch riscv64-sv39 --arch riscv32-sv32
 
 # Raise the per-architecture timeout for longer suites. The defaults (90s, 120s for
 # x86-64-uefi) are hang detectors, not performance targets; see the table in the script.
@@ -438,6 +439,15 @@ the same translation unit stays smaller as a template than through either. `lk::
 (`lktl/method.h`) binds a method with its object for either, and `lk::method_cookie_first<&T::m>` /
 `lk::method_cookie_last<&T::m>` are the function pointer to hand a C API that takes a `void *cookie`,
 with the object as the cookie.
+
+#### Reference counting in C++
+
+`lk::ref_counted<T>` (`lktl/ref_ptr.h`) puts an atomic count in the object and `lk::ref_ptr<T>` holds
+one reference in one word. Create with `lk::make_ref<T>(args...)` (nothrow new: check for empty) or
+`lk::adopt_ref(p)`; debug builds assert on a double adopt or on counting a dead object. The last
+release deletes the `T`, or calls `T::destroy(T *)` when the class declares one, which is how a
+hierarchy without virtual functions deletes the concrete type (`lk::static_ref_cast` goes back
+down after a kind check).
 
 #### Registering Console Commands
 

@@ -80,6 +80,21 @@ void event_destroy(event_t *e) {
  *         other values on other errors.
  */
 status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
+    return event_wait_etc(e, timeout, 0);
+}
+
+/**
+ * @brief  Wait for event to be signaled, with flags
+ *
+ * As event_wait_timeout(), with WAIT_QUEUE_* flags for the wait: under
+ * WAIT_QUEUE_INTERRUPTIBLE a kill signal ends it with ERR_INTERRUPTED. An
+ * event that is already signaled is taken whatever the flags.
+ *
+ * @param e        Event object
+ * @param timeout  Timeout value, in ms
+ * @param flags    WAIT_QUEUE_* flags
+ */
+status_t event_wait_etc(event_t *e, lk_time_t timeout, uint flags) {
     status_t ret = NO_ERROR;
 
     DEBUG_ASSERT(e->magic == EVENT_MAGIC);
@@ -94,7 +109,7 @@ status_t event_wait_timeout(event_t *e, lk_time_t timeout) {
         }
     } else {
         /* unsignaled, block here */
-        ret = wait_queue_block(&e->wait, timeout);
+        ret = wait_queue_block_etc(&e->wait, timeout, flags);
     }
 
     THREAD_UNLOCK(state);

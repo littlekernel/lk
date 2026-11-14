@@ -291,12 +291,18 @@ LOCAL_FUNCTION(arm64_exc_shared_restore_short)
     eret
 END_FUNCTION(arm64_exc_shared_restore_short)
 
+/*
+ * Every way back to EL0 calls arm64_el0_return_check() last, with interrupts
+ * disabled. The restore reloads every register the call clobbers from the frame.
+ */
 LOCAL_FUNCTION(arm64_exc_restore_long_to_el0)
+    bl  arm64_el0_return_check
     regrestore_long_to_el0
     eret
 END_FUNCTION(arm64_exc_restore_long_to_el0)
 
 LOCAL_FUNCTION(arm64_exc_restore_short_to_el0)
+    bl  arm64_el0_return_check
     regrestore_short_to_el0
     eret
 END_FUNCTION(arm64_exc_restore_short_to_el0)

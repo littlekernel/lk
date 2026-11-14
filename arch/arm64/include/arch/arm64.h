@@ -88,6 +88,14 @@ static inline void arm64_fpu_pre_context_switch(struct thread *thread) {
 void arm64_syscall(struct arm64_iframe_long *iframe, bool is_64bit);
 void arm64_user_exception(struct arm64_iframe_long *iframe, uint32_t esr, uint64_t far);
 
+/*
+ * Weak hook for a thread about to return to EL0 from any exception with
+ * THREAD_SIGNAL_KILL latched (thread_signal_kill()). Runs with interrupts
+ * disabled and must not return. The default ends the thread with
+ * ERR_INTERRUPTED; a user-space host overrides it to account for the thread.
+ */
+void arm64_user_kill(void) __NO_RETURN;
+
 /* what the hooks do unless overridden; an override can fall back to these */
 void arm64_syscall_unhandled(struct arm64_iframe_long *iframe, bool is_64bit) __NO_RETURN;
 void arm64_user_exception_unhandled(struct arm64_iframe_long *iframe, uint32_t esr, uint64_t far) __NO_RETURN;

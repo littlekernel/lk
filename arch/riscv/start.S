@@ -147,50 +147,51 @@ END_FUNCTION(hart_trap)
 
 #if RISCV_MMU
     // initialize the kernel page tables
-    // for all MMU versions, identity map some amount of memory near 0 and
-    // the same amount at the bottom of the kernel's address space
+    // for all MMU versions, map the physmap at the bottom of the kernel's
+    // address space and identity map the same physical range, which the
+    // kernel runs out of until it bounces to its virtual address. When the two
+    // coincide (sv32 on a platform whose ram starts at KERNEL_ASPACE_BASE) the
+    // same entries are simply written twice.
 LOCAL_FUNCTION(_mmu_init)
     lla     t0, trampoline_pgtable
 
     // store the physical address of the pgtable for future use
-    sd      t0, (trampoline_pgtable_phys), t1
+    STR     t0, (trampoline_pgtable_phys), t1
 
     // do the same for the main kernel pgtable
     lla     t2, kernel_pgtable
-    sd      t2, (kernel_pgtable_phys), t1
+    STR     t2, (kernel_pgtable_phys), t1
 
     // and the 2nd level tables
     lla     t2, kernel_l2_pgtable
-    sd      t2, (kernel_l2_pgtable_phys), t1
+    STR     t2, (kernel_l2_pgtable_phys), t1
 
-    // compute kernel pgtable pointer (index 256)
-    addi    t1, t0, (8 * 128)
-    addi    t1, t1, (8 * 128)
+    // compute the kernel pgtable pointer (the first entry of the kernel half)
+    li      t1, (RISCV_MMU_USER_PT_ENTRIES * RISCV_XLEN_BYTES)
+    add     t1, t0, t1
 
-    // page table entry: address 0, A, D, G, XWR, V
-    li      t2, (0 | (1<<7) | (1<<6) | (1<<5) | (1<<3) | (1<<2) | (1<<1) | (1<<0))
+    // and the entry that identity maps the start of the physmap
+    li      t3, ((RISCV_MMU_PHYSMAP_BASE_PHYS / RISCV_MMU_PHYSMAP_PAGE_SIZE) * RISCV_XLEN_BYTES)
+    add     t0, t0, t3
+
+    // page table entry: start of the physmap, A, D, G, XWR, V
+    li      t2, ((RISCV_MMU_PHYSMAP_BASE_PHYS >> 2) | (1<<7) | (1<<6) | (1<<5) | (1<<3) | (1<<2) | (1<<1) | (1<<0))
 
     // num interations and increment count
-#if RISCV_MMU == 48 || RISCV_MMU == 39
-    // RV48: map the first 512GB of the physical address space at the
-    // bottom of the kernel address space using a single terapage
-    // RV39: map the first 64GB of the physical address space at the
-    // bottom of the kernel address space using 64 1GB gigapages
+    // RV48: map the first 512GB of the physical address space using a single terapage
+    // RV39: map the first 64GB of the physical address space using 64 1GB gigapages
+    // RV32: map 1GB of the physical address space from MEMBASE using 256 4MB megapages
     li      t3, RISCV_MMU_PHYSMAP_PAGE_COUNT
     li      t4, (RISCV_MMU_PHYSMAP_PAGE_SIZE >> 2)
-#else
-#error implement sv32
-#endif
 
     // loop, writing t3 entries out and incrementing by t4 address.
-    // write both to t0 (index 0 of the kernel page table) and
-    // t1 (starting index of kernel space)
+    // write both to t0 (the identity entry) and t1 (starting index of kernel space)
 0:
-    sd      t2, (t1)
-    sd      t2, (t0)
+    STR     t2, (t1)
+    STR     t2, (t0)
     add     t2, t2, t4
-    addi    t0, t0, 8
-    addi    t1, t1, 8
+    addi    t0, t0, RISCV_XLEN_BYTES
+    addi    t1, t1, RISCV_XLEN_BYTES
     addi    t3, t3, -1
     bnez    t3, 0b
 
@@ -206,6 +207,8 @@ LOCAL_FUNCTION(_mmu_init)
     li      t2, (RISCV_SATP_MODE_SV48 << RISCV_SATP_MODE_SHIFT)
 #elif RISCV_MMU == 39
     li      t2, (RISCV_SATP_MODE_SV39 << RISCV_SATP_MODE_SHIFT)
+#elif RISCV_MMU == 32
+    li      t2, (RISCV_SATP_MODE_SV32 << RISCV_SATP_MODE_SHIFT)
 #else
 #error implement
 #endif
@@ -230,12 +233,17 @@ LOCAL_FUNCTION(_mmu_init)
     lla     t1, .Lhigh
 
     // bounce to the high address
-    ld      t0, (.Lhigh_addr)
+    LDR     t0, (.Lhigh_addr)
     jr      t0
 
     // the full virtual address of the .Lhigh label
+.balign RISCV_XLEN_BYTES
 .Lhigh_addr:
+#if __riscv_xlen == 64
     .quad   .Lhigh
+#else
+    .word   .Lhigh
+#endif
 .Lhigh:
 
     // we're now running at the high virtual address
