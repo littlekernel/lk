@@ -284,13 +284,17 @@ user half is empty.
 
 ## Paging mode on riscv
 
-A riscv build picks its paging mode with `RISCV_MMU`, `sv39` or `sv48`, set by
-the platform and overridable on the make command line. The mode fixes the table
-depth, the aspace bases and sizes, and the physmap the boot code writes at the
-bottom of the kernel half: 64 gigapages of 1GB under sv39, one 512GB terapage
-under sv48. It is compiled in rather than probed; `start.S` reads satp back after
+A riscv build picks its paging mode with `RISCV_MMU`, `sv32` (riscv32), `sv39` or
+`sv48`, set by the platform and overridable on the make command line. The mode
+fixes the table depth, the aspace bases and sizes, and the physmap the boot code
+writes at the bottom of the kernel half: 64 gigapages of 1GB under sv39, one 512GB
+terapage under sv48. sv32's kernel half is only 2GB, so its physmap maps 1GB from
+`MEMBASE` rather than from physical 0, in 4MB leaves, and a platform maps its devices
+below ram through a separate window (`RISCV_MMU_PERIPHERAL_BASE_PHYS/_VIRT/_SIZE`).
+It is compiled in rather than probed; `start.S` reads satp back after
 setting it and parks a hart at `riscv_mmu_mode_unsupported` if the cpu refused
-the mode. 64-bit `qemu-virt-riscv` and the HiFive Premier P550 default to sv48;
+the mode. 64-bit `qemu-virt-riscv` and the HiFive Premier P550 default to sv48,
+32-bit `qemu-virt-riscv` in supervisor mode to sv32;
 jh7110 and spacemit-k1 use sv39, and the sifive-unleashed and qemu-sifive-u
 targets run in supervisor mode without an MMU. The kernel half of every root
 table is the same: the kernel's top level entries are written once at boot (the

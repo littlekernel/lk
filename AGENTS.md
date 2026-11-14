@@ -149,8 +149,8 @@ which toolchain and flags actually applied rather than which ones were typed.
 ### Rust support (`USE_RUST=1`)
 
 Rust is opt-in per project. `qemu-virt-arm64-test`, `pc-x86-64-test`,
-`qemu-virt-riscv32-test`, `qemu-virt-riscv64-test` and `qemu-virt-riscv64-supervisor-test`
-accept `USE_RUST=1`, which includes `project/virtual/rust.mk` and builds the rust crates in
+`qemu-virt-riscv32-test`, `qemu-virt-riscv32-supervisor-test`, `qemu-virt-riscv64-test` and
+`qemu-virt-riscv64-supervisor-test` accept `USE_RUST=1`, which includes `project/virtual/rust.mk` and builds the rust crates in
 the tree (`rust/lk`, `rust/lk-sys`, and anything listed in `RUST_CRATES`) into a single
 staticlib via `lib/rust_support` that is linked into the kernel:
 
@@ -169,7 +169,8 @@ USE_RUST=1 scripts/do-qemuriscv -6      # the do-qemu* scripts pick it up from t
   (the float ABI must match the C side, and it can only be set in the json).
 - The rust init hook prints `*** INIT: lk init` early in boot, which is the quick check
   that the rust code made it into the image. `.github/workflows/github-ci-rust.yml` builds
-  every rust-enabled project with clang/lld and boots the qemu ones.
+  the rust-enabled projects with clang/lld and boots the qemu ones, all but
+  `qemu-virt-riscv32-supervisor-test`.
 
 ### Build output
 

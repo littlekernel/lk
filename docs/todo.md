@@ -177,9 +177,10 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Github / CI
 
-- x86-64-uefi boot test runs in no workflow (needs ovmf in CI); also x86-i440fx, x86-64-i440fx, x86-64-xapic, arm64-16k, arm64-64k, riscv64-nosvvptc, riscv64-sv39
+- x86-64-uefi boot test runs in no workflow (needs ovmf in CI); also x86-i440fx, x86-64-i440fx, x86-64-xapic, arm64-16k, arm64-64k, riscv64-nosvvptc, riscv64-sv39, riscv32-sv32
 - Fold scripts/uefi_unittest.exp (arm64 uefi_load test, clang workflow only) into the regular boot test run
-- run-ext2-tests.py not in CI
+- run-ext2-tests.py and run-rofs-tests.py not in CI
+- github-ci-rust.yml does not build qemu-virt-riscv32-supervisor-test (USE_RUST=1 boots and passes ut all on QEMU 11.1)
 - Reproducible builds [#447]
 - PGO evaluation [#387]
 
