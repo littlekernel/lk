@@ -32,6 +32,9 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - arch_mmu_contract (arch/test/mmu_contract.cpp) is the acceptance test for each port
 - Backtrace follow-ups: arm32/cortex-m walker, symtab prefix compression, DWARF CFI [plan]
 - Rust on arm32 (incl cortex-m) and x86-32, then a rust riscv uart driver [plan]
+- USB host stack: xHCI on PCI, boot HID keyboard/mouse through a new lib/input [plan]
+    - starts from the xhci skeleton [branch: origin/wip/usbhost]
+    - needs the MSI-X mapping and arm MSI fixes under Devices first
 
 ## Stale WIP branches (revive or delete)
 
@@ -118,11 +121,18 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - goldfish_tty (platform-local in qemu-virt-m68k)
 - MSI / MSI-X
     - pci allocate_msi/msix: single vector only, leaks on error
+    - msix table/PBA mapping is sized from the offset word, not the entry count
+    - msix BIR and table-size masks are too narrow (0x3 and 0x3f, want 0x7 and 0x7ff)
     - qemu-virt-arm hardcodes the GICv2m doorbell, route through the gic driver
+    - qemu-virt-arm hands out MSIs on GICv3, where nothing delivers them
+    - qemu-virt-arm msi bitmap shifts 1UL by up to 63 (arm32) and can pass MAX_INT
     - GICv3 ITS / LPIs [branch: origin/wip/msi]
-- USB host (xhci) [branch: origin/wip/usbhost]
+- INTx lines cannot be shared on arm_gic / riscv_plic (one handler per vector)
+- INTx pin swizzle on qemu-virt-arm/riscv uses the device number only, wrong behind a bridge
+- Console input: pc has a private buffer, qemu-virt-riscv sets no CONSOLE_HAS_INPUT_BUFFER; put both on lib/io's
 - USB client: more classes? (only cdcserial + bulktest) hid, mass storage, ecm
 - Virtio: handle partial transfers (block ignores the used ring len)
+- virtio_pci_init counts the devices whose init failed, not the ones that worked
 - Virtio-block: "XXX not cache safe"; sg descriptor alloc failure only asserted
 - Virtio: parse SHM regions (needed for virtio-fs DAX someday)
 - m68k mmu is 68040 only, rules.mk still selects 68030/68060 [PR #533]
@@ -203,6 +213,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 ## Quickie
 
 - check-gcc-atomic-builtins.sh: drop or1k, probe a v6-M target, then commit or delete it
+- do-qemuriscv: `-N <driver>` takes no argument, the getopts string is missing its colon
 
 ## Recently landed
 
