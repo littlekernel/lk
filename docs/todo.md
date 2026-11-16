@@ -120,9 +120,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - private pl011: bcm28xx, rp23xx (via pico sdk)
     - goldfish_tty (platform-local in qemu-virt-m68k)
 - MSI / MSI-X
-    - pci allocate_msi/msix: single vector only, leaks on error
-    - msix table/PBA mapping is sized from the offset word, not the entry count
-    - msix BIR and table-size masks are too narrow (0x3 and 0x3f, want 0x7 and 0x7ff)
+    - pci allocate_msi/msix: single vector only, leaks the vector on error (no platform free)
     - qemu-virt-arm hardcodes the GICv2m doorbell, route through the gic driver
     - qemu-virt-arm hands out MSIs on GICv3, where nothing delivers them
     - qemu-virt-arm msi bitmap shifts 1UL by up to 63 (arm32) and can pass MAX_INT
@@ -217,6 +215,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~MSI-X table/PBA mapped by entry count, with full BIR and table-size masks~~
 - ~~merged the lkuser side branch: lk::ref_ptr, kill signal and interruptible waits (arm64/riscv end killed user threads at return to user), lib/fs/rofs + rofs/embed~~
 - ~~riscv32 supervisor mode with sv32 paging and user aspaces (qemu-virt-riscv32-supervisor-test); riscv oneshot timer interval multiplied in 64 bits~~
 

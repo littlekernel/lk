@@ -20,6 +20,7 @@
 #include <lk/list.h>
 #include <lk/pow2.h>
 #include <lk/trace.h>
+#include <lktl/auto_call.h>
 #include <memory>
 #include <platform/interrupts.h>
 #include <stdio.h>
@@ -430,7 +431,8 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
     if (err != NO_ERROR) {
         return err;
     }
-    const uint32_t table_count = (control & 0x3f) + 1;
+    // message control: table size N-1 in [10:0], function mask [14], enable [15]
+    const uint32_t table_count = (control & 0x7ff) + 1;
     LTRACEF("control word %#x table count %u\n", control, table_count);
     uint32_t table_offset, pba_offset;
     err = pci_read_config_word(loc(), cap_offset + 4, &table_offset);
@@ -447,77 +449,95 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
         return ERR_NO_RESOURCES;
     }
 
-    // ask the platform for interrupts
-    uint vector_base;
-    err = platform_allocate_interrupts(num_requested, 0, true, &vector_base);
-    if (err != NO_ERROR) {
-        return err;
-    }
-
-    // Compute what BARs we need to map and where
+    // Where the table and PBA live: BIR in [2:0], qword aligned offset into that BAR above it.
+    // The table is 16 bytes per entry, the PBA one bit per entry in whole qwords.
     struct mapping {
-        explicit mapping(uint32_t offset_bar_word) {
-            bar = offset_bar_word & 0x3;
-            offset = offset_bar_word & ~0x3;
-            length = static_cast<size_t>(offset_bar_word) * 16;
-        }
+        mapping(uint32_t offset_bar_word, size_t len)
+            : bar(offset_bar_word & 0x7), offset(offset_bar_word & ~0x7u), length(len) {}
 
         uint8_t bar;
         size_t offset;
         size_t length;
     };
 
-    mapping table_map(table_offset);
-    mapping pba_map(pba_offset);
-    LTRACEF("table offset %#zx, bar %u\n", table_map.offset, table_map.bar);
-    LTRACEF("pba offset %#zx, bar %u\n", pba_map.offset, pba_map.bar);
+    mapping table_map(table_offset, table_count * 16);
+    mapping pba_map(pba_offset, ROUNDUP(table_count, 64) / 8);
+    LTRACEF("table offset %#zx len %#zx bar %u\n", table_map.offset, table_map.length, table_map.bar);
+    LTRACEF("pba offset %#zx len %#zx bar %u\n", pba_map.offset, pba_map.length, pba_map.bar);
 
-    auto map_it = [this](mapping &map, void **ptr, bool readonly) -> status_t {
-        const auto &bar = bars_[map.bar];
-#if WITH_KERNEL_VM
-        if (!bar.valid || bar.io) {
-            printf("msi-x bar is not valid\n");
+    // Maps the BAR range a structure sits in. *map_base is what to unmap later (null when
+    // nothing was mapped), *ptr the structure itself.
+    auto map_it = [this](const mapping &map, void **map_base, volatile uint32_t **ptr,
+                         bool readonly) -> status_t {
+        *map_base = nullptr;
+        if (map.bar >= countof(bars_)) {
+            printf("msi-x: reserved BIR %u\n", map.bar);
             return ERR_INVALID_ARGS;
         }
-
+        const auto &bar = bars_[map.bar];
+        if (!bar.valid || bar.io || map.offset + map.length > bar.size) {
+            printf("msi-x: structure at %#zx len %#zx does not fit BAR %u\n",
+                   map.offset, map.length, map.bar);
+            return ERR_INVALID_ARGS;
+        }
+#if WITH_KERNEL_VM
         paddr_t base = ROUNDDOWN(map.offset, PAGE_SIZE);
         size_t length = ROUNDUP(map.length + map.offset - base, PAGE_SIZE);
         base += bar.addr;
 
-        status_t map_err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci msix var", length, ptr, 0,
-                                 base, /* vmm_flags */ 0,
-                                 ARCH_MMU_FLAG_UNCACHED_DEVICE | ARCH_MMU_FLAG_PERM_READ |
-                                 (readonly ? 0 : ARCH_MMU_FLAG_PERM_WRITE));
+        status_t map_err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci msix var", length,
+                                              map_base, 0, base, /* vmm_flags */ 0,
+                                              ARCH_MMU_FLAG_UNCACHED_DEVICE | ARCH_MMU_FLAG_PERM_READ |
+                                              (readonly ? 0 : ARCH_MMU_FLAG_PERM_WRITE));
         if (map_err != NO_ERROR) {
             printf("error mapping msi-x bar\n");
+            *map_base = nullptr;
             return map_err;
         }
-        LTRACEF("msi-x bar mapped at %p\n", *ptr);
+        LTRACEF("msi-x bar mapped at %p\n", *map_base);
+        *ptr = (volatile uint32_t *)((uintptr_t)*map_base + (map.offset - ROUNDDOWN(map.offset, PAGE_SIZE)));
 #else
         // no need to map, it's already available at the physical address
         if (sizeof(void *) < 8 && (bar.addr + bar.size) > UINT32_MAX) {
             TRACEF("aborting due to 64bit BAR on 32bit arch\n");
             return ERR_NO_MEMORY;
         }
-        *ptr = (uint8_t *)(uintptr_t)bar.addr;
+        *ptr = (volatile uint32_t *)(uintptr_t)(bar.addr + map.offset);
 #endif
         return NO_ERROR;
     };
 
-    err = map_it(table_map, &msix_table_map, false);
-    if (err != NO_ERROR) {
-        return err;
-    }
-    err = map_it(pba_map, &msix_pba_map, true);
-    if (err != NO_ERROR) {
-        return err;
-    }
+    auto unmap = [this]() {
+#if WITH_KERNEL_VM
+        if (msix_table_map) {
+            vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)msix_table_map);
+        }
+        if (msix_pba_map) {
+            vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)msix_pba_map);
+        }
+#endif
+        msix_table_map = msix_pba_map = nullptr;
+        msix_table_ptr = msix_pba_ptr = nullptr;
+    };
+    auto unmap_on_error = lk::make_auto_call(unmap);
 
-    // compute the table pointers
-    msix_table_ptr = (volatile uint32_t *)((uintptr_t)msix_table_map + (table_map.offset - ROUNDDOWN(table_map.offset, PAGE_SIZE)));
-    msix_pba_ptr = (volatile uint32_t *)((uintptr_t)msix_pba_map + (pba_map.offset - ROUNDDOWN(pba_map.offset, PAGE_SIZE)));
+    err = map_it(table_map, &msix_table_map, &msix_table_ptr, false);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    err = map_it(pba_map, &msix_pba_map, &msix_pba_ptr, true);
+    if (err != NO_ERROR) {
+        return err;
+    }
 
     LTRACEF("msix table %p, pba table %p\n", msix_table_ptr, msix_pba_ptr);
+
+    // ask the platform for interrupts
+    uint vector_base;
+    err = platform_allocate_interrupts(num_requested, 0, true, &vector_base);
+    if (err != NO_ERROR) {
+        return err;
+    }
 
     // compute the MSI message to construct
     uint64_t msi_address = 0;
@@ -545,7 +565,7 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
     }
 
     // set up the control register and enable it
-    control |= (1 << 15); // MSI-X enable, no functions masked
+    control = (control & ~(1 << 14)) | (1 << 15); // MSI-X enable, function mask clear
     pci_write_config_half(loc(), cap_offset + 2, control);
 
     // write it back to the pci config in the interrupt line offset
@@ -554,6 +574,7 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
     // pass back the allocated irq to the caller
     *msi_base = vector_base;
 
+    unmap_on_error.cancel();
     return NO_ERROR;
 }
 
