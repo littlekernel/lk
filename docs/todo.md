@@ -34,7 +34,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - Rust on arm32 (incl cortex-m) and x86-32, then a rust riscv uart driver [plan]
 - USB host stack: xHCI on PCI, boot HID keyboard/mouse through a new lib/input [plan]
     - starts from the xhci skeleton [branch: origin/wip/usbhost]
-    - needs the MSI-X mapping and arm MSI fixes under Devices first
+    - needs the console input fix under Devices first
 
 ## Stale WIP branches (revive or delete)
 
@@ -121,9 +121,8 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - goldfish_tty (platform-local in qemu-virt-m68k)
 - MSI / MSI-X
     - pci allocate_msi/msix: single vector only, leaks the vector on error (no platform free)
-    - qemu-virt-arm hardcodes the GICv2m doorbell, route through the gic driver
-    - qemu-virt-arm hands out MSIs on GICv3, where nothing delivers them
-    - qemu-virt-arm msi bitmap shifts 1UL by up to 63 (arm32) and can pass MAX_INT
+    - qemu-virt-arm keeps the GICv2m frame and SPI range in platform code, route through the gic driver
+    - fdtwalk stores a v2m frame under a GICv3 node into the v2 half of the union (QEMU hvf irqchip)
     - GICv3 ITS / LPIs [branch: origin/wip/msi]
 - INTx lines cannot be shared on arm_gic / riscv_plic (one handler per vector)
 - INTx pin swizzle on qemu-virt-arm/riscv uses the device number only, wrong behind a bridge
@@ -215,6 +214,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~qemu-virt-arm MSI only with a GICv2m frame from the FDT (GICv3 falls back to INTx), vector bitmap within MAX_INT~~
 - ~~MSI-X table/PBA mapped by entry count, with full BIR and table-size masks~~
 - ~~merged the lkuser side branch: lk::ref_ptr, kill signal and interruptible waits (arm64/riscv end killed user threads at return to user), lib/fs/rofs + rofs/embed~~
 - ~~riscv32 supervisor mode with sv32 paging and user aspaces (qemu-virt-riscv32-supervisor-test); riscv oneshot timer interval multiplied in 64 bits~~

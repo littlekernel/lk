@@ -8,6 +8,8 @@
 #include <platform/qemu-virt.h>
 
 #include <arch.h>
+#include <assert.h>
+#include <inttypes.h>
 #include <lk/err.h>
 #include <lk/debug.h>
 #include <lk/trace.h>
@@ -92,12 +94,33 @@ void platform_early_init(void) {
     fdtwalk_setup_cmdline(fdt);
 }
 
+// MSI_SETSPI_NS in the GICv2m frame, or 0 when the machine has none: QEMU builds one for a
+// GICv2, while a GICv3 normally gets an ITS instead, which LK does not drive.
+static paddr_t msi_doorbell;
+
+static void find_msi_doorbell(void) {
+    struct fdt_walk_gic_info gic_info = {};
+    size_t count = 1;
+    if (fdt_walk_find_gic_info(fdt, &gic_info, &count) != NO_ERROR || count == 0) {
+        return;
+    }
+    if (gic_info.gic_version == 2 && gic_info.v2.v2m_count > 0) {
+        msi_doorbell = gic_info.v2.v2m_frame[0].base + 0x40;
+        dprintf(INFO, "PLATFORM: MSI through the GICv2m frame at %#" PRIx64 "\n",
+                gic_info.v2.v2m_frame[0].base);
+    } else {
+        dprintf(INFO, "PLATFORM: no GICv2m frame, MSI unavailable\n");
+    }
+}
+
 void platform_postvm_init(uint level) {
     // Initialize the interrupt controller from the device tree.
     // Do it at this run level so the gic can map its registers.
     if (fdtwalk_setup_gic(fdt) != NO_ERROR) {
         panic("failed to initialize GIC from FDT\n");
     }
+
+    find_msi_doorbell();
 }
 
 LK_INIT_HOOK(platform_postvm_init, platform_postvm_init, LK_INIT_LEVEL_VM);
@@ -157,15 +180,18 @@ status_t platform_pci_int_pin_to_vector(unsigned int pci_int_pin, pci_location_t
 #endif
 
 status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, unsigned int *vector) {
-    TRACEF("count %zu align %u msi %d\n", count, align_log2, msi);
+    LTRACEF("count %zu align %u msi %d\n", count, align_log2, msi);
 
-    // TODO: handle nonzero alignment, count > 0, and add locking
+    // TODO: handle nonzero alignment and count > 1
 
-    // list of allocated msi interrupts
+    // allocated msi interrupts, bit n is MSI_INT_BASE + n
     static uint64_t msi_bitmap = 0;
+    static spin_lock_t msi_lock = SPIN_LOCK_INITIAL_VALUE;
+    STATIC_ASSERT(MSI_INT_COUNT <= sizeof(msi_bitmap) * 8);
+    STATIC_ASSERT(MSI_INT_BASE + MSI_INT_COUNT <= MAX_INT);
 
     // cannot handle allocating for anything but MSI interrupts
-    if (!msi) {
+    if (!msi || !msi_doorbell) {
         return ERR_NOT_SUPPORTED;
     }
 
@@ -173,22 +199,23 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
     DEBUG_ASSERT(align_log2 == 0);
     DEBUG_ASSERT(count == 1);
 
-    // make a copy of the bitmap
     int allocated = -1;
-    for (size_t i = 0; i < sizeof(msi_bitmap) * 8; i++) {
-        if ((msi_bitmap & (1UL << i)) == 0) {
-            msi_bitmap |= (1UL << i);
+    arch_interrupt_saved_state_t state = spin_lock_irqsave(&msi_lock);
+    for (uint i = 0; i < MSI_INT_COUNT; i++) {
+        if ((msi_bitmap & (1ULL << i)) == 0) {
+            msi_bitmap |= (1ULL << i);
             allocated = i;
             break;
         }
     }
+    spin_unlock_irqrestore(&msi_lock, state);
     if (allocated < 0) {
         return ERR_NOT_FOUND;
     }
 
     allocated += MSI_INT_BASE;
 
-    TRACEF("allocated msi at %u\n", allocated);
+    LTRACEF("allocated msi at %u\n", allocated);
     *vector = allocated;
     return NO_ERROR;
 }
@@ -201,10 +228,13 @@ status_t platform_compute_msi_values(unsigned int vector, unsigned int cpu, bool
     // only handle cpu 0
     DEBUG_ASSERT(cpu == 0);
 
-    // TODO: call through to the appropriate gic driver to deal with GICv2 vs v3
+    if (!msi_doorbell) {
+        return ERR_NOT_SUPPORTED;
+    }
 
+    // GICv2m: writing the SPI number to MSI_SETSPI_NS raises it
     *msi_data_out = vector;
-    *msi_address_out = 0x08020040; // address of the GICv2 MSI port
+    *msi_address_out = msi_doorbell;
 
     return NO_ERROR;
 }
