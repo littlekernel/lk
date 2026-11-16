@@ -211,10 +211,10 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 ## Quickie
 
 - check-gcc-atomic-builtins.sh: drop or1k, probe a v6-M target, then commit or delete it
-- do-qemuriscv: `-N <driver>` takes no argument, the getopts string is missing its colon
 
 ## Recently landed
 
+- ~~do-qemuriscv -N takes its argument~~
 - ~~virtio-net uses the 12 byte header on modern (VERSION_1) transports, so virtio-net-pci works~~
 - ~~qemu-virt-arm MSI only with a GICv2m frame from the FDT (GICv3 falls back to INTx), vector bitmap within MAX_INT~~
 - ~~MSI-X table/PBA mapped by entry count, with full BIR and table-size masks~~

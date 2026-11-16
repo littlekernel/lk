@@ -52,7 +52,7 @@ NETDEV=""
 DO_NETDEV_OVERRIDE=0
 CPU_FEATURES=""
 
-while getopts A:cCd:F:ghm:MntNeu6p:s:SX FLAG; do
+while getopts A:cCd:F:ghm:MntN:eu6p:s:SX FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) DO_CMPCTMALLOC=1;;
