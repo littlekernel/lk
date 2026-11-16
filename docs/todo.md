@@ -215,6 +215,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~virtio-net uses the 12 byte header on modern (VERSION_1) transports, so virtio-net-pci works~~
 - ~~qemu-virt-arm MSI only with a GICv2m frame from the FDT (GICv3 falls back to INTx), vector bitmap within MAX_INT~~
 - ~~MSI-X table/PBA mapped by entry count, with full BIR and table-size masks~~
 - ~~merged the lkuser side branch: lk::ref_ptr, kill signal and interruptible waits (arm64/riscv end killed user threads at return to user), lib/fs/rofs + rofs/embed~~

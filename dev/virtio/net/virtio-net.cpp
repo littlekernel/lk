@@ -118,9 +118,11 @@ constexpr uint32_t RING_TX = 1;
 
 constexpr size_t VIRTIO_NET_MSS = 1514;
 
-/* the wire header is the legacy 10 byte layout (no num_buffers; MRG_RXBUF
- * is not negotiated) */
-constexpr size_t VIRTIO_NET_HDR_LEN = sizeof(virtio_net_hdr) - 2;
+/* Wire header length. With VERSION_1 the header always carries num_buffers, even
+ * without MRG_RXBUF; a legacy device without MRG_RXBUF uses the 10 bytes before it. */
+constexpr size_t VIRTIO_NET_HDR_LEN_LEGACY = sizeof(virtio_net_hdr) - 2;
+constexpr size_t VIRTIO_NET_HDR_LEN_MODERN = sizeof(virtio_net_hdr);
+STATIC_ASSERT(VIRTIO_NET_HDR_LEN_MODERN + VIRTIO_NET_MSS <= PKTBUF_SIZE);
 
 /* per tx slot wire header, padded so one never straddles a page boundary
  * (its physical address is computed per slot) */
@@ -138,6 +140,9 @@ struct virtio_net_dev {
     pktbuf_t *pending_rx_packet[RX_RING_SIZE];
 
     uint tx_pending_count;
+
+    /* VIRTIO_NET_HDR_LEN_LEGACY or _MODERN, fixed at init */
+    size_t hdr_len;
 
     /* rx ring slots we could not refill because the pktbuf pool was empty;
      * retried on every irq */
@@ -246,11 +251,11 @@ status_t virtio_net_queue_tx_pktbuf(virtio_net_dev *ndev, pktbuf_t *p2) {
     ndev->pending_tx_packet[next] = p2;
 
     virtio_net_hdr *hdr = &ndev->tx_hdr[i].hdr;
-    memset(hdr, 0, VIRTIO_NET_HDR_LEN);
+    memset(hdr, 0, ndev->hdr_len);
 
     /* set up the descriptor pointing to the header */
     vring_desc_write_addr(desc, virtio_net_tx_hdr_phys(ndev, i), modern);
-    vring_desc_write_len(desc, VIRTIO_NET_HDR_LEN, modern);
+    vring_desc_write_len(desc, ndev->hdr_len, modern);
     vring_desc_write_flags(desc, vring_desc_read_flags(desc, modern) | VRING_DESC_F_NEXT, modern);
 
     /* set up the descriptor pointing to the buffer */
@@ -303,7 +308,7 @@ status_t virtio_net_queue_rx_locked(virtio_net_dev *ndev, pktbuf_t *p) {
      * base of the buffer */
     p->data = p->buffer;
     p->flags = PKTBUF_FLAG_EOF;
-    p->dlen = VIRTIO_NET_HDR_LEN + VIRTIO_NET_MSS;
+    p->dlen = ndev->hdr_len + VIRTIO_NET_MSS;
 
     /* allocate a chain of descriptors for our transfer */
     uint16_t i;
@@ -380,7 +385,7 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
             LTRACEF("rx pktbuf %p filled\n", p);
 
             /* trim the pktbuf according to the written length in the used element descriptor */
-            if (e->len > (VIRTIO_NET_HDR_LEN + VIRTIO_NET_MSS)) {
+            if (e->len > (ndev->hdr_len + VIRTIO_NET_MSS)) {
                 TRACEF("bad used len on RX %u\n", e->len);
                 p->dlen = 0;
             } else {
@@ -419,7 +424,7 @@ enum handler_return virtio_net_irq_driver_callback(virtio_device *dev, uint ring
     /* hand completed frames up; the stack owns them from here */
     pktbuf_t *p;
     while ((p = list_remove_head_type(&done, pktbuf_t, list)) != NULL) {
-        const auto *hdr = static_cast<const virtio_net_hdr *>(pktbuf_consume(p, VIRTIO_NET_HDR_LEN));
+        const auto *hdr = static_cast<const virtio_net_hdr *>(pktbuf_consume(p, ndev->hdr_len));
         if (!hdr) {
             /* runt or errored frame */
             pktbuf_free(p, false);
@@ -489,6 +494,9 @@ status_t virtio_net_init(virtio_device *dev) {
     const bool modern = dev->config_is_modern();
     dprintf(INFO, "virtio-net: modern %u, expecting %s-endian config\n",
             modern, modern ? "little" : "native");
+
+    /* a modern transport only comes up with VERSION_1 negotiated */
+    ndev->hdr_len = modern ? VIRTIO_NET_HDR_LEN_MODERN : VIRTIO_NET_HDR_LEN_LEGACY;
 
     // XXX check features bits and ack/nak them
     uint64_t host_features = dev->bus()->virtio_read_host_feature_word_64(0);
