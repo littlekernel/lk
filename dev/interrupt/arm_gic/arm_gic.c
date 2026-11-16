@@ -106,6 +106,11 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
             arm_gicv3_configure_irq_locked(cpu, vector);
         }
         h = get_int_handler(vector, cpu);
+        // one handler per vector: a second one (two INTx devices on one line) evicts the first
+        if (h->handler && (h->handler != handler || h->arg != arg)) {
+            printf("GIC: vector %u already has handler %p arg %p, replacing it with %p arg %p\n",
+                   vector, h->handler, h->arg, handler, arg);
+        }
         h->handler = handler;
         h->arg = arg;
 #if ARM_GIC_USE_DOORBELL_NS_IRQ
