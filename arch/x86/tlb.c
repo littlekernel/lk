@@ -25,7 +25,10 @@ struct x86_tlb_shootdown_args {
 static void x86_tlb_shootdown_task(void *arg) {
     const struct x86_tlb_shootdown_args *args = arg;
 
-    if (args->count > X86_TLB_SHOOTDOWN_MAX_PAGES) {
+    /* a 386 has no invlpg; a cr3 reload is its only way to flush */
+    const bool no_invlpg = X86_LEGACY && x86_get_cpu_level() < X86_CPU_LEVEL_486;
+
+    if (no_invlpg || args->count > X86_TLB_SHOOTDOWN_MAX_PAGES) {
         /* Reloading cr3 leaves global entries alone, and kernel pages are
          * global, so turn PGE off and on around it when it is in use. A cpu
          * without PGE may have no cr4 at all. */

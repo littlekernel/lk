@@ -515,10 +515,13 @@ bool arch_mmu_supports_user_aspaces(void) {
 
 /* called once per cpu as it is brought up */
 void x86_mmu_early_init_percpu(void) {
-    /* Set WP bit in CR0 */
-    uint32_t cr0 = x86_get_cr0();
-    cr0 |= X86_CR0_WP;
-    x86_set_cr0(cr0);
+    /* Set WP bit in CR0. It is a 486 addition, reserved on a 386, where ring 0 writes
+     * ignore read-only pages regardless. */
+    if (x86_get_cpu_level() >= X86_CPU_LEVEL_486) {
+        uint32_t cr0 = x86_get_cr0();
+        cr0 |= X86_CR0_WP;
+        x86_set_cr0(cr0);
+    }
 
     /* Set some mmu control bits in CR4 */
     uint32_t bits = 0;
