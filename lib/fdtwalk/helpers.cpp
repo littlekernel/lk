@@ -409,6 +409,8 @@ status_t fdtwalk_setup_pci(const void *fdt) {
             .num_windows = num_windows,
             .intx_route = info->intx_map_count > 0 ? fdt_pci_intx_route : NULL,
             .intx_cookie = const_cast<struct fdt_walk_pcie_info *>(info),
+            .msi_ops = NULL,
+            .msi_cookie = NULL,
         };
         if (info->intx_map_count > 0) {
             dprintf(INFO, "PCIE: segment %u routes INTx through its interrupt-map (%zu entries)\n",

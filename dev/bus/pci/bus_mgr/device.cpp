@@ -358,6 +358,42 @@ status_t device::allocate_irq(uint *irq) {
     return err;
 }
 
+status_t device::alloc_msi_vector(uint *vector, uint64_t *msg_addr, uint32_t *msg_data) {
+    root *r = bus_->get_root();
+    if (r && r->has_msi_route()) {
+        pci_msi_msg msg;
+        status_t err = r->msi_alloc(requester_id(), vector, &msg);
+        if (err != NO_ERROR) {
+            return err;
+        }
+        *msg_addr = msg.address;
+        *msg_data = msg.data;
+        return NO_ERROR;
+    }
+
+    uint v;
+    status_t err = platform_allocate_interrupts(1, 0, true, &v);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    uint16_t data;
+    err = platform_compute_msi_values(v, 0, true, msg_addr, &data);
+    if (err != NO_ERROR) {
+        // TODO: the platform has no way to take the vector back
+        return err;
+    }
+    *vector = v;
+    *msg_data = data;
+    return NO_ERROR;
+}
+
+void device::free_msi_vector(uint vector) {
+    root *r = bus_->get_root();
+    if (r && r->has_msi_route()) {
+        r->msi_free(requester_id(), vector);
+    }
+}
+
 status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
     LTRACE_ENTRY;
 
@@ -369,20 +405,17 @@ status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
 
     DEBUG_ASSERT(msi_cap_ && msi_cap_->is_msi());
 
-    // ask the platform for interrupts
     uint vector_base;
-    status_t err = platform_allocate_interrupts(num_requested, 0, true, &vector_base);
+    uint64_t msi_address;
+    uint32_t msi_data;
+    status_t err = alloc_msi_vector(&vector_base, &msi_address, &msi_data);
     if (err != NO_ERROR) {
         return err;
     }
-
-    // compute the MSI message to construct
-    uint64_t msi_address = 0;
-    uint16_t msi_data = 0;
-    err = platform_compute_msi_values(vector_base, 0, true, &msi_address, &msi_data);
-    if (err != NO_ERROR) {
-        // TODO: return the allocated msi
-        return err;
+    // the MSI capability's data register is 16 bits
+    if (msi_data > UINT16_MAX) {
+        free_msi_vector(vector_base);
+        return ERR_NOT_SUPPORTED;
     }
 
     // program it into the capability
@@ -404,8 +437,10 @@ status_t device::allocate_msi(size_t num_requested, uint *msi_base) {
     control = 1; // NME/NMI = 1, no per vector masking, keep 64bit flag, enable
     pci_write_config_half(loc(), cap_offset + 2, control);
 
-    // write it back to the pci config in the interrupt line offset
-    pci_write_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, vector_base);
+    // record it in the interrupt line register, when it fits there
+    if (vector_base <= UINT8_MAX) {
+        pci_write_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, vector_base);
+    }
 
     // pass back the allocated irq to the caller
     *msi_base = vector_base;
@@ -540,19 +575,11 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
 
     LTRACEF("msix table %p, pba table %p\n", msix_table_ptr, msix_pba_ptr);
 
-    // ask the platform for interrupts
     uint vector_base;
-    err = platform_allocate_interrupts(num_requested, 0, true, &vector_base);
+    uint64_t msi_address;
+    uint32_t msi_data;
+    err = alloc_msi_vector(&vector_base, &msi_address, &msi_data);
     if (err != NO_ERROR) {
-        return err;
-    }
-
-    // compute the MSI message to construct
-    uint64_t msi_address = 0;
-    uint16_t msi_data = 0;
-    err = platform_compute_msi_values(vector_base, 0, true, &msi_address, &msi_data);
-    if (err != NO_ERROR) {
-        // TODO: return the allocated msi
         return err;
     }
 
@@ -579,8 +606,10 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
 
     pci_write_config_half(loc(), cap_offset + 2, (control | MSIX_ENABLE) & ~MSIX_FUNCTION_MASK);
 
-    // write it back to the pci config in the interrupt line offset
-    pci_write_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, vector_base);
+    // record it in the interrupt line register, when it fits there
+    if (vector_base <= UINT8_MAX) {
+        pci_write_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, vector_base);
+    }
 
     // pass back the allocated irq to the caller
     *msi_base = vector_base;
