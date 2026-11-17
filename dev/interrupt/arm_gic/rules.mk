@@ -13,6 +13,6 @@ MODULE_SRCS += $(LOCAL_DIR)/gic_v3_its.c
 MODULE_SRCS += $(LOCAL_DIR)/gic_v3_lpi.c
 endif
 
-MODULE_OPTIONS += extra_warnings
+MODULE_OPTIONS += extra_warnings test
 
 include make/module.mk
