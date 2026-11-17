@@ -16,7 +16,7 @@ function HELP {
     echo "-X                  : print QEMU command and exit (dry run)"
     echo
     echo "-A <cmd line>       : append command line (may be used multiple times)"
-    echo "-d <disk image>     : add an IDE disk device (may be used multiple times)"
+    echo "-d <disk image>     : add a disk: AHCI on q35, ISA IDE with -l (may be used multiple times)"
     echo "-g                  : with graphics (VGA display, keyboard, mouse)"
     echo "-n                  : enable user mode networking (default driver: e1000e)"
     echo "-N <network driver> : specify network driver (requires -n or -t, e.g., virtio-net-pci, e1000e)"

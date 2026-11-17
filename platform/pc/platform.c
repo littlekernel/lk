@@ -14,7 +14,6 @@
 #include <arch/x86/apic.h>
 #include <arch/x86/mmu.h>
 #include <assert.h>
-#include <dev/block/ide.h>
 #include <hw/multiboot.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
@@ -613,52 +612,6 @@ void platform_init(void) {
         acpi_init_namespace();
     }
 #endif
-
-    const struct platform_ide_config pci_ide0 = {
-        .isa = false,
-        .channel = 0,
-        .io_base = 0x1f0,
-        .ctrl_base = 0x3f6,
-        .irq = INT_IDE0,
-    };
-    const struct platform_ide_config isa_ide0 = {
-        .isa = true,
-        .channel = 0,
-        .io_base = 0x1f0,
-        .ctrl_base = 0x3f6,
-        .irq = INT_IDE0,
-    };
-    const struct platform_ide_config pci_ide1 = {
-        .isa = false,
-        .channel = 1,
-        .io_base = 0x170,
-        .ctrl_base = 0x376,
-        .irq = INT_IDE1,
-    };
-    const struct platform_ide_config isa_ide1 = {
-        .isa = true,
-        .channel = 1,
-        .io_base = 0x170,
-        .ctrl_base = 0x376,
-        .irq = INT_IDE1,
-    };
-
-    // try PCI IDE first, then fall back to ISA channel-by-channel.
-    status_t ide_err = platform_ide_init(&pci_ide0);
-    if (ide_err != NO_ERROR && ide_err != ERR_ALREADY_EXISTS) {
-        ide_err = platform_ide_init(&isa_ide0);
-        if (ide_err == ERR_ALREADY_EXISTS) {
-            ide_err = NO_ERROR;
-        }
-    }
-
-    ide_err = platform_ide_init(&pci_ide1);
-    if (ide_err != NO_ERROR && ide_err != ERR_ALREADY_EXISTS) {
-        ide_err = platform_ide_init(&isa_ide1);
-        if (ide_err == ERR_ALREADY_EXISTS) {
-            ide_err = NO_ERROR;
-        }
-    }
 
     platform_init_mmu_mappings();
 }

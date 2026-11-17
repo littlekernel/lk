@@ -5,7 +5,6 @@ MODULE := $(LOCAL_DIR)
 MODULE_SRCS += $(LOCAL_DIR)/ide.c
 
 MODULE_DEPS += lib/bio
-
-MODULE_WEAK_DEPS += dev/bus/pci
+MODULE_DEPS += lib/cmdline
 
 include make/module.mk

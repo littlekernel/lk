@@ -11,6 +11,7 @@
 // of each well known port decides what is really there. The hints are only reported;
 // a device counts as found when its probe answers.
 
+#include <dev/block/ide.h>
 #include <kernel/vm.h>
 #include <lk/compiler.h>
 #include <lk/console_cmd.h>
@@ -59,6 +60,12 @@ static struct {
     uint16_t port;
     enum pc_uart_type type;
 } uarts[COM_COUNT];
+
+static const struct platform_ide_config ide_channels[] = {
+    { .channel = 0, .io_base = 0x1f0, .ctrl_base = 0x3f6, .irq = INT_IDE0 },
+    { .channel = 1, .io_base = 0x170, .ctrl_base = 0x376, .irq = INT_IDE1 },
+};
+static bool ide_found[countof(ide_channels)];
 
 static uint16_t bda_read16(const uint8_t *bda, uint off) {
     return (uint16_t)(bda[off] | (bda[off + 1] << 8));
@@ -139,6 +146,14 @@ static void print_report(void) {
                uarts[i].port == console_port ? " (console)" : "");
     }
 
+    for (uint i = 0; i < countof(ide_channels); i++) {
+        if (ide_found[i]) {
+            printf("LEGACY: ide%u at %#x/%#x irq %d\n", ide_channels[i].channel,
+                   ide_channels[i].io_base, ide_channels[i].ctrl_base,
+                   ide_channels[i].irq - INT_PIC1_BASE);
+        }
+    }
+
     printf("LEGACY: cmos floppy A: %s B: %s, hard disk types %#x/%#x, checksum %s\n",
            floppy_type_name(hints.cmos_floppy >> 4), floppy_type_name(hints.cmos_floppy & 0xf),
            hints.cmos_hd >> 4, hints.cmos_hd & 0xf, hints.cmos_checksum_ok ? "ok" : "BAD");
@@ -159,9 +174,16 @@ static void print_hints(void) {
            hints.cmos_hd, hints.cmos_equipment);
 }
 
+static void probe_ide(void) {
+    for (uint i = 0; i < countof(ide_channels); i++) {
+        ide_found[i] = platform_ide_init(&ide_channels[i]) == NO_ERROR;
+    }
+}
+
 void pc_legacy_probe(void) {
     read_hints();
     probe_uarts();
+    probe_ide();
     print_report();
 }
 

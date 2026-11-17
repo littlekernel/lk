@@ -118,7 +118,8 @@ class QEMUTestRunner:
                 'timeout': 90
             },
             # same kernels on the i440fx/PIIX machine: no MCFG/ECAM (legacy
-            # config access), PIC-mode _PRT link devices, PIIX IDE
+            # config access), PIC-mode _PRT link devices. The PIIX IDE has no
+            # driver in these builds; IDE is only in the CPU=legacy one.
             'x86-i440fx': {
                 'script': 'do-qemux86',
                 'args': '-M pc -s4',

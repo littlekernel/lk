@@ -21,14 +21,16 @@
 #include <platform.h>
 #include <platform/interrupts.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 
-#if WITH_DEV_BUS_PCI
-#include <dev/bus/pci.h>
-#endif
+#include <lib/cmdline.h>
 
 #define LOCAL_TRACE 0
+
+// how long to wait for a drive's interrupt before polling its status instead
+#define IDE_IRQ_TIMEOUT 2000
 
 // status register bits
 #define IDE_CTRL_BSY   0x80
@@ -139,12 +141,16 @@ struct ide_driver_state {
 
     event_t completion;
     mutex_t lock;
+    uint8_t irq_status; // status register as the last interrupt read it
+    bool polled;        // the irq never arrived once, so status is polled from then on
 
     int type[2];
     struct {
         int sectors;
         int sector_size;
+        bool lba;   // LBA28 addressing; CHS otherwise
         bool lba48;
+        uint16_t cyls, heads, spt; // default CHS geometry from IDENTIFY
     } drive[2];
 };
 
@@ -204,7 +210,7 @@ static void ide_delay_400ns(struct ide_device *dev);
 static int ide_poll_status(struct ide_device *dev, uint8_t on_mask, uint8_t off_mask);
 static int ide_eval_error(struct ide_device *dev);
 static void ide_detect_drives(struct ide_device *dev);
-static int ide_wait_for_completion(struct ide_device *dev);
+static bool ide_probe_registers(struct ide_device *dev);
 static int ide_detect_ata(struct ide_device *dev, int index);
 static void ide_lba_setup(struct ide_device *dev, uint32_t addr, int drive);
 static void ide_lba48_setup(struct ide_device *dev, uint64_t addr, uint16_t count, int drive);
@@ -246,8 +252,6 @@ status_t platform_ide_init(const struct platform_ide_config *config) {
 }
 
 static status_t ide_init(struct ide_device *dev) {
-    status_t res = NO_ERROR;
-
     if (!dev) {
         return ERR_INVALID_ARGS;
     }
@@ -256,7 +260,7 @@ static status_t ide_init(struct ide_device *dev) {
         return ERR_NOT_CONFIGURED;
     }
 
-    __UNUSED const struct platform_ide_config *config = dev->config;
+    const struct platform_ide_config *config = dev->config;
 
     LTRACEF("entry: dev %p, config %p\n", dev, config);
 
@@ -280,39 +284,12 @@ static status_t ide_init(struct ide_device *dev) {
 
     state->type[0] = state->type[1] = TYPE_NONE;
 
-    // attempt pci detection
-    if (!config->isa) {
-#if WITH_DEV_BUS_PCI
-        pci_location_t loc;
-        pci_config_t pci_config;
-
-        status_t err = pci_bus_mgr_find_device_by_class(&loc, PCI_CLASS_MASS_STORAGE, PCI_SUBCLASS_IDE, 0x80, 0);
-        if (err != NO_ERROR) {
-            LTRACEF("Failed to find PCI IDE device\n");
-            res = ERR_NOT_FOUND;
-            goto err;
-        }
-
-        LTRACEF("Found PCI IDE device at %04x:%02x:%02x.%02x\n", loc.segment, loc.bus, loc.dev, loc.fn);
-
-        for (size_t i = 0; i < sizeof(pci_config) / sizeof(uint32_t); i++) {
-            uint32_t reg = sizeof(uint32_t) * i;
-
-            err = pci_read_config_word(loc, reg, ((uint32_t *)&pci_config) + i);
-            if (err != NO_ERROR) {
-                LTRACEF("Failed to read config reg %d: 0x%02x\n", reg, err);
-                res = ERR_NOT_CONFIGURED;
-                goto err;
-            }
-        }
-
-        for (int i = 0; i < 6; i++) {
-            LTRACEF("BAR[%d]: 0x%08x\n", i, pci_config.type0.base_addresses[i]);
-        }
-#else
-        res = ERR_NOT_CONFIGURED;
-        goto err;
-#endif // PCI
+    // Nothing decodes the ports when there is no controller, so the status reads back
+    // as all ones; with a controller, a drive holds what is written to its sector count
+    // and number registers. Neither means no channel, and its irq is left alone.
+    if (ide_read_reg8(dev, IDE_REG_STATUS) == 0xff || !ide_probe_registers(dev)) {
+        LTRACEF("no controller at %#x\n", config->io_base);
+        return ERR_NOT_FOUND;
     }
 
     event_init(&state->completion, false, EVENT_FLAG_AUTOUNSIGNAL);
@@ -328,9 +305,6 @@ static status_t ide_init(struct ide_device *dev) {
     ide_detect_drives(dev);
 
     return NO_ERROR;
-
-err:
-    return res;
 }
 
 static status_t ide_register_bdev(struct ide_channel_state *chan, int drive) {
@@ -410,20 +384,16 @@ static ssize_t ide_bdev_write_block(struct bdev *bdev, const void *buf, bnum_t b
     return sectors * (ssize_t)bdev->block_size;
 }
 
+// Reading the status register is what deasserts the drive's interrupt. The waiter
+// looks at the status it recorded, errors included.
 static enum handler_return ide_irq_handler(void *arg) {
     struct ide_device *dev = arg;
     struct ide_driver_state *state = dev->state;
-    uint8_t val;
 
-    val = ide_read_reg8(dev, IDE_REG_STATUS);
+    state->irq_status = ide_read_reg8(dev, IDE_REG_STATUS);
+    event_signal(&state->completion, false);
 
-    if ((val & IDE_DRV_ERR) == 0) {
-        event_signal(&state->completion, false);
-
-        return INT_RESCHEDULE;
-    } else {
-        return INT_NO_RESCHEDULE;
-    }
+    return INT_RESCHEDULE;
 }
 
 static ssize_t ide_get_block_size(struct ide_device *dev, int drive) {
@@ -444,7 +414,62 @@ static ssize_t ide_get_block_count(struct ide_device *dev, int drive) {
     return state->drive[drive].sectors;
 }
 
-static ssize_t ide_write(struct ide_device *dev, int drive, off_t offset, const void *buf, size_t count) {
+// Wait for the drive's interrupt at the end of a sector (or of the command), then check
+// the status it left. If the irq never arrives (a board with IRQ14/15 not wired, or set
+// to something else) but the drive is plainly done, the channel switches to polling.
+static int ide_wait_irq(struct ide_device *dev, bool want_drq) {
+    struct ide_driver_state *state = dev->state;
+    uint8_t status;
+
+    if (!state->polled && event_wait_timeout(&state->completion, IDE_IRQ_TIMEOUT) == NO_ERROR) {
+        status = state->irq_status;
+    } else {
+        int err = ide_poll_status(dev, 0, IDE_CTRL_BSY);
+        if (err != IDE_NOERROR) {
+            return err;
+        }
+        status = ide_read_reg8(dev, IDE_REG_STATUS);
+        if (!state->polled && event_wait_timeout(&state->completion, 0) == NO_ERROR) {
+            // only slow (a drive spinning up), the irq did arrive
+            status = state->irq_status;
+        } else if (!state->polled) {
+            dprintf(INFO, "ide%u: no interrupt on vector %#x, polling from now on\n",
+                    dev->config->channel, dev->config->irq);
+            state->polled = true;
+        }
+    }
+
+    if (status & (IDE_DRV_ERR | IDE_DRV_WRTFLT)) {
+        return (status & IDE_DRV_ERR) ? ide_eval_error(dev) : IDE_BADDATA;
+    }
+    if (want_drq && !(status & IDE_DRV_DRQ)) {
+        // the interrupt can come a little ahead of DRQ on some drives
+        return ide_poll_status(dev, IDE_DRV_DRQ, IDE_CTRL_BSY);
+    }
+    return IDE_NOERROR;
+}
+
+static void ide_chs_setup(struct ide_device *dev, uint32_t addr, int drive) {
+    struct ide_driver_state *state = dev->state;
+    const uint32_t spt = state->drive[drive].spt;
+    const uint32_t heads = state->drive[drive].heads;
+
+    const uint32_t cyl = addr / (spt * heads);
+    const uint32_t head = (addr / spt) % heads;
+    const uint32_t sector = addr % spt + 1;
+
+    ide_write_reg8(dev, IDE_REG_DRIVE_HEAD, 0xa0 | ((drive & 1) << 4) | (head & 0xf));
+    ide_write_reg8(dev, IDE_REG_CYLINDER_LOW, cyl & 0xff);
+    ide_write_reg8(dev, IDE_REG_CYLINDER_HIGH, (cyl >> 8) & 0xff);
+    ide_write_reg8(dev, IDE_REG_SECTOR_NUM, sector);
+    ide_write_reg8(dev, IDE_REG_PRECOMP, 0xff);
+}
+
+// PIO data transfer of count sectors. Each sector of a read is announced by an interrupt
+// with DRQ set; a write supplies the first sector on DRQ alone, and the interrupt after
+// each sector asks for the next one or ends the command.
+static ssize_t ide_transfer(struct ide_device *dev, int drive, off_t offset, void *buf,
+                            size_t count, bool write) {
     DEBUG_ASSERT(dev);
     DEBUG_ASSERT(dev->state);
 
@@ -475,79 +500,71 @@ static ssize_t ide_write(struct ide_device *dev, int drive, off_t offset, const 
 
     mutex_acquire(&state->lock);
 
-    size_t sectors, do_sectors, i;
-    const uint16_t *ubuf = buf;
-    int index = drive;
-    ssize_t ret = 0;
+    uint16_t *ubuf = buf;
+    size_t sectors = count;
+    ssize_t ret;
     int err;
 
-    ide_device_select(dev, index);
+    ide_device_select(dev, drive);
     ide_delay_400ns(dev);
 
-    err = ide_poll_status(dev, 0, IDE_CTRL_BSY | IDE_DRV_DRQ);
-    if (err) {
-        LTRACEF("Error while waiting for controller: %s\n", ide_error_str[err]);
-        ret = ERR_GENERIC;
-        goto done;
-    }
-
-    sectors = count;
-
     while (sectors > 0) {
-        do_sectors = sectors;
+        const size_t do_sectors = MIN(sectors, 256u);
 
-        if (do_sectors > 256) {
-            do_sectors = 256;
-        }
-
-        err = ide_poll_status(dev, 0, IDE_CTRL_BSY);
+        err = ide_poll_status(dev, 0, IDE_CTRL_BSY | IDE_DRV_DRQ);
         if (err) {
-            LTRACEF("Error while waiting for controller: %s\n", ide_error_str[err]);
-            ret = ERR_GENERIC;
-            goto done;
+            goto error;
         }
 
-        if (state->drive[index].lba48) {
-            ide_lba48_setup(dev, (uint64_t)offset, (uint16_t)do_sectors, index);
+        if (state->drive[drive].lba48) {
+            ide_lba48_setup(dev, (uint64_t)offset, (uint16_t)do_sectors, drive);
         } else {
-            ide_lba_setup(dev, offset, index);
-
-            if (do_sectors == 256) {
-                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
+            if (state->drive[drive].lba) {
+                ide_lba_setup(dev, offset, drive);
             } else {
-                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
+                ide_chs_setup(dev, offset, drive);
             }
+            ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors & 0xff); // 0 means 256
         }
 
         err = ide_poll_status(dev, IDE_DRV_RDY, 0);
         if (err) {
-            LTRACEF("Error while waiting for controller: %s\n", ide_error_str[err]);
-            ret = ERR_GENERIC;
-            goto done;
+            goto error;
         }
 
-        ide_write_reg8(dev, IDE_REG_COMMAND,
-                       state->drive[index].lba48 ? ATA_WRITE_SECTORS_EXT : ATA_WRITEMULT_RET);
+        uint8_t cmd;
+        if (write) {
+            cmd = state->drive[drive].lba48 ? ATA_WRITE_SECTORS_EXT : ATA_WRITEMULT_RET;
+        } else {
+            cmd = state->drive[drive].lba48 ? ATA_READ_SECTORS_EXT : ATA_READMULT_RET;
+        }
+        event_unsignal(&state->completion);
+        ide_write_reg8(dev, IDE_REG_COMMAND, cmd);
         ide_delay_400ns(dev);
 
-        for (i = 0; i < do_sectors; i++) {
-            err = ide_poll_status(dev, IDE_DRV_DRQ, 0);
-            if (err) {
-                LTRACEF("Error while waiting for drive: %s\n", ide_error_str[err]);
-                ret = ERR_GENERIC;
-                goto done;
+        for (size_t i = 0; i < do_sectors; i++) {
+            if (write) {
+                err = (i == 0) ? ide_poll_status(dev, IDE_DRV_DRQ, IDE_CTRL_BSY)
+                               : ide_wait_irq(dev, true);
+                if (err) {
+                    goto error;
+                }
+                ide_write_reg16_array(dev, IDE_REG_DATA, ubuf, 256);
+            } else {
+                err = ide_wait_irq(dev, true);
+                if (err) {
+                    goto error;
+                }
+                ide_read_reg16_array(dev, IDE_REG_DATA, ubuf, 256);
             }
-
-            ide_write_reg16_array(dev, IDE_REG_DATA, ubuf, 256);
-
             ubuf += 256;
         }
 
-        err = ide_wait_for_completion(dev);
-        if (err) {
-            LTRACEF("Error waiting for completion: %s\n", ide_error_str[err]);
-            ret = ERR_TIMED_OUT;
-            goto done;
+        if (write) {
+            err = ide_wait_irq(dev, false);
+            if (err) {
+                goto error;
+            }
         }
 
         sectors -= do_sectors;
@@ -555,127 +572,23 @@ static ssize_t ide_write(struct ide_device *dev, int drive, off_t offset, const 
     }
 
     ret = (ssize_t)count;
+    mutex_release(&state->lock);
+    return ret;
 
-done:
+error:
+    dprintf(INFO, "ide: %s of drive %d at sector %lld failed: %s\n", write ? "write" : "read",
+            drive, (long long)offset, ide_error_str[err]);
+    ret = (err == IDE_TIMEOUT) ? ERR_TIMED_OUT : ERR_IO;
     mutex_release(&state->lock);
     return ret;
 }
 
+static ssize_t ide_write(struct ide_device *dev, int drive, off_t offset, const void *buf, size_t count) {
+    return ide_transfer(dev, drive, offset, (void *)buf, count, true);
+}
+
 static ssize_t ide_read(struct ide_device *dev, int drive, off_t offset, void *buf, size_t count) {
-    DEBUG_ASSERT(dev);
-    DEBUG_ASSERT(dev->state);
-
-    struct ide_driver_state *state = dev->state;
-
-    if (drive < 0 || drive > 1) {
-        return ERR_OUT_OF_RANGE;
-    }
-    if (offset < 0) {
-        return ERR_INVALID_ARGS;
-    }
-    if (state->type[drive] != TYPE_IDEDISK) {
-        return ERR_NOT_FOUND;
-    }
-    if (count == 0) {
-        return 0;
-    }
-
-    uint64_t max_blocks = (uint64_t)ide_get_block_count(dev, drive);
-    uint64_t start = (uint64_t)offset;
-    if (start >= max_blocks) {
-        return 0;
-    }
-    uint64_t available = max_blocks - start;
-    if ((uint64_t)count > available) {
-        count = (size_t)available;
-    }
-
-    mutex_acquire(&state->lock);
-
-    size_t sectors, do_sectors, i;
-    uint16_t *ubuf = buf;
-    int index = drive;
-    ssize_t ret = 0;
-    int err;
-
-    ide_device_select(dev, index);
-    ide_delay_400ns(dev);
-
-    err = ide_poll_status(dev, 0, IDE_CTRL_BSY | IDE_DRV_DRQ);
-    if (err) {
-        LTRACEF("Error while waiting for controller: %s\n", ide_error_str[err]);
-        ret = ERR_GENERIC;
-        goto done;
-    }
-
-    sectors = count;
-
-    while (sectors > 0) {
-        do_sectors = sectors;
-
-        if (do_sectors > 256) {
-            do_sectors = 256;
-        }
-
-        err = ide_poll_status(dev, 0, IDE_CTRL_BSY);
-        if (err) {
-            LTRACEF("Error while waiting for controller: %s\n", ide_error_str[err]);
-            ret = ERR_GENERIC;
-            goto done;
-        }
-
-        if (state->drive[index].lba48) {
-            ide_lba48_setup(dev, (uint64_t)offset, (uint16_t)do_sectors, index);
-        } else {
-            ide_lba_setup(dev, offset, index);
-
-            if (do_sectors == 256) {
-                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0);
-            } else {
-                ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, do_sectors);
-            }
-        }
-
-        err = ide_poll_status(dev, IDE_DRV_RDY, 0);
-        if (err) {
-            LTRACEF("Error while waiting for controller: %s\n", ide_error_str[err]);
-            ret = ERR_GENERIC;
-            goto done;
-        }
-
-        ide_write_reg8(dev, IDE_REG_COMMAND,
-                       state->drive[index].lba48 ? ATA_READ_SECTORS_EXT : ATA_READMULT_RET);
-        ide_delay_400ns(dev);
-
-        for (i = 0; i < do_sectors; i++) {
-            err = ide_poll_status(dev, IDE_DRV_DRQ, 0);
-            if (err) {
-                LTRACEF("Error while waiting for drive: %s\n", ide_error_str[err]);
-                ret = ERR_GENERIC;
-                goto done;
-            }
-
-            ide_read_reg16_array(dev, IDE_REG_DATA, ubuf, 256);
-
-            ubuf += 256;
-        }
-
-        err = ide_wait_for_completion(dev);
-        if (err) {
-            LTRACEF("Error waiting for completion: %s\n", ide_error_str[err]);
-            ret = ERR_TIMED_OUT;
-            goto done;
-        }
-
-        sectors -= do_sectors;
-        offset += (off_t)do_sectors;
-    }
-
-    ret = (ssize_t)count;
-
-done:
-    mutex_release(&state->lock);
-    return ret;
+    return ide_transfer(dev, drive, offset, buf, count, false);
 }
 
 static uint8_t ide_read_reg8(struct ide_device *dev, int index) {
@@ -774,8 +687,9 @@ static void ide_write_reg32(struct ide_device *dev, int index, uint32_t value) {
     outpd(state->regs[index], value);
 }
 
+// bits 7 and 5 are obsolete, but drives of the CHS era expect them set
 static void ide_device_select(struct ide_device *dev, int index) {
-    ide_write_reg8(dev, IDE_REG_DRIVE_HEAD, (index & 1) << 4);
+    ide_write_reg8(dev, IDE_REG_DRIVE_HEAD, 0xa0 | ((index & 1) << 4));
 }
 
 static void ide_delay_400ns(struct ide_device *dev) {
@@ -891,6 +805,23 @@ static int ide_poll_status(struct ide_device *dev, uint8_t on_mask, uint8_t off_
     return IDE_TIMEOUT;
 }
 
+// true if either drive position holds a pattern written to its sector count and number
+// registers, which only a drive does
+static bool ide_probe_registers(struct ide_device *dev) {
+    for (int index = 0; index < 2; index++) {
+        ide_device_select(dev, index);
+        ide_delay_400ns(dev);
+
+        ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, 0x55);
+        ide_write_reg8(dev, IDE_REG_SECTOR_NUM, 0xaa);
+        if (ide_read_reg8(dev, IDE_REG_SECTOR_COUNT) == 0x55 &&
+            ide_read_reg8(dev, IDE_REG_SECTOR_NUM) == 0xaa) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void ide_detect_drives(struct ide_device *dev) {
     struct ide_driver_state *state = dev->state;
     uint8_t sc = 0, sn = 0, st = 0, cl = 0, ch = 0;
@@ -981,8 +912,8 @@ static void ide_detect_drives(struct ide_device *dev) {
         }
     }
 
-    dprintf(INFO, "ide: Detected drive 0: %s\n", ide_type_str[state->type[0]]);
-    dprintf(INFO, "ide: Detected drive 1: %s\n", ide_type_str[state->type[1]]);
+    dprintf(INFO, "ide%u: drive 0: %s, drive 1: %s\n", dev->config->channel,
+            ide_type_str[state->type[0]], ide_type_str[state->type[1]]);
 
     switch (state->type[0]) {
         case TYPE_IDEDISK:
@@ -1003,17 +934,6 @@ static void ide_detect_drives(struct ide_device *dev) {
     }
 }
 
-static int ide_wait_for_completion(struct ide_device *dev) {
-    struct ide_driver_state *state = dev->state;
-    status_t err;
-
-    err = event_wait_timeout(&state->completion, 20000);
-    if (err) {
-        return IDE_TIMEOUT;
-    }
-
-    return IDE_NOERROR;
-}
 
 static status_t ide_detect_ata(struct ide_device *dev, int index) {
     struct ide_driver_state *state = dev->state;
@@ -1046,10 +966,11 @@ static status_t ide_detect_ata(struct ide_device *dev, int index) {
     ide_poll_status(dev, IDE_DRV_RDY, 0);
 
     // send the "identify device" command
+    event_unsignal(&state->completion);
     ide_write_reg8(dev, IDE_REG_COMMAND, ATA_GETDEVINFO);
     ide_delay_400ns(dev);
 
-    err = ide_wait_for_completion(dev);
+    err = ide_wait_irq(dev, true);
     if (err) {
         LTRACEF("Error while waiting for command: %s\n", ide_error_str[err]);
         res = ERR_TIMED_OUT;
@@ -1066,59 +987,70 @@ static status_t ide_detect_ata(struct ide_device *dev, int index) {
 
     ide_read_reg16_array(dev, IDE_REG_DATA, info, 256);
 
-    bool supports_lba48 = (info[83] & (1u << 10)) != 0;
-    uint64_t lba48_sectors = 0;
+    // word 49 bit 9: LBA supported. Drives without it (and some early ones that set it
+    // but report no LBA capacity) are addressed by cylinder/head/sector.
+    const bool force_chs = cmdline_is_present("ide.force_chs");
+    const uint32_t lba28_sectors = (uint32_t)info[60] | ((uint32_t)info[61] << 16);
+    const bool supports_lba = !force_chs && (info[49] & (1u << 9)) && lba28_sectors > 0;
+    const bool supports_lba48 = supports_lba && (info[83] & (1u << 10)) != 0;
+
+    uint64_t sectors;
     if (supports_lba48) {
-        lba48_sectors = ((uint64_t)info[100]) |
-                        ((uint64_t)info[101] << 16) |
-                        ((uint64_t)info[102] << 32) |
-                        ((uint64_t)info[103] << 48);
-    }
-
-    if (lba48_sectors > 0) {
-        state->drive[index].lba48 = true;
-        if (lba48_sectors > INT_MAX) {
-            state->drive[index].sectors = INT_MAX;
-            dprintf(INFO, "ide: Disk %d capacity exceeds 32-bit sector tracking, clamping at %d sectors\n",
-                    index, INT_MAX);
-        } else {
-            state->drive[index].sectors = (int)lba48_sectors;
-        }
-        state->drive[index].sector_size = 512;
+        sectors = ((uint64_t)info[100]) | ((uint64_t)info[101] << 16) |
+                  ((uint64_t)info[102] << 32) | ((uint64_t)info[103] << 48);
+    } else if (supports_lba) {
+        sectors = lba28_sectors;
     } else {
-        uint32_t lba28_sectors = *((uint32_t *)(&info[60]));
+        const uint16_t cyls = info[1];
+        const uint16_t heads = info[3];
+        const uint16_t spt = info[6];
+        if (!cyls || !heads || heads > 16 || !spt || spt > 255) {
+            dprintf(INFO, "ide: disk %d has no LBA and no usable geometry (%u/%u/%u)\n", index,
+                    cyls, heads, spt);
+            res = ERR_NOT_CONFIGURED;
+            goto error;
+        }
+        state->drive[index].cyls = cyls;
+        state->drive[index].heads = heads;
+        state->drive[index].spt = spt;
+        sectors = (uint64_t)cyls * heads * spt;
 
-        state->drive[index].lba48 = false;
-
-        if (lba28_sectors > 0) {
-            if (lba28_sectors > INT_MAX) {
-                state->drive[index].sectors = INT_MAX;
-            } else {
-                state->drive[index].sectors = (int)lba28_sectors;
-            }
-            state->drive[index].sector_size = 512;
-        } else {
-            // detect ancient devices pre lba28
-            uint16_t cyls, heads, sectors;
-            cyls = info[1];
-            heads = info[3];
-            sectors = info[6];
-
-            if (!cyls || !heads || !sectors) {
-                res = ERR_NOT_CONFIGURED;
-                goto error;
-            }
-
-            LTRACEF("pre LBA CHS %hu:%hu:%hu\n", cyls, heads, sectors);
-
-            state->drive[index].sectors = cyls * heads * sectors;
-            state->drive[index].sector_size = 512;
+        // make the drive's translation match the geometry the addresses are computed with
+        ide_device_select(dev, index);
+        ide_delay_400ns(dev);
+        ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, spt & 0xff);
+        ide_write_reg8(dev, IDE_REG_DRIVE_HEAD, 0xa0 | ((index & 1) << 4) | ((heads - 1) & 0xf));
+        event_unsignal(&state->completion);
+        ide_write_reg8(dev, IDE_REG_COMMAND, ATA_INITPARAMS);
+        ide_delay_400ns(dev);
+        err = ide_wait_irq(dev, false);
+        if (err) {
+            dprintf(INFO, "ide: disk %d rejected its own geometry: %s\n", index, ide_error_str[err]);
+            res = ERR_IO;
+            goto error;
         }
     }
 
-    dprintf(INFO, "ide: Disk %d (%s) supports %u sectors for a total of %u bytes\n", index,
-            state->drive[index].lba48 ? "LBA48" : "LBA28/CHS", state->drive[index].sectors,
-            state->drive[index].sectors * 512);
+    state->drive[index].lba = supports_lba;
+    state->drive[index].lba48 = supports_lba48;
+    state->drive[index].sector_size = 512;
+    if (sectors > INT_MAX) {
+        dprintf(INFO, "ide: disk %d capacity exceeds 32-bit sector tracking, clamping at %d sectors\n",
+                index, INT_MAX);
+        sectors = INT_MAX;
+    }
+    state->drive[index].sectors = (int)sectors;
+
+    if (supports_lba) {
+        dprintf(INFO, "ide%u: disk %d: %s, %u sectors (%llu MB)\n", dev->config->channel, index,
+                supports_lba48 ? "LBA48" : "LBA28", state->drive[index].sectors,
+                (unsigned long long)sectors / 2048);
+    } else {
+        dprintf(INFO, "ide%u: disk %d: CHS %u/%u/%u%s, %u sectors (%llu MB)\n", dev->config->channel, index,
+                state->drive[index].cyls, state->drive[index].heads, state->drive[index].spt,
+                force_chs ? " (ide.force_chs)" : "", state->drive[index].sectors,
+                (unsigned long long)sectors / 2048);
+    }
 
     res = NO_ERROR;
 
@@ -1128,7 +1060,7 @@ error:
 }
 
 static void ide_lba48_setup(struct ide_device *dev, uint64_t addr, uint16_t count, int drive) {
-    ide_write_reg8(dev, IDE_REG_DRIVE_HEAD, 0x40 | ((drive & 0x00000001) << 4));
+    ide_write_reg8(dev, IDE_REG_DRIVE_HEAD, 0xe0 | ((drive & 0x00000001) << 4));
 
     ide_write_reg8(dev, IDE_REG_PRECOMP, 0x00);
     ide_write_reg8(dev, IDE_REG_SECTOR_COUNT, (count >> 8) & 0xff);

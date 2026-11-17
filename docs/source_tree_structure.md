@@ -52,7 +52,7 @@ Libraries, each its own module, pulled in by projects as needed. Some of the lar
 
 ### `/dev/`
 Device drivers, by category:
-- `block/` - AHCI, IDE
+- `block/` - AHCI, ISA IDE (legacy PC only)
 - `bus/` - PCI and PCIe
 - `interrupt/` - interrupt controllers (ARM GIC, RISC-V PLIC, ...)
 - `net/` - network interface drivers
