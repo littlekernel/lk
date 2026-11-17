@@ -138,8 +138,10 @@ status_t platform_pci_int_line_to_vector(unsigned int pci_int_line, pci_location
 status_t platform_pci_int_pin_to_vector(unsigned int pci_int_pin, pci_location_t loc,
     unsigned int *vector) {
 
-    // QEMU virt machine maps PCI INTx to PLIC lines 32..35 with slot swizzling:
-    // irq = 32 + ((pin - 1 + slot) % 4), where pin is 1..4 for INTA..INTD.
+    // Fallback for a device tree without an interrupt-map (fdtwalk routes through the map when
+    // there is one). QEMU virt machine maps PCI INTx to PLIC lines 32..35 with slot swizzling:
+    // irq = 32 + ((pin - 1 + slot) % 4), where pin is 1..4 for INTA..INTD. Only right for
+    // devices on the root bus.
     static const unsigned int PCIE_IRQ_BASE = 0x20;
 
     if (pci_int_pin < 1 || pci_int_pin > 4) {

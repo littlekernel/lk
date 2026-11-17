@@ -127,7 +127,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - GICv3 ITS / LPIs [branch: origin/wip/msi]
 - INTx lines cannot be shared on arm_gic / riscv_plic (one handler per vector)
     - a second registration prints a warning and replaces the first
-- INTx pin swizzle on qemu-virt-arm/riscv uses the device number only, wrong behind a bridge
 - Console input: pc has a private buffer, qemu-virt-riscv sets no CONSOLE_HAS_INPUT_BUFFER; put both on lib/io's
 - USB client: more classes? (only cdcserial + bulktest) hid, mass storage, ecm
 - Virtio: handle partial transfers (block ignores the used ring len)

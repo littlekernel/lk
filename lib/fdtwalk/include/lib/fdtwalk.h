@@ -17,6 +17,15 @@ __BEGIN_CDECLS
  * for interesting nodes. Uses libfdt internally.
  */
 
+#define FDT_WALK_PCIE_MAX_INTX_MAP 32
+
+// One interrupt-map entry of a pcie node: the child unit address (phys.hi, phys.mid, phys.lo)
+// and pin it matches, as written, and the parent interrupt decoded to a platform vector.
+struct fdt_walk_pcie_intx_map_entry {
+    uint32_t child[4];
+    uint32_t vector;
+};
+
 struct fdt_walk_pcie_info {
     // location of the ECAM and the pci ranges it covers
     uint64_t ecam_base;
@@ -38,6 +47,12 @@ struct fdt_walk_pcie_info {
     uint64_t mmio_prefetch_len;
     uint64_t mmio64_prefetch_base;
     uint64_t mmio64_prefetch_len;
+
+    // interrupt-map, with the entries whose parent controller could be decoded (a GIC or a
+    // single cell controller such as the PLIC); intx_map_count is 0 when there are none
+    uint32_t intx_map_mask[4];
+    size_t intx_map_count;
+    struct fdt_walk_pcie_intx_map_entry intx_map[FDT_WALK_PCIE_MAX_INTX_MAP];
 };
 
 struct fdt_walk_memory_region {
@@ -111,6 +126,11 @@ status_t fdt_walk_dump(const void *fdt);
 
 // New style walkers, finds a single topic at a time
 status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *, size_t *count);
+// Look up the vector the interrupt-map of a pcie node gives a pin (1..4) of the function at
+// bus/dev/fn. The caller has already swizzled the pin across any bridges, so this is the pin
+// as it arrives at the host bridge. ERR_NOT_FOUND when nothing in the map matches.
+status_t fdt_walk_pcie_lookup_intx(const struct fdt_walk_pcie_info *info, uint8_t bus, uint8_t dev,
+                                   uint8_t fn, uint8_t pin, uint32_t *vector);
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *, size_t *count);
 status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *memory, size_t *mem_count,
                               struct fdt_walk_memory_region *reserved_memory, size_t *reserved_mem_count);

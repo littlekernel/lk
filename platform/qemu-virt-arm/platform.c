@@ -167,9 +167,10 @@ status_t platform_pci_int_line_to_vector(unsigned int pci_int_line, pci_location
 status_t platform_pci_int_pin_to_vector(unsigned int pci_int_pin, pci_location_t loc,
     unsigned int *vector) {
 
-    // QEMU arm virt machine uses standard PCI swizzle on 4 legacy IRQs:
+    // Fallback for a device tree without an interrupt-map (fdtwalk routes through the map when
+    // there is one). QEMU arm virt machine uses standard PCI swizzle on 4 legacy IRQs:
     // irq = first_irq + ((pin - 1 + slot) % 4), where pin is 1..4.
-    // first_irq here is PCIE_INT_BASE.
+    // first_irq here is PCIE_INT_BASE. Only right for devices on the root bus.
     if (pci_int_pin < 1 || pci_int_pin > 4) {
         return ERR_OUT_OF_RANGE;
     }

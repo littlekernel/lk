@@ -16,6 +16,7 @@
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #if WITH_LIB_CMDLINE
 #include <lib/cmdline.h>
@@ -285,14 +286,43 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
 #endif
 
 #if WITH_DEV_BUS_PCI
-status_t fdtwalk_setup_pci(const void *fdt) {
-    /* detect pci */
-    struct fdt_walk_pcie_info pcie_info[4] = {};
+// intx_route hook of a root described by a pcie node with an interrupt-map: swizzle the pin
+// across each bridge on the way up (PCI-PCI bridge spec: the pin a function raises on a bridge's
+// secondary bus arrives on its primary bus as ((pin - 1 + device) % 4) + 1), then look up the
+// slot on the root bus in the map.
+static status_t fdt_pci_intx_route(void *cookie, const struct pci_intx_path_entry *path,
+                                   size_t path_len, unsigned int pin, unsigned int *vector) {
+    const auto *info = static_cast<const struct fdt_walk_pcie_info *>(cookie);
+    if (path_len == 0 || pin < 1 || pin > 4) {
+        return ERR_INVALID_ARGS;
+    }
+    for (size_t i = path_len - 1; i > 0; i--) {
+        pin = ((pin - 1 + path[i].dev) % 4) + 1;
+    }
+    uint32_t v;
+    status_t err = fdt_walk_pcie_lookup_intx(info, info->bus_start, path[0].dev, path[0].fn,
+                                             static_cast<uint8_t>(pin), &v);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    *vector = v;
+    return NO_ERROR;
+}
 
-    size_t count = countof(pcie_info);
+status_t fdtwalk_setup_pci(const void *fdt) {
+    /* detect pci. The node info outlives this call: each root keeps a pointer to its node's
+     * entry as the cookie of its routing hooks. */
+    constexpr size_t max_nodes = 4;
+    auto *pcie_info = static_cast<struct fdt_walk_pcie_info *>(calloc(max_nodes, sizeof(struct fdt_walk_pcie_info)));
+    if (!pcie_info) {
+        return ERR_NO_MEMORY;
+    }
+
+    size_t count = max_nodes;
     status_t err = fdt_walk_find_pcie_info(fdt, pcie_info, &count);
     LTRACEF("fdt_walk_find_pcie_info returns %d, count %zu\n", err, count);
     if (err != NO_ERROR) {
+        free(pcie_info);
         return err;
     }
 
@@ -377,9 +407,13 @@ status_t fdtwalk_setup_pci(const void *fdt) {
             .bus_end = info->bus_end,
             .windows = windows,
             .num_windows = num_windows,
-            .intx_route = NULL,
-            .intx_cookie = NULL,
+            .intx_route = info->intx_map_count > 0 ? fdt_pci_intx_route : NULL,
+            .intx_cookie = const_cast<struct fdt_walk_pcie_info *>(info),
         };
+        if (info->intx_map_count > 0) {
+            dprintf(INFO, "PCIE: segment %u routes INTx through its interrupt-map (%zu entries)\n",
+                    segment, info->intx_map_count);
+        }
         err = pci_bus_mgr_add_root(&desc);
         if (err != NO_ERROR) {
             printf("PCIE: failed to add root for segment %u, error %d\n", segment, err);
@@ -388,7 +422,11 @@ status_t fdtwalk_setup_pci(const void *fdt) {
         roots_added++;
     }
 
-    return (roots_added > 0) ? NO_ERROR : ERR_NOT_FOUND;
+    if (roots_added == 0) {
+        free(pcie_info);
+        return ERR_NOT_FOUND;
+    }
+    return NO_ERROR;
 }
 #endif
 
