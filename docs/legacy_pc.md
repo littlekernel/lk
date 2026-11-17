@@ -81,6 +81,7 @@ The rest of the PC platform shares this serial code: the probe runs on modern bu
   - 720K and 360K drives: their own format
 - The bio device's size follows the disk, so it is the drive's native size until a disk
   has been read.
+- A FAT floppy mounts read only with `mount /fd fat fd0 ro`.
 - A drive with no disk is refused through the change line, except on 360K drives, which
   have none.
 
