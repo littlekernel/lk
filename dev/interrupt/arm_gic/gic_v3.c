@@ -38,6 +38,7 @@
 
 #include "arm_gic_common.h"
 #include "gic_v3.h"
+#include "gic_v3_its.h"
 #include "gic_v3_lpi.h"
 
 #define WAKER_QSC_BIT (0x1u << 31)
@@ -367,9 +368,12 @@ void arm_gicv3_init_percpu(void) {
     }
 
 #if ARCH_ARM64
-    // LPIs, once they are set up: the boot cpu gets them from arm_gic_init_map, which runs
-    // this hook before setting them up, secondaries here
-    arm_gicv3_lpi_init_percpu(arch_curr_cpu_num());
+    // LPIs and this cpu's ITS collection, once they are set up: the boot cpu gets them from
+    // arm_gic_init_map, which runs this hook before setting them up, secondaries here
+    const uint cpu = arch_curr_cpu_num();
+    if (arm_gicv3_lpi_init_percpu(cpu) == NO_ERROR) {
+        arm_gicv3_its_init_percpu(cpu);
+    }
 #endif
 }
 

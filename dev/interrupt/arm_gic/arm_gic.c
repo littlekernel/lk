@@ -45,6 +45,7 @@
 #include "gic_v2.h"
 #include "gic_v2m.h"
 #include "gic_v3.h"
+#include "gic_v3_its.h"
 #include "gic_v3_lpi.h"
 
 // Common routines shared between GICv2 and GICv3/v4 implementations.
@@ -403,11 +404,24 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
 
 #if ARCH_ARM64
     // LPIs only come through an ITS, so they are set up only when there is one. The boot
-    // cpu's per-cpu init has already run, so enable them on it here; secondaries do it from
-    // their own per-cpu init.
+    // cpu's per-cpu init has already run, so enable them and map its collection here;
+    // secondaries do both from their own per-cpu init.
     if (init_info->gic_revision > 2 && init_info->its_count > 0) {
-        if (arm_gicv3_lpi_init() == NO_ERROR) {
-            arm_gicv3_lpi_init_percpu(arch_curr_cpu_num());
+        if (init_info->its_count > 1) {
+            printf("GICv3: %zu ITSes, using the first\n", init_info->its_count);
+        }
+        vaddr_t its_vaddr;
+        arm_map_regs("gicits", &its_vaddr, init_info->its[0].paddr, init_info->its[0].size);
+        status_t err = arm_gicv3_lpi_init();
+        if (err == NO_ERROR) {
+            err = arm_gicv3_its_init(init_info->its[0].paddr, its_vaddr);
+        }
+        if (err == NO_ERROR) {
+            const uint cpu = arch_curr_cpu_num();
+            arm_gicv3_lpi_init_percpu(cpu);
+            arm_gicv3_its_init_percpu(cpu);
+        } else {
+            printf("GICv3: LPI/ITS setup failed (%d), no MSI through the ITS\n", err);
         }
     }
 #endif
@@ -415,13 +429,23 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
 
 status_t arm_gic_msi_alloc(paddr_t ctrl_paddr, uint32_t device_id, unsigned int *vector,
                            uint64_t *msg_addr, uint32_t *msg_data) {
-    (void)device_id;
-    return arm_gic_v2m_alloc(ctrl_paddr, vector, msg_addr, msg_data);
+    status_t err = arm_gic_v2m_alloc(ctrl_paddr, vector, msg_addr, msg_data);
+#if ARCH_ARM64
+    if (err == ERR_NOT_FOUND) {
+        err = arm_gicv3_its_msi_alloc(ctrl_paddr, device_id, vector, msg_addr, msg_data);
+    }
+#endif
+    return err;
 }
 
 status_t arm_gic_msi_free(paddr_t ctrl_paddr, uint32_t device_id, unsigned int vector) {
-    (void)device_id;
-    return arm_gic_v2m_free(ctrl_paddr, vector);
+    status_t err = arm_gic_v2m_free(ctrl_paddr, vector);
+#if ARCH_ARM64
+    if (err == ERR_NOT_FOUND) {
+        err = arm_gicv3_its_msi_free(ctrl_paddr, device_id, vector);
+    }
+#endif
+    return err;
 }
 
 static status_t arm_gic_get_priority(u_int irq) {
@@ -484,7 +508,7 @@ static status_t lpi_set_masked(unsigned int vector, bool masked) {
         return ERR_INVALID_ARGS;
     }
     arm_gicv3_lpi_set_enable(vector, !masked);
-    return NO_ERROR;
+    return arm_gicv3_its_lpi_invalidate(vector);
 }
 #endif
 
