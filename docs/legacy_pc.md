@@ -108,6 +108,9 @@ scripts/do-qemux86 -l -m 16 -y fd.img -A 'lk.autorun=ut+bio_pattern'
 The test writes to the image and restores it, so use a scratch copy. QEMU drive types for
 the floppy are set with `-- -global isa-fdc.fdtypeA=120` (or 144, 288).
 
+`./scripts/run-fat-tests.py --arch x86-legacy` runs the FAT image tests on the ISA IDE disk,
+which also exercises its write path.
+
 ### What QEMU cannot show
 
 - There is no 386 model, and QEMU's 486 always has cpuid and an FPU. The 386 detection, the

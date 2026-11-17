@@ -16,6 +16,7 @@ Replaces run-fat-tests.sh. What it does differently:
   ./scripts/run-fat-tests.py                      all three images on arm64
   ./scripts/run-fat-tests.py --type fat16         just one
   ./scripts/run-fat-tests.py --arch x86-64        a different architecture
+  ./scripts/run-fat-tests.py --arch x86-legacy    the ISA IDE disk on the isapc machine
   ./scripts/run-fat-tests.py --stress             include the stress suite
   ./scripts/run-fat-tests.py --keep               keep the scratch images
 """
@@ -37,7 +38,8 @@ BOOT_TESTS = os.path.join(SCRIPT_DIR, 'run-qemu-boot-tests.py')
 
 # What the first attached disk is called inside the guest. The virtio backed
 # machines enumerate it as virtio0; the x86 machines default to the q35 AHCI
-# controller, where dev/block/ahci names it <controller>.<port>.
+# controller, where dev/block/ahci names it <controller>.<port>, and the legacy
+# isapc machine to the primary ISA IDE channel's master.
 ARCH_DEVICE = {
     'arm': 'virtio0',
     'arm64': 'virtio0',
@@ -46,6 +48,7 @@ ARCH_DEVICE = {
     'riscv64': 'virtio0',
     'x86': 'ahci0.0',
     'x86-64': 'ahci0.0',
+    'x86-legacy': 'ide0.0',
 }
 
 # The tree test_fat_witness() in lib/fs/fat/test/test.cpp leaves behind. Keep in
