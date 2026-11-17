@@ -8,6 +8,7 @@
  * https://opensource.org/licenses/MIT
  */
 
+#include <arch/fpu.h>
 #include <arch/mmu.h>
 #include <arch/x86.h>
 #include <arch/x86/apic.h>
@@ -569,10 +570,24 @@ static void platform_init_postvm(uint level) {
 
 LK_INIT_HOOK(platform_init_postvm, platform_init_postvm, LK_INIT_LEVEL_VM);
 
+#if X86_LEGACY
+static enum handler_return pc_x87_irq13(void *arg) {
+    x86_x87_irq13_error();
+}
+#endif
+
 void platform_init(void) {
     platform_init_debug();
 
     platform_init_keyboard(&console_input_buf);
+
+#if X86_LEGACY
+    // a 386's 387 reports errors on IRQ13 instead of #MF
+    if (x86_x87_errors_on_irq13()) {
+        register_int_handler(INT_FPU, &pc_x87_irq13, NULL);
+        unmask_interrupt(INT_FPU);
+    }
+#endif
 
     // Look for secondary cpus
 #if WITH_SMP

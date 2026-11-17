@@ -173,6 +173,9 @@ void x86_exception_handler(x86_iframe_t *frame) {
         case INT_DEV_NA_EX:
 #if X86_WITH_FPU
             fpu_dev_na_handler();
+#elif X86_LEGACY
+            // CR0.TS is never set on legacy, so only CR0.EM (no coprocessor) gets here
+            exception_die(frame, "x87 instruction with no coprocessor\n");
 #endif
             break;
 

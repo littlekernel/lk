@@ -30,6 +30,7 @@
 #define INT_BASE2    0x28
 #define INT_CMOSRTC  0x28
 #define INT_PS2MOUSE 0x2c
+#define INT_FPU      0x2d
 #define INT_IDE0     0x2e
 #define INT_IDE1     0x2f
 

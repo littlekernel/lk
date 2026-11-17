@@ -23,6 +23,8 @@
 #pragma once
 
 #include <kernel/thread.h>
+#include <lk/compiler.h>
+#include <stdbool.h>
 
 void x86_fpu_early_init(void);
 void x86_fpu_init(void);
@@ -30,5 +32,14 @@ void x86_fpu_early_init_percpu(void);
 void fpu_init_thread_states(thread_t *t);
 void fpu_context_switch(thread_t *old_thread, thread_t *new_thread);
 void fpu_dev_na_handler(void);
+
+#if X86_LEGACY
+// CPU=legacy x87 support, see arch/x86/x87_legacy.c. No per thread x87 state.
+void x86_x87_legacy_init(void);
+// a 386 with a 387 reports x87 errors on IRQ13 rather than #MF
+bool x86_x87_errors_on_irq13(void);
+// body of the platform's IRQ13 handler: releases the coprocessor and panics
+__NO_RETURN void x86_x87_irq13_error(void);
+#endif
 
 /* End of file */
