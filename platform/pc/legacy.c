@@ -57,10 +57,13 @@ struct legacy_hints {
 
 static struct legacy_hints hints;
 
+// the four standard ports, then any other the BIOS lists
+#define UART_SLOTS (COM_COUNT * 2)
 static struct {
     uint16_t port;
     enum pc_uart_type type;
-} uarts[COM_COUNT];
+} uarts[UART_SLOTS];
+static uint uart_count;
 
 static const struct platform_ide_config ide_channels[] = {
     { .channel = 0, .io_base = 0x1f0, .ctrl_base = 0x3f6, .irq = INT_IDE0 },
@@ -125,20 +128,36 @@ static const char *floppy_type_name(uint8_t type) {
     return "?";
 }
 
-// The standard four ports, plus any non standard one the BIOS found. The console is in
-// use and keeps the identity it was given at boot rather than being probed again.
+static bool is_std_com_port(uint16_t port) {
+    for (uint i = 0; i < COM_COUNT; i++) {
+        if (com_std_ports[i] == port) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// The standard four ports, named com1-com4 as pc.console does, plus any other address the
+// BIOS lists. The console is in use and keeps the identity it was given at boot rather
+// than being probed again.
 static void probe_uarts(void) {
     enum pc_uart_type console_type;
     const uint16_t console_port = pc_console_uart(&console_type);
 
-    for (uint i = 0; i < COM_COUNT; i++) {
-        uint16_t port = com_std_ports[i];
-        const uint16_t bda_port = hints.bda_com[i];
-        if (bda_port && bda_port != port) {
-            port = bda_port;
+    uart_count = 0;
+    for (uint i = 0; i < COM_COUNT * 2; i++) {
+        uint16_t port;
+        if (i < COM_COUNT) {
+            port = com_std_ports[i];
+        } else {
+            port = hints.bda_com[i - COM_COUNT];
+            if (!port || is_std_com_port(port)) {
+                continue;
+            }
         }
-        uarts[i].port = port;
-        uarts[i].type = (port == console_port) ? console_type : pc_uart_probe(port);
+        uarts[uart_count].port = port;
+        uarts[uart_count].type = (port == console_port) ? console_type : pc_uart_probe(port);
+        uart_count++;
     }
 }
 
@@ -146,13 +165,18 @@ static void print_report(void) {
     enum pc_uart_type console_type;
     const uint16_t console_port = pc_console_uart(&console_type);
 
-    for (uint i = 0; i < COM_COUNT; i++) {
+    for (uint i = 0; i < uart_count; i++) {
         if (uarts[i].type == PC_UART_NONE) {
             continue;
         }
-        printf("LEGACY: com%u at %#x: %s%s\n", i + 1, uarts[i].port,
-               pc_uart_type_name(uarts[i].type),
-               uarts[i].port == console_port ? " (console)" : "");
+        if (i < COM_COUNT) {
+            printf("LEGACY: com%u at %#x: %s%s\n", i + 1, uarts[i].port,
+                   pc_uart_type_name(uarts[i].type),
+                   uarts[i].port == console_port ? " (console)" : "");
+        } else {
+            printf("LEGACY: uart at non standard %#x (from the BIOS): %s\n", uarts[i].port,
+                   pc_uart_type_name(uarts[i].type));
+        }
     }
 
     for (uint i = 0; i < countof(ide_channels); i++) {
