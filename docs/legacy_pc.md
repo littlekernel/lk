@@ -123,8 +123,9 @@ the floppy are set with `-- -global isa-fdc.fdtypeA=120` (or 144, 288).
 ## Real hardware
 
 The kernel is a multiboot image (`lk.bin`, or `lk.elf`). A GRUB legacy boot floppy that
-loads it with `kernel /lk.bin.gz` boots both a 386 and a 486. The image needs about 3MB
-of RAM before the heap, and loads at 2MB physical.
+loads it with `kernel /lk.bin.gz` boots both a 386 and a 486. It loads at 2MB physical
+and ends a little under 3MB. `ut all` passes in 4MB; below 8MB some of the FAT tests
+skip the RAM volumes they can't allocate.
 
 For the first bring-up on a machine:
 
