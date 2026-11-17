@@ -21,8 +21,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - SD/MMC stack [branch: sdmmc]
     - merge + push; then board GPT check, card-detect hotplug, erase/TRIM, SDIO, CQE
 - nRF54L15 + nrfx 3.14 roll [branch: nrfx-3.14-roll]
-- GICv3 ITS/LPI MSI, GICv2m in the GIC driver, PCI INTx from interrupt-map [branch: gicv3-its] [plan]
-    - rebuilds origin/wip/msi on master; delete that branch once this lands
 
 ## Planned (plan written, no code)
 
@@ -41,7 +39,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 ## Stale WIP branches (revive or delete)
 
 - x86 5-level paging [branch: la57] (1 WIP commit, 2025-11)
-- GICv2m windows + GICv3 ITS discovery + msi-map from FDT [branch: origin/wip/msi] (2026-04)
 - xhci skeleton [branch: origin/wip/usbhost] (2026-03)
 - SPARC sun4m port, mmu started [branch: origin/wip/sparc] (2026-08)
 - VAX port [branch: vax] (2019)
@@ -122,8 +119,8 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - private pl011: bcm28xx, rp23xx (via pico sdk)
     - goldfish_tty (platform-local in qemu-virt-m68k)
 - MSI / MSI-X
-    - pci allocate_msi/msix: single vector only, leaks the vector on error (no platform free)
-    - GICv3 ITS / LPIs [branch: origin/wip/msi]
+    - pci allocate_msi/msix: single vector only; the platform path (x86) leaks the vector on error
+    - GICv3 ITS: LPIs all target cpu 0, only the first ITS is used, no requester id aliasing behind a PCIe to PCI bridge
 - INTx lines cannot be shared on arm_gic / riscv_plic (one handler per vector)
     - a second registration prints a warning and replaces the first
 - Console input: pc has a private buffer, qemu-virt-riscv sets no CONSOLE_HAS_INPUT_BUFFER; put both on lib/io's
@@ -213,6 +210,9 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~GICv3 ITS and LPIs: PCI MSI/MSI-X on a GICv3 (TCG and KVM vgic-its), gic_its unit test, arm64-gicv3 boot config~~
+- ~~GICv2m frames in the GIC driver, PCI MSI routed through the device tree msi-map; INTx through interrupt-map with the bridge swizzle; prefetchable PCI windows~~
+- ~~origin/wip/msi is superseded by the above; delete it~~
 - ~~do-qemum68k -N takes its argument~~
 - ~~virtio-pci maps BARs rounded to pages, so 16K/64K page arm64 boots with PCI virtio~~
 - ~~MSI-X refuses unassigned or unreachable BARs, masks the table while rewriting it, maps with sub-page BAR alignment~~
