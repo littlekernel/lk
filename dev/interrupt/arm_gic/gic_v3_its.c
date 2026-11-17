@@ -122,6 +122,9 @@ static struct {
     size_t dev_l1_entries;
     uint32_t dev_ids; // device ids the table covers
 
+    // cpus whose collection is mapped; MSIs target cpu 0's, so none are handed out without it
+    bool collection_mapped[SMP_MAX_CPUS];
+
     struct its_device devices[ARM_GIC_ITS_MAX_DEVICES];
     struct its_lpi lpis[ARM_GIC_MAX_LPIS];
 } its;
@@ -405,7 +408,7 @@ status_t arm_gicv3_its_init(paddr_t paddr, vaddr_t vaddr) {
     its.devbits = MIN(GITS_TYPER_DEVBITS(its.typer), 16u); // PCI requester ids are 16 bits
     its.idbits = GITS_TYPER_IDBITS(its.typer);
     its.itt_entry_size = GITS_TYPER_ITT_ENTRY_SIZE(its.typer);
-    if ((1u << its.idbits) < ARM_GIC_ITS_EVENTS_PER_DEVICE) {
+    if (its.idbits < log2_floor(ARM_GIC_ITS_EVENTS_PER_DEVICE)) {
         printf("GICv3 ITS: only %u event id bits\n", its.idbits);
         return ERR_NOT_SUPPORTED;
     }
@@ -480,7 +483,9 @@ void arm_gicv3_its_init_percpu(uint cpu) {
     status_t err = its_send(cmds, countof(cmds));
     if (err != NO_ERROR) {
         printf("GICv3 ITS: mapping cpu %u's collection failed (%d)\n", cpu, err);
+        return;
     }
+    its.collection_mapped[cpu] = true;
 }
 
 /* MSIs */
@@ -541,6 +546,10 @@ status_t arm_gicv3_its_msi_alloc(paddr_t paddr, uint32_t device_id, uint *vector
                                  uint64_t *msg_addr, uint32_t *msg_data) {
     if (!its.ready || paddr != its.paddr) {
         return ERR_NOT_FOUND;
+    }
+    if (!its.collection_mapped[0]) {
+        // nothing would arrive: refuse, so the driver falls back to INTx
+        return ERR_NOT_READY;
     }
     if (device_id >= its.dev_ids) {
         printf("GICv3 ITS: device id %#x is past the %u the device table covers\n", device_id,
@@ -649,7 +658,7 @@ status_t arm_gicv3_its_inject(uint intid) {
 
 status_t arm_gicv3_its_move(uint intid, uint cpu) {
     struct its_lpi *l = its_lookup_lpi(intid);
-    if (!l || !arm_gicv3_lpi_cpu_enabled(cpu)) {
+    if (!l || cpu >= SMP_MAX_CPUS || !its.collection_mapped[cpu]) {
         return ERR_INVALID_ARGS;
     }
     const struct its_cmd cmds[] = {

@@ -29,7 +29,8 @@ paddr_t arm_gicv3_its_paddr(void);
 void arm_gicv3_its_init_percpu(uint cpu);
 
 // One MSI for device_id: an LPI routed to cpu 0's collection, disabled until unmasked, and
-// the message (GITS_TRANSLATER, event id) that raises it. ERR_NOT_FOUND if paddr is not the ITS.
+// the message (GITS_TRANSLATER, event id) that raises it. ERR_NOT_FOUND if paddr is not the ITS,
+// ERR_NOT_READY if cpu 0's collection could not be mapped (nothing would be delivered).
 status_t arm_gicv3_its_msi_alloc(paddr_t paddr, uint32_t device_id, uint *vector,
                                  uint64_t *msg_addr, uint32_t *msg_data);
 status_t arm_gicv3_its_msi_free(paddr_t paddr, uint32_t device_id, uint vector);
