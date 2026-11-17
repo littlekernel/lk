@@ -622,7 +622,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                     const char *child_compat = get_prop_string(state.fdt, state.offset, "compatible");
                     if (child_compat) {
                         if (strstr(child_compat, "arm,gic-v3-its") != nullptr) {
-                            size_t idx = gic_infop->v3.its_count;
+                            size_t idx = gic_infop->its_count;
                             if (idx < FDT_WALK_MAX_GIC_ITS) {
                                 int lenp;
                                 const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
@@ -632,14 +632,15 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                                     if (result.status == NO_ERROR) {
                                         LTRACEF("found ITS subnode, base %#llx len %#llx\n",
                                                 result.entry.base, result.entry.len);
-                                        gic_infop->v3.its[idx].base = result.entry.base;
-                                        gic_infop->v3.its[idx].len = result.entry.len;
-                                        gic_infop->v3.its_count++;
+                                        gic_infop->its[idx].base = result.entry.base;
+                                        gic_infop->its[idx].len = result.entry.len;
+                                        gic_infop->its[idx].phandle = fdt_get_phandle(state.fdt, state.offset);
+                                        gic_infop->its_count++;
                                     }
                                 }
                             }
                         } else if (strstr(child_compat, "arm,gic-v2m-frame") != nullptr) {
-                            size_t idx = gic_infop->v2.v2m_count;
+                            size_t idx = gic_infop->v2m_count;
                             if (idx < FDT_WALK_MAX_GIC_V2M) {
                                 int lenp;
                                 const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
@@ -649,9 +650,10 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                                     if (result.status == NO_ERROR) {
                                         LTRACEF("found GICv2m frame subnode, base %#llx len %#llx\n",
                                                 result.entry.base, result.entry.len);
-                                        gic_infop->v2.v2m_frame[idx].base = result.entry.base;
-                                        gic_infop->v2.v2m_frame[idx].len = result.entry.len;
-                                        gic_infop->v2.v2m_count++;
+                                        gic_infop->v2m_frame[idx].base = result.entry.base;
+                                        gic_infop->v2m_frame[idx].len = result.entry.len;
+                                        gic_infop->v2m_frame[idx].phandle = fdt_get_phandle(state.fdt, state.offset);
+                                        gic_infop->v2m_count++;
                                     }
                                 }
                             }
@@ -723,6 +725,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
 
             // zero out the info struct, we're about to fill it in with what we find in the dt
             *infop = {};
+            infop->phandle = fdt_get_phandle(state.fdt, state.offset);
 
             // at this point, we have a gic node either v2 or v3, so read out relevant properties
             const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "#interrupt-cells", &lenp);

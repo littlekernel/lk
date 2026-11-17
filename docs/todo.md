@@ -124,7 +124,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - MSI / MSI-X
     - pci allocate_msi/msix: single vector only, leaks the vector on error (no platform free)
     - qemu-virt-arm keeps the GICv2m frame and SPI range in platform code, route through the gic driver
-    - fdtwalk stores a v2m frame under a GICv3 node into the v2 half of the union (QEMU hvf irqchip)
     - GICv3 ITS / LPIs [branch: origin/wip/msi]
 - INTx lines cannot be shared on arm_gic / riscv_plic (one handler per vector)
     - a second registration prints a warning and replaces the first

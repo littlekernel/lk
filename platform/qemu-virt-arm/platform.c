@@ -104,10 +104,10 @@ static void find_msi_doorbell(void) {
     if (fdt_walk_find_gic_info(fdt, &gic_info, &count) != NO_ERROR || count == 0) {
         return;
     }
-    if (gic_info.gic_version == 2 && gic_info.v2.v2m_count > 0) {
-        msi_doorbell = gic_info.v2.v2m_frame[0].base + 0x40;
+    if (gic_info.gic_version == 2 && gic_info.v2m_count > 0) {
+        msi_doorbell = gic_info.v2m_frame[0].base + 0x40;
         dprintf(INFO, "PLATFORM: MSI through the GICv2m frame at %#" PRIx64 "\n",
-                gic_info.v2.v2m_frame[0].base);
+                gic_info.v2m_frame[0].base);
     } else {
         dprintf(INFO, "PLATFORM: no GICv2m frame, MSI unavailable\n");
     }

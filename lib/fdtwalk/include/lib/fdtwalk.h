@@ -64,10 +64,18 @@ struct fdt_walk_plic_context {
 #define FDT_WALK_MAX_GIC_ITS 4
 #define FDT_WALK_MAX_GIC_V2M 4
 
+// An MSI frame below a GIC node: a GICv2m frame or a GICv3 ITS
+struct fdt_walk_gic_msi_frame {
+    uint64_t base;
+    uint64_t len;
+    uint32_t phandle; // 0 when the node has none
+};
+
 struct fdt_walk_gic_info {
     uint8_t gic_version;
 
     uint32_t interrupt_cells;
+    uint32_t phandle; // of the gic node itself, 0 when it has none
 
     // v2 specific ranges
     union {
@@ -76,13 +84,6 @@ struct fdt_walk_gic_info {
             uint64_t distributor_len;
             uint64_t cpu_interface_base;
             uint64_t cpu_interface_len;
-
-            // GICv2m (MSI) frame subnodes
-            size_t v2m_count;
-            struct {
-                uint64_t base;
-                uint64_t len;
-            } v2m_frame[FDT_WALK_MAX_GIC_V2M];
         } v2;
         struct {
             uint64_t distributor_base;
@@ -95,15 +96,15 @@ struct fdt_walk_gic_info {
             uint64_t hypervisor_interface_len;
             uint64_t virtual_interface_base;
             uint64_t virtual_interface_len;
-
-            // ITS (Interrupt Translation Service) subnodes
-            size_t its_count;
-            struct {
-                uint64_t base;
-                uint64_t len;
-            } its[FDT_WALK_MAX_GIC_ITS];
         } v3;
     };
+
+    // MSI frame subnodes, recorded whatever the gic version: a GICv2m frame normally sits
+    // under a GICv2, but QEMU's hvf irqchip puts one under a GICv3
+    size_t v2m_count;
+    struct fdt_walk_gic_msi_frame v2m_frame[FDT_WALK_MAX_GIC_V2M];
+    size_t its_count;
+    struct fdt_walk_gic_msi_frame its[FDT_WALK_MAX_GIC_ITS];
 };
 
 status_t fdt_walk_dump(const void *fdt);
