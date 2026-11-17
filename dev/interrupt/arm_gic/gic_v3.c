@@ -159,7 +159,7 @@ static void gicv3_gicr_power_on(uint32_t cpu) {
     }
 }
 
-static void gicv3_gicr_off(uint32_t cpu) {
+static void gicv3_gicr_power_off(uint32_t cpu) {
     /* initiate power down */
     gicr_write(0, cpu, GICR_PWRR, PWRR_OFF);
 
