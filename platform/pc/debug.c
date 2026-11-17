@@ -79,14 +79,17 @@ extern uint32_t _multiboot2_info;
 #define UART_LSR_DR   (1u << 0)
 #define UART_LSR_THRE (1u << 5)
 
-// The receive irq drains at most this many bytes, so a port that reads back all ones
-// (data ready stuck on) cannot hold the cpu.
-#define UART_RX_DRAIN_LIMIT 64
-
+// The receive irq drains everything: ISA irqs are edge triggered, and the uart holds its
+// line up while data remains, so leaving any behind would mean no further interrupt. A
+// line status of all ones is a port that went away, not data.
 static enum handler_return uart_irq_handler(void *arg) {
     bool resched = false;
 
-    for (int i = 0; i < UART_RX_DRAIN_LIMIT && (inp(uart_io_port + UART_LSR) & UART_LSR_DR); i++) {
+    for (;;) {
+        const uint8_t lsr = inp(uart_io_port + UART_LSR);
+        if (lsr == 0xff || !(lsr & UART_LSR_DR)) {
+            break;
+        }
         unsigned char c = inp(uart_io_port + UART_RBR);
         cbuf_write_char(&console_input_buf, c, false);
         resched = true;
