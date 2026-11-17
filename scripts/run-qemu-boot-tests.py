@@ -37,6 +37,13 @@ class QEMUTestRunner:
                 'args': '-6s4 -P 64k',
                 'timeout': 90
             },
+            # GICv3 (redistributors, ITS when the kernel drives it) with the virtio
+            # devices on PCI, so their interrupts come in as MSI-X
+            'arm64-gicv3': {
+                'script': 'do-qemuarm',
+                'args': '-6s4 -G 3 -C',
+                'timeout': 90
+            },
             # The cortex-m boards qemu models for ARM's MPS2/MPS3 prototyping
             # systems, one per core generation. These exercise arch/arm/arm-m,
             # which nothing else here covers.
@@ -424,7 +431,7 @@ class QEMUTestRunner:
 
 def main():
     parser = argparse.ArgumentParser(description='Run LK QEMU tests for multiple architectures')
-    parser.add_argument('--arch', choices=['arm', 'arm64', 'arm64-16k', 'arm64-64k',
+    parser.add_argument('--arch', choices=['arm', 'arm64', 'arm64-16k', 'arm64-64k', 'arm64-gicv3',
                                           'arm-m3', 'arm-m4', 'arm-m7',
                                           'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv32-sv32', 'riscv64',
                                           'riscv64-nosvvptc', 'riscv64-sv39',
