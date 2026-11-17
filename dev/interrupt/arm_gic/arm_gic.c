@@ -43,6 +43,7 @@
 #include "arm_gic_common.h"
 
 #include "gic_v2.h"
+#include "gic_v2m.h"
 #include "gic_v3.h"
 
 // Common routines shared between GICv2 and GICv3/v4 implementations.
@@ -370,7 +371,24 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
         TRACEF("GICC mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicc_vaddr);
     }
 
+    for (size_t i = 0; i < init_info->v2m_count && i < ARM_GIC_MAX_MSI_FRAMES; i++) {
+        vaddr_t vaddr;
+        arm_map_regs("gicv2m", &vaddr, init_info->v2m[i].paddr, init_info->v2m[i].size);
+        arm_gic_v2m_add_frame(init_info->v2m[i].paddr, vaddr);
+    }
+
     arm_gic_init_hw();
+}
+
+status_t arm_gic_msi_alloc(paddr_t ctrl_paddr, uint32_t device_id, unsigned int *vector,
+                           uint64_t *msg_addr, uint32_t *msg_data) {
+    (void)device_id;
+    return arm_gic_v2m_alloc(ctrl_paddr, vector, msg_addr, msg_data);
+}
+
+status_t arm_gic_msi_free(paddr_t ctrl_paddr, uint32_t device_id, unsigned int vector) {
+    (void)device_id;
+    return arm_gic_v2m_free(ctrl_paddr, vector);
 }
 
 static status_t arm_gic_get_priority(u_int irq) {

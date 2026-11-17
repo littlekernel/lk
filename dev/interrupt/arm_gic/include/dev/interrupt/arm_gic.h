@@ -24,6 +24,7 @@
 #define __DEV_INTERRUPT_ARM_GIC_H
 
 #include <lk/compiler.h>
+#include <stdint.h>
 #include <sys/types.h>
 
 __BEGIN_CDECLS
@@ -49,6 +50,8 @@ void arm_gic_init(void);
  * @gicr_paddr: Physical address of GIC Redistributor registers.
  * @gicr_size: Total size of GIC Redistributor registers.
  */
+#define ARM_GIC_MAX_MSI_FRAMES 4
+
 struct arm_gic_init_info {
     int gic_revision; // GIC version: 2, 3, or 4
     paddr_t gicc_paddr;
@@ -57,6 +60,13 @@ struct arm_gic_init_info {
     size_t gicd_size;
     paddr_t gicr_paddr;
     size_t gicr_size;
+
+    // GICv2m MSI frames, beside a GICv2 or a GICv3 without an ITS
+    size_t v2m_count;
+    struct {
+        paddr_t paddr;
+        size_t size;
+    } v2m[ARM_GIC_MAX_MSI_FRAMES];
 };
 
 /**
@@ -80,6 +90,22 @@ enum {
     ARM_GIC_SGI_FLAG_TARGET_FILTER_MASK = 0x3,
 };
 status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask);
+
+/**
+ * arm_gic_msi_alloc() - Allocate one MSI through a GIC MSI frame.
+ * @ctrl_paddr: Physical base of the frame (a GICv2m frame) the device's MSIs go to,
+ *              as named by the device tree's msi-map or msi-parent.
+ * @device_id:  The device id the device's MSIs arrive with (unused by a GICv2m frame).
+ * @vector:     Returns the interrupt vector to register a handler on.
+ * @msg_addr:   Returns the address the device writes to raise it.
+ * @msg_data:   Returns the data it writes.
+ *
+ * Returns ERR_NOT_FOUND if no frame lives at @ctrl_paddr, ERR_NO_RESOURCES when the frame
+ * has no interrupts left.
+ */
+status_t arm_gic_msi_alloc(paddr_t ctrl_paddr, uint32_t device_id, unsigned int *vector,
+                           uint64_t *msg_addr, uint32_t *msg_data);
+status_t arm_gic_msi_free(paddr_t ctrl_paddr, uint32_t device_id, unsigned int vector);
 
 #define GIC_BASE_SGI 0
 #define GIC_BASE_PPI 16

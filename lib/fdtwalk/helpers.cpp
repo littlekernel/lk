@@ -529,6 +529,11 @@ status_t fdtwalk_setup_gic(const void *fdt) {
             for (size_t j = 0; j < gic_info[i].v2m_count; j++) {
                 dprintf(INFO, "FDT: GICv2m frame[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
                         j, gic_info[i].v2m_frame[j].base, gic_info[i].v2m_frame[j].len);
+                if (init_info.v2m_count < countof(init_info.v2m)) {
+                    init_info.v2m[init_info.v2m_count].paddr = gic_info[i].v2m_frame[j].base;
+                    init_info.v2m[init_info.v2m_count].size = gic_info[i].v2m_frame[j].len;
+                    init_info.v2m_count++;
+                }
             }
             for (size_t j = 0; j < gic_info[i].its_count; j++) {
                 dprintf(INFO, "FDT: GICv3 ITS[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
