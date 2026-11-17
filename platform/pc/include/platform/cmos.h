@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 /* cmos map for PC */
-#define CMOS_REG_FLOPPY (0x10)
+#define CMOS_REG_STATUS_D (0x0d)
+#define CMOS_REG_FLOPPY   (0x10)
 
 uint8_t cmos_read(uint8_t reg);

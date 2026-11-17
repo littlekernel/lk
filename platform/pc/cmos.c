@@ -27,13 +27,18 @@
 #include <lk/trace.h>
 #include <platform/pc.h>
 
+#define CMOS_NMI_DISABLE 0x80
+
 static spin_lock_t lock = SPIN_LOCK_INITIAL_VALUE;
 
 uint8_t cmos_read(uint8_t reg) {
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
 
-    outp(CMOS_CONTROL_REG, reg | 0x80);
+    // NMI is masked (bit 7 of the index) for the access, then the index is parked on the
+    // read only status register D with NMI enabled again
+    outp(CMOS_CONTROL_REG, reg | CMOS_NMI_DISABLE);
     uint8_t val = inp(CMOS_DATA_REG);
+    outp(CMOS_CONTROL_REG, CMOS_REG_STATUS_D);
 
     spin_unlock_irqrestore(&lock, state);
 
