@@ -14,6 +14,18 @@ extern cbuf_t console_input_buf;
 
 void platform_init_debug_early(void);
 void platform_init_debug(void);
+
+// 8250 family uart identification, for the console and the legacy device probe
+enum pc_uart_type {
+    PC_UART_NONE,
+    PC_UART_8250,
+    PC_UART_16450,
+    PC_UART_16550,
+    PC_UART_16550A,
+};
+enum pc_uart_type pc_uart_probe(uint16_t port);
+const char *pc_uart_type_name(enum pc_uart_type type);
+
 void platform_init_interrupts(void);
 void platform_init_interrupts_postvm(void);
 void platform_init_timer(void);

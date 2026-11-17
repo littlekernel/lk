@@ -10,6 +10,7 @@
 #include <kernel/spinlock.h>
 #include <kernel/thread.h>
 #include <lib/cbuf.h>
+#include <lib/cmdline.h>
 #include <lk/err.h>
 #include <lk/reg.h>
 #include <platform.h>
@@ -19,6 +20,7 @@
 #include <platform/pc.h>
 #include <platform/vga_console.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include <platform/fb_console.h>
 
@@ -32,12 +34,16 @@
 #endif
 
 static const int uart_baud_rate = DEBUG_BAUD_RATE;
-static const int uart_io_port = (DEBUG_COM_PORT == 1)   ? COM1_REG
-                                : (DEBUG_COM_PORT == 2) ? COM2_REG
-                                : (DEBUG_COM_PORT == 3) ? COM3_REG
-                                                        : COM4_REG;
-static const int uart_irq =
-    (DEBUG_COM_PORT == 1 || DEBUG_COM_PORT == 3) ? INT_COM1_COM3 : INT_COM2_COM4;
+
+static const uint16_t com_ports[4] = { COM1_REG, COM2_REG, COM3_REG, COM4_REG };
+
+// the console uart, DEBUG_COM_PORT until platform_init_debug() reads pc.console
+static uint16_t uart_io_port = com_ports[DEBUG_COM_PORT - 1];
+static bool uart_present;
+
+static unsigned int com_irq(unsigned int com) {
+    return (com == 1 || com == 3) ? INT_COM1_COM3 : INT_COM2_COM4;
+}
 
 cbuf_t console_input_buf;
 
@@ -60,12 +66,27 @@ static unsigned int uart_tx_free;
 
 extern uint32_t _multiboot2_info;
 
+// 16550 registers, offsets from the base port
+#define UART_RBR 0 // receive buffer / transmit holding
+#define UART_IER 1
+#define UART_IIR 2 // read: interrupt id; write: FIFO control
+#define UART_LCR 3
+#define UART_MCR 4
+#define UART_LSR 5
+#define UART_SCR 7
+
+#define UART_LSR_DR   (1u << 0)
+#define UART_LSR_THRE (1u << 5)
+
+// The receive irq drains at most this many bytes, so a port that reads back all ones
+// (data ready stuck on) cannot hold the cpu.
+#define UART_RX_DRAIN_LIMIT 64
+
 static enum handler_return uart_irq_handler(void *arg) {
-    unsigned char c;
     bool resched = false;
 
-    while (inp(uart_io_port + 5) & (1 << 0)) {
-        c = inp(uart_io_port + 0);
+    for (int i = 0; i < UART_RX_DRAIN_LIMIT && (inp(uart_io_port + UART_LSR) & UART_LSR_DR); i++) {
+        unsigned char c = inp(uart_io_port + UART_RBR);
         cbuf_write_char(&console_input_buf, c, false);
         resched = true;
     }
@@ -73,46 +94,140 @@ static enum handler_return uart_irq_handler(void *arg) {
     return resched ? INT_RESCHEDULE : INT_NO_RESCHEDULE;
 }
 
-void platform_init_debug_early(void) {
-    /* configure the uart */
+const char *pc_uart_type_name(enum pc_uart_type type) {
+    switch (type) {
+        case PC_UART_NONE:    return "none";
+        case PC_UART_8250:    return "8250";
+        case PC_UART_16450:   return "16450";
+        case PC_UART_16550:   return "16550";
+        case PC_UART_16550A:  return "16550A";
+    }
+    return "unknown";
+}
+
+// Identify the uart at port, the classic way. A port with nothing behind it floats to
+// all ones, so the interrupt enable register's low nibble failing to hold 0 and then 0xf
+// means nothing is there. The scratch register arrived with the 16450, the FIFO with the
+// 16550, and a FIFO that works with the 16550A. The port is left with interrupts and the
+// FIFO off, DLAB clear.
+enum pc_uart_type pc_uart_probe(uint16_t port) {
+    outp(port + UART_LCR, 0x03);
+    outp(port + UART_IER, 0);
+    if (inp(port + UART_IER) & 0x0f) {
+        return PC_UART_NONE;
+    }
+    outp(port + UART_IER, 0x0f);
+    const uint8_t ier = inp(port + UART_IER) & 0x0f;
+    outp(port + UART_IER, 0);
+    if (ier != 0x0f) {
+        return PC_UART_NONE;
+    }
+
+    outp(port + UART_SCR, 0x55);
+    const bool scr_55 = inp(port + UART_SCR) == 0x55;
+    outp(port + UART_SCR, 0xaa);
+    const bool scratch = scr_55 && inp(port + UART_SCR) == 0xaa;
+
+    outp(port + UART_IIR, 0x07); // enable and clear the FIFO, if there is one
+    const uint8_t fifo = inp(port + UART_IIR) & 0xc0;
+    outp(port + UART_IIR, 0);
+
+    if (fifo == 0xc0) {
+        return PC_UART_16550A;
+    }
+    if (fifo == 0x80) {
+        return PC_UART_16550; // FIFO present but unusable
+    }
+    return scratch ? PC_UART_16450 : PC_UART_8250;
+}
+
+// program the console uart; probes it first and leaves it alone if nothing answers
+static void uart_configure(uint16_t port) {
+    const enum pc_uart_type type = pc_uart_probe(port);
+
+    uart_io_port = port;
+    uart_present = (type != PC_UART_NONE);
+    uart_tx_fifo_depth = 1;
+    uart_tx_free = 0;
+    if (!uart_present) {
+        return;
+    }
+
     const int divisor = 115200 / uart_baud_rate;
 
-    /* get basic config done so that tx functions */
-    outp(uart_io_port + 1, 0);              // mask all irqs
-    outp(uart_io_port + 3, 0x80);           // set up to load divisor latch
-    outp(uart_io_port + 0, divisor & 0xff); // lsb
-    outp(uart_io_port + 1, divisor >> 8);   // msb
-    outp(uart_io_port + 3, 3);              // 8N1
-    outp(uart_io_port + 2, 0x07);           // enable FIFO, clear both, 1-byte rx threshold
-    outp(uart_io_port + 4, 0x3);            // drive flow control bits high
+    outp(port + UART_IER, 0);              // mask all irqs
+    outp(port + UART_LCR, 0x80);           // set up to load divisor latch
+    outp(port + UART_RBR, divisor & 0xff); // lsb
+    outp(port + UART_IER, divisor >> 8);   // msb
+    outp(port + UART_LCR, 3);              // 8N1
+    outp(port + UART_MCR, 0x3);            // drive flow control bits high
 
-    // a 16550A reports a working FIFO in IIR[7:6], an 8250 or 16550 does not
-    if ((inp(uart_io_port + 2) & 0xc0) == 0xc0) {
+    if (type == PC_UART_16550A) {
+        outp(port + UART_IIR, 0x07); // enable FIFO, clear both, 1-byte rx threshold
         uart_tx_fifo_depth = 16;
     }
+}
+
+void platform_init_debug_early(void) {
+    uart_configure(uart_io_port);
+}
+
+// pc.console=comN moves the console off DEBUG_COM_PORT once the command line is known
+static unsigned int console_com_port(void) {
+    char buf[8];
+    if (cmdline_get_string("pc.console", buf, sizeof(buf), NULL) == NO_ERROR) {
+        if (strlen(buf) == 4 && !strncmp(buf, "com", 3) && buf[3] >= '1' && buf[3] <= '4') {
+            return buf[3] - '0';
+        }
+        dprintf(ALWAYS, "PC: ignoring pc.console=%s, want com1-com4\n", buf);
+    }
+    return DEBUG_COM_PORT;
 }
 
 void platform_init_debug(void) {
     /* finish uart init to get rx going */
     cbuf_initialize(&console_input_buf, 1024);
 
-    register_int_handler(uart_irq, uart_irq_handler, NULL);
-    unmask_interrupt(uart_irq);
+    unsigned int com = console_com_port();
+    if (com != DEBUG_COM_PORT) {
+        if (pc_uart_probe(com_ports[com - 1]) == PC_UART_NONE) {
+            dprintf(ALWAYS, "PC: pc.console=com%u but no uart answers at %#x, staying on com%u\n",
+                    com, com_ports[com - 1], DEBUG_COM_PORT);
+            com = DEBUG_COM_PORT;
+        } else {
+            dprintf(INFO, "PC: console moving to com%u\n", com);
+            arch_interrupt_saved_state_t state = arch_interrupt_save();
+            spin_lock(&console_lock);
+            uart_configure(com_ports[com - 1]);
+            spin_unlock(&console_lock);
+            arch_interrupt_restore(state);
+        }
+    }
 
-    outp(uart_io_port + 1, 0x1); // enable receive data available interrupt
+    if (!uart_present) {
+        return;
+    }
+
+    register_int_handler(com_irq(com), uart_irq_handler, NULL);
+    unmask_interrupt(com_irq(com));
+
+    outp(uart_io_port + UART_IER, 0x1); // enable receive data available interrupt
 
     // modem control register: Auxiliary Output 2 is another IRQ enable bit
-    const uint8_t mcr = inp(uart_io_port + 4);
-    outp(uart_io_port + 4, mcr | 0x8);
+    const uint8_t mcr = inp(uart_io_port + UART_MCR);
+    outp(uart_io_port + UART_MCR, mcr | 0x8);
 }
 
 // console_lock held
 static void debug_uart_putc(char c) {
+    if (!uart_present) {
+        return;
+    }
     if (uart_tx_free == 0) {
-        while ((inp(uart_io_port + 5) & (1 << 5)) == 0); // THRE
+        while ((inp(uart_io_port + UART_LSR) & UART_LSR_THRE) == 0);
         uart_tx_free = uart_tx_fifo_depth;
     }
-    outp(uart_io_port + 0, c);
+    outp(uart_io_port + UART_RBR, c);
     uart_tx_free--;
 }
 
@@ -175,8 +290,11 @@ int platform_dgetc(char *c, bool wait) {
  * the console in. Input is polled since the panic shell runs with interrupts off.
  */
 static void panic_uart_putc(char c) {
-    while ((inp(uart_io_port + 5) & (1 << 5)) == 0); // THRE
-    outp(uart_io_port + 0, c);
+    if (!uart_present) {
+        return;
+    }
+    while ((inp(uart_io_port + UART_LSR) & UART_LSR_THRE) == 0);
+    outp(uart_io_port + UART_RBR, c);
 }
 
 void platform_pputc(char c) {
@@ -188,8 +306,8 @@ void platform_pputc(char c) {
 
 int platform_pgetc(char *c, bool wait) {
     do {
-        if (inp(uart_io_port + 5) & (1 << 0)) { // data ready
-            *c = inp(uart_io_port + 0);
+        if (uart_present && (inp(uart_io_port + UART_LSR) & UART_LSR_DR)) {
+            *c = inp(uart_io_port + UART_RBR);
             return 0;
         }
     } while (wait);

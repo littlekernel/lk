@@ -15,7 +15,6 @@
 #include <arch/x86/mmu.h>
 #include <assert.h>
 #include <dev/block/ide.h>
-#include <dev/uart.h>
 #include <hw/multiboot.h>
 #include <inttypes.h>
 #include <kernel/vm.h>

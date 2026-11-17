@@ -121,7 +121,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 - Move remaining uarts into dev/
     - private 16550s: alterasoc, mediatek mt6735/mt6797, pc/debug.c, qemu-mips, bcm28xx miniuart
-    - pc needs a port-I/O accessor in dwc8250; platform/pc/uart.c is #if 0, delete it
+    - pc needs a port-I/O accessor in dwc8250; pc/debug.c probes and identifies COM1-4 itself today
     - private pl011: bcm28xx, rp23xx (via pico sdk)
     - goldfish_tty (platform-local in qemu-virt-m68k)
 - MSI / MSI-X
