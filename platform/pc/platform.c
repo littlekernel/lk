@@ -592,6 +592,10 @@ void platform_init(void) {
     }
 #endif
 
+#if X86_LEGACY
+    pc_legacy_probe();
+#endif
+
     // Look for secondary cpus
 #if WITH_SMP
     platform_start_secondary_cpus();

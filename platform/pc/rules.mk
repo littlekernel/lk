@@ -36,6 +36,10 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/power.c \
     $(LOCAL_DIR)/timer.c \
 
+ifeq ($(CPU),legacy)
+MODULE_SRCS += $(LOCAL_DIR)/legacy.c
+endif
+
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 
 GLOBAL_DEFINES += \

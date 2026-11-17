@@ -39,6 +39,7 @@ static const uint16_t com_ports[4] = { COM1_REG, COM2_REG, COM3_REG, COM4_REG };
 
 // the console uart, DEBUG_COM_PORT until platform_init_debug() reads pc.console
 static uint16_t uart_io_port = com_ports[DEBUG_COM_PORT - 1];
+static enum pc_uart_type uart_type;
 static bool uart_present;
 
 static unsigned int com_irq(unsigned int com) {
@@ -146,6 +147,7 @@ static void uart_configure(uint16_t port) {
     const enum pc_uart_type type = pc_uart_probe(port);
 
     uart_io_port = port;
+    uart_type = type;
     uart_present = (type != PC_UART_NONE);
     uart_tx_fifo_depth = 1;
     uart_tx_free = 0;
@@ -166,6 +168,11 @@ static void uart_configure(uint16_t port) {
         outp(port + UART_IIR, 0x07); // enable FIFO, clear both, 1-byte rx threshold
         uart_tx_fifo_depth = 16;
     }
+}
+
+uint16_t pc_console_uart(enum pc_uart_type *type) {
+    *type = uart_type;
+    return uart_io_port;
 }
 
 void platform_init_debug_early(void) {

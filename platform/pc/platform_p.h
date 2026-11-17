@@ -25,6 +25,13 @@ enum pc_uart_type {
 };
 enum pc_uart_type pc_uart_probe(uint16_t port);
 const char *pc_uart_type_name(enum pc_uart_type type);
+// the console's port, which must not be probed again while it is in use
+uint16_t pc_console_uart(enum pc_uart_type *type);
+
+#if X86_LEGACY
+// legacy (ISA) device discovery from the BIOS data area, CMOS and port probes
+void pc_legacy_probe(void);
+#endif
 
 void platform_init_interrupts(void);
 void platform_init_interrupts_postvm(void);
