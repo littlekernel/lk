@@ -244,7 +244,7 @@ static int i8042_command(uint8_t *param, int command) {
     }
 
     if (!retval) {
-        for (i = 0; i < ((command & 0xf0) >> 8); i++) {
+        for (i = 0; i < ((command >> 8) & 0xf); i++) {
             if ((retval = i8042_wait_read())) {
                 break;
             }
