@@ -21,6 +21,8 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - SD/MMC stack [branch: sdmmc]
     - merge + push; then board GPT check, card-detect hotplug, erase/TRIM, SDIO, CQE
 - nRF54L15 + nrfx 3.14 roll [branch: nrfx-3.14-roll]
+- GICv3 ITS/LPI MSI, GICv2m in the GIC driver, PCI INTx from interrupt-map [branch: gicv3-its] [plan]
+    - rebuilds origin/wip/msi on master; delete that branch once this lands
 
 ## Planned (plan written, no code)
 
