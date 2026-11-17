@@ -330,9 +330,14 @@ static status_t arm_map_regs(const char *name, vaddr_t *vaddr, paddr_t paddr, si
         return ERR_INVALID_ARGS;
     }
 
+    // a frame can be smaller than a page (a 4K GICv2m frame with 16K/64K pages): map the pages
+    // around it
+    const paddr_t base = ROUNDDOWN(paddr, PAGE_SIZE);
+    const size_t len = ROUNDUP((paddr - base) + size, PAGE_SIZE);
+
     void *ptr;
-    status_t ret = vmm_alloc_physical(vmm_get_kernel_aspace(), "gic", size, &ptr, 0,
-                                      paddr, 0,
+    status_t ret = vmm_alloc_physical(vmm_get_kernel_aspace(), name, len, &ptr, 0,
+                                      base, 0,
                                       ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (ret != NO_ERROR) {
         panic("%s: failed %d\n", __func__, ret);
@@ -340,7 +345,7 @@ static status_t arm_map_regs(const char *name, vaddr_t *vaddr, paddr_t paddr, si
 
     DEBUG_ASSERT(ptr != NULL);
 
-    *vaddr = (vaddr_t)ptr;
+    *vaddr = (vaddr_t)ptr + (paddr - base);
 
     return ret;
 }
