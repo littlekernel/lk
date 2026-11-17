@@ -18,6 +18,7 @@ MODULE_DEPS += dev/bus/pci/drivers
 MODULE_DEPS += lib/acpi
 else
 # ISA devices, probed at their well known ports by legacy.c
+MODULE_DEPS += dev/block/floppy
 MODULE_DEPS += dev/block/ide
 endif
 

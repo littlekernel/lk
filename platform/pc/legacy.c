@@ -11,6 +11,7 @@
 // of each well known port decides what is really there. The hints are only reported;
 // a device counts as found when its probe answers.
 
+#include <dev/block/floppy.h>
 #include <dev/block/ide.h>
 #include <kernel/vm.h>
 #include <lk/compiler.h>
@@ -66,6 +67,14 @@ static const struct platform_ide_config ide_channels[] = {
     { .channel = 1, .io_base = 0x170, .ctrl_base = 0x376, .irq = INT_IDE1 },
 };
 static bool ide_found[countof(ide_channels)];
+
+// the AT's controller, with the drive types POST recorded in the CMOS
+static struct floppy_config fdc_config = {
+    .io_base = 0x3f0,
+    .irq = INT_FLOPPY,
+    .dma_channel = 2,
+};
+static bool fdc_found;
 
 static uint16_t bda_read16(const uint8_t *bda, uint off) {
     return (uint16_t)(bda[off] | (bda[off + 1] << 8));
@@ -154,6 +163,12 @@ static void print_report(void) {
         }
     }
 
+    if (fdc_found) {
+        printf("LEGACY: floppy controller at %#x irq 6 dma 2: A: %s, B: %s\n", fdc_config.io_base,
+               floppy_drive_type_name(fdc_config.drive_type[0]),
+               floppy_drive_type_name(fdc_config.drive_type[1]));
+    }
+
     printf("LEGACY: cmos floppy A: %s B: %s, hard disk types %#x/%#x, checksum %s\n",
            floppy_type_name(hints.cmos_floppy >> 4), floppy_type_name(hints.cmos_floppy & 0xf),
            hints.cmos_hd >> 4, hints.cmos_hd & 0xf, hints.cmos_checksum_ok ? "ok" : "BAD");
@@ -180,10 +195,17 @@ static void probe_ide(void) {
     }
 }
 
+static void probe_floppy(void) {
+    fdc_config.drive_type[0] = hints.cmos_floppy >> 4;
+    fdc_config.drive_type[1] = hints.cmos_floppy & 0xf;
+    fdc_found = floppy_init(&fdc_config) == NO_ERROR;
+}
+
 void pc_legacy_probe(void) {
     read_hints();
     probe_uarts();
     probe_ide();
+    probe_floppy();
     print_report();
 }
 

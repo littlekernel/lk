@@ -17,6 +17,7 @@ function HELP {
     echo
     echo "-A <cmd line>       : append command line (may be used multiple times)"
     echo "-d <disk image>     : add a disk: AHCI on q35, ISA IDE with -l (may be used multiple times)"
+    echo "-y <floppy image>   : attach a floppy image as drive A (legacy -l machine only)"
     echo "-g                  : with graphics (VGA display, keyboard, mouse)"
     echo "-n                  : enable user mode networking (default driver: e1000e)"
     echo "-N <network driver> : specify network driver (requires -n or -t, e.g., virtio-net-pci, e1000e)"
@@ -35,6 +36,7 @@ DO_LEGACY=0
 DO_GRAPHICS=0
 DO_KVM=0
 DISK_IMAGES=()
+FLOPPY_IMAGE=""
 CMDLINE=""
 DO_NET=0
 DO_NET_TAP=0
@@ -51,7 +53,7 @@ DO_UEFI=0
 MACHINE_OVERRIDE=""
 CPU_FEATURES=""
 
-while getopts A:6d:gF:f:klm:M:nN:s:tuhVX FLAG; do
+while getopts A:6d:gF:f:klm:M:nN:s:tuhVXy: FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         6) DO_64BIT=1;;
@@ -72,6 +74,7 @@ while getopts A:6d:gF:f:klm:M:nN:s:tuhVX FLAG; do
         s) SMP=$OPTARG;;
         V) DO_VIRTIO=1;;
         X) DO_DRYRUN=1;;
+        y) FLOPPY_IMAGE=$OPTARG;;
         h) HELP 0;;
         \?)
             echo unrecognized option $OPTARG
@@ -230,6 +233,14 @@ for img in "${DISK_IMAGES[@]}"; do
     append_disk_image "$img" "$DISK_COUNT"
     ((DISK_COUNT++))
 done
+
+if [[ -n "$FLOPPY_IMAGE" ]]; then
+    if (( ! DO_LEGACY )); then
+        echo "Error: -y (floppy) needs the legacy machine (-l)"
+        exit 1
+    fi
+    ARGS+=("-drive" "if=floppy,index=0,format=raw,file=${FLOPPY_IMAGE}")
+fi
 
 if (( DO_NET || DO_NET_TAP )); then
     if (( ! DO_LEGACY )); then
