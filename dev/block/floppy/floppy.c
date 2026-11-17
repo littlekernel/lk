@@ -399,19 +399,23 @@ static status_t detect_media(struct floppy_drive *drv) {
         err = fdc_seek(drv, 0, 0);
     }
     if (err != NO_ERROR) {
+        dprintf(INFO, "%s: drive did not recalibrate or seek: %d\n", drv->name, err);
         return err;
     }
     if (drv->type != FLOPPY_TYPE_360K && (inp(fdc->base + FDC_DIR) & DIR_DISK_CHANGE)) {
-        return ERR_NOT_READY; // no disk
+        dprintf(INFO, "%s: no disk (change line stays set)\n", drv->name);
+        return ERR_NOT_READY;
     }
 
     for (const struct floppy_format *const *fmt = drive_formats(drv->type); *fmt; fmt++) {
         fdc_set_rate(fdc, (*fmt)->rate);
-        if (fdc_read_id(drv, 0) == NO_ERROR) {
+        status_t id_err = fdc_read_id(drv, 0);
+        if (id_err == NO_ERROR) {
             set_media(drv, *fmt);
             dprintf(INFO, "%s: %s disk\n", drv->name, (*fmt)->name);
             return NO_ERROR;
         }
+        dprintf(INFO, "%s: not %s (rate %u): %d\n", drv->name, (*fmt)->name, (*fmt)->rate, id_err);
     }
     return ERR_NOT_READY;
 }
@@ -440,9 +444,11 @@ static status_t read_track(struct floppy_drive *drv, uint cyl, uint head, uint s
     uint8_t res[7];
     err = fdc_run_rw(fdc, cmd, sizeof(cmd), res);
     isa_dma_stop(fdc->dma_channel);
-    if (err != NO_ERROR) {
-        LTRACEF("%s: read c%u h%u s%u n%u failed: %d, st %#x %#x %#x\n", drv->name, cyl, head,
-                sector, count, err, res[0], res[1], res[2]);
+    if (err == ERR_IO) {
+        dprintf(INFO, "%s: read c%u h%u s%u n%u at rate %u: st0 %#x st1 %#x st2 %#x\n", drv->name,
+                cyl, head, sector, count, fmt->rate, res[0], res[1], res[2]);
+    } else if (err != NO_ERROR) {
+        dprintf(INFO, "%s: read c%u h%u s%u n%u: %d\n", drv->name, cyl, head, sector, count, err);
     }
     return err;
 }
@@ -499,10 +505,9 @@ out:
     return ret;
 }
 
+// called on a freshly reset controller, so whatever the firmware left half done can't
+// get in the way
 static bool fdc_present(struct fdc *fdc) {
-    if (inp(fdc->base + FDC_MSR) == 0xff) {
-        return false;
-    }
     // a 765/8272 answers VERSION as an invalid command (0x80), an 82077 with 0x90
     const uint8_t cmd = CMD_VERSION;
     uint8_t version;
@@ -533,7 +538,7 @@ status_t floppy_init(const struct floppy_config *config) {
     spin_lock_init(&fdc->dor_lock);
     timer_initialize(&fdc->motor_timer);
 
-    if (!fdc_present(fdc)) {
+    if (inp(fdc->base + FDC_MSR) == 0xff) {
         fdc->base = 0;
         return ERR_NOT_FOUND;
     }
@@ -545,21 +550,28 @@ status_t floppy_init(const struct floppy_config *config) {
         return ERR_NO_MEMORY;
     }
     fdc->bounce = paddr_to_kvaddr(fdc->bounce_pa);
+
+    status_t err = NO_ERROR;
     if (!fdc->bounce || !isa_dma_range_ok(fdc->bounce_pa, FDC_BOUNCE_PAGES * PAGE_SIZE)) {
         dprintf(INFO, "floppy: bounce buffer at %#lx is out of ISA DMA reach\n",
                 (ulong)fdc->bounce_pa);
-        pmm_free(&pages);
-        fdc->base = 0;
-        return ERR_NO_MEMORY;
+        err = ERR_NO_MEMORY;
+        goto fail;
     }
 
     register_int_handler(fdc->irq, fdc_irq, fdc);
     unmask_interrupt(fdc->irq);
 
+    // the reset interrupt arriving is itself evidence of a controller
     if (fdc_reset(fdc) != NO_ERROR) {
-        dprintf(INFO, "floppy: controller at %#x did not come out of reset\n", fdc->base);
-        mask_interrupt(fdc->irq);
-        return ERR_NOT_FOUND;
+        dprintf(INFO, "floppy: no reset interrupt from a controller at %#x\n", fdc->base);
+        err = ERR_NOT_FOUND;
+        goto fail_irq;
+    }
+    if (!fdc_present(fdc)) {
+        dprintf(INFO, "floppy: controller at %#x does not take commands\n", fdc->base);
+        err = ERR_NOT_FOUND;
+        goto fail_irq;
     }
 
     for (uint i = 0; i < 2; i++) {
@@ -584,4 +596,12 @@ status_t floppy_init(const struct floppy_config *config) {
     }
 
     return NO_ERROR;
+
+fail_irq:
+    mask_interrupt(fdc->irq);
+    register_int_handler(fdc->irq, NULL, NULL);
+fail:
+    pmm_free(&pages);
+    fdc->base = 0;
+    return err;
 }
