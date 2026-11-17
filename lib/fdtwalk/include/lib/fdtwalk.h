@@ -18,6 +18,17 @@ __BEGIN_CDECLS
  */
 
 #define FDT_WALK_PCIE_MAX_INTX_MAP 32
+#define FDT_WALK_PCIE_MAX_MSI_MAP 8
+
+// One msi-map entry of a pcie node: requester ids rid_base..rid_base+length-1 (after the
+// msi-map-mask) reach the MSI controller with the given phandle as device ids starting at
+// msi_base. An msi-parent property is recorded as a single identity entry.
+struct fdt_walk_pcie_msi_map_entry {
+    uint32_t rid_base;
+    uint32_t controller_phandle;
+    uint32_t msi_base;
+    uint32_t length;
+};
 
 // One interrupt-map entry of a pcie node: the child unit address (phys.hi, phys.mid, phys.lo)
 // and pin it matches, as written, and the parent interrupt decoded to a platform vector.
@@ -53,6 +64,11 @@ struct fdt_walk_pcie_info {
     uint32_t intx_map_mask[4];
     size_t intx_map_count;
     struct fdt_walk_pcie_intx_map_entry intx_map[FDT_WALK_PCIE_MAX_INTX_MAP];
+
+    // msi-map, or msi-parent as one entry; msi_map_count is 0 when the node has neither
+    uint32_t msi_map_mask;
+    size_t msi_map_count;
+    struct fdt_walk_pcie_msi_map_entry msi_map[FDT_WALK_PCIE_MAX_MSI_MAP];
 };
 
 struct fdt_walk_memory_region {
@@ -131,6 +147,11 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *, s
 // as it arrives at the host bridge. ERR_NOT_FOUND when nothing in the map matches.
 status_t fdt_walk_pcie_lookup_intx(const struct fdt_walk_pcie_info *info, uint8_t bus, uint8_t dev,
                                    uint8_t fn, uint8_t pin, uint32_t *vector);
+// Look up which MSI controller (by phandle) a requester id (bus << 8 | dev << 3 | fn) of a pcie
+// node reaches, and the device id it arrives with. ERR_NOT_FOUND when the node has no msi-map or
+// msi-parent, or the map does not cover the id.
+status_t fdt_walk_pcie_lookup_msi(const struct fdt_walk_pcie_info *info, uint16_t requester_id,
+                                  uint32_t *controller_phandle, uint32_t *device_id);
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *, size_t *count);
 status_t fdt_walk_find_memory(const void *fdt, struct fdt_walk_memory_region *memory, size_t *mem_count,
                               struct fdt_walk_memory_region *reserved_memory, size_t *reserved_mem_count);

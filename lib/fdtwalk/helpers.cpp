@@ -414,6 +414,11 @@ status_t fdtwalk_setup_pci(const void *fdt) {
             dprintf(INFO, "PCIE: segment %u routes INTx through its interrupt-map (%zu entries)\n",
                     segment, info->intx_map_count);
         }
+        for (size_t j = 0; j < info->msi_map_count; j++) {
+            const auto &m = info->msi_map[j];
+            dprintf(INFO, "PCIE: segment %u msi-map rid %#x..%#x -> phandle %#x device id %#x\n",
+                    segment, m.rid_base, m.rid_base + m.length - 1, m.controller_phandle, m.msi_base);
+        }
         err = pci_bus_mgr_add_root(&desc);
         if (err != NO_ERROR) {
             printf("PCIE: failed to add root for segment %u, error %d\n", segment, err);

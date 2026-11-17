@@ -204,6 +204,58 @@ void parse_pcie_interrupt_map(const void *fdt, int offset, uint32_t child_addres
     }
 }
 
+// Decode a pcie node's msi-map (entries of rid-base, phandle, msi-base, length: always four
+// cells, the way Linux's of_map_id reads them whatever the controller's #msi-cells) and
+// msi-map-mask, or else its msi-parent.
+void parse_pcie_msi_map(const void *fdt, int offset, const char *name, fdt_walk_pcie_info *info) {
+    info->msi_map_mask = read_u32_prop(fdt, offset, "msi-map-mask", UINT32_MAX);
+
+    int len;
+    const auto *map = static_cast<const fdt32_t *>(fdt_getprop(fdt, offset, "msi-map", &len));
+    if (map) {
+        constexpr size_t entry_cells = 4;
+        const size_t ncells = static_cast<size_t>(len) / sizeof(fdt32_t);
+        if (ncells % entry_cells != 0) {
+            printf("FDT: %s: msi-map is %d bytes, not whole entries; ignoring it\n", name, len);
+            return;
+        }
+        for (size_t i = 0; i < ncells; i += entry_cells) {
+            if (info->msi_map_count == countof(info->msi_map)) {
+                printf("FDT: %s: msi-map has more than %zu entries, using the first %zu\n", name,
+                       countof(info->msi_map), countof(info->msi_map));
+                return;
+            }
+            info->msi_map[info->msi_map_count++] = {
+                .rid_base = fdt32_ld(&map[i]),
+                .controller_phandle = fdt32_ld(&map[i + 1]),
+                .msi_base = fdt32_ld(&map[i + 2]),
+                .length = fdt32_ld(&map[i + 3]),
+            };
+        }
+        return;
+    }
+
+    // msi-parent is a phandle and the controller's #msi-cells of specifier; with no specifier
+    // the device id is the requester id
+    const auto *parent = static_cast<const fdt32_t *>(fdt_getprop(fdt, offset, "msi-parent", &len));
+    if (parent && len >= 4) {
+        const uint32_t phandle = fdt32_ld(parent);
+        const int ctrl = fdt_node_offset_by_phandle(fdt, phandle);
+        const uint32_t msi_cells = ctrl >= 0 ? read_u32_prop(fdt, ctrl, "#msi-cells", 0) : 0;
+        if (msi_cells > 1 || static_cast<size_t>(len) < (1 + msi_cells) * sizeof(fdt32_t)) {
+            printf("FDT: %s: msi-parent with %u specifier cells, ignoring it\n", name, msi_cells);
+            return;
+        }
+        info->msi_map_mask = UINT32_MAX;
+        info->msi_map[info->msi_map_count++] = {
+            .rid_base = 0,
+            .controller_phandle = phandle,
+            .msi_base = msi_cells ? fdt32_ld(&parent[1]) : 0,
+            .length = 0x10000,
+        };
+    }
+}
+
 struct pci_ranges_entry {
     uint32_t type; // space code from phys.hi [25:24], shifted in place
     bool prefetchable; // phys.hi bit 30
@@ -722,6 +774,7 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
 
             parse_pcie_interrupt_map(state.fdt, state.offset, state.node_address_cell(), name,
                                      &info[*count]);
+            parse_pcie_msi_map(state.fdt, state.offset, name, &info[*count]);
 
             (*count)++;
         }
@@ -748,6 +801,20 @@ status_t fdt_walk_pcie_lookup_intx(const struct fdt_walk_pcie_info *info, uint8_
         }
         if (match) {
             *vector = entry.vector;
+            return NO_ERROR;
+        }
+    }
+    return ERR_NOT_FOUND;
+}
+
+status_t fdt_walk_pcie_lookup_msi(const struct fdt_walk_pcie_info *info, uint16_t requester_id,
+                                  uint32_t *controller_phandle, uint32_t *device_id) {
+    const uint32_t rid = requester_id & info->msi_map_mask;
+    for (size_t i = 0; i < info->msi_map_count; i++) {
+        const auto &entry = info->msi_map[i];
+        if (rid >= entry.rid_base && rid - entry.rid_base < entry.length) {
+            *controller_phandle = entry.controller_phandle;
+            *device_id = entry.msi_base + (rid - entry.rid_base);
             return NO_ERROR;
         }
     }
