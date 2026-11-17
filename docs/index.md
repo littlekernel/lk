@@ -27,6 +27,8 @@ documents in the tree.
 ## Booting, networking and debugging
 
 - [Booting via UEFI (x86-64)](uefi_boot.md) - the in-kernel EFI stub, tested with QEMU and OVMF
+- [Legacy PCs (386 and 486)](legacy_pc.md) - the `CPU=legacy` build: ISA device probing,
+  serial, IDE and floppy, x87 handling, QEMU and real hardware bring-up
 - [UEFI loader](../lib/uefi/README.md) - `lib/uefi`, which loads and runs UEFI applications
   from LK: running it and its regression tests
 - [GDB Debug Support for GBL](gdb_debug_support_for_gbl.md) - debugging GBL through the UEFI
