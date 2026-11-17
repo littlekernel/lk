@@ -177,7 +177,7 @@ static void gicv3_gicr_power_off(uint32_t cpu) {}
 
 static void arm_gicv3_wait_for_gicr_write_complete(uint cpu) {
     /* wait until write complete */
-    while (gicr_read(0, cpu, GICR_CTRL) & (1 << 31)) { // GICR_CTLR.RWP
+    while (gicr_read(0, cpu, GICR_CTRL) & (1u << 31)) { // GICR_CTLR.RWP
     }
 }
 static void gicv3_gicr_init(void) {
