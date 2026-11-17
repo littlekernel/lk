@@ -114,6 +114,8 @@ protected:
     bus *parent_bus() const { return bus_; }
 
 private:
+    void unmap_msix();
+
     pci_location_t loc_ = {};
     bus *bus_ = nullptr;
 

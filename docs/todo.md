@@ -214,6 +214,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~MSI-X refuses unassigned or unreachable BARs, masks the table while rewriting it, maps with sub-page BAR alignment~~
 - ~~do-qemuriscv -N takes its argument~~
 - ~~virtio-net uses the 12 byte header on modern (VERSION_1) transports, so virtio-net-pci works~~
 - ~~qemu-virt-arm MSI only with a GICv2m frame from the FDT (GICv3 falls back to INTx), vector bitmap within MAX_INT~~

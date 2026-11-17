@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <dev/bus/pci.h>
+#include <inttypes.h>
 #include <lk/cpp.h>
 #include <lk/debug.h>
 #include <lk/err.h>
@@ -43,6 +44,8 @@ device::device(pci_location_t loc, bus *bus) : loc_(loc), bus_(bus) {}
 
 device::~device() {
     LTRACE;
+
+    unmap_msix();
 
     capability *cap;
     while ((cap = list_remove_head_type(&capability_list_, capability, node))) {
@@ -422,6 +425,11 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
 
     DEBUG_ASSERT(msix_cap_ && msix_cap_->is_msix());
 
+    // the table stays mapped once allocated; there is no way to free the vector to redo it
+    if (msix_table_ptr) {
+        return ERR_ALREADY_EXISTS;
+    }
+
     // program it into the capability
     const uint16_t cap_offset = msix_cap_->config_offset;
 
@@ -475,15 +483,31 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
             return ERR_INVALID_ARGS;
         }
         const auto &bar = bars_[map.bar];
-        if (!bar.valid || bar.io || map.offset + map.length > bar.size) {
+        // addr 0: the BAR was never assigned (allocation failed or nothing to assign it from)
+        if (!bar.valid || bar.io || bar.addr == 0 ||
+            map.length > bar.size || map.offset > bar.size - map.length) {
             printf("msi-x: structure at %#zx len %#zx does not fit BAR %u\n",
                    map.offset, map.length, map.bar);
             return ERR_INVALID_ARGS;
         }
+
+        // the structure has to be addressable: by paddr_t to map it, by pointer without a VM
 #if WITH_KERNEL_VM
-        paddr_t base = ROUNDDOWN(map.offset, PAGE_SIZE);
-        size_t length = ROUNDUP(map.length + map.offset - base, PAGE_SIZE);
-        base += bar.addr;
+        const uint64_t addr_max = static_cast<paddr_t>(-1);
+#else
+        const uint64_t addr_max = UINTPTR_MAX;
+#endif
+        const uint64_t addr = bar.addr + map.offset;
+        if (addr > addr_max || map.length - 1 > addr_max - addr) {
+            printf("msi-x: structure at %#" PRIx64 " is out of reach\n", addr);
+            return ERR_NO_MEMORY;
+        }
+
+#if WITH_KERNEL_VM
+        // the BAR itself need not be page aligned (a 4K BAR with 16K/64K pages)
+        const paddr_t paddr = static_cast<paddr_t>(addr);
+        const paddr_t base = ROUNDDOWN(paddr, PAGE_SIZE);
+        const size_t length = ROUNDUP((paddr - base) + map.length, PAGE_SIZE);
 
         status_t map_err = vmm_alloc_physical(vmm_get_kernel_aspace(), "pci msix var", length,
                                               map_base, 0, base, /* vmm_flags */ 0,
@@ -495,31 +519,15 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
             return map_err;
         }
         LTRACEF("msi-x bar mapped at %p\n", *map_base);
-        *ptr = (volatile uint32_t *)((uintptr_t)*map_base + (map.offset - ROUNDDOWN(map.offset, PAGE_SIZE)));
+        *ptr = (volatile uint32_t *)((uintptr_t)*map_base + (paddr - base));
 #else
         // no need to map, it's already available at the physical address
-        if (sizeof(void *) < 8 && (bar.addr + bar.size) > UINT32_MAX) {
-            TRACEF("aborting due to 64bit BAR on 32bit arch\n");
-            return ERR_NO_MEMORY;
-        }
-        *ptr = (volatile uint32_t *)(uintptr_t)(bar.addr + map.offset);
+        *ptr = (volatile uint32_t *)(uintptr_t)addr;
 #endif
         return NO_ERROR;
     };
 
-    auto unmap = [this]() {
-#if WITH_KERNEL_VM
-        if (msix_table_map) {
-            vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)msix_table_map);
-        }
-        if (msix_pba_map) {
-            vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)msix_pba_map);
-        }
-#endif
-        msix_table_map = msix_pba_map = nullptr;
-        msix_table_ptr = msix_pba_ptr = nullptr;
-    };
-    auto unmap_on_error = lk::make_auto_call(unmap);
+    auto unmap_on_error = lk::make_auto_call([this]() { unmap_msix(); });
 
     err = map_it(table_map, &msix_table_map, &msix_table_ptr, false);
     if (err != NO_ERROR) {
@@ -548,15 +556,20 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
         return err;
     }
 
-    // Mask all of the vectors
+    // Firmware may have left MSI-X enabled with live entries: hold every vector off with the
+    // function mask while the table is rewritten, and mask each entry before touching it.
+    constexpr uint16_t MSIX_ENABLE = 1 << 15;
+    constexpr uint16_t MSIX_FUNCTION_MASK = 1 << 14;
+    pci_write_config_half(loc(), cap_offset + 2, control | MSIX_ENABLE | MSIX_FUNCTION_MASK);
+
     for (size_t i = 0; i < table_count; i++) {
+        msix_table_ptr[i * 4 + 3] = 1; // masked
         msix_table_ptr[i * 4] = 0;
         msix_table_ptr[i * 4 + 1] = 0;
         msix_table_ptr[i * 4 + 2] = 0;
-        msix_table_ptr[i * 4 + 3] = 1; // masked
     }
 
-    // write the requested vectors
+    // write the requested vectors, unmasking each once its message is in place
     for (size_t i = 0; i < num_requested; i++) {
         msix_table_ptr[i * 4] = msi_address;
         msix_table_ptr[i * 4 + 1] = msi_address >> 32;
@@ -564,9 +577,7 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
         msix_table_ptr[i * 4 + 3] = 0; // not masked
     }
 
-    // set up the control register and enable it
-    control = (control & ~(1 << 14)) | (1 << 15); // MSI-X enable, function mask clear
-    pci_write_config_half(loc(), cap_offset + 2, control);
+    pci_write_config_half(loc(), cap_offset + 2, (control | MSIX_ENABLE) & ~MSIX_FUNCTION_MASK);
 
     // write it back to the pci config in the interrupt line offset
     pci_write_config_byte(loc(), PCI_CONFIG_INTERRUPT_LINE, vector_base);
@@ -576,6 +587,19 @@ status_t device::allocate_msix(size_t num_requested, uint *msi_base) {
 
     unmap_on_error.cancel();
     return NO_ERROR;
+}
+
+void device::unmap_msix() {
+#if WITH_KERNEL_VM
+    if (msix_table_map) {
+        vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)msix_table_map);
+    }
+    if (msix_pba_map) {
+        vmm_free_region(vmm_get_kernel_aspace(), (vaddr_t)msix_pba_map);
+    }
+#endif
+    msix_table_map = msix_pba_map = nullptr;
+    msix_table_ptr = msix_pba_ptr = nullptr;
 }
 
 // Compute a bar's size from the value read back after writing all 1s to it. The size is the
