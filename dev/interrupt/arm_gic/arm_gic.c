@@ -94,6 +94,8 @@ static status_t arm_gic_set_priority_locked(u_int irq, uint8_t priority);
 void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     struct int_handler_struct *h;
     uint cpu = arch_curr_cpu_num();
+    int_handler evicted_handler = NULL;
+    void *evicted_arg = NULL;
 
     if (vector >= MAX_INT) {
         panic("register_int_handler: vector out of range %d\n", vector);
@@ -107,9 +109,9 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
         }
         h = get_int_handler(vector, cpu);
         // one handler per vector: a second one (two INTx devices on one line) evicts the first
-        if (h->handler && (h->handler != handler || h->arg != arg)) {
-            printf("GIC: vector %u already has handler %p arg %p, replacing it with %p arg %p\n",
-                   vector, h->handler, h->arg, handler, arg);
+        if (handler && h->handler && (h->handler != handler || h->arg != arg)) {
+            evicted_handler = h->handler;
+            evicted_arg = h->arg;
         }
         h->handler = handler;
         h->arg = arg;
@@ -133,6 +135,11 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     }
 
     spin_unlock_irqrestore(&gicd_lock, state);
+
+    if (evicted_handler) {
+        printf("GIC: vector %u already had handler %p arg %p, replaced it with %p arg %p\n",
+               vector, evicted_handler, evicted_arg, handler, arg);
+    }
 }
 
 void register_int_handler_msi(unsigned int vector, int_handler handler, void *arg, bool edge) {

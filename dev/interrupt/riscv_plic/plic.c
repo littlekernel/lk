@@ -148,7 +148,7 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     DEBUG_ASSERT(vector < num_irqs);
 
     // one handler per vector: a second one (two INTx devices on one line) evicts the first
-    if (handlers[vector].handler &&
+    if (handler && handlers[vector].handler &&
         (handlers[vector].handler != handler || handlers[vector].arg != arg)) {
         printf("PLIC: vector %u already has handler %p arg %p, replacing it with %p arg %p\n",
                vector, handlers[vector].handler, handlers[vector].arg, handler, arg);
