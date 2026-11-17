@@ -419,7 +419,7 @@ void platform_init_interrupts(void) {
     // - only [INT_DYNAMIC_START, INT_DYNAMIC_END] is up for grabs by the vector allocator
     //   (MSI and PCI INTx); everything else is fixed-purpose and marked allocated
     for (int i = 0; i < INT_VECTORS; i++) {
-        if (i >= INT_PIC1_BASE && i <= INT_PIC2_BASE + 8) {
+        if (i >= INT_PIC1_BASE && i < INT_PIC2_BASE + 8) {
             int_table[i].flags.type = INTC_TYPE_PIC;
         }
         if (i >= INT_DYNAMIC_START && i <= INT_DYNAMIC_END) {
@@ -500,6 +500,10 @@ enum handler_return platform_irq(x86_iframe_t *frame) {
     DEBUG_ASSERT(vector >= 0x20);
 
     struct int_vector *handler = &int_table[vector];
+
+    if (handler->flags.type == INTC_TYPE_PIC && pic_is_spurious(vector)) {
+        return INT_NO_RESCHEDULE;
+    }
 
     // edge triggered interrupts are acked up front: the edge was already consumed, and acking
     // early lets a new edge that arrives while the handler runs be delivered rather than lost
