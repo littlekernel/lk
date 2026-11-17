@@ -67,6 +67,13 @@ struct arm_gic_init_info {
         paddr_t paddr;
         size_t size;
     } v2m[ARM_GIC_MAX_MSI_FRAMES];
+
+    // GICv3 ITSes; the first one is used (arm64 only)
+    size_t its_count;
+    struct {
+        paddr_t paddr;
+        size_t size;
+    } its[ARM_GIC_MAX_MSI_FRAMES];
 };
 
 /**

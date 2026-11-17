@@ -45,6 +45,7 @@
 #include "gic_v2.h"
 #include "gic_v2m.h"
 #include "gic_v3.h"
+#include "gic_v3_lpi.h"
 
 // Common routines shared between GICv2 and GICv3/v4 implementations.
 // Acts as a shim layer between the generic arm_gic interface and the
@@ -97,6 +98,21 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     uint cpu = arch_curr_cpu_num();
     int_handler evicted_handler = NULL;
     void *evicted_arg = NULL;
+
+#if ARCH_ARM64
+    if (vector >= GIC_LPI_BASE) {
+        // an LPI: its slot exists once it is allocated, there is nothing to configure here
+        h = arm_gicv3_lpi_handler(vector);
+        if (!h) {
+            panic("register_int_handler: LPI %u is not allocated\n", vector);
+        }
+        arch_interrupt_saved_state_t state = spin_lock_irqsave(&gicd_lock);
+        h->handler = handler;
+        h->arg = arg;
+        spin_unlock_irqrestore(&gicd_lock, state);
+        return;
+    }
+#endif
 
     if (vector >= MAX_INT) {
         panic("register_int_handler: vector out of range %d\n", vector);
@@ -367,6 +383,7 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
     if (init_info->gic_revision > 2) {
         arm_map_regs("gicr", &arm_gics[0].gicr_vaddr, init_info->gicr_paddr,
                      init_info->gicr_size);
+        arm_gics[0].gicr_paddr = init_info->gicr_paddr;
         arm_gics[0].gicr_size = init_info->gicr_size;
         TRACEF("GICR mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicr_vaddr);
     } else {
@@ -383,6 +400,17 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
     }
 
     arm_gic_init_hw();
+
+#if ARCH_ARM64
+    // LPIs only come through an ITS, so they are set up only when there is one. The boot
+    // cpu's per-cpu init has already run, so enable them on it here; secondaries do it from
+    // their own per-cpu init.
+    if (init_info->gic_revision > 2 && init_info->its_count > 0) {
+        if (arm_gicv3_lpi_init() == NO_ERROR) {
+            arm_gicv3_lpi_init_percpu(arch_curr_cpu_num());
+        }
+    }
+#endif
 }
 
 status_t arm_gic_msi_alloc(paddr_t ctrl_paddr, uint32_t device_id, unsigned int *vector,
@@ -448,7 +476,24 @@ status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask) {
     return NO_ERROR;
 }
 
+#if ARCH_ARM64
+// An LPI is masked through its property table entry, which only takes effect once the ITS
+// that delivers it invalidates the redistributor's copy.
+static status_t lpi_set_masked(unsigned int vector, bool masked) {
+    if (!arm_gicv3_lpi_handler(vector)) {
+        return ERR_INVALID_ARGS;
+    }
+    arm_gicv3_lpi_set_enable(vector, !masked);
+    return NO_ERROR;
+}
+#endif
+
 status_t mask_interrupt(unsigned int vector) {
+#if ARCH_ARM64
+    if (vector >= GIC_LPI_BASE) {
+        return lpi_set_masked(vector, true);
+    }
+#endif
     if (vector >= MAX_INT) {
         return ERR_INVALID_ARGS;
     }
@@ -463,6 +508,11 @@ status_t mask_interrupt(unsigned int vector) {
 }
 
 status_t unmask_interrupt(unsigned int vector) {
+#if ARCH_ARM64
+    if (vector >= GIC_LPI_BASE) {
+        return lpi_set_masked(vector, false);
+    }
+#endif
     if (vector >= MAX_INT) {
         return ERR_INVALID_ARGS;
     }

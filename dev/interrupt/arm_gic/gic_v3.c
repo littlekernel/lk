@@ -38,6 +38,7 @@
 
 #include "arm_gic_common.h"
 #include "gic_v3.h"
+#include "gic_v3_lpi.h"
 
 #define WAKER_QSC_BIT (0x1u << 31)
 #define WAKER_CA_BIT  (0x1u << 2)
@@ -332,7 +333,8 @@ void arm_gicv3_init(void) {
         gicv3_gicd_ctrl_write(gicd_read(0, GICD_CTLR) |
                               (GICD_CTLR_ENABLE_G0 | GICD_CTLR_ENABLE_G1NS | GICD_CTLR_ARE_S));
     } else {
-        // TODO: is there a reasonable other solution here?
+        // with a single security state bit 4 is ARE; QEMU and KVM have it RAO, set it anyway
+        gicv3_gicd_ctrl_write(gicd_read(0, GICD_CTLR) | GICD_CTLR_ARE_S);
     }
 
     /* Enable selected group */
@@ -363,6 +365,12 @@ void arm_gicv3_init_percpu(void) {
     } else {
         GICCREG_WRITE(0, icc_igrpen1_el1, 1);
     }
+
+#if ARCH_ARM64
+    // LPIs, once they are set up: the boot cpu gets them from arm_gic_init_map, which runs
+    // this hook before setting them up, secondaries here
+    arm_gicv3_lpi_init_percpu(arch_curr_cpu_num());
+#endif
 }
 
 void arm_gicv3_configure_irq_locked(unsigned int cpu, unsigned int vector) {
@@ -472,10 +480,11 @@ enum handler_return arm_gicv3_platform_irq(struct iframe *frame) {
     // get the current vector
     uint32_t iar = GICCREG_READ(0, GICC_PRIMARY_IAR);
 
-    // TODO: deal with extended interrupt IDs
-    unsigned int vector = iar & 0x3ff;
+    // INTID is [23:0]: SGIs, PPIs and SPIs below 1020, 1020..1023 special (spurious), LPIs from
+    // 8192. Extended SPI/PPI ranges are not handled.
+    unsigned int vector = iar & 0xffffff;
 
-    if (vector >= 1020) {
+    if (vector >= 1020 && vector < GIC_LPI_BASE) {
         // spurious or other unhandlable interrupt
         return INT_NO_RESCHEDULE;
     }
@@ -492,8 +501,16 @@ enum handler_return arm_gicv3_platform_irq(struct iframe *frame) {
     enum handler_return ret;
 
     ret = INT_NO_RESCHEDULE;
-    struct int_handler_struct *handler = get_int_handler(vector, cpu);
-    if (handler->handler) {
+    struct int_handler_struct *handler;
+#if ARCH_ARM64
+    if (vector >= GIC_LPI_BASE) {
+        handler = arm_gicv3_lpi_handler(vector);
+    } else
+#endif
+    {
+        handler = get_int_handler(vector, cpu);
+    }
+    if (handler && handler->handler) {
         ret = handler->handler(handler->arg);
     }
 
