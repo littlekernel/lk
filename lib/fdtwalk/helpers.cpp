@@ -320,7 +320,7 @@ status_t fdtwalk_setup_pci(const void *fdt) {
         }
 
         // describe the root to the bus manager, with the windows it can hand out
-        struct pci_root_window windows[3];
+        struct pci_root_window windows[5];
         size_t num_windows = 0;
         if (info->io_len > 0) {
             // we can only deal with a mapping of io base 0 to the mmio base
@@ -342,6 +342,15 @@ status_t fdtwalk_setup_pci(const void *fdt) {
                 .prefetchable = false,
             };
         }
+        if (info->mmio_prefetch_len > 0) {
+            windows[num_windows++] = (struct pci_root_window){
+                .type = PCI_RESOURCE_MMIO_RANGE,
+                .base = info->mmio_prefetch_base,
+                .size = info->mmio_prefetch_len,
+                .translation_offset = 0,
+                .prefetchable = true,
+            };
+        }
         if (sizeof(void *) >= 8 && info->mmio64_len > 0) {
             windows[num_windows++] = (struct pci_root_window){
                 .type = PCI_RESOURCE_MMIO64_RANGE,
@@ -351,6 +360,16 @@ status_t fdtwalk_setup_pci(const void *fdt) {
                 .prefetchable = false,
             };
         }
+        if (sizeof(void *) >= 8 && info->mmio64_prefetch_len > 0) {
+            windows[num_windows++] = (struct pci_root_window){
+                .type = PCI_RESOURCE_MMIO64_RANGE,
+                .base = info->mmio64_prefetch_base,
+                .size = info->mmio64_prefetch_len,
+                .translation_offset = 0,
+                .prefetchable = true,
+            };
+        }
+        DEBUG_ASSERT(num_windows <= countof(windows));
 
         struct pci_root_desc desc = {
             .segment = segment,

@@ -32,6 +32,12 @@ struct fdt_walk_pcie_info {
     uint64_t mmio_len;
     uint64_t mmio64_base;
     uint64_t mmio64_len;
+
+    // prefetchable mmio apertures, 0 length when the node has none
+    uint64_t mmio_prefetch_base;
+    uint64_t mmio_prefetch_len;
+    uint64_t mmio64_prefetch_base;
+    uint64_t mmio64_prefetch_len;
 };
 
 struct fdt_walk_memory_region {
