@@ -129,6 +129,15 @@ class QEMUTestRunner:
                 'args': '-6 -M pc -s4',
                 'timeout': 90
             },
+            # the CPU=legacy build (i386, uniprocessor, PIT, 8259, no PCI or
+            # ACPI) on the ISA-only machine with a 486. poweroff does not exit
+            # qemu there (no PM port), which is fine: the run ends on the
+            # result line. 16MB, since the kernel alone ends near 3MB.
+            'x86-legacy': {
+                'script': 'do-qemux86',
+                'args': '-l -m 16',
+                'timeout': 90
+            },
             # same kernel booted through OVMF via the EFI stub; the extra
             # timeout headroom covers the firmware and EFI shell startup delay
             'x86-64-uefi': {
@@ -429,7 +438,7 @@ def main():
                                           'arm-m33', 'arm-m55', 'm68k', 'riscv32', 'riscv32-sv32', 'riscv64',
                                           'riscv64-nosvvptc', 'riscv64-sv39',
                                           'x86', 'x86-64', 'x86-i440fx', 'x86-64-i440fx',
-                                          'x86-64-uefi', 'x86-64-xapic'], action='append',
+                                          'x86-64-uefi', 'x86-64-xapic', 'x86-legacy'], action='append',
                        help='Architecture to test (can be specified multiple times)')
     parser.add_argument('--lk-root', default='.',
                        help='Path to LK root directory (default: current directory)')

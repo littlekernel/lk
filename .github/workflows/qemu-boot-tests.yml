@@ -40,6 +40,7 @@ jobs:
           - riscv64
           - x86
           - x86-64
+          - x86-legacy
         toolchain-ver: [15.2.0]
 
     env:
@@ -76,7 +77,7 @@ jobs:
             m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
             riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
             riscv64) TOOLCHAIN_PREFIX="riscv64-elf-" ;;
-            x86) TOOLCHAIN_PREFIX="i386-elf-" ;;
+            x86|x86-legacy) TOOLCHAIN_PREFIX="i386-elf-" ;;
             x86-64) TOOLCHAIN_PREFIX="x86_64-elf-" ;;
             *) echo "Unknown architecture: ${{ matrix.arch }}" && exit 1 ;;
         esac

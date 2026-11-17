@@ -23,6 +23,9 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - nRF54L15 + nrfx 3.14 roll [branch: nrfx-3.14-roll]
 - GICv3 ITS/LPI MSI, GICv2m in the GIC driver, PCI INTx from interrupt-map [branch: gicv3-its] [plan]
     - rebuilds origin/wip/msi on master; delete that branch once this lands
+- Legacy PC (386/486, CPU=legacy): probe the usual ISA devices [branch: legacy-pc] [plan]
+    - 386 cpu fixes (invlpg, CR0.WP, x87/IRQ13), shared pic/kbd/cmos/serial fixes, BDA/CMOS probe report
+    - IDE legacy-only + CHS + irq fixes, 8237 ISA DMA, read-only floppy; later PCI in legacy for the 486, NE2000
 
 ## Planned (plan written, no code)
 
