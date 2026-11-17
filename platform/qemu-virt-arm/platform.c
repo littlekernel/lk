@@ -96,7 +96,7 @@ void platform_early_init(void) {
 
 // MSI_SETSPI_NS in the GICv2m frame, or 0 when the machine has none: QEMU builds one for a
 // GICv2, while a GICv3 normally gets an ITS instead, which LK does not drive.
-static paddr_t msi_doorbell;
+static uint64_t msi_doorbell;
 
 static void find_msi_doorbell(void) {
     struct fdt_walk_gic_info gic_info = {};
@@ -195,9 +195,10 @@ status_t platform_allocate_interrupts(size_t count, uint align_log2, bool msi, u
         return ERR_NOT_SUPPORTED;
     }
 
-    // cannot deal with alignment yet
-    DEBUG_ASSERT(align_log2 == 0);
-    DEBUG_ASSERT(count == 1);
+    // single, unaligned vectors only for now
+    if (count != 1 || align_log2 != 0) {
+        return ERR_NOT_SUPPORTED;
+    }
 
     int allocated = -1;
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&msi_lock);
