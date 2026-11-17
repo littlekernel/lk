@@ -26,6 +26,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <platform.h>
+#include <platform/cmos.h>
 #include <platform/fb_console.h>
 #include <platform/keyboard.h>
 #include <platform/pc.h>
@@ -520,15 +521,18 @@ void platform_early_init(void) {
         vga_console_init();
     }
 
-    /* if we couldn't find any memory, initialize a default arena */
+    /* with no memory map from the loader, size memory above 1MB from the CMOS, which
+     * POST fills in on every AT class machine; the low 1MB is never handed out */
     if (found_arenas == 0) {
-        mem_arena[0] = (pmm_arena_t){ .name = "memory",
-                                      .base = MEMBASE,
-                                      .size = DEFAULT_MEMEND,
-                                      .priority = 1,
-                                      .flags = PMM_ARENA_FLAG_KMAP };
-        found_arenas = 1;
-        printf("PC: WARNING failed to detect memory map from multiboot, using default\n");
+        uint64_t ext = cmos_read_word(CMOS_REG_POST_EXT_LO) * 1024ULL;
+        const char *source = "cmos";
+        if (ext == 0) {
+            ext = DEFAULT_MEMEND - 1 * MB;
+            source = "default";
+        }
+        add_arena_range(1 * MB, ext, &found_arenas);
+        printf("PC: WARNING no memory map from multiboot, %" PRIu64 "K above 1MB from %s\n",
+               ext / 1024, source);
     }
 
     DEBUG_ASSERT(found_arenas > 0 && found_arenas <= countof(mem_arena));

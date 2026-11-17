@@ -44,3 +44,7 @@ uint8_t cmos_read(uint8_t reg) {
 
     return val;
 }
+
+uint16_t cmos_read_word(uint8_t reg) {
+    return (uint16_t)(cmos_read(reg) | (cmos_read(reg + 1) << 8));
+}
