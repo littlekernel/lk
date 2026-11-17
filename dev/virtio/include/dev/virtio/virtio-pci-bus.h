@@ -66,6 +66,7 @@ private:
 
     struct mapped_bars {
         bool mapped;
+        void *map_base; // the page aligned region to free; vaddr may sit inside it
         uint8_t *vaddr;
     };
 

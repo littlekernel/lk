@@ -313,7 +313,7 @@ void virtio_pci_bus::unmap_bars() {
     for (auto &bar_map : bar_map_) {
 #if WITH_KERNEL_VM
         if (bar_map.mapped) {
-            vmm_free_region(vmm_get_kernel_aspace(), reinterpret_cast<vaddr_t>(bar_map.vaddr));
+            vmm_free_region(vmm_get_kernel_aspace(), reinterpret_cast<vaddr_t>(bar_map.map_base));
         }
 #endif
         bar_map = {};
@@ -411,8 +411,17 @@ common:
 #if WITH_KERNEL_VM
             char str[32];
             snprintf(str, sizeof(str), "virtio%zu bar%d", index, i);
-            err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, bars[i].size, reinterpret_cast<void **>(&bar_map.vaddr), 0,
-                                     bars[i].addr, /* vmm_flags */ 0,
+            if (bars[i].addr + bars[i].size - 1 > static_cast<paddr_t>(-1)) {
+                printf("virtio-pci: bar %d at %#" PRIx64 " is beyond paddr_t\n", i, bars[i].addr);
+                unmap_bars();
+                return ERR_NO_MEMORY;
+            }
+            // a BAR is aligned to its own size, which can be less than a 16K/64K page
+            const paddr_t paddr = static_cast<paddr_t>(bars[i].addr);
+            const paddr_t base = ROUNDDOWN(paddr, PAGE_SIZE);
+            const size_t length = ROUNDUP((paddr - base) + bars[i].size, PAGE_SIZE);
+            err = vmm_alloc_physical(vmm_get_kernel_aspace(), str, length, &bar_map.map_base, 0,
+                                     base, /* vmm_flags */ 0,
                                      ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
             if (err != NO_ERROR) {
                 printf("virtio-pci: error %d mapping bar %d (addr %#" PRIx64 " size %#zx)\n",
@@ -421,6 +430,7 @@ common:
                 return err;
             }
             bar_map.mapped = true;
+            bar_map.vaddr = static_cast<uint8_t *>(bar_map.map_base) + (paddr - base);
             LTRACEF("bar %d mapped at %p\n", i, bar_map.vaddr);
 #else
             // no need to map, it's already available at the physical address
