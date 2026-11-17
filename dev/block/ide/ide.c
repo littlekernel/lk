@@ -946,7 +946,8 @@ static status_t ide_detect_ata(struct ide_device *dev, int index) {
 
     err = ide_poll_status(dev, 0, IDE_CTRL_BSY | IDE_DRV_DRQ);
     if (err) {
-        LTRACEF("Error while detecting drive %d: %s\n", index, ide_error_str[err]);
+        dprintf(INFO, "ide%u: drive %d not ready for IDENTIFY: %s\n", dev->config->channel, index,
+                ide_error_str[err]);
         res = ERR_TIMED_OUT;
         goto error;
     }
@@ -956,7 +957,8 @@ static status_t ide_detect_ata(struct ide_device *dev, int index) {
 
     err = ide_poll_status(dev, 0, IDE_CTRL_BSY | IDE_DRV_DRQ);
     if (err) {
-        LTRACEF("Error while detecting drive %d: %s\n", index, ide_error_str[err]);
+        dprintf(INFO, "ide%u: drive %d not ready for IDENTIFY: %s\n", dev->config->channel, index,
+                ide_error_str[err]);
         res = ERR_TIMED_OUT;
         goto error;
     }
@@ -972,7 +974,9 @@ static status_t ide_detect_ata(struct ide_device *dev, int index) {
 
     err = ide_wait_irq(dev, true);
     if (err) {
-        LTRACEF("Error while waiting for command: %s\n", ide_error_str[err]);
+        dprintf(INFO, "ide%u: drive %d IDENTIFY failed: %s, status %#x error %#x\n",
+                dev->config->channel, index, ide_error_str[err], ide_read_reg8(dev, IDE_REG_ALT_STATUS),
+                ide_read_reg8(dev, IDE_REG_ERROR));
         res = ERR_TIMED_OUT;
         goto error;
     }
