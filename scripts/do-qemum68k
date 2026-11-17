@@ -38,7 +38,7 @@ DO_V9P_DIR=""
 NETDEV="virtio-net-device"
 DO_NETDEV_OVERRIDE=0
 
-while getopts A:c:d:f:gm:p:XnhtN FLAG; do
+while getopts A:c:d:f:gm:p:XnhtN: FLAG; do
     case $FLAG in
         A) CMDLINE+="${CMDLINE:+ }$(quote_cmdline_arg "$OPTARG")";;
         c) CPU=$OPTARG;;
