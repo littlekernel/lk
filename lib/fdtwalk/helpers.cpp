@@ -309,6 +309,108 @@ static status_t fdt_pci_intx_route(void *cookie, const struct pci_intx_path_entr
     return NO_ERROR;
 }
 
+#if WITH_DEV_INTERRUPT_ARM_GIC
+// MSI routing for a root whose pcie node has an msi-map (or msi-parent) naming GIC MSI frames:
+// the map turns a requester id into a controller phandle and a device id, and the phandles
+// resolve to the physical bases the GIC driver knows its frames by.
+struct fdt_pci_msi_route {
+    const struct fdt_walk_pcie_info *info;
+    size_t ctrl_count;
+    struct {
+        uint32_t phandle;
+        paddr_t base;
+    } ctrl[FDT_WALK_PCIE_MAX_MSI_MAP];
+};
+
+static status_t fdt_pci_msi_lookup(const fdt_pci_msi_route *route, uint16_t requester_id,
+                                   paddr_t *base, uint32_t *device_id) {
+    uint32_t phandle;
+    status_t err = fdt_walk_pcie_lookup_msi(route->info, requester_id, &phandle, device_id);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    for (size_t i = 0; i < route->ctrl_count; i++) {
+        if (route->ctrl[i].phandle == phandle) {
+            *base = route->ctrl[i].base;
+            return NO_ERROR;
+        }
+    }
+    return ERR_NOT_FOUND;
+}
+
+static status_t fdt_pci_msi_alloc(void *cookie, uint16_t requester_id, unsigned int *vector,
+                                  struct pci_msi_msg *msg) {
+    const auto *route = static_cast<const fdt_pci_msi_route *>(cookie);
+    paddr_t base;
+    uint32_t device_id;
+    status_t err = fdt_pci_msi_lookup(route, requester_id, &base, &device_id);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    uint64_t addr;
+    uint32_t data;
+    err = arm_gic_msi_alloc(base, device_id, vector, &addr, &data);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    msg->address = addr;
+    msg->data = data;
+    return NO_ERROR;
+}
+
+static void fdt_pci_msi_free(void *cookie, uint16_t requester_id, unsigned int vector) {
+    const auto *route = static_cast<const fdt_pci_msi_route *>(cookie);
+    paddr_t base;
+    uint32_t device_id;
+    if (fdt_pci_msi_lookup(route, requester_id, &base, &device_id) == NO_ERROR) {
+        arm_gic_msi_free(base, device_id, vector);
+    }
+}
+
+static const struct pci_root_msi_ops fdt_pci_msi_ops = {
+    .alloc = fdt_pci_msi_alloc,
+    .free = fdt_pci_msi_free,
+};
+
+// Build the MSI route for a pcie node, or return NULL if its map names no GIC MSI frame.
+static fdt_pci_msi_route *fdt_pci_make_msi_route(const struct fdt_walk_pcie_info *info,
+                                                 const struct fdt_walk_gic_info *gic,
+                                                 size_t gic_count) {
+    fdt_pci_msi_route route = {};
+    route.info = info;
+    for (size_t i = 0; i < info->msi_map_count; i++) {
+        const uint32_t phandle = info->msi_map[i].controller_phandle;
+        bool seen = false;
+        for (size_t k = 0; k < route.ctrl_count; k++) {
+            seen = seen || route.ctrl[k].phandle == phandle;
+        }
+        if (seen || phandle == 0) {
+            continue;
+        }
+        for (size_t g = 0; g < gic_count; g++) {
+            for (size_t f = 0; f < gic[g].v2m_count; f++) {
+                if (gic[g].v2m_frame[f].phandle == phandle) {
+                    route.ctrl[route.ctrl_count++] = {phandle, static_cast<paddr_t>(gic[g].v2m_frame[f].base)};
+                }
+            }
+            for (size_t f = 0; f < gic[g].its_count; f++) {
+                if (gic[g].its[f].phandle == phandle) {
+                    route.ctrl[route.ctrl_count++] = {phandle, static_cast<paddr_t>(gic[g].its[f].base)};
+                }
+            }
+        }
+    }
+    if (route.ctrl_count == 0) {
+        return NULL;
+    }
+    auto *r = static_cast<fdt_pci_msi_route *>(malloc(sizeof(route)));
+    if (r) {
+        *r = route;
+    }
+    return r;
+}
+#endif
+
 status_t fdtwalk_setup_pci(const void *fdt) {
     /* detect pci. The node info outlives this call: each root keeps a pointer to its node's
      * entry as the cookie of its routing hooks. */
@@ -325,6 +427,15 @@ status_t fdtwalk_setup_pci(const void *fdt) {
         free(pcie_info);
         return err;
     }
+
+#if WITH_DEV_INTERRUPT_ARM_GIC
+    // the MSI frames an msi-map can name; PCI is set up after the GIC, from the same tree
+    struct fdt_walk_gic_info gic_info[1] = {};
+    size_t gic_count = countof(gic_info);
+    if (fdt_walk_find_gic_info(fdt, gic_info, &gic_count) != NO_ERROR) {
+        gic_count = 0;
+    }
+#endif
 
     size_t roots_added = 0;
     for (size_t i = 0; i < count; i++) {
@@ -412,6 +523,14 @@ status_t fdtwalk_setup_pci(const void *fdt) {
             .msi_ops = NULL,
             .msi_cookie = NULL,
         };
+#if WITH_DEV_INTERRUPT_ARM_GIC
+        fdt_pci_msi_route *msi_route = fdt_pci_make_msi_route(info, gic_info, gic_count);
+        if (msi_route) {
+            desc.msi_ops = &fdt_pci_msi_ops;
+            desc.msi_cookie = msi_route;
+            dprintf(INFO, "PCIE: segment %u routes MSI through its msi-map to the GIC\n", segment);
+        }
+#endif
         if (info->intx_map_count > 0) {
             dprintf(INFO, "PCIE: segment %u routes INTx through its interrupt-map (%zu entries)\n",
                     segment, info->intx_map_count);

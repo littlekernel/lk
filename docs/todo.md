@@ -123,7 +123,6 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - goldfish_tty (platform-local in qemu-virt-m68k)
 - MSI / MSI-X
     - pci allocate_msi/msix: single vector only, leaks the vector on error (no platform free)
-    - qemu-virt-arm keeps the GICv2m frame and SPI range in platform code, route through the gic driver
     - GICv3 ITS / LPIs [branch: origin/wip/msi]
 - INTx lines cannot be shared on arm_gic / riscv_plic (one handler per vector)
     - a second registration prints a warning and replaces the first
