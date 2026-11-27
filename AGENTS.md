@@ -277,7 +277,8 @@ The do-qemu* scripts auto-build before launching QEMU. Note they default to `dlm
 ./scripts/run-qemu-boot-tests.py --arch arm-m55
 
 # x86 has machine/firmware/cpu variants alongside the default q35 ones: x86-i440fx,
-# x86-64-i440fx, x86-64-uefi and x86-64-xapic (no x2apic). m68k is also covered. See
+# x86-64-i440fx, x86-64-uefi, x86-64-xapic (no x2apic) and x86-legacy (the CPU=legacy
+# build on an ISA-only 486). m68k is also covered. See
 # --help for the full list.
 ./scripts/run-qemu-boot-tests.py --arch x86-64-uefi
 
@@ -486,7 +487,7 @@ Console commands are placed in linker section `"console_cmds"` and auto-register
 **Note:** If `lib/console` not in build, these macros expand to nothing and the code should not be emitted.
 
 **Panic shell.** Platforms that set `PLATFORM_SUPPORTS_PANIC_SHELL` drop into a polled shell on the
-debug uart after a panic, running with interrupts off and with whatever locks the crashed thread
+debug uart after a panic (on pc also the screen and the PS/2 keyboard), running with interrupts off and with whatever locks the crashed thread
 held. It only offers commands registered with `STATIC_COMMAND_MASKED(..., CMD_AVAIL_ALWAYS)` (or
 `CMD_AVAIL_PANIC` for panic-only ones). Mark a command that way only if it takes no locks, does not
 allocate and does not block: a mutex asserts there, and anything reached through ACPI takes one. A

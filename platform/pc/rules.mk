@@ -12,11 +12,14 @@ MODULE_DEPS += lib/bio
 MODULE_DEPS += lib/cbuf
 MODULE_DEPS += lib/cmdline
 MODULE_DEPS += lib/fixed_point
-MODULE_DEPS += dev/block/ide
 
 ifneq ($(CPU),legacy)
 MODULE_DEPS += dev/bus/pci/drivers
 MODULE_DEPS += lib/acpi
+else
+# ISA devices, probed at their well known ports by legacy.c
+MODULE_DEPS += dev/block/floppy
+MODULE_DEPS += dev/block/ide
 endif
 
 MODULE_SRCS += \
@@ -35,7 +38,10 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/platform.c \
     $(LOCAL_DIR)/power.c \
     $(LOCAL_DIR)/timer.c \
-    $(LOCAL_DIR)/uart.c \
+
+ifeq ($(CPU),legacy)
+MODULE_SRCS += $(LOCAL_DIR)/legacy.c
+endif
 
 LK_HEAP_IMPLEMENTATION ?= dlmalloc
 

@@ -14,6 +14,25 @@ extern cbuf_t console_input_buf;
 
 void platform_init_debug_early(void);
 void platform_init_debug(void);
+
+// 8250 family uart identification, for the console and the legacy device probe
+enum pc_uart_type {
+    PC_UART_NONE,
+    PC_UART_8250,
+    PC_UART_16450,
+    PC_UART_16550,
+    PC_UART_16550A,
+};
+enum pc_uart_type pc_uart_probe(uint16_t port);
+const char *pc_uart_type_name(enum pc_uart_type type);
+// the console's port, which must not be probed again while it is in use
+uint16_t pc_console_uart(enum pc_uart_type *type);
+
+#if X86_LEGACY
+// legacy (ISA) device discovery from the BIOS data area, CMOS and port probes
+void pc_legacy_probe(void);
+#endif
+
 void platform_init_interrupts(void);
 void platform_init_interrupts_postvm(void);
 void platform_init_timer(void);
@@ -21,6 +40,7 @@ void platform_init_timer(void);
 // legacy programmable interrupt controller
 void pic_init(void);
 void pic_enable(unsigned int vector, bool enable);
+bool pic_is_spurious(unsigned int vector);
 void pic_eoi(unsigned int vector);
 void pic_mask_interrupts(void);
 

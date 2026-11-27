@@ -335,7 +335,8 @@ status_t fat_fs::mount(bdev_t *dev, enum fs_mount_options options, fscookie **co
         return ERR_NOT_VALID;
     }
 
-    if (bs[0x15] != 0xf8) {
+    // the legal media descriptors: 0xf0 (most floppies) and 0xf8 (fixed disks) through 0xff
+    if (bs[0x15] != 0xf0 && bs[0x15] < 0xf8) {
         printf("unsupported media descriptor byte (%x)\n", bs[0x15]);
         return ERR_NOT_VALID;
     }

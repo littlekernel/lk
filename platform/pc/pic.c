@@ -33,6 +33,7 @@ static uint8_t irqMask[2];
 
 #define ICW1 0x11
 #define ICW4 0x01
+#define OCW3_READ_ISR 0x0b
 
 /*
  * init the PICs and remap them
@@ -108,7 +109,7 @@ void pic_enable(unsigned int vector, bool enable) {
             irqMask[0] &= ~bit;
             outp(PIC1 + 1, irqMask[0]);
             irqMask[0] = inp(PIC1 + 1);
-        } else if (irqMask[1] == 0 && !(irqMask[0] & bit)) {
+        } else if (irqMask[1] == 0xff && !(irqMask[0] & bit)) {
             irqMask[0] = inp(PIC1 + 1);
             irqMask[0] |= bit;
             outp(PIC1 + 1, irqMask[0]);
@@ -124,6 +125,32 @@ void pic_eoi(unsigned int vector) {
         outp(PIC2, 0x20);
         outp(PIC1, 0x20); // must issue both for the second PIC
     }
+}
+
+// IRQ7 and IRQ15 double as each 8259's spurious vector: a request that goes away before
+// the cpu acknowledges it is delivered on the lowest priority line with no ISR bit set.
+// It must not be acked at its own PIC, but a spurious IRQ15 still came through the
+// master's cascade input, which does want its EOI.
+bool pic_is_spurious(unsigned int vector) {
+    uint16_t port;
+    if (vector == INT_PIC1_BASE + 7) {
+        port = PIC1;
+    } else if (vector == INT_PIC2_BASE + 7) {
+        port = PIC2;
+    } else {
+        return false;
+    }
+
+    outp(port, OCW3_READ_ISR);
+    const bool in_service = inp(port) & 0x80;
+    if (in_service) {
+        return false;
+    }
+
+    if (port == PIC2) {
+        outp(PIC1, 0x20);
+    }
+    return true;
 }
 
 void pic_mask_interrupts(void) {

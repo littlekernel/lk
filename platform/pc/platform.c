@@ -8,13 +8,12 @@
  * https://opensource.org/licenses/MIT
  */
 
+#include <arch/fpu.h>
 #include <arch/mmu.h>
 #include <arch/x86.h>
 #include <arch/x86/apic.h>
 #include <arch/x86/mmu.h>
 #include <assert.h>
-#include <dev/block/ide.h>
-#include <dev/uart.h>
 #include <hw/multiboot.h>
 #include <inttypes.h>
 #include <kernel/vm.h>
@@ -26,6 +25,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <platform.h>
+#include <platform/cmos.h>
 #include <platform/fb_console.h>
 #include <platform/keyboard.h>
 #include <platform/pc.h>
@@ -520,15 +520,18 @@ void platform_early_init(void) {
         vga_console_init();
     }
 
-    /* if we couldn't find any memory, initialize a default arena */
+    /* with no memory map from the loader, size memory above 1MB from the CMOS, which
+     * POST fills in on every AT class machine; the low 1MB is never handed out */
     if (found_arenas == 0) {
-        mem_arena[0] = (pmm_arena_t){ .name = "memory",
-                                      .base = MEMBASE,
-                                      .size = DEFAULT_MEMEND,
-                                      .priority = 1,
-                                      .flags = PMM_ARENA_FLAG_KMAP };
-        found_arenas = 1;
-        printf("PC: WARNING failed to detect memory map from multiboot, using default\n");
+        uint64_t ext = cmos_read_word(CMOS_REG_POST_EXT_LO) * 1024ULL;
+        const char *source = "cmos";
+        if (ext == 0) {
+            ext = DEFAULT_MEMEND - 1 * MB;
+            source = "default";
+        }
+        add_arena_range(1 * MB, ext, &found_arenas);
+        printf("PC: WARNING no memory map from multiboot, %" PRIu64 "K above 1MB from %s\n",
+               ext / 1024, source);
     }
 
     DEBUG_ASSERT(found_arenas > 0 && found_arenas <= countof(mem_arena));
@@ -569,10 +572,28 @@ static void platform_init_postvm(uint level) {
 
 LK_INIT_HOOK(platform_init_postvm, platform_init_postvm, LK_INIT_LEVEL_VM);
 
+#if X86_LEGACY
+static enum handler_return pc_x87_irq13(void *arg) {
+    x86_x87_irq13_error();
+}
+#endif
+
 void platform_init(void) {
     platform_init_debug();
 
     platform_init_keyboard(&console_input_buf);
+
+#if X86_LEGACY
+    // a 386's 387 reports errors on IRQ13 instead of #MF
+    if (x86_x87_errors_on_irq13()) {
+        register_int_handler(INT_FPU, &pc_x87_irq13, NULL);
+        unmask_interrupt(INT_FPU);
+    }
+#endif
+
+#if X86_LEGACY
+    pc_legacy_probe();
+#endif
 
     // Look for secondary cpus
 #if WITH_SMP
@@ -591,52 +612,6 @@ void platform_init(void) {
         acpi_init_namespace();
     }
 #endif
-
-    const struct platform_ide_config pci_ide0 = {
-        .isa = false,
-        .channel = 0,
-        .io_base = 0x1f0,
-        .ctrl_base = 0x3f6,
-        .irq = INT_IDE0,
-    };
-    const struct platform_ide_config isa_ide0 = {
-        .isa = true,
-        .channel = 0,
-        .io_base = 0x1f0,
-        .ctrl_base = 0x3f6,
-        .irq = INT_IDE0,
-    };
-    const struct platform_ide_config pci_ide1 = {
-        .isa = false,
-        .channel = 1,
-        .io_base = 0x170,
-        .ctrl_base = 0x376,
-        .irq = INT_IDE1,
-    };
-    const struct platform_ide_config isa_ide1 = {
-        .isa = true,
-        .channel = 1,
-        .io_base = 0x170,
-        .ctrl_base = 0x376,
-        .irq = INT_IDE1,
-    };
-
-    // try PCI IDE first, then fall back to ISA channel-by-channel.
-    status_t ide_err = platform_ide_init(&pci_ide0);
-    if (ide_err != NO_ERROR && ide_err != ERR_ALREADY_EXISTS) {
-        ide_err = platform_ide_init(&isa_ide0);
-        if (ide_err == ERR_ALREADY_EXISTS) {
-            ide_err = NO_ERROR;
-        }
-    }
-
-    ide_err = platform_ide_init(&pci_ide1);
-    if (ide_err != NO_ERROR && ide_err != ERR_ALREADY_EXISTS) {
-        ide_err = platform_ide_init(&isa_ide1);
-        if (ide_err == ERR_ALREADY_EXISTS) {
-            ide_err = NO_ERROR;
-        }
-    }
 
     platform_init_mmu_mappings();
 }

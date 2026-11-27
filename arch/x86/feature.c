@@ -584,6 +584,10 @@ const struct x86_cpuid_leaf *x86_get_cpuid_leaf_subleaf(enum x86_cpuid_leaf_num 
     return NULL;
 }
 
+bool x86_has_cpuid(void) {
+    return has_cpuid;
+}
+
 bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num num, uint32_t subleaf,
                            struct x86_cpuid_leaf *leaf) {
     if (!has_cpuid) {

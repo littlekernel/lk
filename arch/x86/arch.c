@@ -101,6 +101,8 @@ void arch_early_init(void) {
 
 #if X86_WITH_FPU
     x86_fpu_early_init();
+#elif X86_LEGACY
+    x86_x87_legacy_init();
 #endif
 
     x86_early_init_percpu();

@@ -342,7 +342,10 @@ bool test_fat_format_rejects_impossible_geometry() {
     BEGIN_TEST;
 
     void *mem = memalign(CACHE_LINE, 1 * 1024 * 1024);
-    ASSERT_NONNULL(mem);
+    if (!mem) {
+        unittest_printf("\n        skipping: volume would not allocate ");
+        END_TEST;
+    }
     auto free_mem = lk::make_auto_call([&]() { free(mem); });
 
     ASSERT_EQ(0, create_membdev("fatbadfmt", mem, 1 * 1024 * 1024));
@@ -597,7 +600,10 @@ bool test_fat_mount_rejects_malformed() {
     constexpr const char *kDev = "fatbadbpb";
 
     void *mem = memalign(CACHE_LINE, kSize);
-    ASSERT_NONNULL(mem);
+    if (!mem) {
+        unittest_printf("\n        skipping: volume would not allocate ");
+        END_TEST;
+    }
     auto free_mem = lk::make_auto_call([&]() { free(mem); });
 
     ASSERT_EQ(0, create_membdev(kDev, mem, kSize));
@@ -637,7 +643,7 @@ bool test_fat_mount_rejects_malformed() {
         {"unsupported sector size", 0x0b, 2, 777},
         {"zero FAT count", 0x10, 1, 0},
         {"absurd FAT count", 0x10, 1, 200},
-        {"bad media descriptor", 0x15, 1, 0xf0},
+        {"bad media descriptor", 0x15, 1, 0xf7}, // legal: 0xf0 and 0xf8-0xff
         {"root entries not a whole sector", 0x11, 2, 7},
         {"zero sectors per FAT", 0x16, 2, 0},
     };
@@ -681,6 +687,14 @@ bool test_fat_mount_rejects_malformed() {
     ASSERT_EQ(512, bio_write(dev, pristine.get(), 0, 512));
     ASSERT_EQ(NO_ERROR, fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE));
     ASSERT_EQ(NO_ERROR, fs_unmount("/badbpb"));
+
+    // 0xf0, the descriptor of 1.44M and most other floppies, is a legal one
+    memcpy(sector.get(), pristine.get(), 512);
+    sector[0x15] = 0xf0;
+    ASSERT_EQ(512, bio_write(dev, sector.get(), 0, 512));
+    EXPECT_EQ(NO_ERROR, fs_mount("/badbpb", "fat", kDev, FS_MOUNT_OPTION_NONE));
+    fs_unmount("/badbpb");
+    ASSERT_EQ(512, bio_write(dev, pristine.get(), 0, 512));
 
     END_TEST;
 }

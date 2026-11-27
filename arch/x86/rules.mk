@@ -106,7 +106,7 @@ MODULE_DEPS += \
 	$(SUBARCH_DIR)/efi
 endif
 
-# legacy x86's dont have fpu support
+# legacy x86 has no fpu context switching: the x87 (if any) is shared by every thread
 ifneq ($(CPU),legacy)
 GLOBAL_DEFINES += \
 	X86_WITH_FPU=1
@@ -115,6 +115,9 @@ MODULE_SRCS += \
 	$(LOCAL_DIR)/fpu.c
 else
 GLOBAL_DEFINES += WITH_NO_FP=1
+
+MODULE_SRCS += \
+	$(LOCAL_DIR)/x87_legacy.c
 endif
 
 include $(LOCAL_DIR)/toolchain.mk

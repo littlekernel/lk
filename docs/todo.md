@@ -92,6 +92,11 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - mtrr.c has its own tlb flush, use the common one
 - platform_allocate_interrupts panics for count != 1 (MSI multi-vector)
 - Clean up the framebuffer console from multiboot2 (own 9x16 font, 32bpp only), use lib/gfxconsole?
+- Legacy PC (CPU=legacy) follow-ups: run on the real 486; floppy writes; PCI in the legacy build for the
+  486; NE2000; lazy fnsave x87 switching; ATAPI
+    - 16450 (no rx FIFO) drops typed chars while output streams; drain rx while waiting on THRE
+    - ide: a master answering for a missing slave with status 0 reports drive 1 "Unknown", not "None"
+    - `bench` is meaningless on legacy (arch_cycle_count() is 0) and too big for a 386; time it with the PIT
 
 ## ARM64
 
@@ -115,7 +120,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 - Move remaining uarts into dev/
     - private 16550s: alterasoc, mediatek mt6735/mt6797, pc/debug.c, qemu-mips, bcm28xx miniuart
-    - pc needs a port-I/O accessor in dwc8250; platform/pc/uart.c is #if 0, delete it
+    - pc needs a port-I/O accessor in dwc8250; pc/debug.c probes and identifies COM1-4 itself today
     - private pl011: bcm28xx, rp23xx (via pico sdk)
     - goldfish_tty (platform-local in qemu-virt-m68k)
 - MSI / MSI-X
@@ -214,6 +219,8 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~Legacy PC (386/486, CPU=legacy): 386 cpu fixes, x87 with IRQ13, pic/kbd/cmos/serial fixes, ISA probe report, IDE with CHS, ISA DMA, read only floppy; x86-legacy boot test; run on a real 386 (docs/legacy_pc.md)~~
+- ~~pc panic shell also on the screen and PS/2 keyboard~~
 - ~~libc string unit tests; `string bench` against the generic C~~
 - ~~`gic` console command: handler, state and routing of every SGI/PPI/SPI/LPI~~
 - ~~GICv3 ITS and LPIs: PCI MSI/MSI-X on a GICv3 (TCG and KVM vgic-its), gic_its unit test, arm64-gicv3 boot config~~
