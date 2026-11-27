@@ -611,6 +611,20 @@ static struct its_lpi *its_lookup_lpi(uint intid) {
     return l->dev ? l : NULL;
 }
 
+bool arm_gicv3_its_lpi_source(uint intid, uint32_t *device_id, uint32_t *event) {
+    if (!its.ready || intid < GIC_LPI_BASE || intid - GIC_LPI_BASE >= ARM_GIC_MAX_LPIS) {
+        return false;
+    }
+    // one read of dev: a free clears it, but it always points into the static devices[]
+    const struct its_lpi l = its.lpis[intid - GIC_LPI_BASE];
+    if (!l.dev) {
+        return false;
+    }
+    *device_id = l.dev->id;
+    *event = l.event;
+    return true;
+}
+
 status_t arm_gicv3_its_msi_free(paddr_t paddr, uint32_t device_id, uint vector) {
     if (!its.ready || paddr != its.paddr) {
         return ERR_NOT_FOUND;

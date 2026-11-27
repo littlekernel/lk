@@ -48,3 +48,7 @@ void arm_gicv3_lpi_set_enable(uint intid, bool enable);
 
 // The handler slot of an allocated LPI, NULL for anything else.
 struct int_handler_struct *arm_gicv3_lpi_handler(uint intid);
+
+// An allocated LPI's property table byte (priority, enable), 0 for anything else. Takes no
+// lock, for the console.
+uint8_t arm_gicv3_lpi_prop(uint intid);

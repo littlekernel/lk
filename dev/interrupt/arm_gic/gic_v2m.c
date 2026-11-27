@@ -121,3 +121,18 @@ status_t arm_gic_v2m_free(paddr_t paddr, unsigned int vector) {
     spin_unlock_irqrestore(&v2m_lock, state);
     return NO_ERROR;
 }
+
+bool arm_gic_v2m_spi_frame(unsigned int spi, paddr_t *frame) {
+    for (size_t n = 0; n < frame_count; n++) {
+        const struct v2m_frame *f = &frames[n];
+        if (spi < f->spi_base || spi - f->spi_base >= f->spi_count) {
+            continue;
+        }
+        const uint i = spi - f->spi_base;
+        if (f->allocated[i / 64] & (1ULL << (i % 64))) {
+            *frame = f->paddr;
+            return true;
+        }
+    }
+    return false;
+}

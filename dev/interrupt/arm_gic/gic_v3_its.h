@@ -35,6 +35,10 @@ status_t arm_gicv3_its_msi_alloc(paddr_t paddr, uint32_t device_id, uint *vector
                                  uint64_t *msg_addr, uint32_t *msg_data);
 status_t arm_gicv3_its_msi_free(paddr_t paddr, uint32_t device_id, uint vector);
 
+// The device id and event an allocated LPI translates, false if it is not one of the ITS's.
+// Takes no lock, for the console: a racing free can make it report the LPI's old source.
+bool arm_gicv3_its_lpi_source(uint intid, uint32_t *device_id, uint32_t *event);
+
 // Make a property table change to an LPI from this ITS take effect (INV).
 status_t arm_gicv3_its_lpi_invalidate(uint intid);
 

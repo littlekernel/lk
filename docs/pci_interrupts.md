@@ -87,3 +87,10 @@ slip through.
 - For a live check, `scripts/do-qemuarm -6 -G 3 -C -n -A 'lk.autorun=sleep+8;mi+s;poweroff'`
   should show a DHCP lease on `virtio-net-0`. Under KVM, `-k` on an arm64 host with a GICv3 uses
   the kernel's ITS emulation, which forces 64K table pages and 8 byte ITT entries.
+- The `gic` console command shows where each interrupt went: the handler (by name with
+  `lib/symtab`), the enable/pending/active bits, trigger, priority, group and routing, with
+  `[msi v2m <frame>]` on an SPI allocated from a GICv2m frame and `[its dev <id> ev <n>]` on an
+  LPI. It lists interrupts with a handler or hardware state by default; `gic all` lists every
+  line and `gic <intid>` one. SGIs and PPIs get a row per run of cpus that agree. On a GICv2
+  their registers are banked, so only the calling cpu's state shows. It takes no locks, so it
+  also works from the panic shell.

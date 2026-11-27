@@ -3,6 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 MODULE := $(LOCAL_DIR)
 
 MODULE_SRCS += $(LOCAL_DIR)/arm_gic.c
+MODULE_SRCS += $(LOCAL_DIR)/arm_gic_dump.c
 MODULE_SRCS += $(LOCAL_DIR)/gic_v2.c
 MODULE_SRCS += $(LOCAL_DIR)/gic_v2m.c
 MODULE_SRCS += $(LOCAL_DIR)/gic_v3.c
@@ -14,5 +15,10 @@ MODULE_SRCS += $(LOCAL_DIR)/gic_v3_lpi.c
 endif
 
 MODULE_OPTIONS += extra_warnings test
+
+# the gic console command, which names handlers when there is a symbol table
+MODULE_WEAK_DEPS += \
+    lib/console \
+    lib/symtab
 
 include make/module.mk

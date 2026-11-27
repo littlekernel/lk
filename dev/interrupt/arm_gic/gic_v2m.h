@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -22,3 +23,7 @@ status_t arm_gic_v2m_add_frame(paddr_t paddr, vaddr_t vaddr);
 status_t arm_gic_v2m_alloc(paddr_t paddr, unsigned int *vector, uint64_t *msg_addr,
                            uint32_t *msg_data);
 status_t arm_gic_v2m_free(paddr_t paddr, unsigned int vector);
+
+// Whether spi is allocated as an MSI from a frame, and from which. Takes no lock, for the
+// console.
+bool arm_gic_v2m_spi_frame(unsigned int spi, paddr_t *frame);

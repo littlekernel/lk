@@ -121,6 +121,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 - MSI / MSI-X
     - pci allocate_msi/msix: single vector only; the platform path (x86) leaks the vector on error
     - GICv3 ITS: LPIs all target cpu 0, only the first ITS is used, no requester id aliasing behind a PCIe to PCI bridge
+- GICv2 init sets every SPI to edge and nothing applies the FDT trigger type, so level devices (pl011, virtio-mmio) run edge triggered; GICv3 leaves the reset value (level)
 - INTx lines cannot be shared on arm_gic / riscv_plic (one handler per vector)
     - a second registration prints a warning and replaces the first
 - Console input: pc has a private buffer, qemu-virt-riscv sets no CONSOLE_HAS_INPUT_BUFFER; put both on lib/io's
@@ -210,6 +211,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~`gic` console command: handler, state and routing of every SGI/PPI/SPI/LPI~~
 - ~~GICv3 ITS and LPIs: PCI MSI/MSI-X on a GICv3 (TCG and KVM vgic-its), gic_its unit test, arm64-gicv3 boot config~~
 - ~~GICv2m frames in the GIC driver, PCI MSI routed through the device tree msi-map; INTx through interrupt-map with the bridge swizzle; prefetchable PCI windows~~
 - ~~origin/wip/msi is superseded by the above; delete it~~

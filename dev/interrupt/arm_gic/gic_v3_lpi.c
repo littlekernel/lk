@@ -251,3 +251,10 @@ struct int_handler_struct *arm_gicv3_lpi_handler(uint intid) {
     }
     return &lpi.handlers[i];
 }
+
+uint8_t arm_gicv3_lpi_prop(uint intid) {
+    if (!lpi.prop || !arm_gicv3_lpi_handler(intid)) {
+        return 0;
+    }
+    return lpi.prop[intid - GIC_LPI_BASE];
+}
