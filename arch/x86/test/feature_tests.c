@@ -21,6 +21,7 @@
 #include <kernel/mp.h>
 #include <kernel/thread.h>
 #include <lib/unittest.h>
+#include <lk/bits.h>
 #include <lk/compiler.h>
 
 // Run the body of a test on cpu 0, so live cpuid results are the boot cpu's and comparable
@@ -44,6 +45,19 @@ static bool leaf_equal(const struct x86_cpuid_leaf *a, const struct x86_cpuid_le
 // on the boot cpu.
 static bool test_cpuid_cache_matches_live(void) {
     BEGIN_TEST;
+
+    // no cpuid: only the synthesized leaf 1 is cached, and nothing live can be read
+    if (!x86_has_cpuid()) {
+        struct x86_cpuid_leaf live;
+        EXPECT_FALSE(x86_get_cpuid_subleaf(X86_CPUID_MODEL_FEATURES, 0, &live), "");
+        EXPECT_EQ((uint32_t)X86_CPUID_MODEL_FEATURES, max_cpuid_leaf, "");
+        EXPECT_EQ(0u, max_cpuid_leaf_ext, "");
+        EXPECT_EQ(0u, max_cpuid_leaf_hyp, "");
+        const struct x86_cpuid_leaf *l1 = x86_get_cpuid_leaf(X86_CPUID_MODEL_FEATURES);
+        ASSERT_NONNULL(l1, "");
+        EXPECT_EQ((uint32_t)x86_get_cpu_level(), BITS_SHIFT(l1->a, 11, 8), "");
+        END_TEST;
+    }
 
     const int old = pin_to_cpu(0);
     ASSERT_EQ(0u, arch_curr_cpu_num(), "could not pin to cpu 0");

@@ -203,8 +203,11 @@ extern uint32_t max_cpuid_leaf;
 extern uint32_t max_cpuid_leaf_hyp;
 extern uint32_t max_cpuid_leaf_ext;
 
+// False on a 386 or early 486, whose cached leaf 1 is synthesized from the cpu and x87 probes
+bool x86_has_cpuid(void);
+
 /* Retrieve the specified subleaf.  This function is not cached.
- * Returns false if leaf num is invalid */
+ * Returns false if leaf num is invalid, or there is no cpuid instruction */
 bool x86_get_cpuid_subleaf(enum x86_cpuid_leaf_num, uint32_t subleaf, struct x86_cpuid_leaf *);
 
 static inline const struct x86_cpuid_leaf *x86_get_cpuid_leaf(enum x86_cpuid_leaf_num leaf) {
