@@ -139,6 +139,9 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## lib
 
+- Graphics layer: rethink lib/gfx, lib/gfxconsole and dev/display.h together
+    - pc's fb_console is its own 32bpp path beside them; lib/gfx has no indexed (palette) format
+    - display.h has no mode setting, no palette and no banked/shadowed framebuffer story
 - lib/bio
     - 64bit block numbers (bnum_t is 32-bit, 2TiB cap)
     - flush and discard hooks (virtio-block already defines the feature bits)
