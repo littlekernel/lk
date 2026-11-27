@@ -643,6 +643,10 @@ moved any text the table names, so a link order or relaxation surprise is loud.
 - `app/tests/` contains benchmarks and interactive/operator tools that are run through the shell
   (`bench`, `cache_tests`, `clock_tests`, `fibo`, `mem_test`, `thread_tests`). These measure cycle
   counts or need arguments, so they have no pass/fail criterion and are not unit tests.
+- `app/stringtests` is `string bench`, which times the linked libc string routines against the
+  portable C in `lib/libc/string`, compiled into the app under `generic_` names so the baseline
+  survives an architecture replacing them. Another implementation is one line in its `ops` table.
+  Correctness of the linked routines is `ut libc_string_tests` (`lib/libc/test`).
 - `lib/unittest` contains a unit test framework that other libraries can use to define tests.
   - Tests are auto-discovered and run with `ut all` on the command line shell, or automatically
     at boot time via the `lk.autorun` kernel command line variable (see above).

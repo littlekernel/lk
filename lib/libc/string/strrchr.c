@@ -14,16 +14,13 @@
 
 char *
 strrchr(char const *s, int c) {
-    char const *last= c?0:s;
+    char const *last = NULL;
+    char ch = (char)c;
 
-
-    while (*s) {
-        if (*s== c) {
-            last= s;
-        }
-
-        s+= 1;
+    for (;; s++) {
+        if (*s == ch)
+            last = s;
+        if (*s == '\0')
+            return (char *)last;
     }
-
-    return (char *)last;
 }

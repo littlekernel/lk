@@ -23,7 +23,7 @@ void *
 memmove(void *dest, void const *src, size_t count) {
     char *d = (char *)dest;
     const char *s = (const char *)src;
-    int len;
+    size_t len;
 
     if (count == 0 || dest == src)
         return dest;

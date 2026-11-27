@@ -149,6 +149,9 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
     - reference: zircon's align.h, https://fuchsia.googlesource.com/fuchsia/+/refs/heads/main/zircon/system/ulib/zircon-internal/include/lib/zircon-internal/align.h
 - Add stdckdint.h
 - INCBIN: users must list the files in MODULE_SRCDEPS by hand (fat test lists 2 of 4)
+- lib/libc/string: asm memcpy/memmove/memset for arm64, riscv and x86, general registers only (baseline: `string bench`)
+    - generic C memcpy/memmove fall back to a byte loop when src and dst are mutually misaligned
+    - build check that the string routines use no FP/SIMD/vector registers [branch: stringbench], slim it before landing (.S objects only, or only with ASM_STRING_OPS)
 
 ## Filesystems
 
@@ -193,7 +196,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 ## Testing
 
 - lib/norfs/test unreachable
-- fibo and mem_test could be unit tests; app/stringtests has no libc unittest; disktest console only
+- fibo and mem_test could be unit tests; disktest console only
 
 ## Docs
 
@@ -211,6 +214,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~libc string unit tests; `string bench` against the generic C~~
 - ~~`gic` console command: handler, state and routing of every SGI/PPI/SPI/LPI~~
 - ~~GICv3 ITS and LPIs: PCI MSI/MSI-X on a GICv3 (TCG and KVM vgic-its), gic_its unit test, arm64-gicv3 boot config~~
 - ~~GICv2m frames in the GIC driver, PCI MSI routed through the device tree msi-map; INTx through interrupt-map with the bridge swizzle; prefetchable PCI windows~~

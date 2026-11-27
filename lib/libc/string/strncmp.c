@@ -14,13 +14,15 @@
 
 int
 strncmp(char const *cs, char const *ct, size_t count) {
-    signed char __res = 0;
+    const unsigned char *s1 = (const unsigned char *)cs;
+    const unsigned char *s2 = (const unsigned char *)ct;
+    int res = 0;
 
     while (count > 0) {
-        if ((__res = *cs - *ct++) != 0 || !*cs++)
+        if ((res = *s1 - *s2++) != 0 || !*s1++)
             break;
         count--;
     }
 
-    return __res;
+    return res;
 }
