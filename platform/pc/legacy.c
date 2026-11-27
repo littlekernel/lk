@@ -193,6 +193,7 @@ static void print_report(void) {
                floppy_drive_type_name(fdc_config.drive_type[1]));
     }
 
+    pc_vga_report();
     printf("LEGACY: cmos floppy A: %s B: %s, hard disk types %#x/%#x, checksum %s\n",
            floppy_type_name(hints.cmos_floppy >> 4), floppy_type_name(hints.cmos_floppy & 0xf),
            hints.cmos_hd >> 4, hints.cmos_hd & 0xf, hints.cmos_checksum_ok ? "ok" : "BAD");
@@ -230,6 +231,7 @@ void pc_legacy_probe(void) {
     probe_uarts();
     probe_ide();
     probe_floppy();
+    pc_vga_probe();
     print_report();
 }
 

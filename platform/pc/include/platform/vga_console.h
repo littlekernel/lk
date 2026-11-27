@@ -18,6 +18,11 @@ void vga_console_init(void);
 bool vga_console_present(void);
 void vga_console_putc(char c);
 
+// While suspended, for a graphics mode, output only goes to the console's copy of the
+// screen; resuming redraws the screen from it.
+void vga_console_suspend(void);
+void vga_console_resume(void);
+
 // Move the hardware cursor to the output position, which putc only does at newlines.
 void vga_console_sync_cursor(void);
 

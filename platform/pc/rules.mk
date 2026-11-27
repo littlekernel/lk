@@ -20,6 +20,7 @@ else
 # ISA devices, probed at their well known ports by legacy.c
 MODULE_DEPS += dev/block/floppy
 MODULE_DEPS += dev/block/ide
+MODULE_DEPS += lib/gfx
 endif
 
 MODULE_SRCS += \
@@ -40,7 +41,11 @@ MODULE_SRCS += \
     $(LOCAL_DIR)/timer.c \
 
 ifeq ($(CPU),legacy)
-MODULE_SRCS += $(LOCAL_DIR)/legacy.c
+MODULE_SRCS += \
+    $(LOCAL_DIR)/et4000.c \
+    $(LOCAL_DIR)/legacy.c \
+    $(LOCAL_DIR)/vga.c \
+    $(LOCAL_DIR)/vga_gfx.c
 endif
 
 LK_HEAP_IMPLEMENTATION ?= dlmalloc

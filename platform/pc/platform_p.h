@@ -31,6 +31,10 @@ uint16_t pc_console_uart(enum pc_uart_type *type);
 #if X86_LEGACY
 // legacy (ISA) device discovery from the BIOS data area, CMOS and port probes
 void pc_legacy_probe(void);
+
+// vga_gfx.c, CPU=legacy: find a VGA and an ET4000, and their LEGACY: report line
+void pc_vga_probe(void);
+void pc_vga_report(void);
 #endif
 
 void platform_init_interrupts(void);

@@ -51,6 +51,8 @@ static unsigned int curr_x;
 static unsigned int curr_y;
 static bool cursor_dirty;
 static bool console_initialized = false;
+/* while suspended only the RAM copy is kept up to date */
+static bool suspended;
 
 /* the stores to text memory are unsigned long sized, which a row is a multiple of */
 static_assert((COLS * sizeof(uint16_t)) % sizeof(unsigned long) == 0, "");
@@ -73,6 +75,9 @@ static void vram_copy(unsigned int first, unsigned int count) {
 }
 
 static void update_cursor(void) {
+    if (suspended) {
+        return;
+    }
     crtc_write16(CRTC_CURSOR_HI, CRTC_CURSOR_LO, (uint16_t)(origin + curr_y * COLS + curr_x));
     cursor_dirty = false;
 }
@@ -81,6 +86,9 @@ static void scroll(void) {
     memmove(screen, screen + COLS, (CELLS - COLS) * sizeof(uint16_t));
     for (unsigned int i = CELLS - COLS; i < CELLS; i++) {
         screen[i] = BLANK;
+    }
+    if (suspended) {
+        return;
     }
 
     if (origin + COLS + CELLS <= VRAM_CELLS) {
@@ -106,7 +114,9 @@ static void put_cell(char c) {
     const unsigned int i = curr_y * COLS + curr_x;
     const uint16_t cell = (uint16_t)((ATTR << 8) | (unsigned char)c);
     screen[i] = cell;
-    VRAM[origin + i] = cell;
+    if (!suspended) {
+        VRAM[origin + i] = cell;
+    }
 }
 
 void vga_console_init(void) {
@@ -119,6 +129,18 @@ void vga_console_init(void) {
     crtc_write16(CRTC_START_HI, CRTC_START_LO, 0);
     update_cursor();
     console_initialized = true;
+}
+
+void vga_console_suspend(void) {
+    suspended = true;
+}
+
+void vga_console_resume(void) {
+    suspended = false;
+    origin = 0;
+    vram_copy(0, CELLS);
+    crtc_write16(CRTC_START_HI, CRTC_START_LO, 0);
+    update_cursor();
 }
 
 bool vga_console_present(void) {

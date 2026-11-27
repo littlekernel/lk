@@ -13,8 +13,9 @@ recorded and probes the well known ports to see what really answers.
 - 4KB pages only, and a 16MB physmap (`PHYSMAP_SIZE`), so memory above 16MB is ignored.
 - No PCI. A PCI 486 is driven as an ISA machine; its compatibility mode IDE sits at the ISA
   addresses anyway.
-- The legacy-only drivers below (`dev/block/ide`, `dev/block/floppy`, `dev/bus/isa`) are
-  built in this configuration and no other.
+- The legacy-only drivers below (`dev/block/ide`, `dev/block/floppy`, `dev/bus/isa`, and
+  the VGA and ET4000 graphics code in `platform/pc`) are built in this configuration and no
+  other.
 
 ### CPU handling
 
@@ -42,6 +43,8 @@ own probe answers.
 | Serial | COM1-4 at 0x3f8, 0x2f8, 0x3e8, 0x2e8, or the BIOS's own address if it lists another | interrupt enable register, scratch register and FIFO bits: 8250, 16450, 16550, 16550A |
 | IDE | 0x1f0/0x3f6 irq 14, 0x170/0x376 irq 15 | status not floating, sector registers hold a pattern |
 | Floppy controller | 0x3f0, irq 6, DMA channel 2 | VERSION command; the drives come from CMOS 0x10 |
+| VGA | 0x3c0-0x3df | graphics controller bit mask reads back (an EGA's doesn't) |
+| Tseng ET4000 | 0x3cd, CRTC 0x33 | after the KEY, both hold their bits; memory size from CRTC 0x37 |
 
 The boot log prints a `LEGACY:` line for each device found. The `legacy` console command
 prints the raw BIOS data area and CMOS fields next to the same report. It is the first
@@ -85,6 +88,36 @@ The rest of the PC platform shares this serial code: the probe runs on modern bu
 - A drive with no disk is refused through the change line, except on 360K drives, which
   have none.
 
+### Graphics
+
+The `vga` command switches the screen between text and 256 colour graphics modes:
+
+| Mode | Needs | Clock |
+|---|---|---|
+| `320x200` | any VGA | 25.175 MHz |
+| `640x480` | ET4000, 512KB | 25.175 MHz |
+| `800x600` | ET4000, 512KB | clock select 3 |
+| `1024x768i` | ET4000, 1MB | about 44.9 MHz, interlaced |
+| `1024x768` | ET4000, 1MB | about 65 MHz |
+
+- The register values come from the ET4000 data book's mode tables. The ET4000 modes reach
+  their memory through 64KB banks at 0xa0000.
+- Which oscillator each clock select picks is up to the board. `vga clocks`, run from a
+  graphics mode, measures all 16 by counting frames, and `vga clock <n>` changes the current
+  one. One ET4000 card measured 25.2, 28.3 and 36 MHz on selects 0, 1 and 3 and nothing on
+  the others: its 800x600 runs at 56Hz and it has no clock for either 1024x768 mode.
+- Drawing goes to a copy of the screen in RAM, which `display_get_framebuffer()` hands to
+  `lib/gfx` as RGB 3:3:2 with the DAC loaded to match, so the `gfx` commands draw on it.
+  Flushing copies rows out through the window a bank at a time. `vga test` draws every
+  colour and prints how long the draw and the flush took.
+- Text mode is saved on the way in and put back by `vga text`: the registers, the DAC and
+  the font in plane 2, which graphics modes overwrite. The text console keeps its copy of
+  the screen meanwhile and redraws it, and output still goes to the serial port.
+- `vga info` also says whether the DAC is a Sierra style HiColor one. There are no 15 or 16
+  bit modes yet. `vga dump` and `vga reg` show and change registers by hand.
+- Only the VGA text console can switch: a multiboot framebuffer console has no VGA modes to
+  come back to.
+
 ## Running under QEMU
 
 ```bash
@@ -121,6 +154,8 @@ which also exercises its write path.
 - QEMU models a 1.2M drive holding a 360K disk with 40 physical tracks, so the double
   stepped seek fails there. Real 1.2M drives have 80.
 - QEMU leaves the CMOS checksum unset, so `legacy` reports it as BAD.
+- QEMU's VGA is not an ET4000, so only `320x200` and the way back to text run there. QEMU
+  11.1 also keeps a hidden DAC command register, so `vga info` calls its DAC HiColor.
 - `poweroff` does not exit QEMU on isapc, which has no ACPI power management port.
 
 ## Real hardware
@@ -133,7 +168,9 @@ skip the RAM volumes they can't allocate.
 For the first bring-up on a machine:
 
 1. Boot it. Note the `X86:` cpu and x87 lines, the memory map, and the `legacy` report.
-2. Run `ut all`, `x87 info` and `bench`. On a 386 also try `x87 fault`, which should panic
-   through IRQ13.
+2. Run `ut all` and `x87 info`. On a 386 also try `x87 fault`, which should panic through
+   IRQ13. (`bench` tells nothing here: there is no cycle counter.)
 3. Read from each IDE disk (`bio read`, or `ut bio_pattern` on a stamped spare disk), and
    from a floppy in each drive. Only write to a disk whose contents don't matter.
+4. `vga info`, then each mode it offers with `vga test`, and `vga clocks` from one of them.
+   `vga text` comes back.

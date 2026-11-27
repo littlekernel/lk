@@ -222,6 +222,7 @@ Also: [github issues](https://github.com/littlekernel/lk/issues), [pull requests
 
 ## Recently landed
 
+- ~~VGA 256 colour modes and a Tseng ET4000 driver for CPU=legacy (`vga` command, lib/gfx framebuffer, clock measurement); run on a real ET4000~~
 - ~~Legacy PC (386/486, CPU=legacy): 386 cpu fixes, x87 with IRQ13, pic/kbd/cmos/serial fixes, ISA probe report, IDE with CHS, ISA DMA, read only floppy; x86-legacy boot test; run on a real 386 (docs/legacy_pc.md)~~
 - ~~pc panic shell also on the screen and PS/2 keyboard~~
 - ~~libc string unit tests; `string bench` against the generic C~~
