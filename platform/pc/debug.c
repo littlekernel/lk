@@ -37,8 +37,12 @@ static const int uart_baud_rate = DEBUG_BAUD_RATE;
 
 static const uint16_t com_ports[4] = { COM1_REG, COM2_REG, COM3_REG, COM4_REG };
 
+// com_ports[n - 1] as a constant expression, for a static initializer
+#define COM_PORT_REG(n) \
+    ((n) == 1 ? COM1_REG : (n) == 2 ? COM2_REG : (n) == 3 ? COM3_REG : COM4_REG)
+
 // the console uart, DEBUG_COM_PORT until platform_init_debug() reads pc.console
-static uint16_t uart_io_port = com_ports[DEBUG_COM_PORT - 1];
+static uint16_t uart_io_port = COM_PORT_REG(DEBUG_COM_PORT);
 static enum pc_uart_type uart_type;
 static bool uart_present;
 

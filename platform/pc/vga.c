@@ -176,11 +176,12 @@ bool vga_dac_hicolor_probe(uint8_t *command) {
 
     // A plain DAC hands back the PEL mask however many times it is read. A mask that
     // can't be written gives no answer, and counts as plain.
-    outp(VGA_DAC_MASK, (uint8_t)~cmd);
+    const uint8_t not_cmd = (uint8_t)~cmd;
+    outp(VGA_DAC_MASK, not_cmd);
     dac_to_pel();
-    const bool mask_writable = inp(VGA_DAC_MASK) == (uint8_t)~cmd;
+    const bool mask_writable = inp(VGA_DAC_MASK) == not_cmd;
     dac_to_command();
-    bool hidden = mask_writable && inp(VGA_DAC_MASK) != (uint8_t)~cmd;
+    bool hidden = mask_writable && inp(VGA_DAC_MASK) != not_cmd;
 
     // and the hidden register holds what is written to it: flip the HiColor bit and back
     if (hidden) {
