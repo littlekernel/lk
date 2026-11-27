@@ -116,6 +116,14 @@ protected:
 private:
     void unmap_msix();
 
+    // one MSI vector and the message that raises it, from the root's MSI hook if it has one,
+    // else from the platform; free gives one back (only possible through a root hook)
+    status_t alloc_msi_vector(uint *vector, uint64_t *msg_addr, uint32_t *msg_data);
+    void free_msi_vector(uint vector);
+    uint16_t requester_id() const {
+        return static_cast<uint16_t>(loc_.bus << 8 | loc_.dev << 3 | loc_.fn);
+    }
+
     pci_location_t loc_ = {};
     bus *bus_ = nullptr;
 

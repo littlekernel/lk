@@ -94,6 +94,22 @@ struct pci_intx_path_entry {
 typedef status_t (*pci_root_intx_route_fn)(void *cookie, const struct pci_intx_path_entry *path,
                                            size_t path_len, unsigned int pin, unsigned int *vector);
 
+// An MSI message: the address a function writes to raise an interrupt and the data it writes.
+struct pci_msi_msg {
+    uint64_t address;
+    uint32_t data;
+};
+
+// MSI routing for the functions under a root, used instead of the platform's MSI calls when a
+// root has it (a device tree msi-map naming the interrupt controller's MSI frame, say). alloc
+// sets up one interrupt for the function with the given requester id (bus << 8 | dev << 3 | fn)
+// and returns the vector to register a handler on and the message that raises it.
+struct pci_root_msi_ops {
+    status_t (*alloc)(void *cookie, uint16_t requester_id, unsigned int *vector,
+                      struct pci_msi_msg *msg);
+    void (*free)(void *cookie, uint16_t requester_id, unsigned int vector);
+};
+
 // Description of a PCI root (host bridge)
 struct pci_root_desc {
     uint16_t segment;
@@ -107,6 +123,10 @@ struct pci_root_desc {
     // optional legacy interrupt routing hook
     pci_root_intx_route_fn intx_route;
     void *intx_cookie;
+
+    // optional MSI routing, NULL to use the platform's
+    const struct pci_root_msi_ops *msi_ops;
+    void *msi_cookie;
 };
 
 // Register a PCI root. Must be called after pci_init_*() and before pci_bus_mgr_init().

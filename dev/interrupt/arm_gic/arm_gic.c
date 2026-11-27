@@ -43,7 +43,10 @@
 #include "arm_gic_common.h"
 
 #include "gic_v2.h"
+#include "gic_v2m.h"
 #include "gic_v3.h"
+#include "gic_v3_its.h"
+#include "gic_v3_lpi.h"
 
 // Common routines shared between GICv2 and GICv3/v4 implementations.
 // Acts as a shim layer between the generic arm_gic interface and the
@@ -96,6 +99,21 @@ void register_int_handler(unsigned int vector, int_handler handler, void *arg) {
     uint cpu = arch_curr_cpu_num();
     int_handler evicted_handler = NULL;
     void *evicted_arg = NULL;
+
+#if ARCH_ARM64
+    if (vector >= GIC_LPI_BASE) {
+        // an LPI: its slot exists once it is allocated, there is nothing to configure here
+        h = arm_gicv3_lpi_handler(vector);
+        if (!h) {
+            panic("register_int_handler: LPI %u is not allocated\n", vector);
+        }
+        arch_interrupt_saved_state_t state = spin_lock_irqsave(&gicd_lock);
+        h->handler = handler;
+        h->arg = arg;
+        spin_unlock_irqrestore(&gicd_lock, state);
+        return;
+    }
+#endif
 
     if (vector >= MAX_INT) {
         panic("register_int_handler: vector out of range %d\n", vector);
@@ -329,9 +347,14 @@ static status_t arm_map_regs(const char *name, vaddr_t *vaddr, paddr_t paddr, si
         return ERR_INVALID_ARGS;
     }
 
+    // a frame can be smaller than a page (a 4K GICv2m frame with 16K/64K pages): map the pages
+    // around it
+    const paddr_t base = ROUNDDOWN(paddr, PAGE_SIZE);
+    const size_t len = ROUNDUP((paddr - base) + size, PAGE_SIZE);
+
     void *ptr;
-    status_t ret = vmm_alloc_physical(vmm_get_kernel_aspace(), "gic", size, &ptr, 0,
-                                      paddr, 0,
+    status_t ret = vmm_alloc_physical(vmm_get_kernel_aspace(), name, len, &ptr, 0,
+                                      base, 0,
                                       ARCH_MMU_FLAG_PERM_READ | ARCH_MMU_FLAG_PERM_WRITE | ARCH_MMU_FLAG_UNCACHED_DEVICE);
     if (ret != NO_ERROR) {
         panic("%s: failed %d\n", __func__, ret);
@@ -339,7 +362,7 @@ static status_t arm_map_regs(const char *name, vaddr_t *vaddr, paddr_t paddr, si
 
     DEBUG_ASSERT(ptr != NULL);
 
-    *vaddr = (vaddr_t)ptr;
+    *vaddr = (vaddr_t)ptr + (paddr - base);
 
     return ret;
 }
@@ -361,6 +384,7 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
     if (init_info->gic_revision > 2) {
         arm_map_regs("gicr", &arm_gics[0].gicr_vaddr, init_info->gicr_paddr,
                      init_info->gicr_size);
+        arm_gics[0].gicr_paddr = init_info->gicr_paddr;
         arm_gics[0].gicr_size = init_info->gicr_size;
         TRACEF("GICR mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicr_vaddr);
     } else {
@@ -370,7 +394,58 @@ void arm_gic_init_map(const struct arm_gic_init_info *init_info) {
         TRACEF("GICC mapped to vaddr %#" PRIxPTR "\n", arm_gics[0].gicc_vaddr);
     }
 
+    for (size_t i = 0; i < init_info->v2m_count && i < ARM_GIC_MAX_MSI_FRAMES; i++) {
+        vaddr_t vaddr;
+        arm_map_regs("gicv2m", &vaddr, init_info->v2m[i].paddr, init_info->v2m[i].size);
+        arm_gic_v2m_add_frame(init_info->v2m[i].paddr, vaddr);
+    }
+
     arm_gic_init_hw();
+
+#if ARCH_ARM64
+    // LPIs only come through an ITS, so they are set up only when there is one. The boot
+    // cpu's per-cpu init has already run, so enable them and map its collection here;
+    // secondaries do both from their own per-cpu init.
+    if (init_info->gic_revision > 2 && init_info->its_count > 0) {
+        if (init_info->its_count > 1) {
+            printf("GICv3: %zu ITSes, using the first\n", init_info->its_count);
+        }
+        vaddr_t its_vaddr;
+        arm_map_regs("gicits", &its_vaddr, init_info->its[0].paddr, init_info->its[0].size);
+        status_t err = arm_gicv3_lpi_init();
+        if (err == NO_ERROR) {
+            err = arm_gicv3_its_init(init_info->its[0].paddr, its_vaddr);
+        }
+        if (err == NO_ERROR) {
+            const uint cpu = arch_curr_cpu_num();
+            arm_gicv3_lpi_init_percpu(cpu);
+            arm_gicv3_its_init_percpu(cpu);
+        } else {
+            printf("GICv3: LPI/ITS setup failed (%d), no MSI through the ITS\n", err);
+        }
+    }
+#endif
+}
+
+status_t arm_gic_msi_alloc(paddr_t ctrl_paddr, uint32_t device_id, unsigned int *vector,
+                           uint64_t *msg_addr, uint32_t *msg_data) {
+    status_t err = arm_gic_v2m_alloc(ctrl_paddr, vector, msg_addr, msg_data);
+#if ARCH_ARM64
+    if (err == ERR_NOT_FOUND) {
+        err = arm_gicv3_its_msi_alloc(ctrl_paddr, device_id, vector, msg_addr, msg_data);
+    }
+#endif
+    return err;
+}
+
+status_t arm_gic_msi_free(paddr_t ctrl_paddr, uint32_t device_id, unsigned int vector) {
+    status_t err = arm_gic_v2m_free(ctrl_paddr, vector);
+#if ARCH_ARM64
+    if (err == ERR_NOT_FOUND) {
+        err = arm_gicv3_its_msi_free(ctrl_paddr, device_id, vector);
+    }
+#endif
+    return err;
 }
 
 static status_t arm_gic_get_priority(u_int irq) {
@@ -425,7 +500,24 @@ status_t arm_gic_sgi(u_int irq, u_int flags, u_int cpu_mask) {
     return NO_ERROR;
 }
 
+#if ARCH_ARM64
+// An LPI is masked through its property table entry, which only takes effect once the ITS
+// that delivers it invalidates the redistributor's copy.
+static status_t lpi_set_masked(unsigned int vector, bool masked) {
+    if (!arm_gicv3_lpi_handler(vector)) {
+        return ERR_INVALID_ARGS;
+    }
+    arm_gicv3_lpi_set_enable(vector, !masked);
+    return arm_gicv3_its_lpi_invalidate(vector);
+}
+#endif
+
 status_t mask_interrupt(unsigned int vector) {
+#if ARCH_ARM64
+    if (vector >= GIC_LPI_BASE) {
+        return lpi_set_masked(vector, true);
+    }
+#endif
     if (vector >= MAX_INT) {
         return ERR_INVALID_ARGS;
     }
@@ -440,6 +532,11 @@ status_t mask_interrupt(unsigned int vector) {
 }
 
 status_t unmask_interrupt(unsigned int vector) {
+#if ARCH_ARM64
+    if (vector >= GIC_LPI_BASE) {
+        return lpi_set_masked(vector, false);
+    }
+#endif
     if (vector >= MAX_INT) {
         return ERR_INVALID_ARGS;
     }

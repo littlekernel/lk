@@ -30,6 +30,7 @@ jobs:
         arch:
           - arm
           - arm64
+          - arm64-gicv3
           - arm-m3
           - arm-m4
           - arm-m7
@@ -72,7 +73,7 @@ jobs:
       run: |
         case "${{ matrix.arch }}" in
             arm|arm-m*) TOOLCHAIN_PREFIX="arm-eabi-" ;;
-            arm64) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
+            arm64|arm64-*) TOOLCHAIN_PREFIX="aarch64-elf-" ;;
             m68k) TOOLCHAIN_PREFIX="m68k-elf-" ;;
             riscv32) TOOLCHAIN_PREFIX="riscv32-elf-" ;;
             riscv64) TOOLCHAIN_PREFIX="riscv64-elf-" ;;

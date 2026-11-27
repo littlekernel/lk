@@ -67,6 +67,7 @@ struct arm_gic {
     vaddr_t gicd_vaddr;
     size_t gicd_size;
     vaddr_t gicr_vaddr;
+    paddr_t gicr_paddr;
     size_t gicr_size;
     size_t gicr_cpu_stride;
 };
@@ -205,11 +206,43 @@ static inline void gicr_write(uint gic, uint cpu, uint32_t reg, uint32_t val) {
     mmio_write32(ptr, val);
 }
 
-#define GICR_CTRL    (0x0000)
-#define GICR_IIDR    (0x0004)
-#define GICR_TYPER   (0x0008)
-#define GICR_STATUSR (0x0010)
-#define GICR_WAKER   (0x0014)
+/* some registers of GICR are 64 bit */
+static inline uint64_t gicr_read64(uint gic, uint cpu, uint32_t reg) {
+    ASSERT(gic < NUM_ARM_GICS);
+    ASSERT(cpu < SMP_MAX_CPUS);
+    ASSERT(arm_gics[gic].gicr_cpu_stride != 0);
+    vaddr_t addr = arm_gics[gic].gicr_vaddr + GICR_CPU_OFFSET(gic, cpu) + reg;
+#if !_LP64
+    volatile uint32_t *ptr32 = (volatile uint32_t *)(uintptr_t)addr;
+    uint64_t lo = mmio_read32(ptr32);
+    uint64_t hi = mmio_read32(ptr32 + 1);
+    return lo | (hi << 32);
+#else
+    return mmio_read64((volatile uint64_t *)(uintptr_t)addr);
+#endif
+}
+
+static inline void gicr_write64(uint gic, uint cpu, uint32_t reg, uint64_t val) {
+    ASSERT(gic < NUM_ARM_GICS);
+    ASSERT(cpu < SMP_MAX_CPUS);
+    ASSERT(arm_gics[gic].gicr_cpu_stride != 0);
+    vaddr_t addr = arm_gics[gic].gicr_vaddr + GICR_CPU_OFFSET(gic, cpu) + reg;
+#if !_LP64
+    volatile uint32_t *ptr32 = (volatile uint32_t *)(uintptr_t)addr;
+    mmio_write32(ptr32, (uint32_t)val);
+    mmio_write32(ptr32 + 1, (uint32_t)(val >> 32));
+#else
+    mmio_write64((volatile uint64_t *)(uintptr_t)addr, val);
+#endif
+}
+
+#define GICR_CTRL      (0x0000)
+#define GICR_IIDR      (0x0004)
+#define GICR_TYPER     (0x0008)
+#define GICR_STATUSR   (0x0010)
+#define GICR_WAKER     (0x0014)
+#define GICR_PROPBASER (0x0070)
+#define GICR_PENDBASER (0x0078)
 
 /* The following GICR registers are on separate 64KB page */
 #define GICR_SGI_OFFSET    (0x10000)

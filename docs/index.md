@@ -44,6 +44,8 @@ documents in the tree.
 
 ## Components
 
+- [PCI interrupts](pci_interrupts.md) - INTx and MSI routing: the device tree interrupt-map
+  and msi-map, GICv2m frames and the GICv3 ITS
 - [spifs](../lib/fs/spifs/README.md) - a small flat filesystem for SPI NOR flash
 
 ## Project

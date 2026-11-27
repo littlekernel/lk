@@ -99,9 +99,7 @@ static const int a15irqmap[] = {
 #define UART0_INT   (32 + 1)
 #define PCIE_INT_BASE (32 + 3)
 #define VIRTIO0_INT_BASE (32 + 16)
-#define MSI_INT_BASE (32 + 48)
-#define MSI_INT_COUNT 64 /* SPIs behind QEMU's GICv2m frame, from MSI_INT_BASE */
-
-/* covers the MSI range; a multiple of 32 for the GIC register loops */
+/* covers the SPIs behind QEMU's GICv2m frame (80..143); a multiple of 32 for the GIC
+ * register loops */
 #define MAX_INT 160
 

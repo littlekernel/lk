@@ -16,6 +16,7 @@
 #include <lk/main.h>
 #include <lk/trace.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #if WITH_LIB_CMDLINE
 #include <lib/cmdline.h>
@@ -285,16 +286,156 @@ status_t fdtwalk_setup_cpus_arm(const void *fdt) {
 #endif
 
 #if WITH_DEV_BUS_PCI
-status_t fdtwalk_setup_pci(const void *fdt) {
-    /* detect pci */
-    struct fdt_walk_pcie_info pcie_info[4] = {};
-
-    size_t count = countof(pcie_info);
-    status_t err = fdt_walk_find_pcie_info(fdt, pcie_info, &count);
-    LTRACEF("fdt_walk_find_pcie_info returns %d, count %zu\n", err, count);
+// intx_route hook of a root described by a pcie node with an interrupt-map: swizzle the pin
+// across each bridge on the way up (PCI-PCI bridge spec: the pin a function raises on a bridge's
+// secondary bus arrives on its primary bus as ((pin - 1 + device) % 4) + 1), then look up the
+// slot on the root bus in the map.
+static status_t fdt_pci_intx_route(void *cookie, const struct pci_intx_path_entry *path,
+                                   size_t path_len, unsigned int pin, unsigned int *vector) {
+    const auto *info = static_cast<const struct fdt_walk_pcie_info *>(cookie);
+    if (path_len == 0 || pin < 1 || pin > 4) {
+        return ERR_INVALID_ARGS;
+    }
+    for (size_t i = path_len - 1; i > 0; i--) {
+        pin = ((pin - 1 + path[i].dev) % 4) + 1;
+    }
+    uint32_t v;
+    status_t err = fdt_walk_pcie_lookup_intx(info, info->bus_start, path[0].dev, path[0].fn,
+                                             static_cast<uint8_t>(pin), &v);
     if (err != NO_ERROR) {
         return err;
     }
+    *vector = v;
+    return NO_ERROR;
+}
+
+#if WITH_DEV_INTERRUPT_ARM_GIC
+// MSI routing for a root whose pcie node has an msi-map (or msi-parent) naming GIC MSI frames:
+// the map turns a requester id into a controller phandle and a device id, and the phandles
+// resolve to the physical bases the GIC driver knows its frames by.
+struct fdt_pci_msi_route {
+    const struct fdt_walk_pcie_info *info;
+    size_t ctrl_count;
+    struct {
+        uint32_t phandle;
+        paddr_t base;
+    } ctrl[FDT_WALK_PCIE_MAX_MSI_MAP];
+};
+
+static status_t fdt_pci_msi_lookup(const fdt_pci_msi_route *route, uint16_t requester_id,
+                                   paddr_t *base, uint32_t *device_id) {
+    uint32_t phandle;
+    status_t err = fdt_walk_pcie_lookup_msi(route->info, requester_id, &phandle, device_id);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    for (size_t i = 0; i < route->ctrl_count; i++) {
+        if (route->ctrl[i].phandle == phandle) {
+            *base = route->ctrl[i].base;
+            return NO_ERROR;
+        }
+    }
+    return ERR_NOT_FOUND;
+}
+
+static status_t fdt_pci_msi_alloc(void *cookie, uint16_t requester_id, unsigned int *vector,
+                                  struct pci_msi_msg *msg) {
+    const auto *route = static_cast<const fdt_pci_msi_route *>(cookie);
+    paddr_t base;
+    uint32_t device_id;
+    status_t err = fdt_pci_msi_lookup(route, requester_id, &base, &device_id);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    uint64_t addr;
+    uint32_t data;
+    err = arm_gic_msi_alloc(base, device_id, vector, &addr, &data);
+    if (err != NO_ERROR) {
+        return err;
+    }
+    msg->address = addr;
+    msg->data = data;
+    return NO_ERROR;
+}
+
+static void fdt_pci_msi_free(void *cookie, uint16_t requester_id, unsigned int vector) {
+    const auto *route = static_cast<const fdt_pci_msi_route *>(cookie);
+    paddr_t base;
+    uint32_t device_id;
+    if (fdt_pci_msi_lookup(route, requester_id, &base, &device_id) == NO_ERROR) {
+        arm_gic_msi_free(base, device_id, vector);
+    }
+}
+
+static const struct pci_root_msi_ops fdt_pci_msi_ops = {
+    .alloc = fdt_pci_msi_alloc,
+    .free = fdt_pci_msi_free,
+};
+
+// Build the MSI route for a pcie node, or return NULL if its map names no GIC MSI frame.
+static fdt_pci_msi_route *fdt_pci_make_msi_route(const struct fdt_walk_pcie_info *info,
+                                                 const struct fdt_walk_gic_info *gic,
+                                                 size_t gic_count) {
+    fdt_pci_msi_route route = {};
+    route.info = info;
+    for (size_t i = 0; i < info->msi_map_count; i++) {
+        const uint32_t phandle = info->msi_map[i].controller_phandle;
+        bool seen = false;
+        for (size_t k = 0; k < route.ctrl_count; k++) {
+            seen = seen || route.ctrl[k].phandle == phandle;
+        }
+        if (seen || phandle == 0) {
+            continue;
+        }
+        for (size_t g = 0; g < gic_count; g++) {
+            for (size_t f = 0; f < gic[g].v2m_count; f++) {
+                if (gic[g].v2m_frame[f].phandle == phandle) {
+                    route.ctrl[route.ctrl_count++] = {phandle, static_cast<paddr_t>(gic[g].v2m_frame[f].base)};
+                }
+            }
+            for (size_t f = 0; f < gic[g].its_count; f++) {
+                if (gic[g].its[f].phandle == phandle) {
+                    route.ctrl[route.ctrl_count++] = {phandle, static_cast<paddr_t>(gic[g].its[f].base)};
+                }
+            }
+        }
+    }
+    if (route.ctrl_count == 0) {
+        return NULL;
+    }
+    auto *r = static_cast<fdt_pci_msi_route *>(malloc(sizeof(route)));
+    if (r) {
+        *r = route;
+    }
+    return r;
+}
+#endif
+
+status_t fdtwalk_setup_pci(const void *fdt) {
+    /* detect pci. The node info outlives this call: each root keeps a pointer to its node's
+     * entry as the cookie of its routing hooks. */
+    constexpr size_t max_nodes = 4;
+    auto *pcie_info = static_cast<struct fdt_walk_pcie_info *>(calloc(max_nodes, sizeof(struct fdt_walk_pcie_info)));
+    if (!pcie_info) {
+        return ERR_NO_MEMORY;
+    }
+
+    size_t count = max_nodes;
+    status_t err = fdt_walk_find_pcie_info(fdt, pcie_info, &count);
+    LTRACEF("fdt_walk_find_pcie_info returns %d, count %zu\n", err, count);
+    if (err != NO_ERROR) {
+        free(pcie_info);
+        return err;
+    }
+
+#if WITH_DEV_INTERRUPT_ARM_GIC
+    // the MSI frames an msi-map can name; PCI is set up after the GIC, from the same tree
+    struct fdt_walk_gic_info gic_info[1] = {};
+    size_t gic_count = countof(gic_info);
+    if (fdt_walk_find_gic_info(fdt, gic_info, &gic_count) != NO_ERROR) {
+        gic_count = 0;
+    }
+#endif
 
     size_t roots_added = 0;
     for (size_t i = 0; i < count; i++) {
@@ -320,7 +461,7 @@ status_t fdtwalk_setup_pci(const void *fdt) {
         }
 
         // describe the root to the bus manager, with the windows it can hand out
-        struct pci_root_window windows[3];
+        struct pci_root_window windows[5];
         size_t num_windows = 0;
         if (info->io_len > 0) {
             // we can only deal with a mapping of io base 0 to the mmio base
@@ -342,6 +483,15 @@ status_t fdtwalk_setup_pci(const void *fdt) {
                 .prefetchable = false,
             };
         }
+        if (info->mmio_prefetch_len > 0) {
+            windows[num_windows++] = (struct pci_root_window){
+                .type = PCI_RESOURCE_MMIO_RANGE,
+                .base = info->mmio_prefetch_base,
+                .size = info->mmio_prefetch_len,
+                .translation_offset = 0,
+                .prefetchable = true,
+            };
+        }
         if (sizeof(void *) >= 8 && info->mmio64_len > 0) {
             windows[num_windows++] = (struct pci_root_window){
                 .type = PCI_RESOURCE_MMIO64_RANGE,
@@ -351,6 +501,16 @@ status_t fdtwalk_setup_pci(const void *fdt) {
                 .prefetchable = false,
             };
         }
+        if (sizeof(void *) >= 8 && info->mmio64_prefetch_len > 0) {
+            windows[num_windows++] = (struct pci_root_window){
+                .type = PCI_RESOURCE_MMIO64_RANGE,
+                .base = info->mmio64_prefetch_base,
+                .size = info->mmio64_prefetch_len,
+                .translation_offset = 0,
+                .prefetchable = true,
+            };
+        }
+        DEBUG_ASSERT(num_windows <= countof(windows));
 
         struct pci_root_desc desc = {
             .segment = segment,
@@ -358,9 +518,28 @@ status_t fdtwalk_setup_pci(const void *fdt) {
             .bus_end = info->bus_end,
             .windows = windows,
             .num_windows = num_windows,
-            .intx_route = NULL,
-            .intx_cookie = NULL,
+            .intx_route = info->intx_map_count > 0 ? fdt_pci_intx_route : NULL,
+            .intx_cookie = const_cast<struct fdt_walk_pcie_info *>(info),
+            .msi_ops = NULL,
+            .msi_cookie = NULL,
         };
+#if WITH_DEV_INTERRUPT_ARM_GIC
+        fdt_pci_msi_route *msi_route = fdt_pci_make_msi_route(info, gic_info, gic_count);
+        if (msi_route) {
+            desc.msi_ops = &fdt_pci_msi_ops;
+            desc.msi_cookie = msi_route;
+            dprintf(INFO, "PCIE: segment %u routes MSI through its msi-map to the GIC\n", segment);
+        }
+#endif
+        if (info->intx_map_count > 0) {
+            dprintf(INFO, "PCIE: segment %u routes INTx through its interrupt-map (%zu entries)\n",
+                    segment, info->intx_map_count);
+        }
+        for (size_t j = 0; j < info->msi_map_count; j++) {
+            const auto &m = info->msi_map[j];
+            dprintf(INFO, "PCIE: segment %u msi-map rid %#x..%#x -> phandle %#x device id %#x\n",
+                    segment, m.rid_base, m.rid_base + m.length - 1, m.controller_phandle, m.msi_base);
+        }
         err = pci_bus_mgr_add_root(&desc);
         if (err != NO_ERROR) {
             printf("PCIE: failed to add root for segment %u, error %d\n", segment, err);
@@ -369,7 +548,11 @@ status_t fdtwalk_setup_pci(const void *fdt) {
         roots_added++;
     }
 
-    return (roots_added > 0) ? NO_ERROR : ERR_NOT_FOUND;
+    if (roots_added == 0) {
+        free(pcie_info);
+        return ERR_NOT_FOUND;
+    }
+    return NO_ERROR;
 }
 #endif
 
@@ -439,10 +622,6 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                        gic_info[i].v2.distributor_base, gic_info[i].v2.distributor_len);
                 dprintf(INFO, "FDT: GICv2 cpu interface base %#" PRIx64 ", len %#" PRIx64 "\n",
                        gic_info[i].v2.cpu_interface_base, gic_info[i].v2.cpu_interface_len);
-                for (size_t j = 0; j < gic_info[i].v2.v2m_count; j++) {
-                    dprintf(INFO, "FDT: GICv2m frame[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
-                            j, gic_info[i].v2.v2m_frame[j].base, gic_info[i].v2.v2m_frame[j].len);
-                }
                 init_info.gic_revision = 2;
                 init_info.gicd_paddr = gic_info[i].v2.distributor_base;
                 init_info.gicd_size = gic_info[i].v2.distributor_len;
@@ -459,10 +638,6 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                        gic_info[i].v3.hypervisor_interface_base, gic_info[i].v3.hypervisor_interface_len);
                 dprintf(INFO, "FDT: GICv3 virtual interface base %#" PRIx64 ", len %#" PRIx64 "\n",
                        gic_info[i].v3.virtual_interface_base, gic_info[i].v3.virtual_interface_len);
-                for (size_t j = 0; j < gic_info[i].v3.its_count; j++) {
-                    dprintf(INFO, "FDT: GICv3 ITS[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
-                            j, gic_info[i].v3.its[j].base, gic_info[i].v3.its[j].len);
-                }
                 init_info.gic_revision = 3;
                 init_info.gicd_paddr = gic_info[i].v3.distributor_base;
                 init_info.gicd_size = gic_info[i].v3.distributor_len;
@@ -470,6 +645,25 @@ status_t fdtwalk_setup_gic(const void *fdt) {
                 init_info.gicr_size = gic_info[i].v3.redistributor_len;
                 init_info.gicc_paddr = gic_info[i].v3.cpu_interface_base;
                 init_info.gicc_size = gic_info[i].v3.cpu_interface_len;
+            }
+
+            for (size_t j = 0; j < gic_info[i].v2m_count; j++) {
+                dprintf(INFO, "FDT: GICv2m frame[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
+                        j, gic_info[i].v2m_frame[j].base, gic_info[i].v2m_frame[j].len);
+                if (init_info.v2m_count < countof(init_info.v2m)) {
+                    init_info.v2m[init_info.v2m_count].paddr = gic_info[i].v2m_frame[j].base;
+                    init_info.v2m[init_info.v2m_count].size = gic_info[i].v2m_frame[j].len;
+                    init_info.v2m_count++;
+                }
+            }
+            for (size_t j = 0; j < gic_info[i].its_count; j++) {
+                dprintf(INFO, "FDT: GICv3 ITS[%zu] base %#" PRIx64 ", len %#" PRIx64 "\n",
+                        j, gic_info[i].its[j].base, gic_info[i].its[j].len);
+                if (gic_info[i].gic_version == 3 && init_info.its_count < countof(init_info.its)) {
+                    init_info.its[init_info.its_count].paddr = gic_info[i].its[j].base;
+                    init_info.its[init_info.its_count].size = gic_info[i].its[j].len;
+                    init_info.its_count++;
+                }
             }
 
             arm_gic_init_map(&init_info);

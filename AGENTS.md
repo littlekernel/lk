@@ -285,6 +285,10 @@ The do-qemu* scripts auto-build before launching QEMU. Note they default to `dlm
 # riscv32 in supervisor mode with sv32 (qemu-virt-riscv32-supervisor-test)
 ./scripts/run-qemu-boot-tests.py --arch arm64-16k --arch arm64-64k --arch riscv64-sv39 --arch riscv32-sv32
 
+# arm64 on a GICv3 with the virtio devices on PCI (the default arm64 runs are GICv2 with
+# virtio-mmio), which is the configuration that exercises redistributors and PCI MSI
+./scripts/run-qemu-boot-tests.py --arch arm64-gicv3
+
 # Raise the per-architecture timeout for longer suites. The defaults (90s, 120s for
 # x86-64-uefi) are hang detectors, not performance targets; see the table in the script.
 ./scripts/run-qemu-boot-tests.py --arch arm64 --timeout 600

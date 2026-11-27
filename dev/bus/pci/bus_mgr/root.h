@@ -20,7 +20,7 @@ namespace pci {
 class bus;
 
 // A PCI root: a host bridge with a segment, a range of bus numbers it may hand out, a set of
-// address windows it decodes and an optional legacy interrupt routing hook. Every probed bus
+// address windows it decodes and optional legacy interrupt and MSI routing hooks. Every probed bus
 // belongs to exactly one root. Platforms register roots with pci_bus_mgr_add_root(); if none
 // are registered a default root covering segment 0 is created at init time.
 class root : public lk::list_hook<> {
@@ -48,6 +48,11 @@ public:
     bool has_intx_route() const { return desc_.intx_route != nullptr; }
     status_t route_intx(const pci_intx_path_entry *path, size_t path_len, unsigned int pin,
                         unsigned int *vector);
+
+    // MSI routing, when the root description has it
+    bool has_msi_route() const { return desc_.msi_ops != nullptr; }
+    status_t msi_alloc(uint16_t requester_id, unsigned int *vector, pci_msi_msg *msg);
+    void msi_free(uint16_t requester_id, unsigned int vector);
 
     uint16_t segment() const { return desc_.segment; }
     uint8_t bus_start() const { return desc_.bus_start; }

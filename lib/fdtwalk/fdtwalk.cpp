@@ -12,7 +12,9 @@
 #include <lk/cpp.h>
 #include <lk/err.h>
 #include <lk/trace.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 
 #define LOCAL_TRACE 0
@@ -81,8 +83,182 @@ status_t consume_cells_u64(const uint8_t **ptr, size_t *remaining_len, size_t ce
     return NO_ERROR;
 }
 
+uint32_t read_u32_prop(const void *fdt, int offset, const char *prop, uint32_t default_value) {
+    int len;
+    const auto *p = static_cast<const fdt32_t *>(fdt_getprop(fdt, offset, prop, &len));
+    return (p && len == 4) ? fdt32_ld(p) : default_value;
+}
+
+// Is any string in the node's compatible list one that contains needle?
+bool compatible_contains(const void *fdt, int offset, const char *needle) {
+    int len;
+    const char *compat = static_cast<const char *>(fdt_getprop(fdt, offset, "compatible", &len));
+    if (!compat) {
+        return false;
+    }
+    for (const char *s = compat; s < compat + len; s += strlen(s) + 1) {
+        if (strstr(s, needle)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Translate an interrupt specifier of controller node ctrl into a platform vector, for the
+// controllers whose specifiers have one meaning: a GIC (type, number, flags; type 0 is an
+// SPI numbered from 32, type 1 a PPI numbered from 16) and any single cell controller, whose
+// cell is the vector (the riscv PLIC).
+bool decode_interrupt_specifier(const void *fdt, int ctrl, const uint32_t *cells, uint32_t ncells,
+                                uint32_t *vector) {
+    if (ncells == 1) {
+        *vector = cells[0];
+        return true;
+    }
+    if (ncells == 3 && compatible_contains(fdt, ctrl, "gic")) {
+        switch (cells[0]) {
+            case 0: *vector = cells[1] + 32; return true;
+            case 1: *vector = cells[1] + 16; return true;
+            default: return false;
+        }
+    }
+    return false;
+}
+
+// Decode a pcie node's interrupt-map and interrupt-map-mask into info. Entries whose parent
+// cannot be decoded are skipped, a malformed map stops the parse with what was read so far.
+void parse_pcie_interrupt_map(const void *fdt, int offset, uint32_t child_address_cells,
+                              const char *name, fdt_walk_pcie_info *info) {
+    int len;
+    const auto *map = static_cast<const fdt32_t *>(fdt_getprop(fdt, offset, "interrupt-map", &len));
+    if (!map) {
+        return;
+    }
+
+    const uint32_t child_interrupt_cells = read_u32_prop(fdt, offset, "#interrupt-cells", 1);
+    if (child_address_cells != 3 || child_interrupt_cells != 1) {
+        printf("FDT: %s: interrupt-map with %u address and %u interrupt cells, ignoring it\n",
+               name, child_address_cells, child_interrupt_cells);
+        return;
+    }
+
+    for (auto &m : info->intx_map_mask) {
+        m = UINT32_MAX;
+    }
+    int mask_len;
+    const auto *mask = static_cast<const fdt32_t *>(fdt_getprop(fdt, offset, "interrupt-map-mask", &mask_len));
+    if (mask) {
+        if (mask_len != sizeof(info->intx_map_mask)) {
+            printf("FDT: %s: interrupt-map-mask is %d bytes, ignoring the map\n", name, mask_len);
+            return;
+        }
+        for (size_t i = 0; i < countof(info->intx_map_mask); i++) {
+            info->intx_map_mask[i] = fdt32_ld(&mask[i]);
+        }
+    }
+
+    const size_t ncells = static_cast<size_t>(len) / sizeof(fdt32_t);
+    size_t i = 0;
+    while (i < ncells) {
+        // child unit address and pin, then the parent's phandle
+        if (ncells - i < 5) {
+            printf("FDT: %s: interrupt-map truncated\n", name);
+            return;
+        }
+        fdt_walk_pcie_intx_map_entry entry = {};
+        for (auto &c : entry.child) {
+            c = fdt32_ld(&map[i++]);
+        }
+        const uint32_t phandle = fdt32_ld(&map[i++]);
+
+        // the parent's own cell counts say how long the rest of the entry is. An absent
+        // #address-cells counts as 0 here, the way Linux reads interrupt-map parents.
+        const int parent = fdt_node_offset_by_phandle(fdt, phandle);
+        if (parent < 0) {
+            printf("FDT: %s: interrupt-map names unknown phandle %#x\n", name, phandle);
+            return;
+        }
+        const uint32_t parent_address_cells = read_u32_prop(fdt, parent, "#address-cells", 0);
+        const uint32_t parent_interrupt_cells = read_u32_prop(fdt, parent, "#interrupt-cells", 0);
+        if (parent_interrupt_cells == 0 || parent_interrupt_cells > 4 || parent_address_cells > 4 ||
+            ncells - i < parent_address_cells + parent_interrupt_cells) {
+            printf("FDT: %s: bad interrupt-map parent cells (%u address, %u interrupt)\n", name,
+                   parent_address_cells, parent_interrupt_cells);
+            return;
+        }
+        i += parent_address_cells;
+        uint32_t spec[4];
+        for (uint32_t k = 0; k < parent_interrupt_cells; k++) {
+            spec[k] = fdt32_ld(&map[i++]);
+        }
+
+        if (!decode_interrupt_specifier(fdt, parent, spec, parent_interrupt_cells, &entry.vector)) {
+            LTRACEF("%s: skipping interrupt-map entry with an undecodable parent\n", name);
+            continue;
+        }
+        if (info->intx_map_count == countof(info->intx_map)) {
+            printf("FDT: %s: interrupt-map has more than %zu entries, using the first %zu\n", name,
+                   countof(info->intx_map), countof(info->intx_map));
+            return;
+        }
+        info->intx_map[info->intx_map_count++] = entry;
+    }
+}
+
+// Decode a pcie node's msi-map (entries of rid-base, phandle, msi-base, length: always four
+// cells, the way Linux's of_map_id reads them whatever the controller's #msi-cells) and
+// msi-map-mask, or else its msi-parent.
+void parse_pcie_msi_map(const void *fdt, int offset, const char *name, fdt_walk_pcie_info *info) {
+    info->msi_map_mask = read_u32_prop(fdt, offset, "msi-map-mask", UINT32_MAX);
+
+    int len;
+    const auto *map = static_cast<const fdt32_t *>(fdt_getprop(fdt, offset, "msi-map", &len));
+    if (map) {
+        constexpr size_t entry_cells = 4;
+        const size_t ncells = static_cast<size_t>(len) / sizeof(fdt32_t);
+        if (ncells % entry_cells != 0) {
+            printf("FDT: %s: msi-map is %d bytes, not whole entries; ignoring it\n", name, len);
+            return;
+        }
+        for (size_t i = 0; i < ncells; i += entry_cells) {
+            if (info->msi_map_count == countof(info->msi_map)) {
+                printf("FDT: %s: msi-map has more than %zu entries, using the first %zu\n", name,
+                       countof(info->msi_map), countof(info->msi_map));
+                return;
+            }
+            info->msi_map[info->msi_map_count++] = {
+                .rid_base = fdt32_ld(&map[i]),
+                .controller_phandle = fdt32_ld(&map[i + 1]),
+                .msi_base = fdt32_ld(&map[i + 2]),
+                .length = fdt32_ld(&map[i + 3]),
+            };
+        }
+        return;
+    }
+
+    // msi-parent is a phandle and the controller's #msi-cells of specifier; with no specifier
+    // the device id is the requester id
+    const auto *parent = static_cast<const fdt32_t *>(fdt_getprop(fdt, offset, "msi-parent", &len));
+    if (parent && len >= 4) {
+        const uint32_t phandle = fdt32_ld(parent);
+        const int ctrl = fdt_node_offset_by_phandle(fdt, phandle);
+        const uint32_t msi_cells = ctrl >= 0 ? read_u32_prop(fdt, ctrl, "#msi-cells", 0) : 0;
+        if (msi_cells > 1 || static_cast<size_t>(len) < (1 + msi_cells) * sizeof(fdt32_t)) {
+            printf("FDT: %s: msi-parent with %u specifier cells, ignoring it\n", name, msi_cells);
+            return;
+        }
+        info->msi_map_mask = UINT32_MAX;
+        info->msi_map[info->msi_map_count++] = {
+            .rid_base = 0,
+            .controller_phandle = phandle,
+            .msi_base = msi_cells ? fdt32_ld(&parent[1]) : 0,
+            .length = 0x10000,
+        };
+    }
+}
+
 struct pci_ranges_entry {
-    uint32_t type;
+    uint32_t type; // space code from phys.hi [25:24], shifted in place
+    bool prefetchable; // phys.hi bit 30
     uint64_t child_addr;
     uint64_t parent_addr;
     uint64_t size;
@@ -110,6 +286,7 @@ pci_ranges_entry_result read_pci_ranges_entry(const uint8_t **ptr, size_t *remai
         return result;
     }
     result.entry.type = static_cast<uint32_t>(child_hi) & 0x03000000;
+    result.entry.prefetchable = (static_cast<uint32_t>(child_hi) & 0x40000000) != 0;
 
     err = consume_cells_u64(ptr, remaining_len, child_addr_cells - 1, &result.entry.child_addr, true);
     if (err != NO_ERROR) {
@@ -524,11 +701,18 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                 LTRACEF_LEVEL(2, "found '%s' prop 'bus-range' len %d, ac %u, sc %u\n", name, lenp,
                               state.parent_address_cell(), state.parent_size_cell());
 
+                uint32_t start = 0, end = 0;
                 if (lenp == 8) {
-                    info[*count].bus_start = fdt32_ld((const fdt32_t *)prop_ptr);
-                    prop_ptr += 4;
-                    info[*count].bus_end = fdt32_ld((const fdt32_t *)prop_ptr);
+                    start = fdt32_ld((const fdt32_t *)prop_ptr);
+                    end = fdt32_ld((const fdt32_t *)(prop_ptr + 4));
                 }
+                if (lenp != 8 || start > end || end > 0xff) {
+                    printf("FDT: %s: bad bus-range (len %d, %u..%u), skipping node\n", name, lenp,
+                           start, end);
+                    return;
+                }
+                info[*count].bus_start = static_cast<uint8_t>(start);
+                info[*count].bus_end = static_cast<uint8_t>(end);
             }
 
             prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "ranges", &lenp);
@@ -557,15 +741,27 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                             info[*count].io_base_mmio = entry.parent_addr;
                             info[*count].io_len = entry.size;
                             break;
+                        case 0x0000000: // config space, described by reg instead
+                            break;
                         case 0x2000000: // mmio range
-                            LTRACEF_LEVEL(2, "mmio range\n");
-                            info[*count].mmio_base = entry.child_addr;
-                            info[*count].mmio_len = entry.size;
+                            LTRACEF_LEVEL(2, "mmio range%s\n", entry.prefetchable ? " (prefetchable)" : "");
+                            if (entry.prefetchable) {
+                                info[*count].mmio_prefetch_base = entry.child_addr;
+                                info[*count].mmio_prefetch_len = entry.size;
+                            } else {
+                                info[*count].mmio_base = entry.child_addr;
+                                info[*count].mmio_len = entry.size;
+                            }
                             break;
                         case 0x3000000: // mmio range (64bit)
-                            LTRACEF_LEVEL(2, "mmio range (64bit)\n");
-                            info[*count].mmio64_base = entry.child_addr;
-                            info[*count].mmio64_len = entry.size;
+                            LTRACEF_LEVEL(2, "mmio range (64bit)%s\n", entry.prefetchable ? " (prefetchable)" : "");
+                            if (entry.prefetchable) {
+                                info[*count].mmio64_prefetch_base = entry.child_addr;
+                                info[*count].mmio64_prefetch_len = entry.size;
+                            } else {
+                                info[*count].mmio64_base = entry.child_addr;
+                                info[*count].mmio64_len = entry.size;
+                            }
                             break;
                         default:
                             LTRACEF_LEVEL(2, "unhandled type %#x\n", entry.type);
@@ -576,11 +772,53 @@ status_t fdt_walk_find_pcie_info(const void *fdt, struct fdt_walk_pcie_info *inf
                 }
             }
 
+            parse_pcie_interrupt_map(state.fdt, state.offset, state.node_address_cell(), name,
+                                     &info[*count]);
+            parse_pcie_msi_map(state.fdt, state.offset, name, &info[*count]);
+
             (*count)++;
         }
     };
 
     return _fdt_walk(fdt, walker);
+}
+
+status_t fdt_walk_pcie_lookup_intx(const struct fdt_walk_pcie_info *info, uint8_t bus, uint8_t dev,
+                                   uint8_t fn, uint8_t pin, uint32_t *vector) {
+    const uint32_t key[4] = {
+        static_cast<uint32_t>(bus) << 16 | static_cast<uint32_t>(dev & 0x1f) << 11 |
+            static_cast<uint32_t>(fn & 0x7) << 8,
+        0, 0, pin,
+    };
+    for (size_t i = 0; i < info->intx_map_count; i++) {
+        const auto &entry = info->intx_map[i];
+        bool match = true;
+        for (size_t k = 0; k < countof(key); k++) {
+            if ((key[k] & info->intx_map_mask[k]) != (entry.child[k] & info->intx_map_mask[k])) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            *vector = entry.vector;
+            return NO_ERROR;
+        }
+    }
+    return ERR_NOT_FOUND;
+}
+
+status_t fdt_walk_pcie_lookup_msi(const struct fdt_walk_pcie_info *info, uint16_t requester_id,
+                                  uint32_t *controller_phandle, uint32_t *device_id) {
+    const uint32_t rid = requester_id & info->msi_map_mask;
+    for (size_t i = 0; i < info->msi_map_count; i++) {
+        const auto &entry = info->msi_map[i];
+        if (rid >= entry.rid_base && rid - entry.rid_base < entry.length) {
+            *controller_phandle = entry.controller_phandle;
+            *device_id = entry.msi_base + (rid - entry.rid_base);
+            return NO_ERROR;
+        }
+    }
+    return ERR_NOT_FOUND;
 }
 
 status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info, size_t *count) {
@@ -601,7 +839,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                     const char *child_compat = get_prop_string(state.fdt, state.offset, "compatible");
                     if (child_compat) {
                         if (strstr(child_compat, "arm,gic-v3-its") != nullptr) {
-                            size_t idx = gic_infop->v3.its_count;
+                            size_t idx = gic_infop->its_count;
                             if (idx < FDT_WALK_MAX_GIC_ITS) {
                                 int lenp;
                                 const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
@@ -611,14 +849,15 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                                     if (result.status == NO_ERROR) {
                                         LTRACEF("found ITS subnode, base %#llx len %#llx\n",
                                                 result.entry.base, result.entry.len);
-                                        gic_infop->v3.its[idx].base = result.entry.base;
-                                        gic_infop->v3.its[idx].len = result.entry.len;
-                                        gic_infop->v3.its_count++;
+                                        gic_infop->its[idx].base = result.entry.base;
+                                        gic_infop->its[idx].len = result.entry.len;
+                                        gic_infop->its[idx].phandle = fdt_get_phandle(state.fdt, state.offset);
+                                        gic_infop->its_count++;
                                     }
                                 }
                             }
                         } else if (strstr(child_compat, "arm,gic-v2m-frame") != nullptr) {
-                            size_t idx = gic_infop->v2.v2m_count;
+                            size_t idx = gic_infop->v2m_count;
                             if (idx < FDT_WALK_MAX_GIC_V2M) {
                                 int lenp;
                                 const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "reg", &lenp);
@@ -628,9 +867,10 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
                                     if (result.status == NO_ERROR) {
                                         LTRACEF("found GICv2m frame subnode, base %#llx len %#llx\n",
                                                 result.entry.base, result.entry.len);
-                                        gic_infop->v2.v2m_frame[idx].base = result.entry.base;
-                                        gic_infop->v2.v2m_frame[idx].len = result.entry.len;
-                                        gic_infop->v2.v2m_count++;
+                                        gic_infop->v2m_frame[idx].base = result.entry.base;
+                                        gic_infop->v2m_frame[idx].len = result.entry.len;
+                                        gic_infop->v2m_frame[idx].phandle = fdt_get_phandle(state.fdt, state.offset);
+                                        gic_infop->v2m_count++;
                                     }
                                 }
                             }
@@ -702,6 +942,7 @@ status_t fdt_walk_find_gic_info(const void *fdt, struct fdt_walk_gic_info *info,
 
             // zero out the info struct, we're about to fill it in with what we find in the dt
             *infop = {};
+            infop->phandle = fdt_get_phandle(state.fdt, state.offset);
 
             // at this point, we have a gic node either v2 or v3, so read out relevant properties
             const uint8_t *prop_ptr = (const uint8_t *)fdt_getprop(state.fdt, state.offset, "#interrupt-cells", &lenp);

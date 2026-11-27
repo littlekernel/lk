@@ -116,6 +116,19 @@ status_t root::route_intx(const pci_intx_path_entry *path, size_t path_len, unsi
     return desc_.intx_route(desc_.intx_cookie, path, path_len, pin, vector);
 }
 
+status_t root::msi_alloc(uint16_t requester_id, unsigned int *vector, pci_msi_msg *msg) {
+    if (!desc_.msi_ops) {
+        return ERR_NOT_SUPPORTED;
+    }
+    return desc_.msi_ops->alloc(desc_.msi_cookie, requester_id, vector, msg);
+}
+
+void root::msi_free(uint16_t requester_id, unsigned int vector) {
+    if (desc_.msi_ops) {
+        desc_.msi_ops->free(desc_.msi_cookie, requester_id, vector);
+    }
+}
+
 void root::dump(size_t indent) {
     for (size_t i = 0; i < indent; i++) {
         printf(" ");
