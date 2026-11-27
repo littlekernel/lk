@@ -295,9 +295,10 @@ int platform_dgetc(char *c, bool wait) {
 }
 
 /*
- * Panic time i/o, for the panic shell: the polled uart only, without console_lock
- * and without touching the screens, so it works whatever state a crashed cpu left
- * the console in. Input is polled since the panic shell runs with interrupts off.
+ * Panic time i/o, for the panic shell: the polled uart, the screen and the keyboard,
+ * without console_lock, so it works whatever lock state a crashed cpu left the console
+ * in. The screen is written the way a panic message re-entering the console already
+ * writes it. Input is polled since the panic shell runs with interrupts off.
  */
 static void panic_uart_putc(char c) {
     if (!uart_present) {
@@ -307,17 +308,31 @@ static void panic_uart_putc(char c) {
     outp(uart_io_port + UART_RBR, c);
 }
 
+static void panic_screen_putc(char c) {
+    if (fb_console_present()) {
+        fb_console_dputc(c);
+    } else if (vga_console_present()) {
+        vga_console_putc(c);
+        vga_console_sync_cursor();
+    }
+}
+
 void platform_pputc(char c) {
     if (c == '\n') {
         panic_uart_putc('\r');
+        panic_screen_putc('\r');
     }
     panic_uart_putc(c);
+    panic_screen_putc(c);
 }
 
 int platform_pgetc(char *c, bool wait) {
     do {
         if (uart_present && (inp(uart_io_port + UART_LSR) & UART_LSR_DR)) {
             *c = inp(uart_io_port + UART_RBR);
+            return 0;
+        }
+        if (platform_poll_key(c) == 0) {
             return 0;
         }
     } while (wait);

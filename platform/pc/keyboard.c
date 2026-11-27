@@ -150,8 +150,10 @@ static bool key_lshift;
 static bool key_rshift;
 
 static cbuf_t *key_buf;
+static bool keyboard_present;
 
-static void i8042_process_scode(uint8_t scode, unsigned int flags) {
+// the character a scancode makes, or -1 for none; tracks the shift keys
+static int i8042_decode_scode(uint8_t scode) {
     static int lastCode = 0;
     int keyCode;
     uint8_t keyUpBit;
@@ -180,13 +182,10 @@ static void i8042_process_scode(uint8_t scode, unsigned int flags) {
         keyCode != -1 ? (char) keyCode : ' ', key_lshift ? 'L' : ' ',
         key_rshift ? 'R' : ' ');*/
 
-    if (keyCode != -1 && !keyUpBit) {
-        char c = (char)keyCode;
-        cbuf_write_char(key_buf, c, false);
-    }
-
     // update the last received code
     lastCode = scode;
+
+    return keyUpBit ? -1 : keyCode;
 }
 
 static int i8042_wait_read(void) {
@@ -274,8 +273,10 @@ static enum handler_return i8042_interrupt(void *arg) {
     // exit_critical_section();
 
     if (str & I8042_STR_OBF) {
-        i8042_process_scode(data, ((str & I8042_STR_PARITY) ? I8042_STR_PARITY : 0) |
-                                      ((str & I8042_STR_TIMEOUT) ? I8042_STR_TIMEOUT : 0));
+        const int c = i8042_decode_scode(data);
+        if (c >= 0) {
+            cbuf_write_char(key_buf, (char)c, false);
+        }
         resched = true;
     }
 
@@ -287,6 +288,26 @@ int platform_read_key(char *c) {
 
     len = cbuf_read_char(key_buf, c, true);
     return len;
+}
+
+int platform_poll_key(char *c) {
+    if (!keyboard_present) {
+        return ERR_NOT_READY;
+    }
+    const uint8_t str = i8042_read_status();
+    if (!(str & I8042_STR_OBF)) {
+        return ERR_NOT_READY;
+    }
+    const uint8_t data = i8042_read_data();
+    if (str & I8042_STR_AUXDATA) {
+        return ERR_NOT_READY; // mouse
+    }
+    const int key = i8042_decode_scode(data);
+    if (key < 0) {
+        return ERR_NOT_READY;
+    }
+    *c = (char)key;
+    return 0;
 }
 
 void platform_i8042_keyboard_reset(void) {
@@ -339,6 +360,7 @@ void platform_init_keyboard(cbuf_t *buffer) {
         return;
     }
 
+    keyboard_present = true;
     register_int_handler(INT_KEYBOARD, &i8042_interrupt, NULL);
     unmask_interrupt(INT_KEYBOARD);
 
