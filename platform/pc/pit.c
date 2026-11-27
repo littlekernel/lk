@@ -53,24 +53,38 @@ static uint64_t timer_delta_time;
  *  interrupt, in milliseconds */
 #define MAX_TIMER_INTERVAL 55
 
-lk_time_t pit_current_time(void) {
+// The tick handler is the only writer of timer_current_time. A 64 bit load is atomic on
+// x86-64, and on a uniprocessor the handler runs to completion between two of a reader's
+// loads, so reading the high word on both sides of the low one catches a carry; only a
+// 32 bit SMP build needs the lock. Reading without it also keeps interrupts on in loops
+// that poll the clock: QEMU before 9.1 doesn't take a pending interrupt in the one
+// instruction window sti opens, so a loop that re-enables them only that briefly never
+// sees the tick there.
+static uint64_t read_current_time(void) {
+#if ARCH_X86_64
+    return timer_current_time;
+#elif WITH_SMP
     arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
-
-    lk_time_t time = (lk_time_t)(timer_current_time >> 32);
-
+    const uint64_t time = timer_current_time;
     spin_unlock_irqrestore(&lock, state);
-
     return time;
+#else
+    const volatile uint32_t *word = (const volatile uint32_t *)&timer_current_time;
+    uint32_t hi, lo;
+    do {
+        hi = word[1];
+        lo = word[0];
+    } while (hi != word[1]);
+    return (uint64_t)hi << 32 | lo;
+#endif
+}
+
+lk_time_t pit_current_time(void) {
+    return (lk_time_t)(read_current_time() >> 32);
 }
 
 lk_bigtime_t pit_current_time_hires(void) {
-    arch_interrupt_saved_state_t state = spin_lock_irqsave(&lock);
-
-    lk_bigtime_t time = (lk_bigtime_t)((timer_current_time >> 22) * 1000) >> 10;
-
-    spin_unlock_irqrestore(&lock, state);
-
-    return time;
+    return (lk_bigtime_t)((read_current_time() >> 22) * 1000) >> 10;
 }
 
 static enum handler_return pit_timer_tick(void *arg) {
